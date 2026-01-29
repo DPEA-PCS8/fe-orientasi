@@ -1,13 +1,7 @@
-# build stage
-FROM node:25.3.0-alpine AS build
-WORKDIR /app
-COPY . .
-RUN npm install && npm run build
-
-# run stage
-FROM nginx:alpine
+FROM image-registry.openshift-image-registry.svc:5000/openshift/nginx:1.20
+# Kita tinggal copy hasil build yang dikirim GitLab tadi
+COPY dist/ /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
 
 # OpenShift compatibility:
 # 1. Support running as arbitrary user (random UID) in root group (GID 0)

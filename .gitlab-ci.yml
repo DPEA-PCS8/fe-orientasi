@@ -7,20 +7,28 @@ services:
   - docker:dind
 
 stages:
+  - build
   - deploy
 
+build-frontend:
+  stage: build
+  image: node:25.3.0-alpine
+  tags:
+    - dev-container
+  script:
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+
 deploy-frontend:
-  variables:
-    CI_DEBUG_TRACE: "true"
   stage: deploy
   image: quay.io/openshift/origin-cli:latest
   tags:
     - dev-container
   script:
     - kubectl config use-context pcs-8/test-orientasi:ort-agent
-
+    # Kita cuma kirim folder dist dan Dockerfile sederhana
     - oc start-build test-orientasi-react --from-dir=. -n test-orientasi --follow
-
     - oc rollout restart deployment/test-orientasi-react -n test-orientasi
-
-    - oc rollout status deployment/test-orientasi-react -n test-orientasi
