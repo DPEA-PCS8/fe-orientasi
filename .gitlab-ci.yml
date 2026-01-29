@@ -15,7 +15,7 @@ deploy-frontend:
   tags:
     - dev-container
   script:
-    - kubectl config use-context pcs-8/test-orientasi:ort-agent
+    - kubectl config use-context pcs-8/orientasi-frontend-test:ort-agent
 
     - oc start-build test-orientasi-react --from-dir=. -n test-orientasi --follow
 
