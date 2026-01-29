@@ -10,13 +10,17 @@ stages:
   - deploy
 
 deploy-frontend:
+  variables:
+    CI_DEBUG_TRACE: "true"
   stage: deploy
   image: quay.io/openshift/origin-cli:latest
   tags:
     - dev-container
   script:
-    - echo "Checking contexts..."
-    - kubectl config get-contexts
-    - kubectl config use-context pcs-8/test-orientasi:ort-agent || echo "Context not found, trying local path..."
-    - kubectl config use-context pcs-8/test-orientasi-react:ort-agent || echo "Still not found!"
-    - cat $KUBECONFIG || echo "Kubeconfig file not found!"
+    - kubectl config use-context pcs-8/test-orientasi:ort-agent
+
+    - oc start-build test-orientasi-react --from-dir=. -n test-orientasi --follow
+
+    - oc rollout restart deployment/test-orientasi-react -n test-orientasi
+
+    - oc rollout status deployment/test-orientasi-react -n test-orientasi
