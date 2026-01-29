@@ -6,6 +6,10 @@ variables:
 services:
   - docker:dind
 
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
 stages:
   - build
   - deploy
