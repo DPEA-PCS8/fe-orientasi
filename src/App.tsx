@@ -9,7 +9,7 @@ function App() {
 
   const fetchHello = async () => {
     try {
-      const response = await fetch('https://test-orientasi-spring-test-orientasi.apps.ocp.ojk.go.id/api/hello')
+      const response = await fetch('/api/hello')
       const data = await response.json()
       // The user specified the response format: { status: 200, message: "Success", data: "Hello, World!" }
       // We want to display just "Hello, World!" which is in the data field.
