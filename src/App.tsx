@@ -43,7 +43,7 @@ function App() {
           Hit Backend
         </button>
         <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
+          Test CI/CD is it works??
         </p>
       </div>
       {message && (
