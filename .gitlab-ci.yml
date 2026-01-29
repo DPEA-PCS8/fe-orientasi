@@ -1,3 +1,11 @@
+image: docker:25.0.3
+variables:
+  DOCKER_HOST: tcp://docker:2375/
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_DRIVER: overlay2
+services:
+  - docker:dind
+
 stages:
   - build
   - deploy
@@ -5,6 +13,8 @@ stages:
 build-frontend:
   stage: build
   image: node:25.3.0-alpine
+  tags:
+    - dev-container
   script:
     - npm install
     - npm run build
@@ -18,6 +28,8 @@ build-frontend:
 deploy-frontend:
   stage: deploy
   image: quay.io/openshift/origin-cli:latest
+  tags:
+    - dev-container
   needs:
     - build-frontend
   script:
