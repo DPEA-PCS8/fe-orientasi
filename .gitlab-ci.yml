@@ -1,0 +1,24 @@
+image: docker:25.0.3
+variables:
+  DOCKER_HOST: tcp://docker:2375/
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_DRIVER: overlay2
+services:
+  - docker:dind
+
+stages:
+  - deploy
+
+deploy-frontend:
+  stage: deploy
+  image: quay.io/openshift/origin-cli:latest
+  tags:
+    - dev-container
+  script:
+    - kubectl config use-context pcs-8/test-orientasi:ort-agent
+
+    - oc start-build test-orientasi-react --from-dir=. -n test-orientasi --follow
+
+    - oc rollout restart deployment/test-orientasi-react -n test-orientasi
+
+    - oc rollout status deployment/test-orientasi-react -n test-orientasi
