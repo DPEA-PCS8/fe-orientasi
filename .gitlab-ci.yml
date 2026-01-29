@@ -10,6 +10,8 @@ stages:
   - deploy
 
 deploy-frontend:
+  variables:
+    CI_DEBUG_TRACE: "true"
   stage: deploy
   image: quay.io/openshift/origin-cli:latest
   tags:
