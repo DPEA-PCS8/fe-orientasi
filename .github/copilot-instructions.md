@@ -10,8 +10,15 @@ You are an expert Frontend Engineer assisting the team. Always follow these rule
 - **Architecture:** Component-Based Architecture
 - **Naming Convention:** 
   - Variables: `camelCase`
+  - Functions: `camelCase`
+  - React Components: `PascalCase`
+  - Hooks: `camelCase` with `use` prefix
+  - Interfaces / Types: `PascalCase`
+  - Constants: `UPPER_SNAKE_CASE`
   - CSS Classes: `kebab-case`
-  - JSON Responses: `snake_case`.
+  - Folder Names: `kebab-case`
+  - JSON Responses: `snake_case`
+  - Redux Actions: `UPPER_SNAKE_CASE`
 
 ## 2. Coding Rules (Strict)
 - **Error Handling:** 
