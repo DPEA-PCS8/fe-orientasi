@@ -1,0 +1,26 @@
+name: Build & Deploy to OpenShift
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-deploy:
+    runs-on: self-hosted
+
+    env:
+      REGISTRY: image-registry.openshift-image-registry.svc:5000
+      NAMESPACE: test-orientasi
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Trigger OpenShift Build
+        run: |
+          oc start-build frontend-app -n ${{ env.NAMESPACE }} --follow
+
+      - name: Rollout restart
+        run: |
+          oc rollout restart deployment/frontend-app -n ${{ env.NAMESPACE }}
+          
+          oc rollout status deployment/frontend-app -n ${{ env.NAMESPACE }}
