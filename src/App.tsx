@@ -43,7 +43,7 @@ function App() {
           Hit Backend
         </button>
         <p>
-          PesenKopi??
+          Test CI/CD is it works??
         </p>
       </div>
       {message && (
