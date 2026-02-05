@@ -1,0 +1,85 @@
+.table-container {
+  overflow-x: auto;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  .table-container {
+    background-color: #1a1a1a;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 800px;
+}
+
+.custom-table th,
+.custom-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .custom-table th,
+  .custom-table td {
+    border-bottom: 1px solid #333;
+  }
+}
+
+.custom-table th {
+  background-color: #f0f0f0;
+  color: #333;
+  font-weight: 600;
+  user-select: none;
+}
+
+.custom-table th.sortable {
+  cursor: pointer;
+}
+
+.custom-table th.sortable:hover {
+  background-color: #e0e0e0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .custom-table th {
+    background-color: #333;
+    color: #fff;
+  }
+  .custom-table th.sortable:hover {
+    background-color: #444;
+  }
+}
+
+.custom-table tr:hover {
+  background-color: #f5f5f5;
+}
+
+@media (prefers-color-scheme: dark) {
+  .custom-table tr:hover {
+    background-color: #252525;
+  }
+}
+
+.loading-state, .error-state, .empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: #888;
+}
+
+.error-state {
+  color: #d32f2f;
+}
+
+@media (prefers-color-scheme: dark) {
+  .error-state {
+    color: #ff6b6b;
+  }
+}
