@@ -1,6 +1,7 @@
-import { UserListResponse } from '../types/User';
+import type { UserListResponse } from '../types/User';
 
-const API_BASE_URL = '/api'; // Proxy setup in vite.config.ts will handle this
+// API_BASE_URL will be used when connecting to real backend
+// const API_BASE_URL = '/api';
 
 const DUMMY_USERS = [
   {
