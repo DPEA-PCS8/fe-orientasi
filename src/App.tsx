@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import theme from './styles/theme';
 import { LoginPage } from './pages';
@@ -13,11 +13,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={
-            <Layout
-              pageTitle="User Management"
-              pageDescription="Kelola data pengguna yang terdaftar dalam sistem"
-              breadcrumbs={[{ label: 'User Management' }]}
-            >
+            <Layout>
               <UserList />
             </Layout>
           } />

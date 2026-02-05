@@ -95,7 +95,7 @@ const LoginPage = () => {
           }}
         >
           {/* Logo */}
-          <Box >
+          <Box sx={{ mb: 2.5 }}>
             <img
               src={OJKLogo}
               alt="OJK Logo"
@@ -119,13 +119,13 @@ const LoginPage = () => {
               letterSpacing: '-0.02em',
             }}
           >
-            Masuk ke KKAD
+            Masuk ke Kertas Kerja Digital
           </Typography>
 
           <Typography
             sx={{
               color: '#86868b',
-              mb: 2,
+              mb: 3,
               textAlign: 'center',
               fontSize: '0.95rem',
             }}
@@ -292,7 +292,7 @@ const LoginPage = () => {
               />
             </Box>
 
-            {/* Submit Button - Apple Style */}
+            {/* Submit Button */}
             <Button
               type="submit"
               fullWidth
