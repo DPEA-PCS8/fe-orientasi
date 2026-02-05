@@ -1,32 +1,42 @@
 import { createTheme } from '@mui/material/styles';
 
-// OJK Design System
-// Clean, minimal, elegant with OJK branding
+// OJK Color Palette
+export const COLORS = {
+  PRIMARY: '#DA251C',
+  PRIMARY_GRADIENT: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+  BACKGROUND: '#FBFBFD',
+  SURFACE: '#FFFFFF',
+  TEXT_PRIMARY: '#1D1D1F',
+  TEXT_SECONDARY: '#86868B',
+  BORDER: 'rgba(0, 0, 0, 0.06)',
+  ERROR: '#D32F2F',
+  SUCCESS: '#2E7D32',
+} as const;
 
-const ojkTheme = createTheme({
+const theme = createTheme({
   palette: {
     primary: {
-      main: '#DA251C', // OJK Red
+      main: COLORS.PRIMARY,
       light: '#E35D55',
       dark: '#9A1A14',
-      contrastText: '#ffffff',
+      contrastText: '#FFFFFF',
     },
     secondary: {
-      main: '#59595B', // OJK Grey
+      main: '#59595B',
       light: '#808080',
       dark: '#333333',
-      contrastText: '#ffffff',
+      contrastText: '#FFFFFF',
     },
     background: {
-      default: '#fbfbfd',
-      paper: '#ffffff',
+      default: COLORS.BACKGROUND,
+      paper: COLORS.SURFACE,
     },
     text: {
-      primary: '#1d1d1f',
-      secondary: '#86868b',
+      primary: COLORS.TEXT_PRIMARY,
+      secondary: COLORS.TEXT_SECONDARY,
     },
     error: {
-      main: '#ff3b30',
+      main: COLORS.ERROR,
     },
     warning: {
       main: '#ff9500',
@@ -35,16 +45,16 @@ const ojkTheme = createTheme({
       main: '#5ac8fa',
     },
     success: {
-      main: '#34c759',
+      main: COLORS.SUCCESS,
     },
-    divider: 'rgba(0, 0, 0, 0.06)',
+    divider: COLORS.BORDER,
   },
   typography: {
     fontFamily: [
       '-apple-system',
       'BlinkMacSystemFont',
-      '"SF Pro Display"',
-      '"SF Pro Text"',
+      '"Segoe UI"',
+      'Roboto',
       '"Helvetica Neue"',
       'Arial',
       'sans-serif',
@@ -75,9 +85,11 @@ const ojkTheme = createTheme({
     },
     body1: {
       letterSpacing: '-0.01em',
+      lineHeight: 1.5,
     },
     body2: {
       letterSpacing: '-0.01em',
+      lineHeight: 1.5,
     },
   },
   shape: {
@@ -88,9 +100,9 @@ const ojkTheme = createTheme({
       styleOverrides: {
         root: {
           textTransform: 'none',
-          fontWeight: 500,
-          borderRadius: 980,
-          padding: '10px 20px',
+          fontWeight: 600,
+          borderRadius: 12,
+          padding: '12px 24px',
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         },
         contained: {
@@ -98,6 +110,13 @@ const ojkTheme = createTheme({
           '&:hover': {
             boxShadow: 'none',
             transform: 'scale(1.02)',
+          },
+        },
+        containedPrimary: {
+          background: COLORS.PRIMARY_GRADIENT,
+          '&:hover': {
+            background: COLORS.PRIMARY_GRADIENT,
+            opacity: 0.9,
           },
         },
         outlined: {
@@ -113,6 +132,9 @@ const ojkTheme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
+          borderRadius: 12,
+          border: `1px solid ${COLORS.BORDER}`,
+          boxShadow: '0 2px 20px rgba(0, 0, 0, 0.04)',
         },
         elevation1: {
           boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
@@ -139,14 +161,29 @@ const ojkTheme = createTheme({
       styleOverrides: {
         root: {
           '& .MuiOutlinedInput-root': {
-            borderRadius: 10,
+            borderRadius: 12,
             transition: 'all 0.2s ease',
-            '&:hover': {
+            '& fieldset': {
+              borderColor: COLORS.BORDER,
+            },
+            '&:hover fieldset': {
+              borderColor: COLORS.PRIMARY,
               boxShadow: '0 0 0 4px rgba(218, 37, 28, 0.1)',
             },
-            '&.Mui-focused': {
+            '&.Mui-focused fieldset': {
+              borderColor: COLORS.PRIMARY,
               boxShadow: '0 0 0 4px rgba(218, 37, 28, 0.15)',
             },
+          },
+        },
+      },
+    },
+    MuiCheckbox: {
+      styleOverrides: {
+        root: {
+          color: COLORS.TEXT_SECONDARY,
+          '&.Mui-checked': {
+            color: COLORS.PRIMARY,
           },
         },
       },
@@ -167,8 +204,8 @@ const ojkTheme = createTheme({
         },
         head: {
           fontWeight: 600,
-          color: '#1d1d1f',
-          backgroundColor: '#fbfbfd',
+          color: COLORS.TEXT_PRIMARY,
+          backgroundColor: COLORS.BACKGROUND,
         },
       },
     },
@@ -187,7 +224,7 @@ const ojkTheme = createTheme({
         paper: {
           borderRadius: 12,
           boxShadow: '0 4px 40px rgba(0, 0, 0, 0.12)',
-          border: '1px solid rgba(0, 0, 0, 0.06)',
+          border: `1px solid ${COLORS.BORDER}`,
         },
       },
     },
@@ -203,7 +240,25 @@ const ojkTheme = createTheme({
         },
       },
     },
+    MuiLink: {
+      styleOverrides: {
+        root: {
+          color: COLORS.PRIMARY,
+          textDecoration: 'none',
+          '&:hover': {
+            textDecoration: 'underline',
+          },
+        },
+      },
+    },
+    MuiAlert: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12,
+        },
+      },
+    },
   },
 });
 
-export default ojkTheme;
+export default theme;
