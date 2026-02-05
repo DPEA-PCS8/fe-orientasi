@@ -7,11 +7,7 @@ function App() {
   return (
     <ThemeProvider theme={ojkTheme}>
       <CssBaseline />
-      <Layout
-        pageTitle="User Management"
-        pageDescription="Kelola data pengguna yang terdaftar dalam sistem"
-        breadcrumbs={[{ label: 'User Management' }]}
-      >
+      <Layout>
         <UserList />
       </Layout>
     </ThemeProvider>
