@@ -17,7 +17,7 @@ jobs:
       
       - name: Trigger OpenShift Build
         run: |
-          oc start-build frontend-app -n ${{ env.NAMESPACE }} --follow
+          oc start-build frontend-app -n ${{ env.NAMESPACE }} --follow --wait
 
       - name: Rollout restart
         run: |
