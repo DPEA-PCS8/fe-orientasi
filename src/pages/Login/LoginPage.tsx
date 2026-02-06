@@ -16,6 +16,7 @@ import {
 } from '@mui/icons-material';
 import Alert from '@mui/material/Alert';
 import OJKLogo from '../../assets/OJK_Logo.png';
+import OfficeJobImage from '../../assets/office-job.jpg';
 import { useLoginForm } from '../../hooks/useLoginForm';
 
 const LoginPage = () => {
@@ -119,7 +120,7 @@ const LoginPage = () => {
               letterSpacing: '-0.02em',
             }}
           >
-            Masuk ke Kertas Kerja Digital
+            Masuk ke KKAD
           </Typography>
 
           <Typography
@@ -153,7 +154,7 @@ const LoginPage = () => {
           {/* Form */}
           <Box component="form" onSubmit={handleSubmit} noValidate sx={{ width: '100%' }}>
             {/* Username Field */}
-            <Box sx={{ mb: 4.5, minHeight: '88px', display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ mb: 2.5, minHeight: '88px', display: 'flex', flexDirection: 'column' }}>
               <TextField
                 fullWidth
                 id="username"
@@ -174,7 +175,7 @@ const LoginPage = () => {
                     backgroundColor: '#f5f5f7',
                     fontSize: '1rem',
                     '& fieldset': {
-                      borderColor: 'transparent',
+                      borderColor: '#d2d2d7',
                     },
                     '&:hover fieldset': {
                       borderColor: '#d2d2d7',
@@ -202,7 +203,7 @@ const LoginPage = () => {
             </Box>
 
             {/* Password Field */}
-            <Box sx={{ mb: 4.5, minHeight: '88px', display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ mb: 2, minHeight: '88px', display: 'flex', flexDirection: 'column' }}>
               <TextField
                 fullWidth
                 id="password"
@@ -240,7 +241,7 @@ const LoginPage = () => {
                     backgroundColor: '#f5f5f7',
                     fontSize: '1rem',
                     '& fieldset': {
-                      borderColor: 'transparent',
+                      borderColor: '#d2d2d7',
                     },
                     '&:hover fieldset': {
                       borderColor: '#d2d2d7',
@@ -268,7 +269,7 @@ const LoginPage = () => {
             </Box>
 
             {/* Remember Me */}
-            <Box sx={{ mb: 3 }}>
+            <Box sx={{ mb: 2 }}>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -331,7 +332,7 @@ const LoginPage = () => {
           {/* Footer */}
           <Typography
             sx={{
-              mt: 2.5,
+              mt: 1.5,
               color: '#86868b',
               fontSize: '0.7rem',
               textAlign: 'center',
@@ -357,7 +358,7 @@ const LoginPage = () => {
         {/* Image */}
         <Box
           component="img"
-          src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80"
+          src={OfficeJobImage}
           alt="Office work illustration"
           sx={{
             width: '100%',
@@ -395,10 +396,10 @@ const LoginPage = () => {
           }}
         >
           <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
-            Transformasi Digital
+            Kertas Kerja Digital (KKAD)
           </Typography>
           <Typography sx={{ fontSize: '0.95rem', opacity: 0.9 }}>
-            Kelola data dan informasi Anda dengan platform terpercaya
+            Kelola data dan informasi terkait RBSI dan PKSI
           </Typography>
         </Box>
       </Box>
