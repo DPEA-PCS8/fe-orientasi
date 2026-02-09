@@ -10,9 +10,6 @@ import {
   Typography,
 } from '@mui/material';
 import {
-  GridViewRounded,
-  PeopleRounded,
-  AssessmentRounded,
   SettingsRounded,
   HistoryRounded,
   NotificationsRounded,
