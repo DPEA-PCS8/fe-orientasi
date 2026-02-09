@@ -15,10 +15,14 @@ import {
   KeyboardArrowDown,
 } from '@mui/icons-material';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import OjkLogoPng from '../assets/OJK_Logo.png';
+import { getUserInfo, clearAuthData } from '../api/authApi';
 
 const Navbar = () => {
+  const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const userInfo = getUserInfo();
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -26,6 +30,21 @@ const Navbar = () => {
 
   const handleClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    clearAuthData();
+    navigate('/login');
+    handleClose();
+  };
+
+  const getInitials = (name: string | undefined): string => {
+    if (!name) return 'U';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
   };
 
   return (
@@ -132,11 +151,11 @@ const Navbar = () => {
                 fontWeight: 600,
               }}
             >
-              AD
+              {getInitials(userInfo?.full_name)}
             </Avatar>
             <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 0.5 }}>
               <Typography variant="body2" sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.8125rem' }}>
-                Admin
+                {userInfo?.full_name || 'User'}
               </Typography>
               <KeyboardArrowDown sx={{ fontSize: 16, color: '#86868b' }} />
             </Box>
@@ -156,9 +175,19 @@ const Navbar = () => {
             }}
             sx={{ mt: 1 }}
           >
+            <MenuItem disabled sx={{ opacity: '1 !important' }}>
+              <Box>
+                <Typography sx={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                  {userInfo?.full_name || 'User'}
+                </Typography>
+                <Typography sx={{ fontSize: '0.75rem', color: '#86868b' }}>
+                  {userInfo?.email || ''}
+                </Typography>
+              </Box>
+            </MenuItem>
             <MenuItem onClick={handleClose}>Profile</MenuItem>
             <MenuItem onClick={handleClose}>Settings</MenuItem>
-            <MenuItem onClick={handleClose} sx={{ color: 'error.main' }}>Sign Out</MenuItem>
+            <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>Sign Out</MenuItem>
           </Menu>
         </Box>
       </Toolbar>

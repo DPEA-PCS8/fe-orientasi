@@ -7,8 +7,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://test-orientasi-spring-test-orientasi.apps.ocp.ojk.go.id',
+        target: 'https://backend-app-test-orientasi.apps.ocp.ojk.go.id',
         changeOrigin: true,
+        secure: false, // Bypass SSL certificate validation
         // rewrite: (path) => path.replace(/^\/api/, ''), // Don't rewrite if backend expects /api
       },
     },
