@@ -18,6 +18,8 @@ import {
   NotificationsRounded,
   MenuBookRounded,
   HelpOutlineRounded,
+  DocumentScannerRounded,
+  DescriptionRounded,
 } from '@mui/icons-material';
 
 const DRAWER_WIDTH = 240;
@@ -36,11 +38,10 @@ interface MenuSection {
 
 const menuSections: MenuSection[] = [
   {
-    title: 'Overview',
+    title: 'Features',
     items: [
-      { label: 'Dashboard', icon: <GridViewRounded />, href: '/' },
-      { label: 'Users', icon: <PeopleRounded />, href: '/users', active: true },
-      { label: 'Reports', icon: <AssessmentRounded />, href: '/reports' },
+      { label: 'PKSI', icon: <DescriptionRounded />, href: '/' },
+      { label: 'RBSI', icon: <DocumentScannerRounded />, href: '/rbsi' },
     ],
   },
   {
