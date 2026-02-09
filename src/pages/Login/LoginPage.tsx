@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -18,8 +19,10 @@ import Alert from '@mui/material/Alert';
 import OJKLogo from '../../assets/OJK_Logo.png';
 import OfficeJobImage from '../../assets/office-job.jpg';
 import { useLoginForm } from '../../hooks/useLoginForm';
+import { login, storeAuthData } from '../../api/authApi';
 
 const LoginPage = () => {
+  const navigate = useNavigate();
   const {
     values,
     errors,
@@ -44,15 +47,26 @@ const LoginPage = () => {
     setIsLoading(true);
     setLoginError(null);
 
-    // Mock API response
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const response = await login(values.username, values.password);
 
-    console.log('Login form submitted:', {
-      username: values.username,
-      rememberMe: values.rememberMe,
-    });
+      storeAuthData(
+        response.data.token,
+        response.data.user_info,
+        values.rememberMe
+      );
 
-    setIsLoading(false);
+      navigate('/');
+    } catch (error) {
+      console.error('Login failed:', error);
+      setLoginError(
+        error instanceof Error
+          ? error.message
+          : 'Login gagal. Periksa kembali username dan password Anda.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleTogglePassword = () => {

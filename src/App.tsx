@@ -1,9 +1,11 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import theme from './styles/theme';
 import { LoginPage } from './pages';
 import Layout from './components/Layout';
 import UserList from './pages/UserList';
+import ProtectedRoute from './components/ProtectedRoute';
+import { isAuthenticated } from './api/authApi';
 
 function App() {
   return (
@@ -11,12 +13,22 @@ function App() {
       <CssBaseline />
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={
-            <Layout>
-              <UserList />
-            </Layout>
-          } />
+          <Route 
+            path="/login" 
+            element={
+              isAuthenticated() ? <Navigate to="/" replace /> : <LoginPage />
+            } 
+          />
+          <Route 
+            path="/" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <UserList />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
