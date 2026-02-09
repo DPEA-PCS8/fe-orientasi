@@ -5,6 +5,8 @@ import { LoginPage } from './pages';
 import Layout from './components/Layout';
 import UserList from './pages/UserList';
 import AddPksi from './pages/AddPksi';
+import PksiList from './pages/PksiList';
+import RbsiList from './pages/RbsiList';
 import ProtectedRoute from './components/ProtectedRoute';
 import { isAuthenticated } from './api/authApi';
 
@@ -25,7 +27,17 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <UserList />
+                  <PksiList />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/rbsi" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RbsiList />
                 </Layout>
               </ProtectedRoute>
             } 
