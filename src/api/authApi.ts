@@ -14,9 +14,9 @@ ZchNGzuTOqc7jFA6UpBhLUj1QO76k1KT00V5IPqHsPWb8YzUztjysN6i5IUiMQCE
 -----END PUBLIC KEY-----`;
 
 export interface UserInfo {
-  employee_id: string;
+  uuid: string;
   username: string;
-  name: string;
+  full_name: string;
   email: string;
   division: string;
 }
