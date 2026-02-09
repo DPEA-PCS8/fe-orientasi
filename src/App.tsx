@@ -4,6 +4,7 @@ import theme from './styles/theme';
 import { LoginPage } from './pages';
 import Layout from './components/Layout';
 import UserList from './pages/UserList';
+import AddPksi from './pages/AddPksi';
 import ProtectedRoute from './components/ProtectedRoute';
 import { isAuthenticated } from './api/authApi';
 
@@ -25,6 +26,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <UserList />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/add-pksi" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AddPksi />
                 </Layout>
               </ProtectedRoute>
             } 
