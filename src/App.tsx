@@ -3,7 +3,6 @@ import { ThemeProvider, CssBaseline } from '@mui/material';
 import theme from './styles/theme';
 import { LoginPage } from './pages';
 import Layout from './components/Layout';
-import UserList from './pages/UserList';
 import AddPksi from './pages/AddPksi';
 import PksiList from './pages/PksiList';
 import RbsiList from './pages/RbsiList';
