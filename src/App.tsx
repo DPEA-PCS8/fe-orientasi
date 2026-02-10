@@ -6,6 +6,8 @@ import Layout from './components/Layout';
 import AddPksi from './pages/AddPksi';
 import PksiList from './pages/PksiList';
 import RbsiList from './pages/RbsiList';
+import AddInisiatif from './pages/AddInisiatif';
+import InisiatifList from './pages/InisiatifList';
 import ProtectedRoute from './components/ProtectedRoute';
 import { isAuthenticated } from './api/authApi';
 
@@ -42,11 +44,31 @@ function App() {
             } 
           />
           <Route 
+            path="/inisiatif" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <InisiatifList />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/add-pksi" 
             element={
               <ProtectedRoute>
                 <Layout>
                   <AddPksi />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/add-inisiatif" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AddInisiatif />
                 </Layout>
               </ProtectedRoute>
             } 

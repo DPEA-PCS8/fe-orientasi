@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   TextField,
@@ -171,6 +172,7 @@ const getStatusColor = (status: PksiData['status']) => {
 };
 
 function PksiList() {
+  const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -376,6 +378,7 @@ function PksiList() {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
+            onClick={() => navigate('/add-pksi')}
             sx={{
               background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
               fontWeight: 500,
