@@ -287,8 +287,6 @@ function PksiList() {
     page * rowsPerPage + rowsPerPage
   );
 
-  const navigate = useNavigate();
-
   const handleAddPksi = () => {
     navigate('/add-pksi');
   };
