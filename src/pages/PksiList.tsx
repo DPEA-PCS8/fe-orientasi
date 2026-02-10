@@ -386,7 +386,7 @@ function PksiList() {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={handleAddPksi}  // <-- Tambah baris ini
+            onClick={() => navigate('/add-pksi')}
             sx={{
               background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
               fontWeight: 500,
