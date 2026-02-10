@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom';
 import {
   Drawer,
   List,
@@ -40,7 +41,7 @@ const menuSections: MenuSection[] = [
     items: [
       { label: 'PKSI', icon: <DescriptionRounded />, href: '/' },
       { label: 'RBSI', icon: <DocumentScannerRounded />, href: '/rbsi' },
-      { label: 'Inisiatif', icon: <LightbulbRounded />, href: '/inisiatif' },
+      { label: 'Program', icon: <LightbulbRounded />, href: '/program' },
     ],
   },
   {
@@ -61,6 +62,18 @@ const menuSections: MenuSection[] = [
 ];
 
 const Sidebar = () => {
+  const location = useLocation();
+
+  const isActive = (href: string) => {
+    if (href === '/' && location.pathname === '/') {
+      return true;
+    }
+    if (href !== '/' && location.pathname.startsWith(href)) {
+      return true;
+    }
+    return false;
+  };
+
   return (
     <Drawer
       variant="permanent"
@@ -98,52 +111,61 @@ const Sidebar = () => {
             </Typography>
 
             <List disablePadding>
-              {section.items.map((item, itemIndex) => (
-                <ListItem key={itemIndex} disablePadding>
-                  <ListItemButton
-                    href={item.href}
-                    selected={item.active}
-                    sx={{
-                      borderRadius: '10px',
-                      mb: 0.25,
-                      py: 0.75,
-                      px: 1.5,
-                      transition: 'all 0.2s ease',
-                      '&.Mui-selected': {
-                        bgcolor: 'rgba(218, 37, 28, 0.08)',
-                        color: '#DA251C',
-                        '&:hover': {
-                          bgcolor: 'rgba(218, 37, 28, 0.12)',
-                        },
-                        '& .MuiListItemIcon-root': {
-                          color: '#DA251C',
-                        },
-                      },
-                      '&:hover': {
-                        bgcolor: 'rgba(0, 0, 0, 0.04)',
-                      },
-                    }}
-                  >
-                    <ListItemIcon
+              {section.items.map((item, itemIndex) => {
+                const active = isActive(item.href);
+                return (
+                  <ListItem key={itemIndex} disablePadding>
+                    <ListItemButton
+                      href={item.href}
+                      selected={active}
                       sx={{
-                        minWidth: 32,
-                        color: item.active ? '#DA251C' : '#86868b',
-                        '& svg': { fontSize: 20 },
+                        borderRadius: '12px',
+                        mb: 0.5,
+                        py: 1,
+                        px: 1.5,
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        position: 'relative',
+                        '&.Mui-selected': {
+                          background: 'linear-gradient(135deg, rgba(218, 37, 28, 0.15) 0%, rgba(255, 77, 69, 0.08) 100%)',
+                          backdropFilter: 'blur(10px)',
+                          color: '#DA251C',
+                          border: '1px solid rgba(218, 37, 28, 0.2)',
+                          boxShadow: '0 4px 20px rgba(218, 37, 28, 0.12)',
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, rgba(218, 37, 28, 0.2) 0%, rgba(255, 77, 69, 0.12) 100%)',
+                            boxShadow: '0 6px 28px rgba(218, 37, 28, 0.16)',
+                          },
+                          '& .MuiListItemIcon-root': {
+                            color: '#DA251C',
+                          },
+                        },
+                        '&:hover': {
+                          bgcolor: 'rgba(0, 0, 0, 0.04)',
+                          transform: 'translateX(2px)',
+                        },
                       }}
                     >
-                      {item.icon}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={item.label}
-                      primaryTypographyProps={{
-                        fontSize: '0.8125rem',
-                        fontWeight: item.active ? 600 : 500,
-                        letterSpacing: '-0.01em',
-                      }}
-                    />
-                  </ListItemButton>
-                </ListItem>
-              ))}
+                      <ListItemIcon
+                        sx={{
+                          minWidth: 32,
+                          color: active ? '#DA251C' : '#86868b',
+                          '& svg': { fontSize: 20 },
+                        }}
+                      >
+                        {item.icon}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={item.label}
+                        primaryTypographyProps={{
+                          fontSize: '0.8125rem',
+                          fontWeight: active ? 600 : 500,
+                          letterSpacing: '-0.01em',
+                        }}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })}
             </List>
           </Box>
         ))}

@@ -15,7 +15,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Grid,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -116,7 +115,7 @@ const AddInisiatif = () => {
     }));
   };
 
-  const handleAccordionChange = (panel: string) => (event: React.SyntheticEvent, isExpanded: boolean) => {
+  const handleAccordionChange = (panel: string) => (_event: React.SyntheticEvent, isExpanded: boolean) => {
     setExpandedSection(isExpanded ? panel : false);
   };
 
@@ -179,8 +178,8 @@ const AddInisiatif = () => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 2 }}>
+              <Box>
                 <TextField
                   fullWidth
                   label="Nama Inisiatif"
@@ -191,8 +190,8 @@ const AddInisiatif = () => {
                   helperText={errors.namaInisiatif}
                   placeholder="Contoh: Transformasi Digital Pengawasan"
                 />
-              </Grid>
-              <Grid item xs={12}>
+              </Box>
+              <Box>
                 <TextField
                   fullWidth
                   label="Deskripsi"
@@ -203,8 +202,8 @@ const AddInisiatif = () => {
                   rows={4}
                   placeholder="Jelaskan deskripsi inisiatif ini..."
                 />
-              </Grid>
-              <Grid item xs={12} sm={6}>
+              </Box>
+              <Box>
                 <TextField
                   fullWidth
                   label="Departemen"
@@ -215,8 +214,8 @@ const AddInisiatif = () => {
                   helperText={errors.departemen}
                   placeholder="Contoh: Teknologi Informasi"
                 />
-              </Grid>
-              <Grid item xs={12} sm={6}>
+              </Box>
+              <Box>
                 <TextField
                   fullWidth
                   label="PIC (Person In Charge)"
@@ -227,8 +226,8 @@ const AddInisiatif = () => {
                   helperText={errors.pic}
                   placeholder="Nama PIC"
                 />
-              </Grid>
-              <Grid item xs={12} sm={6}>
+              </Box>
+              <Box>
                 <FormControl fullWidth>
                   <InputLabel>Prioritas</InputLabel>
                   <Select
@@ -242,8 +241,8 @@ const AddInisiatif = () => {
                     <MenuItem value="low">Rendah</MenuItem>
                   </Select>
                 </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
+              </Box>
+              <Box>
                 <FormControl fullWidth>
                   <InputLabel>Status</InputLabel>
                   <Select
@@ -258,8 +257,8 @@ const AddInisiatif = () => {
                     <MenuItem value="cancelled">Dibatalkan</MenuItem>
                   </Select>
                 </FormControl>
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
           </AccordionDetails>
         </Accordion>
 
@@ -275,8 +274,8 @@ const AddInisiatif = () => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+              <Box>
                 <TextField
                   fullWidth
                   label="Tanggal Mulai"
@@ -288,8 +287,8 @@ const AddInisiatif = () => {
                   helperText={errors.tanggalMulai}
                   InputLabelProps={{ shrink: true }}
                 />
-              </Grid>
-              <Grid item xs={12} sm={6}>
+              </Box>
+              <Box>
                 <TextField
                   fullWidth
                   label="Tanggal Selesai"
@@ -301,8 +300,8 @@ const AddInisiatif = () => {
                   helperText={errors.tanggalSelesai}
                   InputLabelProps={{ shrink: true }}
                 />
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
           </AccordionDetails>
         </Accordion>
 
@@ -318,8 +317,8 @@ const AddInisiatif = () => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 2 }}>
+              <Box>
                 <TextField
                   fullWidth
                   label="Objektif"
@@ -330,8 +329,8 @@ const AddInisiatif = () => {
                   rows={4}
                   placeholder="Jelaskan objektif dari inisiatif ini..."
                 />
-              </Grid>
-              <Grid item xs={12}>
+              </Box>
+              <Box>
                 <TextField
                   fullWidth
                   label="Target"
@@ -342,8 +341,8 @@ const AddInisiatif = () => {
                   rows={4}
                   placeholder="Jelaskan target yang ingin dicapai..."
                 />
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
           </AccordionDetails>
         </Accordion>
 
@@ -382,8 +381,8 @@ const AddInisiatif = () => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 2 }}>
+              <Box>
                 <TextField
                   fullWidth
                   label="Risiko"
@@ -394,8 +393,8 @@ const AddInisiatif = () => {
                   rows={3}
                   placeholder="Identifikasi risiko yang mungkin terjadi..."
                 />
-              </Grid>
-              <Grid item xs={12}>
+              </Box>
+              <Box>
                 <TextField
                   fullWidth
                   label="Strategi Mitigasi"
@@ -406,8 +405,8 @@ const AddInisiatif = () => {
                   rows={3}
                   placeholder="Jelaskan strategi mitigasi untuk setiap risiko..."
                 />
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
           </AccordionDetails>
         </Accordion>
 

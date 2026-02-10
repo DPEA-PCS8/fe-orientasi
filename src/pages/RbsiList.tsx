@@ -358,7 +358,7 @@ function RbsiList() {
   return (
     <Box sx={{ 
       p: 3.5,
-      background: 'linear-gradient(135deg, #fbfbfd 0%, #f5f5f7 100%)',
+      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
       minHeight: '100vh',
     }}>
       {/* Header Card */}
