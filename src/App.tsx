@@ -9,6 +9,7 @@ import RbsiList from './pages/RbsiList';
 import ProgramList from './pages/ProgramList';
 import ProtectedRoute from './components/ProtectedRoute';
 import { isAuthenticated } from './api/authApi';
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -58,6 +59,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <AddPksi />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/profile" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Profile />
                 </Layout>
               </ProtectedRoute>
             } 
