@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Box,
   TextField,
@@ -16,22 +15,25 @@ import {
   Paper,
   Button,
   IconButton,
-  Tooltip,
   Menu,
   MenuItem,
-  Link,
   Chip,
   Popover,
   Checkbox,
   FormControlLabel,
   FormGroup,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
 } from '@mui/material';
 import {
   Search as SearchIcon,
   Add as AddIcon,
   TuneRounded,
-  KeyboardArrowDown as ArrowDownIcon,
-  OpenInNew as OpenInNewIcon,
   Close as CloseIcon,
   MoreVert as MoreVertIcon,
 } from '@mui/icons-material';
@@ -104,13 +106,31 @@ const getPrioritasColor = (prioritas: InisiatifData['prioritas']) => {
 };
 
 function InisiatifList() {
-  const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [inisiatifData, setInisiatifData] = useState<InisiatifData[]>(DUMMY_INISIATIF);
+  const [addFormData, setAddFormData] = useState<{
+    namaInisiatif: string;
+    departemen: string;
+    tanggalMulai: string;
+    tanggalSelesai: string;
+    status: 'planning' | 'ongoing' | 'completed' | 'cancelled';
+    prioritas: 'high' | 'medium' | 'low';
+    pic: string;
+  }>({
+    namaInisiatif: '',
+    departemen: '',
+    tanggalMulai: '',
+    tanggalSelesai: '',
+    status: 'planning',
+    prioritas: 'medium',
+    pic: '',
+  });
+  const [addErrors, setAddErrors] = useState<Record<string, string>>({});
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [orderBy, setOrderBy] = useState<keyof InisiatifData>('namaInisiatif');
   const [order, setOrder] = useState<Order>('asc');
-  const [inisiatifData, setInisiatifData] = useState<InisiatifData[]>(DUMMY_INISIATIF);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedInisiatifId, setSelectedInisiatifId] = useState<string | null>(null);
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
@@ -166,13 +186,13 @@ function InisiatifList() {
     setSelectedPrioritas(newSelected);
   };
 
-  const handleRequestSort = (event: React.MouseEvent<unknown>, property: keyof InisiatifData) => {
+  const handleRequestSort = (_event: React.MouseEvent<unknown>, property: keyof InisiatifData) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
     setOrderBy(property);
   };
 
-  const handleChangePage = (event: unknown, newPage: number) => {
+  const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
 
@@ -209,9 +229,13 @@ function InisiatifList() {
   const displayedData = sortedData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+    <Box sx={{ 
+      p: 3.5,
+      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
+      minHeight: '100vh',
+    }}>
       {/* Header */}
-      <Box>
+      <Box sx={{ mb: 3 }}>
         <Typography 
           variant="h4" 
           sx={{ 
@@ -298,7 +322,7 @@ function InisiatifList() {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => navigate('/add-inisiatif')}
+            onClick={() => setShowAddDialog(true)}
             sx={{
               background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
               fontWeight: 500,
@@ -520,6 +544,128 @@ function InisiatifList() {
           }}
         />
       </Paper>
+
+      {/* Add Dialog */}
+      <Dialog open={showAddDialog} onClose={() => setShowAddDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, color: '#1d1d1f' }}>Tambah Inisiatif Baru</DialogTitle>
+        <DialogContent sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <TextField
+            fullWidth
+            label="Nama Inisiatif"
+            value={addFormData.namaInisiatif}
+            onChange={(e) => setAddFormData({ ...addFormData, namaInisiatif: e.target.value })}
+            error={!!addErrors.namaInisiatif}
+            helperText={addErrors.namaInisiatif}
+          />
+          <TextField
+            fullWidth
+            label="Departemen"
+            value={addFormData.departemen}
+            onChange={(e) => setAddFormData({ ...addFormData, departemen: e.target.value })}
+            error={!!addErrors.departemen}
+            helperText={addErrors.departemen}
+          />
+          <TextField
+            fullWidth
+            label="PIC (Person In Charge)"
+            value={addFormData.pic}
+            onChange={(e) => setAddFormData({ ...addFormData, pic: e.target.value })}
+            error={!!addErrors.pic}
+            helperText={addErrors.pic}
+          />
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+            <TextField
+              fullWidth
+              label="Tanggal Mulai"
+              type="date"
+              value={addFormData.tanggalMulai}
+              onChange={(e) => setAddFormData({ ...addFormData, tanggalMulai: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              error={!!addErrors.tanggalMulai}
+              helperText={addErrors.tanggalMulai}
+            />
+            <TextField
+              fullWidth
+              label="Tanggal Selesai"
+              type="date"
+              value={addFormData.tanggalSelesai}
+              onChange={(e) => setAddFormData({ ...addFormData, tanggalSelesai: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              error={!!addErrors.tanggalSelesai}
+              helperText={addErrors.tanggalSelesai}
+            />
+          </Box>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+            <FormControl fullWidth>
+              <InputLabel>Prioritas</InputLabel>
+              <Select
+                value={addFormData.prioritas}
+                onChange={(e) => setAddFormData({ ...addFormData, prioritas: e.target.value as any })}
+                label="Prioritas"
+              >
+                <MenuItem value="high">Tinggi</MenuItem>
+                <MenuItem value="medium">Sedang</MenuItem>
+                <MenuItem value="low">Rendah</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl fullWidth>
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={addFormData.status}
+                onChange={(e) => setAddFormData({ ...addFormData, status: e.target.value as any })}
+                label="Status"
+              >
+                <MenuItem value="planning">Perencanaan</MenuItem>
+                <MenuItem value="ongoing">Berjalan</MenuItem>
+                <MenuItem value="completed">Selesai</MenuItem>
+                <MenuItem value="cancelled">Dibatalkan</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button onClick={() => setShowAddDialog(false)}>Batal</Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              // Validation
+              const errors: Record<string, string> = {};
+              if (!addFormData.namaInisiatif) errors.namaInisiatif = 'Wajib diisi';
+              if (!addFormData.departemen) errors.departemen = 'Wajib diisi';
+              if (!addFormData.pic) errors.pic = 'Wajib diisi';
+              if (!addFormData.tanggalMulai) errors.tanggalMulai = 'Wajib diisi';
+              if (!addFormData.tanggalSelesai) errors.tanggalSelesai = 'Wajib diisi';
+
+              if (Object.keys(errors).length > 0) {
+                setAddErrors(errors);
+                return;
+              }
+
+              // Add new inisiatif
+              const newInisiatif: InisiatifData = {
+                id: String(Math.max(...inisiatifData.map(i => parseInt(i.id)), 0) + 1),
+                ...addFormData,
+              };
+
+              setInisiatifData([newInisiatif, ...inisiatifData]);
+              setShowAddDialog(false);
+              setAddFormData({
+                namaInisiatif: '',
+                departemen: '',
+                tanggalMulai: '',
+                tanggalSelesai: '',
+                status: 'planning',
+                prioritas: 'medium',
+                pic: '',
+              });
+              setAddErrors({});
+            }}
+            sx={{ background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)' }}
+          >
+            Simpan
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

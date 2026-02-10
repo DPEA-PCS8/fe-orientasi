@@ -288,13 +288,17 @@ function PksiList() {
   );
 
   return (
-    <Box sx={{ p: 3.5 }}>
+    <Box sx={{ 
+      p: 3.5,
+      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
+      minHeight: '100vh',
+    }}>
       {/* Header */}
       <Box sx={{ mb: 3 }}>
         <Typography 
           variant="h4" 
           sx={{ 
-            fontWeight: 600, 
+            fontWeight: 700, 
             color: '#1d1d1f',
             letterSpacing: '-0.02em',
             mb: 0.5,
