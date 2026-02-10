@@ -3,10 +3,7 @@ import {
   Box,
   Typography,
   Paper,
-  Card,
-  CardContent,
   Chip,
-  Divider,
   Table,
   TableBody,
   TableCell,
@@ -14,7 +11,6 @@ import {
   TableHead,
   TableRow,
   CircularProgress,
-  LinearProgress,
 } from '@mui/material';
 import {
   Person as PersonIcon,
