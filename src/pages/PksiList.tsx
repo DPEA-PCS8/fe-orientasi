@@ -287,10 +287,6 @@ function PksiList() {
     page * rowsPerPage + rowsPerPage
   );
 
-  const handleAddPksi = () => {
-    navigate('/add-pksi');
-  };
-
   return (
     <Box sx={{ 
       p: 3.5,
