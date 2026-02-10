@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   TextField,
@@ -285,6 +286,12 @@ function PksiList() {
     page * rowsPerPage + rowsPerPage
   );
 
+  const navigate = useNavigate();
+
+  const handleAddPksi = () => {
+    navigate('/add-pksi');
+  };
+
   return (
     <Box sx={{ p: 3.5 }}>
       {/* Header */}
@@ -376,6 +383,7 @@ function PksiList() {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
+            onClick={handleAddPksi}  // <-- Tambah baris ini
             sx={{
               background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
               fontWeight: 500,
