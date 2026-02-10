@@ -6,7 +6,7 @@ import Layout from './components/Layout';
 import AddPksi from './pages/AddPksi';
 import PksiList from './pages/PksiList';
 import RbsiList from './pages/RbsiList';
-import UserList from './pages/UserList';
+import ProgramList from './pages/ProgramList';
 import ProtectedRoute from './components/ProtectedRoute';
 import { isAuthenticated } from './api/authApi';
 
@@ -43,21 +43,21 @@ function App() {
             } 
           />
           <Route 
-            path="/add-pksi" 
+            path="/program" 
             element={
               <ProtectedRoute>
                 <Layout>
-                  <AddPksi />
+                  <ProgramList />
                 </Layout>
               </ProtectedRoute>
             } 
           />
           <Route 
-            path="/users" 
+            path="/add-pksi" 
             element={
               <ProtectedRoute>
                 <Layout>
-                  <UserList />
+                  <AddPksi />
                 </Layout>
               </ProtectedRoute>
             } 

@@ -172,6 +172,7 @@ const getStatusColor = (status: PksiData['status']) => {
 };
 
 function PksiList() {
+  const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -286,20 +287,22 @@ function PksiList() {
     page * rowsPerPage + rowsPerPage
   );
 
-  const navigate = useNavigate();
-
   const handleAddPksi = () => {
     navigate('/add-pksi');
   };
 
   return (
-    <Box sx={{ p: 3.5 }}>
+    <Box sx={{ 
+      p: 3.5,
+      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
+      minHeight: '100vh',
+    }}>
       {/* Header */}
       <Box sx={{ mb: 3 }}>
         <Typography 
           variant="h4" 
           sx={{ 
-            fontWeight: 600, 
+            fontWeight: 700, 
             color: '#1d1d1f',
             letterSpacing: '-0.02em',
             mb: 0.5,
@@ -383,7 +386,7 @@ function PksiList() {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={handleAddPksi}  // <-- Tambah baris ini
+            onClick={() => navigate('/add-pksi')}
             sx={{
               background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
               fontWeight: 500,
