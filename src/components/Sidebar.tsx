@@ -17,6 +17,7 @@ import {
   HelpOutlineRounded,
   DocumentScannerRounded,
   DescriptionRounded,
+  LightbulbRounded,
 } from '@mui/icons-material';
 
 const DRAWER_WIDTH = 240;
@@ -39,6 +40,7 @@ const menuSections: MenuSection[] = [
     items: [
       { label: 'PKSI', icon: <DescriptionRounded />, href: '/' },
       { label: 'RBSI', icon: <DocumentScannerRounded />, href: '/rbsi' },
+      { label: 'Inisiatif', icon: <LightbulbRounded />, href: '/inisiatif' },
     ],
   },
   {

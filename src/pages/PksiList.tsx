@@ -172,6 +172,7 @@ const getStatusColor = (status: PksiData['status']) => {
 };
 
 function PksiList() {
+  const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
