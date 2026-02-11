@@ -5,6 +5,7 @@ import { LoginPage } from './pages';
 import Layout from './components/Layout';
 import AddPksi from './pages/AddPksi';
 import PksiList from './pages/PksiList';
+import PksiDisetujui from './pages/PksiDisetujui';
 import RbsiList from './pages/RbsiList';
 import ProgramList from './pages/ProgramList';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -29,6 +30,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <PksiList />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/pksi-disetujui" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <PksiDisetujui />
                 </Layout>
               </ProtectedRoute>
             } 
