@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link as RouterLink, useLocation } from 'react-router-dom';
 import {
   Drawer,
   List,
@@ -157,7 +157,8 @@ const Sidebar = () => {
                     <ListItem disablePadding>
                       <ListItemButton
                         onClick={hasSubItems ? () => handleMenuToggle(item.label) : undefined}
-                        href={hasSubItems ? undefined : item.href}
+                        component={hasSubItems ? 'div' : RouterLink}
+                        to={hasSubItems ? undefined : item.href}
                         selected={active && !hasSubItems}
                         sx={{
                           borderRadius: '12px',
@@ -224,7 +225,8 @@ const Sidebar = () => {
                             return (
                               <ListItem key={subIndex} disablePadding>
                                 <ListItemButton
-                                  href={subItem.href}
+                                  component={RouterLink}
+                                  to={subItem.href}
                                   selected={subActive}
                                   sx={{
                                     borderRadius: '10px',
