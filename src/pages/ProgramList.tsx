@@ -35,7 +35,7 @@ import {
   TuneRounded,
   Close as CloseIcon,
 } from '@mui/icons-material';
-import { AddProgramModal, AddInisiatifModal } from '../components/modals';
+import { AddProgramModal, AddInisiatifModal, AddPeriodeModal } from '../components/modals';
 
 // Types
 interface Inisiatif {
@@ -325,8 +325,10 @@ function ProgramList() {
   const [selectedDepartemen, setSelectedDepartemen] = useState<Set<string>>(new Set());
 
   // Periode Filter (Header Dropdown)
-  const [selectedPeriode, setSelectedPeriode] = useState<string>('2025');
+  const [periodeList, setPeriodeList] = useState<string[]>(['2023-2027', '2020-2024', '2025-2029']);
+  const [selectedPeriode, setSelectedPeriode] = useState<string>('2023-2027');
   const [periodeAnchorEl, setPeriodeAnchorEl] = useState<null | HTMLElement>(null);
+  const [openAddPeriodeModal, setOpenAddPeriodeModal] = useState(false);
 
   // Toggle expand/collapse
   const toggleExpand = (programId: string) => {
@@ -366,7 +368,17 @@ function ProgramList() {
       program.departemen.toLowerCase().includes(keyword.toLowerCase()) ||
       program.inisiatif.some(ini => ini.nama.toLowerCase().includes(keyword.toLowerCase()));
     
-    const matchPeriode = selectedPeriode === 'all' || program.tahun.toString() === selectedPeriode;
+    // Handle range periode (e.g., "2023-2027")
+    let matchPeriode = false;
+    if (selectedPeriode === 'all') {
+      matchPeriode = true;
+    } else if (selectedPeriode.includes('-')) {
+      const [startYear, endYear] = selectedPeriode.split('-').map(Number);
+      matchPeriode = program.tahun >= startYear && program.tahun <= endYear;
+    } else {
+      matchPeriode = program.tahun.toString() === selectedPeriode;
+    }
+    
     const matchDepartemen = selectedDepartemen.size === 0 || selectedDepartemen.has(program.departemen);
 
     return matchKeyword && matchPeriode && matchDepartemen;
@@ -430,7 +442,7 @@ function ProgramList() {
               },
             }}
           >
-            {selectedPeriode === 'all' ? 'Semua Periode' : selectedPeriode}
+            {selectedPeriode === 'all' ? 'Semua Periode' : `Periode ${selectedPeriode}`}
           </Button>
           <Menu
             anchorEl={periodeAnchorEl}
@@ -440,7 +452,7 @@ function ProgramList() {
               sx: { 
                 mt: 1, 
                 borderRadius: '12px', 
-                minWidth: '160px',
+                minWidth: '180px',
                 boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
               }
             }}
@@ -451,15 +463,33 @@ function ProgramList() {
             >
               Semua Periode
             </MenuItem>
-            {['2024', '2025', '2026'].map(year => (
+            {periodeList.map(periode => (
               <MenuItem 
-                key={year} 
-                selected={selectedPeriode === year}
-                onClick={() => { setSelectedPeriode(year); setPeriodeAnchorEl(null); }}
+                key={periode} 
+                selected={selectedPeriode === periode}
+                onClick={() => { setSelectedPeriode(periode); setPeriodeAnchorEl(null); }}
               >
-                {year}
+                {periode}
               </MenuItem>
             ))}
+            <Box sx={{ borderTop: '1px solid #e5e5e7', mt: 1, pt: 1 }}>
+              <MenuItem 
+                onClick={() => { 
+                  setPeriodeAnchorEl(null); 
+                  setOpenAddPeriodeModal(true); 
+                }}
+                sx={{ 
+                  color: '#DA251C', 
+                  fontWeight: 600,
+                  '&:hover': {
+                    bgcolor: 'rgba(218, 37, 28, 0.05)',
+                  }
+                }}
+              >
+                <AddIcon sx={{ mr: 1, fontSize: 18 }} />
+                Tambah Periode
+              </MenuItem>
+            </Box>
           </Menu>
         </Box>
       </Box>
@@ -855,6 +885,17 @@ function ProgramList() {
           console.log('Inisiatif added successfully');
         }}
         preselectedProgramId={selectedProgramIdForInisiatif}
+      />
+
+      {/* Add Periode Modal */}
+      <AddPeriodeModal
+        open={openAddPeriodeModal}
+        onClose={() => setOpenAddPeriodeModal(false)}
+        onSuccess={(newPeriode) => {
+          setPeriodeList(prev => [...prev, newPeriode].sort());
+          setSelectedPeriode(newPeriode);
+        }}
+        existingPeriodes={periodeList}
       />
     </Box>
   );
