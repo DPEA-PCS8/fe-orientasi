@@ -81,7 +81,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <AddProgram />
+                  <Profile />
                 </Layout>
               </ProtectedRoute>
             } 
