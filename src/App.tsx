@@ -4,6 +4,8 @@ import theme from './styles/theme';
 import { LoginPage } from './pages';
 import Layout from './components/Layout';
 import AddPksi from './pages/AddPksi';
+import AddProgram from './pages/AddProgram';
+import AddInisiatif from './pages/AddInisiatif';
 import PksiList from './pages/PksiList';
 import PksiDisetujui from './pages/PksiDisetujui';
 import RbsiList from './pages/RbsiList';
@@ -79,7 +81,27 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <Profile />
+                  <AddProgram />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/add-program" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AddProgram />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/add-inisiatif" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AddInisiatif />
                 </Layout>
               </ProtectedRoute>
             } 
