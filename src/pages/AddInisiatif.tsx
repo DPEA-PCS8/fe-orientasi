@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box,
   TextField,
@@ -8,463 +8,305 @@ import {
   Typography,
   Alert,
   Stack,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  FormControl,
-  InputLabel,
-  Select,
   MenuItem,
+  Slider,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
   Save as SaveIcon,
-  Close as CloseIcon,
-  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 
 interface FormData {
   namaInisiatif: string;
-  deskripsi: string;
-  departemen: string;
-  pic: string;
-  prioritas: 'high' | 'medium' | 'low';
+  programId: string;
+  tahun: string;
   status: 'planning' | 'ongoing' | 'completed' | 'cancelled';
-  tanggalMulai: string;
-  tanggalSelesai: string;
-  objektif: string;
-  target: string;
-  budget: string;
-  risiko: string;
-  mitigasi: string;
-  keterangan: string;
+  progress: number;
 }
 
 interface FormErrors {
   [key: string]: string | undefined;
 }
 
+// Dummy Program Data untuk dropdown - KEP 40 (2025)
+interface Program {
+  id: string;
+  namaProgram: string;
+}
+
+const DUMMY_PROGRAMS: Program[] = [
+  { id: '3.1', namaProgram: '3.1 – Aplikasi Pelaporan' },
+  { id: '3.2', namaProgram: '3.2 – Aplikasi Bidang Pengawasan Perbankan' },
+  { id: '3.3', namaProgram: '3.3 – Aplikasi Bidang Pengawasan Pasar Modal, Keuangan Derivatif, dan Bursa Karbon' },
+  { id: '3.4', namaProgram: '3.4 – Aplikasi Bidang Pengawasan Sektor PPDP' },
+  { id: '3.5', namaProgram: '3.5 – Aplikasi Bidang Pengawasan Sektor PVML' },
+  { id: '3.6', namaProgram: '3.6 – Aplikasi Bidang IAKD' },
+  { id: '3.7', namaProgram: '3.7 – Aplikasi Bidang PEPK' },
+  { id: '3.8', namaProgram: '3.8 – Aplikasi Bidang Kebijakan Strategis - DPZT' },
+  { id: '3.9', namaProgram: '3.9 – Aplikasi Bidang Kebijakan Strategis - DPDS' },
+  { id: '3.10', namaProgram: '3.10 – Aplikasi Bidang Kebijakan Strategis - DINP' },
+  { id: '3.11', namaProgram: '3.11 – Aplikasi Bidang Manajemen Strategis - DPJK' },
+  { id: '3.12', namaProgram: '3.12 – Aplikasi Bidang Manajemen Strategis - DOSB' },
+  { id: '3.13', namaProgram: '3.13 – Aplikasi Bidang Manajemen Strategis - DHUK' },
+  { id: '3.14', namaProgram: '3.14 – Aplikasi Bidang Manajemen Strategis - DPSU' },
+  { id: '3.15', namaProgram: '3.15 – Aplikasi Bidang Manajemen Strategis - DLOG' },
+  { id: '3.16', namaProgram: '3.16 – Aplikasi Bidang Audit Internal dan Manajemen Risiko' },
+];
+
+const STATUS_OPTIONS = [
+  { value: 'planning', label: 'Perencanaan' },
+  { value: 'ongoing', label: 'Berjalan' },
+  { value: 'completed', label: 'Selesai' },
+  { value: 'cancelled', label: 'Dibatalkan' },
+];
+
 const AddInisiatif = () => {
   const navigate = useNavigate();
-  const [expandedSection, setExpandedSection] = useState<string | false>('section1');
+  const [searchParams] = useSearchParams();
+  const currentYear = new Date().getFullYear();
+  
+  const [programs] = useState<Program[]>(DUMMY_PROGRAMS);
   const [formData, setFormData] = useState<FormData>({
     namaInisiatif: '',
-    deskripsi: '',
-    departemen: '',
-    pic: '',
-    prioritas: 'medium',
+    programId: '',
+    tahun: currentYear.toString(),
     status: 'planning',
-    tanggalMulai: new Date().toISOString().split('T')[0],
-    tanggalSelesai: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    objektif: '',
-    target: '',
-    budget: '',
-    risiko: '',
-    mitigasi: '',
-    keterangan: '',
+    progress: 0,
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
-  const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+
+  // Check if there's a pre-selected program from URL params
+  useEffect(() => {
+    const programId = searchParams.get('programId');
+    if (programId) {
+      setFormData((prev) => ({ ...prev, programId }));
+    }
+  }, [searchParams]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
     if (!formData.namaInisiatif.trim()) {
-      newErrors.namaInisiatif = 'Nama inisiatif wajib diisi';
+      newErrors.namaInisiatif = 'Nama Inisiatif wajib diisi';
     }
-    if (!formData.departemen.trim()) {
-      newErrors.departemen = 'Departemen wajib diisi';
+    if (!formData.programId) {
+      newErrors.programId = 'Program wajib dipilih';
     }
-    if (!formData.pic.trim()) {
-      newErrors.pic = 'PIC wajib diisi';
-    }
-    if (!formData.tanggalMulai) {
-      newErrors.tanggalMulai = 'Tanggal mulai wajib diisi';
-    }
-    if (!formData.tanggalSelesai) {
-      newErrors.tanggalSelesai = 'Tanggal selesai wajib diisi';
-    }
-    if (formData.tanggalMulai && formData.tanggalSelesai && formData.tanggalMulai > formData.tanggalSelesai) {
-      newErrors.tanggalSelesai = 'Tanggal selesai harus lebih besar dari tanggal mulai';
+    if (!formData.tahun) {
+      newErrors.tahun = 'Tahun wajib diisi';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
         [name]: undefined,
       }));
     }
   };
 
-  const handleSelectChange = (e: any) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
+  const handleProgressChange = (_: Event, value: number | number[]) => {
+    setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      progress: value as number,
     }));
   };
 
-  const handleAccordionChange = (panel: string) => (_event: React.SyntheticEvent, isExpanded: boolean) => {
-    setExpandedSection(isExpanded ? panel : false);
-  };
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      return;
+    }
 
-  const handleSave = () => {
-    if (validateForm()) {
-      setSubmitted(true);
+    setIsSubmitting(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
       console.log('Form Data:', formData);
+      setSuccessMessage('Inisiatif berhasil ditambahkan!');
+
       setTimeout(() => {
-        navigate('/inisiatif');
-      }, 1500);
+        navigate('/program');
+      }, 2000);
+    } catch (error) {
+      console.error('Error submitting form:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleCancel = () => {
-    navigate('/inisiatif');
+    navigate('/program');
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+    <Box sx={{ p: 3 }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
         <Button
           variant="text"
           startIcon={<ArrowBackIcon />}
           onClick={handleCancel}
-          sx={{
-            color: '#86868b',
-            minWidth: 'auto',
-            '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' },
-          }}
-        />
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, color: '#1d1d1f', mb: 0.5 }}>
-            Tambah Inisiatif Baru
-          </Typography>
-          <Typography variant="body2" sx={{ color: '#86868b' }}>
-            Buat inisiatif strategis baru untuk organisasi
-          </Typography>
-        </Box>
+          sx={{ color: '#86868b' }}
+        >
+          Kembali
+        </Button>
+        <Typography variant="h5" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+          Tambah Inisiatif Baru
+        </Typography>
       </Box>
 
-      {/* Success Alert */}
-      {submitted && (
-        <Alert severity="success" onClose={() => setSubmitted(false)}>
-          Inisiatif berhasil ditambahkan! Redirecting...
+      {successMessage && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          {successMessage}
         </Alert>
       )}
 
-      {/* Form */}
-      <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid rgba(0, 0, 0, 0.08)' }}>
-        {/* Section 1: Informasi Dasar */}
-        <Accordion
-          expanded={expandedSection === 'section1'}
-          onChange={handleAccordionChange('section1')}
-          sx={{ mb: 1 }}
-        >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-              1. Informasi Dasar
+      <Paper sx={{ p: 3, borderRadius: 2, maxWidth: 600 }}>
+        <Stack spacing={3}>
+          <Box>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#1d1d1f' }}>
+              Informasi Inisiatif
             </Typography>
-          </AccordionSummary>
-          <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 2 }}>
-              <Box>
-                <TextField
-                  fullWidth
-                  label="Nama Inisiatif"
-                  name="namaInisiatif"
-                  value={formData.namaInisiatif}
-                  onChange={handleInputChange}
-                  error={!!errors.namaInisiatif}
-                  helperText={errors.namaInisiatif}
-                  placeholder="Contoh: Transformasi Digital Pengawasan"
-                />
-              </Box>
-              <Box>
-                <TextField
-                  fullWidth
-                  label="Deskripsi"
-                  name="deskripsi"
-                  value={formData.deskripsi}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={4}
-                  placeholder="Jelaskan deskripsi inisiatif ini..."
-                />
-              </Box>
-              <Box>
-                <TextField
-                  fullWidth
-                  label="Departemen"
-                  name="departemen"
-                  value={formData.departemen}
-                  onChange={handleInputChange}
-                  error={!!errors.departemen}
-                  helperText={errors.departemen}
-                  placeholder="Contoh: Teknologi Informasi"
-                />
-              </Box>
-              <Box>
-                <TextField
-                  fullWidth
-                  label="PIC (Person In Charge)"
-                  name="pic"
-                  value={formData.pic}
-                  onChange={handleInputChange}
-                  error={!!errors.pic}
-                  helperText={errors.pic}
-                  placeholder="Nama PIC"
-                />
-              </Box>
-              <Box>
-                <FormControl fullWidth>
-                  <InputLabel>Prioritas</InputLabel>
-                  <Select
-                    name="prioritas"
-                    value={formData.prioritas}
-                    onChange={handleSelectChange}
-                    label="Prioritas"
-                  >
-                    <MenuItem value="high">Tinggi</MenuItem>
-                    <MenuItem value="medium">Sedang</MenuItem>
-                    <MenuItem value="low">Rendah</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
-              <Box>
-                <FormControl fullWidth>
-                  <InputLabel>Status</InputLabel>
-                  <Select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleSelectChange}
-                    label="Status"
-                  >
-                    <MenuItem value="planning">Perencanaan</MenuItem>
-                    <MenuItem value="ongoing">Berjalan</MenuItem>
-                    <MenuItem value="completed">Selesai</MenuItem>
-                    <MenuItem value="cancelled">Dibatalkan</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
-            </Box>
-          </AccordionDetails>
-        </Accordion>
+            <Stack spacing={2.5}>
+              {/* 1. Nama Inisiatif */}
+              <TextField
+                fullWidth
+                label="Nama Inisiatif"
+                name="namaInisiatif"
+                value={formData.namaInisiatif}
+                onChange={handleInputChange}
+                error={!!errors.namaInisiatif}
+                helperText={errors.namaInisiatif}
+                placeholder="Contoh: Modernisasi Infrastruktur Cloud"
+              />
 
-        {/* Section 2: Jadwal */}
-        <Accordion
-          expanded={expandedSection === 'section2'}
-          onChange={handleAccordionChange('section2')}
-          sx={{ mb: 1 }}
-        >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-              2. Jadwal Pelaksanaan
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-              <Box>
-                <TextField
-                  fullWidth
-                  label="Tanggal Mulai"
-                  name="tanggalMulai"
-                  type="date"
-                  value={formData.tanggalMulai}
-                  onChange={handleInputChange}
-                  error={!!errors.tanggalMulai}
-                  helperText={errors.tanggalMulai}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Box>
-              <Box>
-                <TextField
-                  fullWidth
-                  label="Tanggal Selesai"
-                  name="tanggalSelesai"
-                  type="date"
-                  value={formData.tanggalSelesai}
-                  onChange={handleInputChange}
-                  error={!!errors.tanggalSelesai}
-                  helperText={errors.tanggalSelesai}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Box>
-            </Box>
-          </AccordionDetails>
-        </Accordion>
+              {/* Program Selection */}
+              <TextField
+                select
+                fullWidth
+                label="Program"
+                name="programId"
+                value={formData.programId}
+                onChange={handleInputChange}
+                error={!!errors.programId}
+                helperText={errors.programId || 'Pilih program yang terkait'}
+              >
+                {programs.map((prog) => (
+                  <MenuItem key={prog.id} value={prog.id}>
+                    {prog.namaProgram}
+                  </MenuItem>
+                ))}
+              </TextField>
 
-        {/* Section 3: Objektif dan Target */}
-        <Accordion
-          expanded={expandedSection === 'section3'}
-          onChange={handleAccordionChange('section3')}
-          sx={{ mb: 1 }}
-        >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-              3. Objektif dan Target
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 2 }}>
+              {/* 2. Tahun */}
+              <TextField
+                fullWidth
+                label="Tahun"
+                name="tahun"
+                type="number"
+                value={formData.tahun}
+                onChange={handleInputChange}
+                error={!!errors.tahun}
+                helperText={errors.tahun}
+                slotProps={{
+                  htmlInput: { min: 2020, max: 2030 },
+                }}
+              />
+
+              {/* 3. Status */}
+              <TextField
+                select
+                fullWidth
+                label="Status"
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+              >
+                {STATUS_OPTIONS.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              {/* 4. Progress */}
               <Box>
-                <TextField
-                  fullWidth
-                  label="Objektif"
-                  name="objektif"
-                  value={formData.objektif}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={4}
-                  placeholder="Jelaskan objektif dari inisiatif ini..."
+                <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>
+                  Progress: {formData.progress}%
+                </Typography>
+                <Slider
+                  value={formData.progress}
+                  onChange={handleProgressChange}
+                  min={0}
+                  max={100}
+                  step={5}
+                  marks={[
+                    { value: 0, label: '0%' },
+                    { value: 50, label: '50%' },
+                    { value: 100, label: '100%' },
+                  ]}
+                  sx={{
+                    color: '#DA251C',
+                    '& .MuiSlider-thumb': {
+                      bgcolor: '#DA251C',
+                    },
+                    '& .MuiSlider-track': {
+                      bgcolor: '#DA251C',
+                    },
+                  }}
                 />
               </Box>
-              <Box>
-                <TextField
-                  fullWidth
-                  label="Target"
-                  name="target"
-                  value={formData.target}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={4}
-                  placeholder="Jelaskan target yang ingin dicapai..."
-                />
-              </Box>
-            </Box>
-          </AccordionDetails>
-        </Accordion>
+            </Stack>
+          </Box>
 
-        {/* Section 4: Anggaran */}
-        <Accordion
-          expanded={expandedSection === 'section4'}
-          onChange={handleAccordionChange('section4')}
-          sx={{ mb: 1 }}
-        >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-              4. Anggaran
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              fullWidth
-              label="Anggaran"
-              name="budget"
-              value={formData.budget}
-              onChange={handleInputChange}
-              placeholder="Contoh: Rp 500.000.000"
-            />
-          </AccordionDetails>
-        </Accordion>
-
-        {/* Section 5: Risiko dan Mitigasi */}
-        <Accordion
-          expanded={expandedSection === 'section5'}
-          onChange={handleAccordionChange('section5')}
-          sx={{ mb: 1 }}
-        >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-              5. Risiko dan Mitigasi
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 2 }}>
-              <Box>
-                <TextField
-                  fullWidth
-                  label="Risiko"
-                  name="risiko"
-                  value={formData.risiko}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={3}
-                  placeholder="Identifikasi risiko yang mungkin terjadi..."
-                />
-              </Box>
-              <Box>
-                <TextField
-                  fullWidth
-                  label="Strategi Mitigasi"
-                  name="mitigasi"
-                  value={formData.mitigasi}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={3}
-                  placeholder="Jelaskan strategi mitigasi untuk setiap risiko..."
-                />
-              </Box>
-            </Box>
-          </AccordionDetails>
-        </Accordion>
-
-        {/* Section 6: Keterangan Tambahan */}
-        <Accordion
-          expanded={expandedSection === 'section6'}
-          onChange={handleAccordionChange('section6')}
-          sx={{ mb: 3 }}
-        >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-              6. Keterangan Tambahan
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              fullWidth
-              label="Keterangan"
-              name="keterangan"
-              value={formData.keterangan}
-              onChange={handleInputChange}
-              multiline
-              rows={4}
-              placeholder="Catatan atau keterangan tambahan..."
-            />
-          </AccordionDetails>
-        </Accordion>
-
-        {/* Action Buttons */}
-        <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end' }}>
-          <Button
-            variant="outlined"
-            startIcon={<CloseIcon />}
-            onClick={handleCancel}
-            sx={{
-              color: '#86868b',
-              borderColor: '#e5e5ea',
-              '&:hover': {
-                borderColor: '#d1d1d6',
-                bgcolor: 'rgba(0, 0, 0, 0.02)',
-              },
-            }}
-          >
-            Batal
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<SaveIcon />}
-            onClick={handleSave}
-            sx={{
-              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
-              },
-            }}
-          >
-            Simpan Inisiatif
-          </Button>
+          {/* Action Buttons */}
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, pt: 2 }}>
+            <Button
+              variant="outlined"
+              onClick={handleCancel}
+              sx={{
+                borderColor: '#86868b',
+                color: '#86868b',
+                '&:hover': {
+                  borderColor: '#1d1d1f',
+                  bgcolor: 'transparent',
+                },
+              }}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<SaveIcon />}
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              sx={{
+                background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
+                },
+                '&.Mui-disabled': {
+                  background: '#e5e5e7',
+                },
+              }}
+            >
+              {isSubmitting ? 'Menyimpan...' : 'Simpan Inisiatif'}
+            </Button>
+          </Box>
         </Stack>
       </Paper>
     </Box>
