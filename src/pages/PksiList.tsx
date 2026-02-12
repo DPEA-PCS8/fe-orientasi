@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Box,
   TextField,
@@ -34,6 +33,7 @@ import {
   OpenInNew as OpenInNewIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
+import { AddPksiModal } from '../components/modals';
 
 // Interface untuk data PKSI
 interface PksiData {
@@ -172,8 +172,8 @@ const getStatusColor = (status: PksiData['status']) => {
 };
 
 function PksiList() {
-  const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
+  const [openAddModal, setOpenAddModal] = useState(false);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [orderBy, setOrderBy] = useState<keyof PksiData>('namaPksi');
@@ -242,7 +242,7 @@ function PksiList() {
   };
 
   const filteredPksi = (() => {
-    let result = pksiData.filter(item => {
+    const result = pksiData.filter(item => {
       // Keyword filter
       const matchKeyword = item.namaPksi.toLowerCase().includes(keyword.toLowerCase());
       
@@ -382,7 +382,7 @@ function PksiList() {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => navigate('/add-pksi')}
+            onClick={() => setOpenAddModal(true)}
             sx={{
               background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
               fontWeight: 500,
@@ -395,6 +395,16 @@ function PksiList() {
             Tambah PKSI
           </Button>
         </Box>
+
+        {/* Add PKSI Modal */}
+        <AddPksiModal
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onSuccess={() => {
+            // Refresh data here if needed
+            console.log('PKSI added successfully');
+          }}
+        />
 
         {/* Filter Popover */}
         <Popover
@@ -412,24 +422,54 @@ function PksiList() {
           PaperProps={{
             sx: {
               mt: 1,
-              borderRadius: 2,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+              borderRadius: '16px',
+              boxShadow: '0 20px 40px rgba(218, 37, 28, 0.1)',
+              overflow: 'hidden',
+              border: '1px solid #ffebeb',
             },
           }}
         >
-          <Box sx={{ p: 2.5, minWidth: 300 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+          {/* Header */}
+          <Box sx={{
+            background: '#DA251C',
+            p: 2.5,
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                bgcolor: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <TuneRounded sx={{ fontSize: 16, color: '#DA251C' }} />
+              </Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'white' }}>
                 Filter
               </Typography>
-              <IconButton size="small" onClick={handleFilterClose}>
-                <CloseIcon sx={{ fontSize: 18 }} />
-              </IconButton>
             </Box>
+            <IconButton 
+              size="small" 
+              onClick={handleFilterClose}
+              sx={{ 
+                color: 'white', 
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } 
+              }}
+            >
+              <CloseIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Box>
+          
+          <Box sx={{ p: 3, minWidth: 320, bgcolor: 'white' }}>
 
             {/* Jangka Waktu Filter */}
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1 }}>
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
                 Jangka Waktu
               </Typography>
               <FormGroup>
@@ -439,9 +479,14 @@ function PksiList() {
                       size="small"
                       checked={selectedJangkaWaktu.has('Single Year')}
                       onChange={() => handleJangkaWaktuChange('Single Year')}
+                      sx={{
+                        '&.Mui-checked': {
+                          color: '#DA251C',
+                        },
+                      }}
                     />
                   }
-                  label={<Typography variant="body2">Single Year</Typography>}
+                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Single Year</Typography>}
                 />
                 <FormControlLabel
                   control={
@@ -449,18 +494,23 @@ function PksiList() {
                       size="small"
                       checked={selectedJangkaWaktu.has('Multiyears 2024-2025')}
                       onChange={() => handleJangkaWaktuChange('Multiyears 2024-2025')}
+                      sx={{
+                        '&.Mui-checked': {
+                          color: '#DA251C',
+                        },
+                      }}
                     />
                   }
-                  label={<Typography variant="body2">Multiyears 2024-2025</Typography>}
+                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Multiyears 2024-2025</Typography>}
                 />
               </FormGroup>
             </Box>
 
-            <Box sx={{ borderTop: '1px solid rgba(0,0,0,0.06)', my: 2 }} />
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
 
             {/* Status Filter */}
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1 }}>
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
                 Status
               </Typography>
               <FormGroup>
@@ -470,9 +520,14 @@ function PksiList() {
                       size="small"
                       checked={selectedStatus.has('disetujui')}
                       onChange={() => handleStatusFilterChange('disetujui')}
+                      sx={{
+                        '&.Mui-checked': {
+                          color: '#DA251C',
+                        },
+                      }}
                     />
                   }
-                  label={<Typography variant="body2">Disetujui</Typography>}
+                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Disetujui</Typography>}
                 />
                 <FormControlLabel
                   control={
@@ -480,9 +535,14 @@ function PksiList() {
                       size="small"
                       checked={selectedStatus.has('tidak_disetujui')}
                       onChange={() => handleStatusFilterChange('tidak_disetujui')}
+                      sx={{
+                        '&.Mui-checked': {
+                          color: '#DA251C',
+                        },
+                      }}
                     />
                   }
-                  label={<Typography variant="body2">Tidak Disetujui</Typography>}
+                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Tidak Disetujui</Typography>}
                 />
                 <FormControlLabel
                   control={
@@ -490,26 +550,33 @@ function PksiList() {
                       size="small"
                       checked={selectedStatus.has('pending')}
                       onChange={() => handleStatusFilterChange('pending')}
+                      sx={{
+                        '&.Mui-checked': {
+                          color: '#DA251C',
+                        },
+                      }}
                     />
                   }
-                  label={<Typography variant="body2">Pending</Typography>}
+                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Pending</Typography>}
                 />
               </FormGroup>
             </Box>
 
-            <Box sx={{ borderTop: '1px solid rgba(0,0,0,0.06)', my: 2 }} />
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
 
             {/* Reset Button */}
             <Button
               fullWidth
               variant="outlined"
-              size="small"
               onClick={handleResetFilter}
               sx={{
+                py: 1,
+                borderRadius: '8px',
                 color: '#DA251C',
                 borderColor: '#DA251C',
+                fontWeight: 600,
                 '&:hover': {
-                  bgcolor: 'rgba(218, 37, 28, 0.04)',
+                  bgcolor: '#fff5f5',
                   borderColor: '#DA251C',
                 },
               }}
@@ -521,13 +588,27 @@ function PksiList() {
 
         {/* Table */}
         <TableContainer sx={{ width: '100%' }}>
-          <Table>
-            <TableHead sx={{ bgcolor: '#f5f5f7' }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}>No</TableCell>
+          <Table sx={{ tableLayout: 'fixed' }}>
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f5f5f7' }}>
+                <TableCell 
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    width: 50,
+                    textAlign: 'center',
+                  }}
+                >
+                  No
+                </TableCell>
                 <TableCell 
                   sortDirection={orderBy === 'namaPksi' ? order : false}
-                  sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                  }}
                 >
                   <TableSortLabel
                     active={orderBy === 'namaPksi'}
@@ -539,7 +620,13 @@ function PksiList() {
                 </TableCell>
                 <TableCell 
                   sortDirection={orderBy === 'jangkaWaktu' ? order : false}
-                  sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    width: 130,
+                    textAlign: 'center',
+                  }}
                 >
                   <TableSortLabel
                     active={orderBy === 'jangkaWaktu'}
@@ -551,7 +638,13 @@ function PksiList() {
                 </TableCell>
                 <TableCell 
                   sortDirection={orderBy === 'tanggalPengajuan' ? order : false}
-                  sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    width: 140,
+                    textAlign: 'center',
+                  }}
                 >
                   <TableSortLabel
                     active={orderBy === 'tanggalPengajuan'}
@@ -561,10 +654,26 @@ function PksiList() {
                     Tanggal Pengajuan
                   </TableSortLabel>
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}>Lampiran Docs T.01</TableCell>
+                <TableCell 
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    width: 80,
+                    textAlign: 'center',
+                  }}
+                >
+                  Docs T.01
+                </TableCell>
                 <TableCell 
                   sortDirection={orderBy === 'status' ? order : false}
-                  sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    width: 140,
+                    textAlign: 'center',
+                  }}
                 >
                   <TableSortLabel
                     active={orderBy === 'status'}
@@ -581,40 +690,75 @@ function PksiList() {
                 <TableRow 
                   key={item.id}
                   sx={{
-                    borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
                     '&:hover': {
-                      bgcolor: 'rgba(0, 0, 0, 0.02)',
+                      bgcolor: 'rgba(218, 37, 28, 0.02)',
+                    },
+                    '&:not(:last-child)': {
+                      borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
                     },
                   }}
                 >
-                  <TableCell sx={{ color: '#86868b', py: 2 }}>
+                  <TableCell 
+                    sx={{ 
+                      color: '#86868b', 
+                      py: 2,
+                      textAlign: 'center',
+                      fontWeight: 500,
+                      fontSize: '0.85rem',
+                    }}
+                  >
                     {page * rowsPerPage + index + 1}
                   </TableCell>
-                  <TableCell sx={{ color: '#1d1d1f', py: 2 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  <TableCell sx={{ py: 2 }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        fontWeight: 500,
+                        color: '#1d1d1f',
+                        lineHeight: 1.5,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                      }}
+                    >
                       {item.namaPksi}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ color: '#1d1d1f', py: 2 }}>
+                  <TableCell sx={{ py: 2, textAlign: 'center' }}>
                     <Chip
-                      label={item.jangkaWaktu}
+                      label={item.jangkaWaktu === 'Single Year' ? 'Single Year' : 'Multiyears'}
                       size="small"
                       sx={{
-                        bgcolor: item.jangkaWaktu === 'Single Year' ? '#8B5CF6' : '#2563EB',
-                        color: 'white',
-                        fontWeight: 500,
+                        bgcolor: item.jangkaWaktu === 'Single Year' 
+                          ? 'rgba(139, 92, 246, 0.1)' 
+                          : 'rgba(37, 99, 235, 0.1)',
+                        color: item.jangkaWaktu === 'Single Year' ? '#8B5CF6' : '#2563EB',
+                        fontWeight: 600,
+                        fontSize: '0.75rem',
+                        height: 26,
+                        borderRadius: '6px',
                       }}
                     />
                   </TableCell>
-                  <TableCell sx={{ color: '#1d1d1f', py: 2 }}>
-                    {new Date(item.tanggalPengajuan).toLocaleDateString('id-ID', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
+                  <TableCell sx={{ py: 2, textAlign: 'center' }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#1d1d1f',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      {new Date(item.tanggalPengajuan).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2 }}>
-                    <Tooltip title="Buka dokumen">
+                  <TableCell sx={{ py: 2, textAlign: 'center' }}>
+                    <Tooltip title="Buka dokumen T.01">
                       <IconButton
                         component={Link}
                         href={item.linkDocsT01}
@@ -622,43 +766,46 @@ function PksiList() {
                         size="small"
                         sx={{
                           color: '#DA251C',
+                          bgcolor: 'rgba(218, 37, 28, 0.08)',
                           '&:hover': {
-                            bgcolor: 'rgba(218, 37, 28, 0.1)',
+                            bgcolor: 'rgba(218, 37, 28, 0.15)',
                           },
                         }}
                       >
-                        <OpenInNewIcon sx={{ fontSize: 18 }} />
+                        <OpenInNewIcon sx={{ fontSize: 16 }} />
                       </IconButton>
                     </Tooltip>
                   </TableCell>
-                  <TableCell sx={{ py: 2 }}>
+                  <TableCell sx={{ py: 2, textAlign: 'center' }}>
                     <Box
-                      onClick={(e) => handleStatusMenuOpen(e as any, item.id)}
+                      onClick={(e) => handleStatusMenuOpen(e, item.id)}
                       sx={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: 1,
+                        gap: 0.5,
                         px: 1.5,
-                        py: 0.75,
-                        bgcolor: `${getStatusColor(item.status)}20`,
-                        borderRadius: '8px',
+                        py: 0.5,
+                        bgcolor: `${getStatusColor(item.status)}15`,
+                        borderRadius: '6px',
                         cursor: 'pointer',
                         transition: 'all 0.2s',
+                        border: `1px solid ${getStatusColor(item.status)}30`,
                         '&:hover': {
-                          bgcolor: `${getStatusColor(item.status)}30`,
+                          bgcolor: `${getStatusColor(item.status)}25`,
                         },
                       }}
                     >
                       <Typography
                         variant="body2"
                         sx={{
-                          fontWeight: 500,
+                          fontWeight: 600,
+                          fontSize: '0.75rem',
                           color: getStatusColor(item.status),
                         }}
                       >
                         {STATUS_LABELS[item.status]}
                       </Typography>
-                      <ArrowDownIcon sx={{ fontSize: 16, color: getStatusColor(item.status) }} />
+                      <ArrowDownIcon sx={{ fontSize: 14, color: getStatusColor(item.status) }} />
                     </Box>
                   </TableCell>
                 </TableRow>

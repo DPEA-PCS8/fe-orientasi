@@ -16,10 +16,6 @@ import {
   Checkbox,
   FormControlLabel,
   FormGroup,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Collapse,
   TablePagination,
 } from '@mui/material';
@@ -200,17 +196,7 @@ const DUMMY_PROGRAMS: ProgramData[] = [
   },
 ];
 
-interface Periode {
-  id: string;
-  name: string;
-  description: string;
-}
 
-const DUMMY_PERIODE: Periode[] = [
-  { id: '1', name: '2023-2027', description: 'Periode lima tahunan pertama' },
-  { id: '2', name: '2024-2028', description: 'Periode lima tahunan kedua' },
-  { id: '3', name: '2025-2029', description: 'Periode lima tahunan ketiga' },
-];
 
 // Status label mapping
 const STATUS_LABELS: Record<Initiative['status'], string> = {
@@ -244,23 +230,17 @@ function RbsiList() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [programData, setProgramData] = useState<ProgramData[]>(DUMMY_PROGRAMS);
-  const [expandedPrograms, setExpandedPrograms] = useState<Set<string>>(new Set());
+  const [expandedPrograms, setExpandedPrograms] = useState<Set<string>>(new Set(DUMMY_PROGRAMS.map(p => p.id)));
   const [selectedInitiativeId, setSelectedInitiativeId] = useState<string | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
-  // Periode state
-  const [periode, setPeriode] = useState<Periode[]>(DUMMY_PERIODE);
-  const [selectedPeriode, setSelectedPeriode] = useState<string>(DUMMY_PERIODE[0].id);
-  const [periodeAnchorEl, setPeriodeAnchorEl] = useState<null | HTMLElement>(null);
-  const [openPeriodeDialog, setOpenPeriodeDialog] = useState(false);
-  const [newPeriode, setNewPeriode] = useState<{ name: string; description: string }>({
-    name: '',
-    description: '',
-  });
+  // Periode List (Mock)
 
   // Filter state
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
-  const [selectedStatus, setSelectedStatus] = useState<Set<string>>(new Set());
+  const [selectedPeriode, setSelectedPeriode] = useState<Set<string>>(new Set());
+  const [selectedStatus] = useState<Set<string>>(new Set());
+
 
   const toggleProgramExpand = (programId: string) => {
     const newSet = new Set(expandedPrograms);
@@ -271,6 +251,40 @@ function RbsiList() {
     }
     setExpandedPrograms(newSet);
   };
+
+  const handleFilterOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setFilterAnchorEl(event.currentTarget);
+  };
+
+  const handleFilterClose = () => {
+    setFilterAnchorEl(null);
+  };
+
+  const handlePeriodeChange = (year: string) => {
+    const newSet = new Set(selectedPeriode);
+    if (newSet.has(year)) {
+      newSet.delete(year);
+    } else {
+      newSet.add(year);
+    }
+    setSelectedPeriode(newSet);
+  };
+
+  // Filter programs logic
+  const filteredPrograms = programData.filter(program => {
+    // Keyword Filter
+    const matchKeyword = program.namaProgram.toLowerCase().includes(keyword.toLowerCase()) ||
+      program.inisiatif.some(ini => ini.namaInisiatif.toLowerCase().includes(keyword.toLowerCase()));
+    
+    // Period Filter (extract year from tanggalMulai)
+    const programYear = new Date(program.tanggalMulai).getFullYear().toString();
+    const matchPeriode = selectedPeriode.size === 0 || selectedPeriode.has(programYear);
+
+    // Status Filter (if needed, or keep existing logic)
+    // Assuming we might want to filter by Program Status in the future, but user asked for Period.
+    
+    return matchKeyword && matchPeriode;
+  });
 
   const handleInitiativeStatusMenuOpen = (event: React.MouseEvent<HTMLElement>, initiativeId: string) => {
     setAnchorEl(event.currentTarget);
@@ -296,50 +310,6 @@ function RbsiList() {
     handleStatusMenuClose();
   };
 
-  const handleFilterOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setFilterAnchorEl(event.currentTarget);
-  };
-
-  const handleFilterClose = () => {
-    setFilterAnchorEl(null);
-  };
-
-  const handleStatusFilterChange = (status: string) => {
-    const newSet = new Set(selectedStatus);
-    if (newSet.has(status)) {
-      newSet.delete(status);
-    } else {
-      newSet.add(status);
-    }
-    setSelectedStatus(newSet);
-  };
-
-  const handleResetFilter = () => {
-    setSelectedStatus(new Set());
-  };
-
-  const handlePeriodeDialogClose = () => {
-    setOpenPeriodeDialog(false);
-    setNewPeriode({ name: '', description: '' });
-  };
-
-  const handleAddPeriode = () => {
-    if (newPeriode.name.trim()) {
-      const newPeriodeObj: Periode = {
-        id: Date.now().toString(),
-        name: newPeriode.name,
-        description: newPeriode.description,
-      };
-      setPeriode([...periode, newPeriodeObj]);
-      handlePeriodeDialogClose();
-    }
-  };
-
-  // Filter programs berdasarkan keyword
-  const filteredPrograms = programData.filter(program => {
-    const matchKeyword = program.namaProgram.toLowerCase().includes(keyword.toLowerCase());
-    return matchKeyword;
-  });
 
   const paginatedPrograms = filteredPrograms.slice(
     page * rowsPerPage,
@@ -361,162 +331,26 @@ function RbsiList() {
       background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
       minHeight: '100vh',
     }}>
-      {/* Header Card */}
-      <Paper
-        elevation={0}
-        sx={{
-          mb: 4,
-          p: 3.5,
-          background: 'linear-gradient(135deg, #ffffff 0%, #f9f9fc 100%)',
-          border: '1px solid rgba(0, 0, 0, 0.06)',
-          borderRadius: '16px',
-          boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
-          backdropFilter: 'blur(20px)',
-        }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 3 }}>
-          {/* Left Side */}
-          <Box sx={{ flex: 1 }}>
-            <Typography 
-              variant="h4" 
-              sx={{ 
-                fontWeight: 700, 
-                color: '#1d1d1f',
-                letterSpacing: '-0.02em',
-                mb: 1,
-                fontSize: '2rem',
-              }}
-            >
-              List Program
-            </Typography>
-            <Box 
-              sx={{ 
-                width: '60px', 
-                height: '4px',
-                background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
-                borderRadius: '2px',
-                mb: 1.5,
-              }} 
-            />
-            <Typography 
-              variant="body2" 
-              sx={{ 
-                color: '#86868b',
-                fontSize: '0.95rem',
-              }}
-            >
-              Kelola data program dan inisiatif RBSI
-            </Typography>
-          </Box>
-
-          {/* Right Side - Periode */}
-          <Box sx={{ textAlign: 'right', minWidth: '280px' }}>
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                display: 'block',
-                color: '#86868b', 
-                fontWeight: 600,
-                fontSize: '0.75rem',
-                letterSpacing: '0.03em',
-                textTransform: 'uppercase',
-                mb: 1.2,
-              }}
-            >
-              📅 Periode Aktif
-            </Typography>
-            <Button
-              onClick={(e) => setPeriodeAnchorEl(e.currentTarget)}
-              endIcon={<ArrowDownIcon sx={{ fontSize: 16 }} />}
-              sx={{
-                width: '100%',
-                color: '#1d1d1f',
-                fontWeight: 700,
-                border: '2px solid rgba(218, 37, 28, 0.15)',
-                borderRadius: '12px',
-                px: 2.5,
-                py: 1.5,
-                background: 'linear-gradient(135deg, rgba(255, 77, 69, 0.08) 0%, rgba(218, 37, 28, 0.05) 100%)',
-                boxShadow: '0 4px 12px rgba(218, 37, 28, 0.08)',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, rgba(255, 77, 69, 0.12) 0%, rgba(218, 37, 28, 0.1) 100%)',
-                  boxShadow: '0 6px 20px rgba(218, 37, 28, 0.12)',
-                  borderColor: 'rgba(218, 37, 28, 0.25)',
-                  transform: 'translateY(-2px)',
-                },
-                textTransform: 'none',
-                fontSize: '1rem',
-                '& .MuiButton-endIcon': {
-                  marginLeft: '8px',
-                  transition: 'transform 0.3s',
-                },
-                '&:hover .MuiButton-endIcon': {
-                  transform: 'rotate(180deg)',
-                },
-              }}
-            >
-              {periode.find(p => p.id === selectedPeriode)?.name}
-            </Button>
-          </Box>
-        </Box>
-
-        <Menu
-          anchorEl={periodeAnchorEl}
-          open={Boolean(periodeAnchorEl)}
-          onClose={() => setPeriodeAnchorEl(null)}
-          PaperProps={{
-            sx: {
-              borderRadius: '12px',
-              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.12)',
-              mt: 1.5,
-              border: '1px solid rgba(0, 0, 0, 0.06)',
-            },
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
+        <Typography 
+          variant="h4" 
+          sx={{ 
+            fontWeight: 700, 
+            color: '#1d1d1f',
+            letterSpacing: '-0.02em',
+            mb: 0.5,
           }}
         >
-          {periode.map((p) => (
-            <MenuItem
-              key={p.id}
-              selected={selectedPeriode === p.id}
-              onClick={() => {
-                setSelectedPeriode(p.id);
-                setPeriodeAnchorEl(null);
-              }}
-              sx={{
-                fontSize: '0.9rem',
-                py: 1.2,
-                '&.Mui-selected': {
-                  bgcolor: 'rgba(218, 37, 28, 0.08)',
-                  color: '#DA251C',
-                  fontWeight: 500,
-                },
-              }}
-            >
-              {p.name}
-            </MenuItem>
-          ))}
-          <MenuItem divider sx={{ my: 0.5 }} />
-          <MenuItem
-            onClick={() => {
-              setOpenPeriodeDialog(true);
-              setPeriodeAnchorEl(null);
-            }}
-            sx={{ 
-              color: '#DA251C', 
-              fontWeight: 600,
-              py: 1.2,
-              fontSize: '0.9rem',
-              '&:hover': {
-                bgcolor: 'rgba(218, 37, 28, 0.08)',
-              }
-            }}
-          >
-            <AddIcon sx={{ mr: 1, fontSize: 18 }} />
-            Tambah Periode
-          </MenuItem>
-        </Menu>
-      </Paper>
-
+          Daftar Program & Inisiatif
+        </Typography>
+        <Typography variant="body1" sx={{ color: '#86868b' }}>
+          Kelola data program dan inisiatif strategis RBSI
+        </Typography>
+      </Box>
+      
+      {/* Main Card */}
+      
       {/* Main Card */}
       <Paper
         elevation={0}
@@ -531,6 +365,7 @@ function RbsiList() {
         <Box
           sx={{
             p: 2.5,
+
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -575,7 +410,7 @@ function RbsiList() {
               startIcon={<TuneRounded sx={{ fontSize: 18 }} />}
               onClick={handleFilterOpen}
               sx={{
-                color: selectedStatus.size > 0 ? '#DA251C' : '#86868b',
+                color: selectedPeriode.size > 0 ? '#DA251C' : '#86868b',
                 fontWeight: 500,
                 '&:hover': {
                   bgcolor: 'rgba(0, 0, 0, 0.04)',
@@ -601,98 +436,6 @@ function RbsiList() {
           </Button>
         </Box>
 
-        {/* Filter Popover */}
-        <Popover
-          open={Boolean(filterAnchorEl)}
-          anchorEl={filterAnchorEl}
-          onClose={handleFilterClose}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'left',
-          }}
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'left',
-          }}
-          PaperProps={{
-            sx: {
-              mt: 1,
-              borderRadius: '12px',
-              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.12)',
-              border: '1px solid rgba(0, 0, 0, 0.06)',
-            },
-          }}
-        >
-          <Box sx={{ p: 2.5, minWidth: 300 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                Filter
-              </Typography>
-              <IconButton size="small" onClick={handleFilterClose}>
-                <CloseIcon sx={{ fontSize: 18 }} />
-              </IconButton>
-            </Box>
-
-            {/* Status Filter */}
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1 }}>
-                Status Inisiatif
-              </Typography>
-              <FormGroup>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={selectedStatus.has('disetujui')}
-                      onChange={() => handleStatusFilterChange('disetujui')}
-                    />
-                  }
-                  label={<Typography variant="body2">Disetujui</Typography>}
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={selectedStatus.has('tidak_disetujui')}
-                      onChange={() => handleStatusFilterChange('tidak_disetujui')}
-                    />
-                  }
-                  label={<Typography variant="body2">Tidak Disetujui</Typography>}
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={selectedStatus.has('pending')}
-                      onChange={() => handleStatusFilterChange('pending')}
-                    />
-                  }
-                  label={<Typography variant="body2">Pending</Typography>}
-                />
-              </FormGroup>
-            </Box>
-
-            <Box sx={{ borderTop: '1px solid rgba(0,0,0,0.06)', my: 2 }} />
-
-            {/* Reset Button */}
-            <Button
-              fullWidth
-              variant="outlined"
-              size="small"
-              onClick={handleResetFilter}
-              sx={{
-                color: '#DA251C',
-                borderColor: '#DA251C',
-                '&:hover': {
-                  bgcolor: 'rgba(218, 37, 28, 0.04)',
-                  borderColor: '#DA251C',
-                },
-              }}
-            >
-              Reset Filter
-            </Button>
-          </Box>
-        </Popover>
 
         {/* Programs List */}
         <Box sx={{ p: 2.5 }}>
@@ -940,66 +683,95 @@ function RbsiList() {
         </Menu>
       </Paper>
 
-      {/* Add Periode Dialog */}
-      <Dialog
-        open={openPeriodeDialog}
-        onClose={handlePeriodeDialogClose}
-        maxWidth="sm"
-        fullWidth
+      {/* Filter Popover */}
+      <Popover
+        open={Boolean(filterAnchorEl)}
+        anchorEl={filterAnchorEl}
+        onClose={handleFilterClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
         PaperProps={{
           sx: {
-            borderRadius: '12px',
+            mt: 1,
+            borderRadius: '16px',
+            boxShadow: '0 20px 40px rgba(218, 37, 28, 0.1)',
+            overflow: 'hidden',
+            border: '1px solid #ffebeb',
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-          Tambah Periode Baru
-        </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          <TextField
-            autoFocus
-            fullWidth
-            label="Periode"
-            placeholder="Contoh: 2026-2030"
-            margin="normal"
-            value={newPeriode.name}
-            onChange={(e) => setNewPeriode({ ...newPeriode, name: e.target.value })}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            fullWidth
-            label="Deskripsi"
-            placeholder="Deskripsi periode"
-            multiline
-            rows={3}
-            value={newPeriode.description}
-            onChange={(e) => setNewPeriode({ ...newPeriode, description: e.target.value })}
-          />
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button
-            onClick={handlePeriodeDialogClose}
-            sx={{
-              color: '#86868b',
-              '&:hover': {
-                bgcolor: 'rgba(0, 0, 0, 0.04)',
-              },
+        {/* Header */}
+        <Box sx={{
+          background: '#DA251C',
+          p: 2.5,
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              bgcolor: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <TuneRounded sx={{ fontSize: 16, color: '#DA251C' }} />
+            </Box>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'white' }}>
+              Filter
+            </Typography>
+          </Box>
+          <IconButton 
+            size="small" 
+            onClick={handleFilterClose}
+            sx={{ 
+              color: 'white', 
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } 
             }}
           >
-            Batal
-          </Button>
-          <Button
-            onClick={handleAddPeriode}
-            variant="contained"
-            sx={{
-              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
-              fontWeight: 500,
-            }}
-          >
-            Simpan
-          </Button>
-        </DialogActions>
-      </Dialog>
+            <CloseIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Box>
+        
+        <Box sx={{ p: 3, minWidth: 320, bgcolor: 'white' }}>
+
+          {/* Periode Filter */}
+          <Box sx={{ mb: 2.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+              Periode
+            </Typography>
+            <FormGroup>
+              {['2024', '2025', '2026'].map((year) => (
+                <FormControlLabel
+                  key={year}
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={selectedPeriode.has(year)}
+                      onChange={() => handlePeriodeChange(year)}
+                      sx={{
+                        '&.Mui-checked': {
+                          color: '#DA251C',
+                        },
+                      }}
+                    />
+                  }
+                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>{year}</Typography>}
+                />
+              ))}
+            </FormGroup>
+          </Box>
+        </Box>
+      </Popover>
     </Box>
   );
 }
