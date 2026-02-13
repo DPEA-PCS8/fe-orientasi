@@ -15,14 +15,18 @@ import {
   Close as CloseIcon,
   Save as SaveIcon,
 } from '@mui/icons-material';
+import { createProgram } from '../../api/rbsiApi';
 
 interface AddProgramModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  rbsiId: string;
+  tahun: number;
 }
 
 interface FormData {
+  nomorProgram: string;
   namaProgram: string;
 }
 
@@ -30,23 +34,30 @@ interface FormErrors {
   [key: string]: string | undefined;
 }
 
-const AddProgramModal = ({ open, onClose, onSuccess }: AddProgramModalProps) => {
+const AddProgramModal = ({ open, onClose, onSuccess, rbsiId, tahun }: AddProgramModalProps) => {
   const [formData, setFormData] = useState<FormData>({
+    nomorProgram: '',
     namaProgram: '',
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const resetForm = () => {
-    setFormData({ namaProgram: '' });
+    setFormData({ nomorProgram: '', namaProgram: '' });
     setErrors({});
     setSuccessMessage('');
+    setErrorMessage('');
   };
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
+
+    if (!formData.nomorProgram.trim()) {
+      newErrors.nomorProgram = 'Nomor Program wajib diisi';
+    }
 
     if (!formData.namaProgram.trim()) {
       newErrors.namaProgram = 'Nama Program wajib diisi';
@@ -78,19 +89,26 @@ const AddProgramModal = ({ open, onClose, onSuccess }: AddProgramModalProps) => 
     }
 
     setIsSubmitting(true);
+    setErrorMessage('');
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await createProgram({
+        rbsi_id: rbsiId,
+        tahun: tahun,
+        nomor_program: formData.nomorProgram.trim(),
+        nama_program: formData.namaProgram.trim(),
+        inisiatifs: [],
+      });
 
-      console.log('Form Data:', formData);
       setSuccessMessage('Program berhasil ditambahkan!');
 
       setTimeout(() => {
         resetForm();
         onSuccess?.();
         onClose();
-      }, 1500);
+      }, 1000);
     } catch (error) {
       console.error('Error submitting form:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Gagal menyimpan program');
     } finally {
       setIsSubmitting(false);
     }
@@ -136,10 +154,38 @@ const AddProgramModal = ({ open, onClose, onSuccess }: AddProgramModalProps) => 
           </Alert>
         )}
 
+        {errorMessage && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {errorMessage}
+          </Alert>
+        )}
+
         <Stack spacing={2.5}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
             Informasi Program
           </Typography>
+          <TextField
+            fullWidth
+            label="Tahun"
+            value={tahun}
+            disabled
+            sx={{
+              '& .MuiInputBase-input.Mui-disabled': {
+                WebkitTextFillColor: '#1d1d1f',
+                bgcolor: '#f5f5f7',
+              },
+            }}
+          />
+          <TextField
+            fullWidth
+            label="Nomor Program"
+            name="nomorProgram"
+            value={formData.nomorProgram}
+            onChange={handleInputChange}
+            error={!!errors.nomorProgram}
+            helperText={errors.nomorProgram}
+            placeholder="Contoh: 3.1"
+          />
           <TextField
             fullWidth
             label="Nama Program"
@@ -148,7 +194,7 @@ const AddProgramModal = ({ open, onClose, onSuccess }: AddProgramModalProps) => 
             onChange={handleInputChange}
             error={!!errors.namaProgram}
             helperText={errors.namaProgram}
-            placeholder="Contoh: Transformasi Digital 2026"
+            placeholder="Contoh: Aplikasi Pelaporan"
           />
         </Stack>
       </DialogContent>

@@ -2,3 +2,5 @@ export { default as AddPksiModal } from './AddPksiModal';
 export { default as AddProgramModal } from './AddProgramModal';
 export { default as AddInisiatifModal } from './AddInisiatifModal';
 export { default as AddPeriodeModal } from './AddPeriodeModal';
+export { default as CopyFromYearModal } from './CopyFromYearModal';
+export { default as HistoryComparisonModal } from './HistoryComparisonModal';
