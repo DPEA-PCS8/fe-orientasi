@@ -8,7 +8,6 @@ import AddProgram from './pages/AddProgram';
 import AddInisiatif from './pages/AddInisiatif';
 import PksiList from './pages/PksiList';
 import PksiDisetujui from './pages/PksiDisetujui';
-import RbsiList from './pages/RbsiList';
 import ProgramList from './pages/ProgramList';
 import ProtectedRoute from './components/ProtectedRoute';
 import { isAuthenticated } from './api/authApi';
@@ -42,16 +41,6 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <PksiDisetujui />
-                </Layout>
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/rbsi" 
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <RbsiList />
                 </Layout>
               </ProtectedRoute>
             } 
