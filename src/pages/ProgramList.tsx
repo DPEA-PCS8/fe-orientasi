@@ -188,6 +188,42 @@ function ProgramList() {
     setFilterAnchorEl(null); // Close popover after selection
   };
 
+  const tokenizeNomor = (value: string): Array<string | number> => {
+    return value
+      .split('.')
+      .flatMap(part => part.match(/(\d+|[^\d]+)/g) || [])
+      .map(token => (token.match(/^\d+$/) ? parseInt(token, 10) : token.toLowerCase()));
+  };
+
+  const compareNomor = (a: string, b: string): number => {
+    const aTokens = tokenizeNomor(a);
+    const bTokens = tokenizeNomor(b);
+    const maxLength = Math.max(aTokens.length, bTokens.length);
+
+    for (let i = 0; i < maxLength; i++) {
+      const aToken = aTokens[i];
+      const bToken = bTokens[i];
+
+      if (aToken === undefined) return -1;
+      if (bToken === undefined) return 1;
+
+      if (typeof aToken === 'number' && typeof bToken === 'number') {
+        if (aToken !== bToken) return aToken - bToken;
+        continue;
+      }
+
+      if (typeof aToken === 'string' && typeof bToken === 'string') {
+        if (aToken !== bToken) return aToken.localeCompare(bToken);
+        continue;
+      }
+
+      if (typeof aToken === 'number') return -1;
+      return 1;
+    }
+
+    return 0;
+  };
+
   // Generate tahun options from RBSI periode
   const tahunOptions = React.useMemo(() => {
     if (!selectedRbsi) return [];
@@ -216,7 +252,7 @@ function ProgramList() {
       inisiatifs.some(ini => ini.nama_inisiatif.toLowerCase().includes(keyword.toLowerCase()));
 
     return matchKeyword;
-  });
+  }).sort((a, b) => compareNomor(a.nomor_program, b.nomor_program));
 
   const handleMappingClick = (inisiatifId: string) => {
     console.log('Mapping clicked for inisiatif:', inisiatifId);
@@ -541,7 +577,9 @@ function ProgramList() {
                                 </TableCell>
                               </TableRow>
                             ) : (
-                              (program.inisiatifs ?? []).map((inisiatif) => (
+                              [...(program.inisiatifs ?? [])]
+                                .sort((a, b) => compareNomor(a.nomor_inisiatif, b.nomor_inisiatif))
+                                .map((inisiatif) => (
                                 <TableRow
                                   key={inisiatif.id}
                                   sx={{
