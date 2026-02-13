@@ -18,7 +18,6 @@ import {
   NotificationsRounded,
   MenuBookRounded,
   HelpOutlineRounded,
-  DocumentScannerRounded,
   DescriptionRounded,
   LightbulbRounded,
   ExpandLess,
@@ -52,6 +51,7 @@ const menuSections: MenuSection[] = [
   {
     title: 'Features',
     items: [
+      { label: 'RBSI', icon: <LightbulbRounded />, href: '/program' },
       { 
         label: 'PKSI', 
         icon: <DescriptionRounded />, 
@@ -61,8 +61,6 @@ const menuSections: MenuSection[] = [
           { label: 'PKSI Disetujui', icon: <CheckCircleRounded />, href: '/pksi-disetujui' },
         ],
       },
-      { label: 'RBSI', icon: <DocumentScannerRounded />, href: '/rbsi' },
-      { label: 'Program', icon: <LightbulbRounded />, href: '/program' },
     ],
   },
   {

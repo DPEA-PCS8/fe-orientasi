@@ -249,7 +249,7 @@ function ProgramList() {
             Daftar Program & Inisiatif
           </Typography>
           <Typography variant="body1" sx={{ color: '#86868b' }}>
-            Kelola data program dan inisiatif strategis
+            Kelola data program dan inisiatif RBSI
           </Typography>
         </Box>
 
