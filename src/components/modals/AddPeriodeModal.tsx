@@ -20,7 +20,7 @@ import {
 interface AddPeriodeModalProps {
   open: boolean;
   onClose: () => void;
-  onSuccess?: (periode: string) => void;
+  onSuccess?: (periode: string) => void | Promise<void>;
   existingPeriodes: string[];
 }
 
@@ -72,17 +72,17 @@ const AddPeriodeModal = ({ open, onClose, onSuccess, existingPeriodes }: AddPeri
 
     setIsSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await onSuccess?.(periodeString);
       
       setSuccessMessage('Periode berhasil ditambahkan!');
       
       setTimeout(() => {
         resetForm();
-        onSuccess?.(periodeString);
         onClose();
       }, 1000);
     } catch (err) {
       console.error('Error:', err);
+      setError(err instanceof Error ? err.message : 'Gagal menambahkan periode');
     } finally {
       setIsSubmitting(false);
     }

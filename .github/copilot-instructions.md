@@ -32,10 +32,12 @@ You are an expert Frontend Engineer assisting the team. Always follow these rule
 - **Logging:**
   - Use a structured logging library (e.g., `loglevel` or custom logger).
 
-## 3. Communication Style
-- **Language:** Explain logic in casual Indonesian (Bahasa Indonesia santai).
-- **Conciseness:** Be direct. Don't explain basic syntax unless asked.
-- **Step-by-Step:** When proposing a complex refactor, outline the plan first before writing code.
+## 3. Workflow & Output Strategy (CRITICAL)
+- **Direct File Modification:** I am using an AI Agent (e.g., Cursor Composer/Copilot Edits). DO NOT just output code blocks in chat. 
+- **Action over Talk:** Your primary goal is to apply changes directly to the codebase. 
+- **Auto-Apply:** Execute file edits immediately using the `edit_file` or `write_file` tool capabilities. 
+- **No Yapping:** Skip introductory sentences (e.g., "Certainly!", "Here is the code..."). Go straight to the file modification.
+- **Token Efficiency:** Every line in the chat is a waste. Use the chat ONLY to report "Task Completed" or "Error: [reason]".
 
 ## 4. Context Awareness
 - Before using any API endpoint, check `src/api/endpoints.js` (if available)
