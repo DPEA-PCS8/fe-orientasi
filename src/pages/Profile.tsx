@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -11,14 +11,17 @@ import {
   TableHead,
   TableRow,
   CircularProgress,
+  Alert,
 } from '@mui/material';
 import {
   Person as PersonIcon,
   Email as EmailIcon,
   Business as BusinessIcon,
-  Phone as PhoneIcon,
+  Work as WorkIcon,
   Assignment as AssignmentIcon,
 } from '@mui/icons-material';
+import { getUserInfo } from '../api/authApi';
+import { getUserProfile, type UserProfileResponse } from '../api/userProfileApi';
 
 // Interface untuk PKSI yang ter-assign ke user
 interface AssignedPksi {
@@ -62,28 +65,39 @@ const DUMMY_ASSIGNED_PKSI: AssignedPksi[] = [
 ];
 
 const Profile = () => {
+  const [userProfile, setUserProfile] = useState<UserProfileResponse | null>(null);
   const [assignedPksi, setAssignedPksi] = useState<AssignedPksi[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Extended user data dengan dummy data
-  const extendedUserData = {
-    full_name: 'Sample Name',
-    division: 'Departemen Pengembangan Aplikasi',
-    email: 'user.profil@gmail.com',
-    phoneNumber: '081234567890',
-  };
+  const [error, setError] = useState<string | null>(null);
+  const hasCalledRef = useRef(false);
 
   useEffect(() => {
-    // Simulasi fetch PKSI yang ter-assign ke user
-    const fetchAssignedPksi = async () => {
+    if (hasCalledRef.current) return;
+    hasCalledRef.current = true;
+
+    const fetchUserProfile = async () => {
       setLoading(true);
-      // Simulasi delay API
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      setAssignedPksi(DUMMY_ASSIGNED_PKSI);
-      setLoading(false);
+      setError(null);
+      
+      try {
+        const userInfo = getUserInfo();
+        if (!userInfo?.uuid) {
+          throw new Error('User UUID not found. Please login again.');
+        }
+
+        const response = await getUserProfile(userInfo.uuid);
+        setUserProfile(response.data);
+        
+        // Use dummy PKSI data for now - will be replaced when BE is ready
+        setAssignedPksi(DUMMY_ASSIGNED_PKSI);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load profile');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    fetchAssignedPksi();
+    fetchUserProfile();
   }, []);
 
   const getStatusColor = (status: AssignedPksi['status']) => {
@@ -133,6 +147,22 @@ const Profile = () => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
   };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <CircularProgress sx={{ color: '#DA251C' }} />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ 
@@ -192,7 +222,7 @@ const Profile = () => {
             Nama Lengkap
           </Typography>
           <Typography variant="body1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-            {extendedUserData.full_name}
+            {userProfile?.full_name || '-'}
           </Typography>
         </Paper>
 
@@ -228,7 +258,7 @@ const Profile = () => {
             Departemen
           </Typography>
           <Typography variant="body1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-            {extendedUserData.division}
+            {userProfile?.departemen || '-'}
           </Typography>
         </Paper>
 
@@ -251,20 +281,20 @@ const Profile = () => {
                 width: 40,
                 height: 40,
                 borderRadius: 1.5,
-                background: 'linear-gradient(135deg, #FF9500 0%, #FF6300 100%)',
+                background: 'linear-gradient(135deg, #AF52DE 0%, #8A2BE2 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <EmailIcon sx={{ color: '#fff', fontSize: 20 }} />
+              <WorkIcon sx={{ color: '#fff', fontSize: 20 }} />
             </Box>
           </Box>
           <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mb: 0.5 }}>
-            Email
+            Jabatan
           </Typography>
-          <Typography variant="body1" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem' }}>
-            {extendedUserData.email}
+          <Typography variant="body1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+            {userProfile?.title || '-'}
           </Typography>
         </Paper>
 
@@ -293,14 +323,14 @@ const Profile = () => {
                 justifyContent: 'center',
               }}
             >
-              <PhoneIcon sx={{ color: '#fff', fontSize: 20 }} />
+              <EmailIcon sx={{ color: '#fff', fontSize: 20 }} />
             </Box>
           </Box>
           <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mb: 0.5 }}>
-            Nomor HP
+            Email
           </Typography>
-          <Typography variant="body1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-            {extendedUserData.phoneNumber}
+          <Typography variant="body1" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem' }}>
+            {userProfile?.email || '-'}
           </Typography>
         </Paper>
       </Box>
@@ -360,11 +390,7 @@ const Profile = () => {
           />
         </Box>
 
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-            <CircularProgress sx={{ color: '#DA251C' }} />
-          </Box>
-        ) : assignedPksi.length === 0 ? (
+        {assignedPksi.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <AssignmentIcon sx={{ fontSize: 56, color: '#d1d1d6', mb: 2 }} />
             <Typography sx={{ color: '#86868b', fontSize: '1rem', mb: 0.5 }}>
