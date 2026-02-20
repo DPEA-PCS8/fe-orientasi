@@ -24,7 +24,9 @@ import {
   ExpandMore,
   CheckCircleRounded,
   ListAltRounded,
+  PeopleRounded,
 } from '@mui/icons-material';
+import { isAdmin } from '../api/authApi';
 
 const DRAWER_WIDTH = 240;
 
@@ -47,42 +49,45 @@ interface MenuSection {
   items: MenuItem[];
 }
 
-const menuSections: MenuSection[] = [
-  {
-    title: 'Features',
-    items: [
-      { label: 'RBSI', icon: <LightbulbRounded />, href: '/program' },
-      { 
-        label: 'PKSI', 
-        icon: <DescriptionRounded />, 
-        href: '/',
-        subItems: [
-          { label: 'Semua PKSI', icon: <ListAltRounded />, href: '/' },
-          { label: 'PKSI Disetujui', icon: <CheckCircleRounded />, href: '/pksi-disetujui' },
-        ],
-      },
-    ],
-  },
-  {
-    title: 'Admin',
-    items: [
-      { label: 'Settings', icon: <SettingsRounded />, href: '/settings' },
-      { label: 'Audit Log', icon: <HistoryRounded />, href: '/audit' },
-      { label: 'Notifications', icon: <NotificationsRounded />, href: '/notifications' },
-    ],
-  },
-  {
-    title: 'Support',
-    items: [
-      { label: 'Documentation', icon: <MenuBookRounded />, href: '/docs' },
-      { label: 'Help Center', icon: <HelpOutlineRounded />, href: '/support' },
-    ],
-  },
-];
-
 const Sidebar = () => {
   const location = useLocation();
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ PKSI: true });
+
+  // Build menu sections dynamically based on user roles
+  const menuSections: MenuSection[] = [
+    {
+      title: 'Features',
+      items: [
+        { label: 'RBSI', icon: <LightbulbRounded />, href: '/program' },
+        {
+          label: 'PKSI',
+          icon: <DescriptionRounded />,
+          href: '/',
+          subItems: [
+            { label: 'Semua PKSI', icon: <ListAltRounded />, href: '/' },
+            { label: 'PKSI Disetujui', icon: <CheckCircleRounded />, href: '/pksi-disetujui' },
+          ],
+        },
+      ],
+    },
+    // Admin section - only shown to admin users
+    ...(isAdmin() ? [{
+      title: 'Admin',
+      items: [
+        { label: 'User & Roles', icon: <PeopleRounded />, href: '/admin/user-roles' },
+        { label: 'Settings', icon: <SettingsRounded />, href: '/settings' },
+        { label: 'Audit Log', icon: <HistoryRounded />, href: '/audit' },
+        { label: 'Notifications', icon: <NotificationsRounded />, href: '/notifications' },
+      ],
+    }] : []),
+    {
+      title: 'Support',
+      items: [
+        { label: 'Documentation', icon: <MenuBookRounded />, href: '/docs' },
+        { label: 'Help Center', icon: <HelpOutlineRounded />, href: '/support' },
+      ],
+    },
+  ];
 
   const isActive = (href: string) => {
     if (href === '/' && location.pathname === '/') {
