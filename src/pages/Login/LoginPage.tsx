@@ -10,6 +10,7 @@ import {
   IconButton,
   CircularProgress,
   InputAdornment,
+  Snackbar,
 } from '@mui/material';
 import {
   Visibility,
@@ -36,6 +37,7 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [showNoRoleWarning, setShowNoRoleWarning] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +57,11 @@ const LoginPage = () => {
         response.data.user_info,
         values.rememberMe
       );
+
+      // Check if user has a role assigned
+      if (!response.data.user_info.has_role) {
+        setShowNoRoleWarning(true);
+      }
 
       navigate('/');
     } catch (error) {
@@ -417,6 +424,15 @@ const LoginPage = () => {
           </Typography>
         </Box>
       </Box>
+
+      {/* No Role Warning Snackbar */}
+      <Snackbar
+        open={showNoRoleWarning}
+        autoHideDuration={8000}
+        onClose={() => setShowNoRoleWarning(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        message="Akun Anda belum diberikan role. Silakan hubungi administrator untuk mendapatkan akses ke fitur aplikasi."
+      />
     </Box>
   );
 };

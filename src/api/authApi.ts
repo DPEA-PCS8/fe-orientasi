@@ -1,4 +1,5 @@
 import JSEncrypt from 'jsencrypt';
+import type { UserInfo, LoginResponse as LoginResponseType } from '../types/auth.types';
 
 const API_KEY = 'da39b92f-a1b8-46d5-a10c-d08b1cc92218';
 
@@ -13,21 +14,10 @@ ZchNGzuTOqc7jFA6UpBhLUj1QO76k1KT00V5IPqHsPWb8YzUztjysN6i5IUiMQCE
 9wIDAQAB
 -----END PUBLIC KEY-----`;
 
-export interface UserInfo {
-  uuid: string;
-  username: string;
-  full_name: string;
-  email: string;
-  division: string;
-}
-
 export interface LoginResponse {
-  status_code: number;
+  status: number;
   message: string;
-  data: {
-    token: string;
-    user_info: UserInfo;
-  };
+  data: LoginResponseType;
 }
 
 /**
@@ -114,4 +104,65 @@ export function clearAuthData(): void {
  */
 export function isAuthenticated(): boolean {
   return !!getAuthToken();
+}
+
+/**
+ * Check if user has a role assigned
+ */
+export function hasRole(): boolean {
+  const userInfo = getUserInfo();
+  return userInfo?.has_role ?? false;
+}
+
+/**
+ * Get user's roles
+ */
+export function getUserRoles(): string[] {
+  const userInfo = getUserInfo();
+  return userInfo?.roles ?? [];
+}
+
+/**
+ * Check if user has specific role
+ */
+export function hasRoleName(roleName: string): boolean {
+  const roles = getUserRoles();
+  return roles.includes(roleName);
+}
+
+/**
+ * Check if user has any of the specified roles
+ */
+export function hasAnyRole(roleNames: string[]): boolean {
+  const roles = getUserRoles();
+  return roleNames.some(roleName => roles.includes(roleName));
+}
+
+/**
+ * Check if user has all of the specified roles
+ */
+export function hasAllRoles(roleNames: string[]): boolean {
+  const roles = getUserRoles();
+  return roleNames.every(roleName => roles.includes(roleName));
+}
+
+/**
+ * Check if user has Admin role
+ */
+export function isAdmin(): boolean {
+  return hasRoleName('Admin');
+}
+
+/**
+ * Check if user has Pengembang role
+ */
+export function isPengembang(): boolean {
+  return hasRoleName('Pengembang');
+}
+
+/**
+ * Check if user has SKPA role
+ */
+export function isSKPA(): boolean {
+  return hasRoleName('SKPA');
 }

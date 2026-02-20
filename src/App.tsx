@@ -12,6 +12,7 @@ import ProgramList from './pages/ProgramList';
 import ProtectedRoute from './components/ProtectedRoute';
 import { isAuthenticated } from './api/authApi';
 import Profile from './pages/Profile';
+import UserRoleManagement from './pages/UserRoleManagement';
 
 function App() {
   return (
@@ -91,6 +92,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <AddInisiatif />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route
+            path="/admin/user-roles"
+            element={
+              <ProtectedRoute requireRoles={["Admin"]}>
+                <Layout>
+                  <UserRoleManagement />
                 </Layout>
               </ProtectedRoute>
             } 
