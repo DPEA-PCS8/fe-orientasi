@@ -14,6 +14,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { isAuthenticated } from './api/authApi';
 import Profile from './pages/Profile';
 import UserRoleManagement from './pages/UserRoleManagement';
+import RolePermissions from './pages/RolePermissions';
 
 function App() {
   return (
@@ -116,6 +117,16 @@ function App() {
               <ProtectedRoute requireRoles={["Admin"]}>
                 <Layout>
                   <UserRoleManagement />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route
+            path="/admin/role-permissions"
+            element={
+              <ProtectedRoute requireRoles={["Admin"]}>
+                <Layout>
+                  <RolePermissions />
                 </Layout>
               </ProtectedRoute>
             } 

@@ -27,6 +27,8 @@ import {
   PeopleRounded,
   MonitorHeartRounded,
   AccountTreeRounded,
+  SecurityRounded,
+  ManageAccountsRounded,
 } from '@mui/icons-material';
 import { isAdmin } from '../api/authApi';
 
@@ -84,7 +86,15 @@ const Sidebar = () => {
     ...(isAdmin() ? [{
       title: 'Admin',
       items: [
-        { label: 'User & Roles', icon: <PeopleRounded />, href: '/admin/user-roles' },
+        {
+          label: 'User & Roles',
+          icon: <PeopleRounded />,
+          href: '/admin/user-roles',
+          subItems: [
+            { label: 'User Role Management', icon: <ManageAccountsRounded />, href: '/admin/user-roles' },
+            { label: 'Role Permissions', icon: <SecurityRounded />, href: '/admin/role-permissions' },
+          ],
+        },
         { label: 'Settings', icon: <SettingsRounded />, href: '/settings' },
         { label: 'Audit Log', icon: <HistoryRounded />, href: '/audit' },
         { label: 'Notifications', icon: <NotificationsRounded />, href: '/notifications' },
