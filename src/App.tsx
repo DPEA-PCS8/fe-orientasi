@@ -4,11 +4,16 @@ import theme from './styles/theme';
 import { LoginPage } from './pages';
 import Layout from './components/Layout';
 import AddPksi from './pages/AddPksi';
+import AddProgram from './pages/AddProgram';
+import AddInisiatif from './pages/AddInisiatif';
 import PksiList from './pages/PksiList';
 import RbsiList from './pages/RbsiList';
+import PksiDisetujui from './pages/PksiDisetujui';
 import ProgramList from './pages/ProgramList';
 import ProtectedRoute from './components/ProtectedRoute';
 import { isAuthenticated } from './api/authApi';
+import Profile from './pages/Profile';
+import UserRoleManagement from './pages/UserRoleManagement';
 
 function App() {
   return (
@@ -28,6 +33,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <PksiList />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/pksi-disetujui" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <PksiDisetujui />
                 </Layout>
               </ProtectedRoute>
             } 
@@ -58,6 +73,46 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <AddPksi />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/profile" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Profile />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/add-program" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AddProgram />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/add-inisiatif" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AddInisiatif />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route
+            path="/admin/user-roles"
+            element={
+              <ProtectedRoute requireRoles={["Admin"]}>
+                <Layout>
+                  <UserRoleManagement />
                 </Layout>
               </ProtectedRoute>
             } 

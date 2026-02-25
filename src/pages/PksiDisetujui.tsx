@@ -13,27 +13,23 @@ import {
   InputAdornment,
   Typography,
   Paper,
-  Button,
   IconButton,
   Tooltip,
-  Menu,
-  MenuItem,
   Link,
   Chip,
   Popover,
   Checkbox,
   FormControlLabel,
   FormGroup,
+  Button,
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  Add as AddIcon,
   TuneRounded,
-  KeyboardArrowDown as ArrowDownIcon,
   OpenInNew as OpenInNewIcon,
   Close as CloseIcon,
+  CheckCircleRounded,
 } from '@mui/icons-material';
-import { AddPksiModal } from '../components/modals';
 
 // Interface untuk data PKSI
 interface PksiData {
@@ -45,7 +41,7 @@ interface PksiData {
   status: 'pending' | 'disetujui' | 'tidak_disetujui';
 }
 
-// Dummy data PKSI - 100 entries
+// Dummy data PKSI - 100 entries (same as PksiList)
 const DUMMY_PKSI: PksiData[] = [
   { id: '1', namaPksi: 'SIP Perbankan Modul Penyusunan KYBPR - KYBPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-01T10:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/abc123', status: 'pending' },
   { id: '2', namaPksi: 'SIP Perbankan Modul Manajemen Pemeriksaan BPR/BPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-03T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/def456', status: 'disetujui' },
@@ -151,62 +147,19 @@ const DUMMY_PKSI: PksiData[] = [
 
 type Order = 'asc' | 'desc';
 
-// Status label mapping
-const STATUS_LABELS: Record<PksiData['status'], string> = {
-  pending: 'Pending',
-  disetujui: 'Disetujui',
-  tidak_disetujui: 'Tidak Disetujui',
-};
-
-const getStatusColor = (status: PksiData['status']) => {
-  switch (status) {
-    case 'disetujui':
-      return '#31A24C';
-    case 'tidak_disetujui':
-      return '#FF3B30';
-    case 'pending':
-      return '#FF9500';
-    default:
-      return '#86868b';
-  }
-};
-
-function PksiList() {
+function PksiDisetujui() {
   const [keyword, setKeyword] = useState('');
-  const [openAddModal, setOpenAddModal] = useState(false);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [orderBy, setOrderBy] = useState<keyof PksiData>('namaPksi');
   const [order, setOrder] = useState<Order>('asc');
-  const [pksiData, setPksiData] = useState<PksiData[]>(DUMMY_PKSI);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [selectedPksiId, setSelectedPksiId] = useState<string | null>(null);
 
   // Filter state
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedJangkaWaktu, setSelectedJangkaWaktu] = useState<Set<string>>(new Set());
-  const [selectedStatus, setSelectedStatus] = useState<Set<string>>(new Set());
 
-  const handleStatusMenuOpen = (event: React.MouseEvent<HTMLElement>, pksiId: string) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedPksiId(pksiId);
-  };
-
-  const handleStatusMenuClose = () => {
-    setAnchorEl(null);
-    setSelectedPksiId(null);
-  };
-
-  const handleStatusChange = (newStatus: PksiData['status']) => {
-    if (selectedPksiId) {
-      setPksiData(prev => 
-        prev.map(item => 
-          item.id === selectedPksiId ? { ...item, status: newStatus } : item
-        )
-      );
-    }
-    handleStatusMenuClose();
-  };
+  // Only get approved PKSI
+  const approvedPksiData = DUMMY_PKSI.filter(item => item.status === 'disetujui');
 
   const handleFilterOpen = (event: React.MouseEvent<HTMLElement>) => {
     setFilterAnchorEl(event.currentTarget);
@@ -226,33 +179,19 @@ function PksiList() {
     setSelectedJangkaWaktu(newSet);
   };
 
-  const handleStatusFilterChange = (status: string) => {
-    const newSet = new Set(selectedStatus);
-    if (newSet.has(status)) {
-      newSet.delete(status);
-    } else {
-      newSet.add(status);
-    }
-    setSelectedStatus(newSet);
-  };
-
   const handleResetFilter = () => {
     setSelectedJangkaWaktu(new Set());
-    setSelectedStatus(new Set());
   };
 
   const filteredPksi = (() => {
-    const result = pksiData.filter(item => {
+    let result = approvedPksiData.filter(item => {
       // Keyword filter
       const matchKeyword = item.namaPksi.toLowerCase().includes(keyword.toLowerCase());
       
       // Jangka Waktu filter
       const matchJangkaWaktu = selectedJangkaWaktu.size === 0 || selectedJangkaWaktu.has(item.jangkaWaktu);
       
-      // Status filter
-      const matchStatus = selectedStatus.size === 0 || selectedStatus.has(item.status);
-      
-      return matchKeyword && matchJangkaWaktu && matchStatus;
+      return matchKeyword && matchJangkaWaktu;
     });
 
     result.sort((a, b) => {
@@ -295,19 +234,21 @@ function PksiList() {
     }}>
       {/* Header */}
       <Box sx={{ mb: 3 }}>
-        <Typography 
-          variant="h4" 
-          sx={{ 
-            fontWeight: 700, 
-            color: '#1d1d1f',
-            letterSpacing: '-0.02em',
-            mb: 0.5,
-          }}
-        >
-          Dashboard PKSI
-        </Typography>
-        <Typography variant="body1" sx={{ color: '#86868b' }}>
-          Kelola data pengajuan PKSI
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+          <CheckCircleRounded sx={{ color: '#31A24C', fontSize: 32 }} />
+          <Typography 
+            variant="h4" 
+            sx={{ 
+              fontWeight: 700, 
+              color: '#1d1d1f',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            PKSI Disetujui
+          </Typography>
+        </Box>
+        <Typography variant="body1" sx={{ color: '#86868b', ml: 0.5 }}>
+          Daftar PKSI yang telah disetujui ({approvedPksiData.length} item)
         </Typography>
       </Box>
 
@@ -349,7 +290,7 @@ function PksiList() {
                     borderColor: 'transparent',
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#DA251C',
+                    borderColor: '#31A24C',
                     borderWidth: 2,
                   },
                 },
@@ -369,7 +310,7 @@ function PksiList() {
               startIcon={<TuneRounded sx={{ fontSize: 18 }} />}
               onClick={handleFilterOpen}
               sx={{
-                color: selectedJangkaWaktu.size > 0 || selectedStatus.size > 0 ? '#DA251C' : '#86868b',
+                color: selectedJangkaWaktu.size > 0 ? '#31A24C' : '#86868b',
                 fontWeight: 500,
                 '&:hover': {
                   bgcolor: 'rgba(0, 0, 0, 0.04)',
@@ -379,32 +320,21 @@ function PksiList() {
               Filters
             </Button>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setOpenAddModal(true)}
+          
+          {/* Status Badge */}
+          <Chip
+            icon={<CheckCircleRounded sx={{ fontSize: 16 }} />}
+            label="Disetujui"
             sx={{
-              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
-              fontWeight: 500,
-              px: 2.5,
-              '&:hover': {
-                background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
+              bgcolor: '#31A24C20',
+              color: '#31A24C',
+              fontWeight: 600,
+              '& .MuiChip-icon': {
+                color: '#31A24C',
               },
             }}
-          >
-            Tambah PKSI
-          </Button>
+          />
         </Box>
-
-        {/* Add PKSI Modal */}
-        <AddPksiModal
-          open={openAddModal}
-          onClose={() => setOpenAddModal(false)}
-          onSuccess={() => {
-            // Refresh data here if needed
-            console.log('PKSI added successfully');
-          }}
-        />
 
         {/* Filter Popover */}
         <Popover
@@ -422,54 +352,24 @@ function PksiList() {
           PaperProps={{
             sx: {
               mt: 1,
-              borderRadius: '16px',
-              boxShadow: '0 20px 40px rgba(218, 37, 28, 0.1)',
-              overflow: 'hidden',
-              border: '1px solid #ffebeb',
+              borderRadius: 2,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
             },
           }}
         >
-          {/* Header */}
-          <Box sx={{
-            background: '#DA251C',
-            p: 2.5,
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-          }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box sx={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                bgcolor: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                <TuneRounded sx={{ fontSize: 16, color: '#DA251C' }} />
-              </Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'white' }}>
+          <Box sx={{ p: 2.5, minWidth: 300 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
                 Filter
               </Typography>
+              <IconButton size="small" onClick={handleFilterClose}>
+                <CloseIcon sx={{ fontSize: 18 }} />
+              </IconButton>
             </Box>
-            <IconButton 
-              size="small" 
-              onClick={handleFilterClose}
-              sx={{ 
-                color: 'white', 
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } 
-              }}
-            >
-              <CloseIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Box>
-          
-          <Box sx={{ p: 3, minWidth: 320, bgcolor: 'white' }}>
 
             {/* Jangka Waktu Filter */}
-            <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1 }}>
                 Jangka Waktu
               </Typography>
               <FormGroup>
@@ -481,12 +381,12 @@ function PksiList() {
                       onChange={() => handleJangkaWaktuChange('Single Year')}
                       sx={{
                         '&.Mui-checked': {
-                          color: '#DA251C',
+                          color: '#31A24C',
                         },
                       }}
                     />
                   }
-                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Single Year</Typography>}
+                  label={<Typography variant="body2">Single Year</Typography>}
                 />
                 <FormControlLabel
                   control={
@@ -496,88 +396,30 @@ function PksiList() {
                       onChange={() => handleJangkaWaktuChange('Multiyears 2024-2025')}
                       sx={{
                         '&.Mui-checked': {
-                          color: '#DA251C',
+                          color: '#31A24C',
                         },
                       }}
                     />
                   }
-                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Multiyears 2024-2025</Typography>}
+                  label={<Typography variant="body2">Multiyears 2024-2025</Typography>}
                 />
               </FormGroup>
             </Box>
 
-            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
-
-            {/* Status Filter */}
-            <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
-                Status
-              </Typography>
-              <FormGroup>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={selectedStatus.has('disetujui')}
-                      onChange={() => handleStatusFilterChange('disetujui')}
-                      sx={{
-                        '&.Mui-checked': {
-                          color: '#DA251C',
-                        },
-                      }}
-                    />
-                  }
-                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Disetujui</Typography>}
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={selectedStatus.has('tidak_disetujui')}
-                      onChange={() => handleStatusFilterChange('tidak_disetujui')}
-                      sx={{
-                        '&.Mui-checked': {
-                          color: '#DA251C',
-                        },
-                      }}
-                    />
-                  }
-                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Tidak Disetujui</Typography>}
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={selectedStatus.has('pending')}
-                      onChange={() => handleStatusFilterChange('pending')}
-                      sx={{
-                        '&.Mui-checked': {
-                          color: '#DA251C',
-                        },
-                      }}
-                    />
-                  }
-                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Pending</Typography>}
-                />
-              </FormGroup>
-            </Box>
-
-            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+            <Box sx={{ borderTop: '1px solid rgba(0,0,0,0.06)', my: 2 }} />
 
             {/* Reset Button */}
             <Button
               fullWidth
               variant="outlined"
+              size="small"
               onClick={handleResetFilter}
               sx={{
-                py: 1,
-                borderRadius: '8px',
-                color: '#DA251C',
-                borderColor: '#DA251C',
-                fontWeight: 600,
+                color: '#31A24C',
+                borderColor: '#31A24C',
                 '&:hover': {
-                  bgcolor: '#fff5f5',
-                  borderColor: '#DA251C',
+                  bgcolor: 'rgba(49, 162, 76, 0.04)',
+                  borderColor: '#31A24C',
                 },
               }}
             >
@@ -588,27 +430,13 @@ function PksiList() {
 
         {/* Table */}
         <TableContainer sx={{ width: '100%' }}>
-          <Table sx={{ tableLayout: 'fixed' }}>
-            <TableHead>
-              <TableRow sx={{ bgcolor: '#f5f5f7' }}>
-                <TableCell 
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 2,
-                    width: 50,
-                    textAlign: 'center',
-                  }}
-                >
-                  No
-                </TableCell>
+          <Table>
+            <TableHead sx={{ bgcolor: '#f5f5f7' }}>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}>No</TableCell>
                 <TableCell 
                   sortDirection={orderBy === 'namaPksi' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 2,
-                  }}
+                  sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}
                 >
                   <TableSortLabel
                     active={orderBy === 'namaPksi'}
@@ -620,13 +448,7 @@ function PksiList() {
                 </TableCell>
                 <TableCell 
                   sortDirection={orderBy === 'jangkaWaktu' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 2,
-                    width: 130,
-                    textAlign: 'center',
-                  }}
+                  sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}
                 >
                   <TableSortLabel
                     active={orderBy === 'jangkaWaktu'}
@@ -638,13 +460,7 @@ function PksiList() {
                 </TableCell>
                 <TableCell 
                   sortDirection={orderBy === 'tanggalPengajuan' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 2,
-                    width: 140,
-                    textAlign: 'center',
-                  }}
+                  sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}
                 >
                   <TableSortLabel
                     active={orderBy === 'tanggalPengajuan'}
@@ -654,35 +470,8 @@ function PksiList() {
                     Tanggal Pengajuan
                   </TableSortLabel>
                 </TableCell>
-                <TableCell 
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 2,
-                    width: 80,
-                    textAlign: 'center',
-                  }}
-                >
-                  Docs T.01
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'status' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 2,
-                    width: 140,
-                    textAlign: 'center',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'status'}
-                    direction={orderBy === 'status' ? order : 'asc'}
-                    onClick={() => handleSort('status')}
-                  >
-                    Status
-                  </TableSortLabel>
-                </TableCell>
+                <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}>Lampiran Docs T.01</TableCell>
+                <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}>Status</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -690,122 +479,78 @@ function PksiList() {
                 <TableRow 
                   key={item.id}
                   sx={{
+                    borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
                     '&:hover': {
-                      bgcolor: 'rgba(218, 37, 28, 0.02)',
-                    },
-                    '&:not(:last-child)': {
-                      borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+                      bgcolor: 'rgba(49, 162, 76, 0.02)',
                     },
                   }}
                 >
-                  <TableCell 
-                    sx={{ 
-                      color: '#86868b', 
-                      py: 2,
-                      textAlign: 'center',
-                      fontWeight: 500,
-                      fontSize: '0.85rem',
-                    }}
-                  >
+                  <TableCell sx={{ color: '#86868b', py: 2 }}>
                     {page * rowsPerPage + index + 1}
                   </TableCell>
-                  <TableCell sx={{ py: 2 }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        fontWeight: 500,
-                        color: '#1d1d1f',
-                        lineHeight: 1.5,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                      }}
-                    >
+                  <TableCell sx={{ color: '#1d1d1f', py: 2 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
                       {item.namaPksi}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2, textAlign: 'center' }}>
+                  <TableCell sx={{ color: '#1d1d1f', py: 2 }}>
                     <Chip
-                      label={item.jangkaWaktu === 'Single Year' ? 'Single Year' : 'Multiyears'}
+                      label={item.jangkaWaktu}
                       size="small"
                       sx={{
-                        bgcolor: item.jangkaWaktu === 'Single Year' 
-                          ? 'rgba(139, 92, 246, 0.1)' 
-                          : 'rgba(37, 99, 235, 0.1)',
-                        color: item.jangkaWaktu === 'Single Year' ? '#8B5CF6' : '#2563EB',
-                        fontWeight: 600,
-                        fontSize: '0.75rem',
-                        height: 26,
-                        borderRadius: '6px',
+                        bgcolor: item.jangkaWaktu === 'Single Year' ? '#8B5CF6' : '#2563EB',
+                        color: 'white',
+                        fontWeight: 500,
                       }}
                     />
                   </TableCell>
-                  <TableCell sx={{ py: 2, textAlign: 'center' }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: '#1d1d1f',
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      {new Date(item.tanggalPengajuan).toLocaleDateString('id-ID', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    </Typography>
+                  <TableCell sx={{ color: '#1d1d1f', py: 2 }}>
+                    {new Date(item.tanggalPengajuan).toLocaleDateString('id-ID', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
                   </TableCell>
-                  <TableCell sx={{ py: 2, textAlign: 'center' }}>
-                    <Tooltip title="Buka dokumen T.01">
+                  <TableCell sx={{ py: 2 }}>
+                    <Tooltip title="Buka dokumen">
                       <IconButton
                         component={Link}
                         href={item.linkDocsT01}
                         target="_blank"
                         size="small"
                         sx={{
-                          color: '#DA251C',
-                          bgcolor: 'rgba(218, 37, 28, 0.08)',
+                          color: '#31A24C',
                           '&:hover': {
-                            bgcolor: 'rgba(218, 37, 28, 0.15)',
+                            bgcolor: 'rgba(49, 162, 76, 0.1)',
                           },
                         }}
                       >
-                        <OpenInNewIcon sx={{ fontSize: 16 }} />
+                        <OpenInNewIcon sx={{ fontSize: 18 }} />
                       </IconButton>
                     </Tooltip>
                   </TableCell>
-                  <TableCell sx={{ py: 2, textAlign: 'center' }}>
+                  <TableCell sx={{ py: 2 }}>
                     <Box
-                      onClick={(e) => handleStatusMenuOpen(e, item.id)}
                       sx={{
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 0.5,
                         px: 1.5,
-                        py: 0.5,
-                        bgcolor: `${getStatusColor(item.status)}15`,
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        border: `1px solid ${getStatusColor(item.status)}30`,
-                        '&:hover': {
-                          bgcolor: `${getStatusColor(item.status)}25`,
-                        },
+                        py: 0.75,
+                        bgcolor: '#31A24C20',
+                        borderRadius: '8px',
                       }}
                     >
+                      <CheckCircleRounded sx={{ fontSize: 14, color: '#31A24C' }} />
                       <Typography
                         variant="body2"
                         sx={{
-                          fontWeight: 600,
-                          fontSize: '0.75rem',
-                          color: getStatusColor(item.status),
+                          fontWeight: 500,
+                          color: '#31A24C',
                         }}
                       >
-                        {STATUS_LABELS[item.status]}
+                        Disetujui
                       </Typography>
-                      <ArrowDownIcon sx={{ fontSize: 14, color: getStatusColor(item.status) }} />
                     </Box>
                   </TableCell>
                 </TableRow>
@@ -813,47 +558,6 @@ function PksiList() {
             </TableBody>
           </Table>
         </TableContainer>
-
-        {/* Status Menu */}
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={handleStatusMenuClose}
-        >
-          <MenuItem onClick={() => handleStatusChange('disetujui')}>
-            <Chip
-              label="Disetujui"
-              size="small"
-              sx={{
-                bgcolor: '#31A24C',
-                color: 'white',
-                fontWeight: 500,
-              }}
-            />
-          </MenuItem>
-          <MenuItem onClick={() => handleStatusChange('tidak_disetujui')}>
-            <Chip
-              label="Tidak Disetujui"
-              size="small"
-              sx={{
-                bgcolor: '#FF3B30',
-                color: 'white',
-                fontWeight: 500,
-              }}
-            />
-          </MenuItem>
-          <MenuItem onClick={() => handleStatusChange('pending')}>
-            <Chip
-              label="Pending"
-              size="small"
-              sx={{
-                bgcolor: '#FF9500',
-                color: 'white',
-                fontWeight: 500,
-              }}
-            />
-          </MenuItem>
-        </Menu>
 
         {/* Pagination */}
         <TablePagination
@@ -878,4 +582,4 @@ function PksiList() {
   );
 }
 
-export default PksiList;
+export default PksiDisetujui;

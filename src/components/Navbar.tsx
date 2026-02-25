@@ -185,7 +185,7 @@ const Navbar = () => {
                 </Typography>
               </Box>
             </MenuItem>
-            <MenuItem onClick={handleClose}>Profile</MenuItem>
+            <MenuItem onClick={() => { navigate('/profile'); handleClose(); }}>Profile</MenuItem>
             <MenuItem onClick={handleClose}>Settings</MenuItem>
             <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>Sign Out</MenuItem>
           </Menu>
