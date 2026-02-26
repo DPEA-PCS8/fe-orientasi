@@ -189,14 +189,27 @@ export default function RolePermissions() {
 
   const handlePermissionChange = useCallback(
     (menuId: string, field: 'can_view' | 'can_create' | 'can_update' | 'can_delete', value: boolean) => {
-      setPermissions(prevPermissions =>
-        prevPermissions.map(perm => {
+      setPermissions(prevPermissions => {
+        // Find the clicked menu to check if it's a parent
+        const clickedMenu = prevPermissions.find(p => p.menu_id === menuId);
+        
+        // Find all child menus if this is a parent
+        const childMenuIds = clickedMenu?.parent_id === null
+          ? prevPermissions.filter(p => p.parent_id === menuId).map(p => p.menu_id)
+          : [];
+
+        return prevPermissions.map(perm => {
+          // Update the clicked menu
           if (perm.menu_id === menuId) {
             return { ...perm, [field]: value, isDirty: true };
           }
+          // Also update children if this is a parent menu
+          if (childMenuIds.includes(perm.menu_id)) {
+            return { ...perm, [field]: value, isDirty: true };
+          }
           return perm;
-        })
-      );
+        });
+      });
     },
     []
   );
@@ -264,6 +277,10 @@ export default function RolePermissions() {
 
   const hasDirtyPermissions = permissions.some(p => p.isDirty);
 
+  // Check if selected role is Admin
+  const selectedRole = roles.find(r => r.id === selectedRoleId);
+  const isAdminRole = selectedRole?.roleName?.toLowerCase() === 'admin';
+
   // Organize permissions by parent/child hierarchy
   const parentMenus = permissions.filter(p => p.parent_id === null);
   const getChildMenus = (parentId: string) =>
@@ -302,25 +319,27 @@ export default function RolePermissions() {
           >
             Refresh
           </Button>
-          <Button
-            variant="contained"
-            startIcon={<SaveIcon />}
-            onClick={handleSave}
-            disabled={!hasDirtyPermissions || saving}
-            sx={{
-              bgcolor: hasDirtyPermissions ? '#DA251C' : '#e0e0e0',
-              color: hasDirtyPermissions ? 'white' : '#9e9e9e',
-              '&:hover': { 
-                bgcolor: hasDirtyPermissions ? '#b91c14' : '#d5d5d5',
-              },
-              '&.Mui-disabled': {
-                bgcolor: '#e0e0e0',
-                color: '#9e9e9e',
-              },
-            }}
-          >
-            {saving ? 'Saving...' : 'Save Changes'}
-          </Button>
+          {!isAdminRole && (
+            <Button
+              variant="contained"
+              startIcon={<SaveIcon />}
+              onClick={handleSave}
+              disabled={!hasDirtyPermissions || saving}
+              sx={{
+                bgcolor: hasDirtyPermissions ? '#DA251C' : '#e0e0e0',
+                color: hasDirtyPermissions ? 'white' : '#9e9e9e',
+                '&:hover': { 
+                  bgcolor: hasDirtyPermissions ? '#b91c14' : '#d5d5d5',
+                },
+                '&.Mui-disabled': {
+                  bgcolor: '#e0e0e0',
+                  color: '#9e9e9e',
+                },
+              }}
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          )}
         </Box>
       </Box>
 
@@ -374,6 +393,14 @@ export default function RolePermissions() {
         </Alert>
       )}
 
+      {/* Info: Admin role has full access */}
+      {isAdminRole && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          <Typography fontWeight={600}>Role Admin memiliki akses penuh ke semua menu.</Typography>
+          <Typography variant="body2">Permissions untuk role Admin tidak dapat diubah dan akan otomatis mendapatkan akses ketika ada menu baru.</Typography>
+        </Alert>
+      )}
+
       {/* Permissions Table */}
       {selectedRoleId && menus.length > 0 && (
         <Paper sx={{ overflow: 'hidden', borderRadius: 2 }}>
@@ -423,7 +450,9 @@ export default function RolePermissions() {
                           </Box>
                           <Checkbox
                             size="small"
+                            checked={isAdminRole}
                             onChange={(e) => handleToggleAll(col.key, e.target.checked)}
+                            disabled={isAdminRole}
                             sx={{ 
                               p: 0.25,
                               '& .MuiSvgIcon-root': { fontSize: 18 },
@@ -496,10 +525,11 @@ export default function RolePermissions() {
                             }}
                           >
                             <Checkbox
-                              checked={parentMenu[col.key]}
+                              checked={isAdminRole || parentMenu[col.key]}
                               onChange={(e) =>
                                 handlePermissionChange(parentMenu.menu_id, col.key, e.target.checked)
                               }
+                              disabled={isAdminRole}
                               color={col.color}
                               size="small"
                               sx={{ 
@@ -569,10 +599,11 @@ export default function RolePermissions() {
                               }}
                             >
                               <Checkbox
-                                checked={childMenu[col.key]}
+                                checked={isAdminRole || childMenu[col.key]}
                                 onChange={(e) =>
                                   handlePermissionChange(childMenu.menu_id, col.key, e.target.checked)
                                 }
+                                disabled={isAdminRole}
                                 color={col.color}
                                 size="small"
                                 sx={{ 

@@ -170,3 +170,14 @@ export async function checkPermission(
   if (!response.ok) throw new Error(data.message || 'Failed to check permission');
   return data.data;
 }
+
+export async function getMyPermissions(roles: string[]): Promise<RolePermissionMatrix> {
+  const rolesParam = roles.map(r => `roles=${encodeURIComponent(r)}`).join('&');
+  const response = await fetch(`/api/role-permissions/my-permissions?${rolesParam}`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+  const data: BaseApiResponse<RolePermissionMatrix> = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Failed to get user permissions');
+  return data.data;
+}

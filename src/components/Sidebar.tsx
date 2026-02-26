@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import {
   Drawer,
@@ -30,14 +30,33 @@ import {
   SecurityRounded,
   ManageAccountsRounded,
 } from '@mui/icons-material';
-import { isAdmin } from '../api/authApi';
+import { isAdmin, getUserRoles } from '../api/authApi';
+import { getMyPermissions } from '../api/rolePermissionApi';
+import type { MenuPermissionItem } from '../types/rbac.types';
 
 const DRAWER_WIDTH = 240;
+
+// Mapping of menu codes from database to frontend href paths
+const MENU_CODE_TO_HREF: Record<string, string> = {
+  'RBSI': '/program',
+  'PKSI': '/',
+  'PKSI_ALL': '/',
+  'PKSI_APPROVED': '/pksi-disetujui',
+  'USER_ROLES': '/admin/user-roles',
+  'USER_MANAGEMENT': '/admin/user-roles',
+  'ROLE_PERMISSIONS': '/admin/role-permissions',
+  'SETTINGS': '/settings',
+  'AUDIT_LOG': '/audit',
+  'NOTIFICATIONS': '/notifications',
+  'DOCUMENTATION': '/docs',
+  'HELP_CENTER': '/support',
+};
 
 interface MenuItem {
   label: string;
   icon: React.ReactNode;
   href: string;
+  menuCode?: string; // Add menu code for permission matching
   active?: boolean;
   subItems?: SubMenuItem[];
 }
@@ -46,68 +65,154 @@ interface SubMenuItem {
   label: string;
   icon: React.ReactNode;
   href: string;
+  menuCode?: string; // Add menu code for permission matching
 }
 
 interface MenuSection {
   title: string;
   items: MenuItem[];
+  requiresPermission?: boolean; // Whether this section requires permission checks
 }
 
 const Sidebar = () => {
   const location = useLocation();
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ PKSI: true, 'Manajemen RBSI': true });
+  const [userPermissions, setUserPermissions] = useState<MenuPermissionItem[]>([]);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
-  // Build menu sections dynamically based on user roles
-  const menuSections: MenuSection[] = [
+  // Load user permissions on mount
+  useEffect(() => {
+    const loadPermissions = async () => {
+      try {
+        const roles = getUserRoles();
+        if (roles.length > 0) {
+          const permissions = await getMyPermissions(roles);
+          setUserPermissions(permissions.menu_permissions || []);
+        }
+      } catch (error) {
+        console.warn('Failed to load user permissions:', error);
+        // Continue with empty permissions - Admin role or no restriction
+      } finally {
+        setPermissionsLoaded(true);
+      }
+    };
+
+    loadPermissions();
+  }, []);
+
+  // Check if user has permission to view a menu by its code
+  const hasViewPermission = (menuCode?: string): boolean => {
+    // Admin always has access
+    if (isAdmin()) return true;
+    
+    // If no menu code specified, allow access
+    if (!menuCode) return true;
+    
+    // If permissions not loaded yet, default to showing menu
+    if (!permissionsLoaded) return true;
+    
+    // Find permission for this menu code
+    const permission = userPermissions.find(
+      p => p.menu_code.toUpperCase() === menuCode.toUpperCase()
+    );
+    
+    return permission?.can_view ?? false;
+  };
+
+  // Filter menu items based on permissions
+  const filterMenuItems = (items: MenuItem[]): MenuItem[] => {
+    return items
+      .map(item => {
+        // First filter subItems based on their permissions
+        const filteredSubItems = item.subItems?.filter(sub => hasViewPermission(sub.menuCode));
+        return {
+          ...item,
+          subItems: filteredSubItems,
+        };
+      })
+      .filter(item => {
+        // Show item if:
+        // 1. It has no subItems and has direct permission, OR
+        // 2. It has subItems and at least one subItem has permission, OR
+        // 3. Parent has permission (for items with subItems where parent has direct access)
+        if (item.subItems && item.subItems.length > 0) {
+          // Has visible children - show the parent
+          return true;
+        }
+        if (item.subItems && item.subItems.length === 0) {
+          // Had subItems but all filtered out - hide the parent
+          return false;
+        }
+        // No subItems - check direct permission
+        return hasViewPermission(item.menuCode);
+      });
+  };
+
+  // Build menu sections dynamically based on user roles and permissions
+  const allMenuSections: MenuSection[] = useMemo(() => [
     {
       title: 'Features',
+      requiresPermission: true,
       items: [
         {
           label: 'Manajemen RBSI',
           icon: <LightbulbRounded />,
           href: '/rbsi',
+          menuCode: 'RBSI',
           subItems: [
-            { label: 'RBSI Monitoring', icon: <MonitorHeartRounded />, href: '/rbsi' },
-            { label: 'RBSI Arsitektur', icon: <AccountTreeRounded />, href: '/rbsi-arsitektur' },
+            { label: 'RBSI Monitoring', icon: <MonitorHeartRounded />, href: '/rbsi', menuCode: 'RBSI_MONITORING' },
+            { label: 'RBSI Arsitektur', icon: <AccountTreeRounded />, href: '/rbsi-arsitektur', menuCode: 'RBSI_ARCHITECTURE' },
           ],
         },
         {
           label: 'PKSI',
           icon: <DescriptionRounded />,
           href: '/',
+          menuCode: 'PKSI',
           subItems: [
-            { label: 'Semua PKSI', icon: <ListAltRounded />, href: '/' },
-            { label: 'PKSI Disetujui', icon: <CheckCircleRounded />, href: '/pksi-disetujui' },
+            { label: 'Semua PKSI', icon: <ListAltRounded />, href: '/', menuCode: 'PKSI_ALL' },
+            { label: 'PKSI Disetujui', icon: <CheckCircleRounded />, href: '/pksi-disetujui', menuCode: 'PKSI_APPROVED' },
           ],
         },
       ],
     },
-    // Admin section - only shown to admin users
-    ...(isAdmin() ? [{
+    // Admin section - shown based on permissions (not just Admin role)
+    {
       title: 'Admin',
+      requiresPermission: true, // Filter based on actual permissions
       items: [
         {
           label: 'User & Roles',
           icon: <PeopleRounded />,
           href: '/admin/user-roles',
+          menuCode: 'USER_ROLES',
           subItems: [
-            { label: 'User Role Management', icon: <ManageAccountsRounded />, href: '/admin/user-roles' },
-            { label: 'Role Permissions', icon: <SecurityRounded />, href: '/admin/role-permissions' },
+            { label: 'User Management', icon: <ManageAccountsRounded />, href: '/admin/user-roles', menuCode: 'USER_MANAGEMENT' },
+            { label: 'Role Permissions', icon: <SecurityRounded />, href: '/admin/role-permissions', menuCode: 'ROLE_PERMISSIONS' },
           ],
         },
-        { label: 'Settings', icon: <SettingsRounded />, href: '/settings' },
-        { label: 'Audit Log', icon: <HistoryRounded />, href: '/audit' },
-        { label: 'Notifications', icon: <NotificationsRounded />, href: '/notifications' },
+        { label: 'Settings', icon: <SettingsRounded />, href: '/settings', menuCode: 'SETTINGS' },
+        { label: 'Audit Log', icon: <HistoryRounded />, href: '/audit', menuCode: 'AUDIT_LOG' },
+        { label: 'Notifications', icon: <NotificationsRounded />, href: '/notifications', menuCode: 'NOTIFICATIONS' },
       ],
-    }] : []),
+    },
     {
       title: 'Support',
+      requiresPermission: false, // Support section always visible
       items: [
         { label: 'Documentation', icon: <MenuBookRounded />, href: '/docs' },
         { label: 'Help Center', icon: <HelpOutlineRounded />, href: '/support' },
       ],
     },
-  ];
+  ], []);
+
+  // Apply permission filtering to menu sections
+  const menuSections: MenuSection[] = useMemo(() => {
+    return allMenuSections.map(section => ({
+      ...section,
+      items: section.requiresPermission ? filterMenuItems(section.items) : section.items,
+    })).filter(section => section.items.length > 0);
+  }, [allMenuSections, userPermissions, permissionsLoaded]);
 
   const isActive = (href: string) => {
     if (href === '/' && location.pathname === '/') {

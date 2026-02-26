@@ -114,7 +114,7 @@ function App() {
           <Route
             path="/admin/user-roles"
             element={
-              <ProtectedRoute requireRoles={["Admin"]}>
+              <ProtectedRoute requireMenuPermission="USER_MANAGEMENT">
                 <Layout>
                   <UserRoleManagement />
                 </Layout>
@@ -124,7 +124,7 @@ function App() {
           <Route
             path="/admin/role-permissions"
             element={
-              <ProtectedRoute requireRoles={["Admin"]}>
+              <ProtectedRoute requireMenuPermission="ROLE_PERMISSIONS">
                 <Layout>
                   <RolePermissions />
                 </Layout>
