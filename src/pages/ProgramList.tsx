@@ -21,6 +21,7 @@ import {
   Alert,
   Snackbar,
   Stack,
+  Chip,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -36,10 +37,18 @@ import {
   FolderOpenRounded,
   ContentCopy as ContentCopyIcon,
   History as HistoryIcon,
+  Description as KepIcon,
 } from '@mui/icons-material';
 import { AddProgramModal, AddInisiatifModal, AddPeriodeModal, CopyFromYearModal, HistoryComparisonModal } from '../components/modals';
-import { getAllRbsi, createRbsi, getProgramsByRbsi } from '../api/rbsiApi';
-import type { RbsiResponse, RbsiProgramResponse } from '../api/rbsiApi';
+import { getAllRbsi, createRbsi, getProgramsByRbsi, getKepList, createKep } from '../api/rbsiApi';
+import type { RbsiResponse, RbsiProgramResponse, RbsiKepResponse } from '../api/rbsiApi';
+
+// KEP data structure
+interface KepData {
+  id: string;
+  nomorKep: string;
+  tahunPelaporan: number;
+}
 
 function ProgramList() {
   const [programs, setPrograms] = useState<RbsiProgramResponse[]>([]);
@@ -61,11 +70,18 @@ function ProgramList() {
   const [selectedRbsi, setSelectedRbsi] = useState<RbsiResponse | null>(null);
   const [rbsiLoading, setRbsiLoading] = useState(false);
 
+  // KEP State
+  const [kepList, setKepList] = useState<KepData[]>([]);
+  const [selectedKep, setSelectedKep] = useState<KepData | null>(null);
+
   // Copy from year modal state
   const [openCopyModal, setOpenCopyModal] = useState(false);
   const [openHistoryModal, setOpenHistoryModal] = useState(false);
   const [periodeAnchorEl, setPeriodeAnchorEl] = useState<null | HTMLElement>(null);
   const [openAddPeriodeModal, setOpenAddPeriodeModal] = useState(false);
+
+  // KEP creation state
+  const [kepCreating, setKepCreating] = useState(false);
 
   // Snackbar state
   const [snackbar, setSnackbar] = useState<{
@@ -83,12 +99,27 @@ function ProgramList() {
     fetchRbsiList();
   }, []);
 
+  // Fetch programs and KEP when selectedRbsi changes
+  useEffect(() => {
+    if (selectedRbsi) {
+      fetchKepListData(selectedRbsi.id);
+    }
+  }, [selectedRbsi]);
+
   // Fetch programs when selectedRbsi or selectedTahun changes
   useEffect(() => {
     if (selectedRbsi && selectedTahun) {
       fetchPrograms(selectedRbsi.id, selectedTahun);
     }
   }, [selectedRbsi, selectedTahun]);
+
+  // Update selectedKep when selectedTahun or kepList changes
+  useEffect(() => {
+    if (selectedTahun && kepList.length > 0) {
+      const kep = kepList.find(k => k.tahunPelaporan === selectedTahun);
+      setSelectedKep(kep || null);
+    }
+  }, [selectedTahun, kepList]);
 
   // Set default tahun when selectedRbsi changes
   useEffect(() => {
@@ -126,6 +157,25 @@ function ProgramList() {
     }
   };
 
+  const fetchKepListData = async (rbsiId: string) => {
+    try {
+      const response = await getKepList(rbsiId);
+      const apiKepList = response.data || [];
+
+      // Map API response to local KepData format
+      const mappedKepList: KepData[] = apiKepList.map((kep: RbsiKepResponse) => ({
+        id: kep.id,
+        nomorKep: kep.nomor_kep,
+        tahunPelaporan: kep.tahun_pelaporan,
+      }));
+
+      setKepList(mappedKepList.sort((a, b) => a.tahunPelaporan - b.tahunPelaporan));
+    } catch (error) {
+      console.error('Failed to fetch KEP list:', error);
+      setKepList([]);
+    }
+  };
+
   const fetchPrograms = async (rbsiId: string, tahun?: number) => {
     setProgramsLoading(true);
     try {
@@ -159,6 +209,44 @@ function ProgramList() {
 
   const handleSnackbarClose = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
+  };
+
+  // Create KEP for selected year
+  const handleCreateKepForYear = async () => {
+    if (!selectedRbsi || !selectedTahun) return;
+
+    setKepCreating(true);
+    try {
+      const nomorKep = `KEP-${String(kepList.length + 1).padStart(3, '0')}/${selectedTahun}`;
+      const response = await createKep(selectedRbsi.id, {
+        nomor_kep: nomorKep,
+        tahun_pelaporan: selectedTahun,
+        copy_from_latest: kepList.length > 0, // Copy progress from latest if exists
+      });
+
+      const newKep: KepData = {
+        id: response.data.id,
+        nomorKep: response.data.nomor_kep,
+        tahunPelaporan: response.data.tahun_pelaporan,
+      };
+
+      setKepList(prev => [...prev, newKep].sort((a, b) => a.tahunPelaporan - b.tahunPelaporan));
+      setSelectedKep(newKep);
+      setSnackbar({
+        open: true,
+        message: `${nomorKep} berhasil dibuat`,
+        severity: 'success',
+      });
+    } catch (error) {
+      console.error('Failed to create KEP:', error);
+      setSnackbar({
+        open: true,
+        message: error instanceof Error ? error.message : 'Gagal membuat KEP',
+        severity: 'error',
+      });
+    } finally {
+      setKepCreating(false);
+    }
   };
 
   // Toggle expand/collapse
@@ -435,7 +523,25 @@ function ProgramList() {
                 },
               }}
             >
-              Filters{selectedTahun !== null ? ` (${selectedTahun})` : ''}
+              {selectedTahun !== null ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <span>Tahun {selectedTahun}</span>
+                  {selectedKep && (
+                    <Chip
+                      icon={<KepIcon sx={{ fontSize: 12 }} />}
+                      label={selectedKep.nomorKep}
+                      size="small"
+                      sx={{
+                        height: 20,
+                        fontSize: '0.65rem',
+                        bgcolor: '#E3F2FD',
+                        color: '#1565C0',
+                        '& .MuiChip-icon': { color: '#1565C0' },
+                      }}
+                    />
+                  )}
+                </Box>
+              ) : 'Filters'}
             </Button>
           </Box>
           <Box sx={{ display: 'flex', gap: 1 }}>
@@ -493,6 +599,65 @@ function ProgramList() {
             </Button>
           </Box>
         </Box>
+
+        {/* KEP Info Banner */}
+        {selectedKep && (
+          <Box
+            sx={{
+              px: 2.5,
+              py: 1.5,
+              bgcolor: '#E3F2FD',
+              borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+            }}
+          >
+            <KepIcon sx={{ color: '#1565C0', fontSize: 20 }} />
+            <Typography variant="body2" sx={{ color: '#1565C0', fontWeight: 500 }}>
+              Data Program & Inisiatif untuk <strong>{selectedKep.nomorKep}</strong> (Tahun Pelaporan {selectedKep.tahunPelaporan})
+            </Typography>
+          </Box>
+        )}
+        {!selectedKep && selectedTahun && (
+          <Box
+            sx={{
+              px: 2.5,
+              py: 1.5,
+              bgcolor: '#FFF3E0',
+              borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 1.5,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <KepIcon sx={{ color: '#E65100', fontSize: 20 }} />
+              <Typography variant="body2" sx={{ color: '#E65100', fontWeight: 500 }}>
+                Tahun {selectedTahun} belum memiliki KEP. Program & Inisiatif yang dibuat akan ditampilkan di sini.
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={kepCreating ? <CircularProgress size={14} color="inherit" /> : <AddIcon />}
+              onClick={handleCreateKepForYear}
+              disabled={kepCreating}
+              sx={{
+                bgcolor: '#E65100',
+                fontWeight: 600,
+                fontSize: '0.75rem',
+                px: 2,
+                py: 0.75,
+                whiteSpace: 'nowrap',
+                '&:hover': { bgcolor: '#BF360C' },
+              }}
+            >
+              {kepCreating ? 'Membuat...' : 'Tambah KEP'}
+            </Button>
+          </Box>
+        )}
 
         {/* Table */}
         <TableContainer>
@@ -749,39 +914,71 @@ function ProgramList() {
             <CloseIcon sx={{ fontSize: 18 }} />
           </IconButton>
         </Box>
-        
-        <Box sx={{ p: 3, minWidth: 320, bgcolor: 'white' }}>
 
-          {/* Tahun Filter */}
+        <Box sx={{ p: 3, minWidth: 360, bgcolor: 'white' }}>
+
+          {/* Tahun & KEP Filter */}
           <Box sx={{ mb: 2.5 }}>
             <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
-              Tahun
+              Tahun & KEP
             </Typography>
             <Stack spacing={1}>
-              {tahunOptions.map((tahun) => (
-                <Button
-                  key={tahun}
-                  fullWidth
-                  variant={selectedTahun === tahun ? 'contained' : 'outlined'}
-                  onClick={() => handleTahunChange(tahun)}
-                  sx={{
-                    justifyContent: 'flex-start',
-                    px: 2,
-                    py: 1,
-                    ...(selectedTahun === tahun ? {
-                      bgcolor: '#DA251C',
-                      color: 'white',
-                      '&:hover': { bgcolor: '#B91C14' },
-                    } : {
-                      borderColor: '#e5e5e7',
-                      color: '#1d1d1f',
-                      '&:hover': { borderColor: '#DA251C', bgcolor: '#fff5f5' },
-                    }),
-                  }}
-                >
-                  {tahun}
-                </Button>
-              ))}
+              {tahunOptions.map((tahun) => {
+                const kep = kepList.find(k => k.tahunPelaporan === tahun);
+                return (
+                  <Button
+                    key={tahun}
+                    fullWidth
+                    variant={selectedTahun === tahun ? 'contained' : 'outlined'}
+                    onClick={() => handleTahunChange(tahun)}
+                    sx={{
+                      justifyContent: 'space-between',
+                      px: 2,
+                      py: 1.5,
+                      ...(selectedTahun === tahun ? {
+                        bgcolor: '#DA251C',
+                        color: 'white',
+                        '&:hover': { bgcolor: '#B91C14' },
+                      } : {
+                        borderColor: '#e5e5e7',
+                        color: '#1d1d1f',
+                        '&:hover': { borderColor: '#DA251C', bgcolor: '#fff5f5' },
+                      }),
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ fontWeight: 600 }}>{tahun}</Typography>
+                    </Box>
+                    {kep ? (
+                      <Chip
+                        icon={<KepIcon sx={{ fontSize: 14 }} />}
+                        label={kep.nomorKep}
+                        size="small"
+                        sx={{
+                          height: 22,
+                          fontSize: '0.7rem',
+                          bgcolor: selectedTahun === tahun ? 'rgba(255,255,255,0.2)' : '#E3F2FD',
+                          color: selectedTahun === tahun ? 'white' : '#1565C0',
+                          '& .MuiChip-icon': {
+                            color: selectedTahun === tahun ? 'white' : '#1565C0',
+                          },
+                        }}
+                      />
+                    ) : (
+                      <Chip
+                        label="Belum ada KEP"
+                        size="small"
+                        sx={{
+                          height: 22,
+                          fontSize: '0.65rem',
+                          bgcolor: selectedTahun === tahun ? 'rgba(255,255,255,0.2)' : '#FFF3E0',
+                          color: selectedTahun === tahun ? 'white' : '#E65100',
+                        }}
+                      />
+                    )}
+                  </Button>
+                );
+              })}
             </Stack>
           </Box>
         </Box>

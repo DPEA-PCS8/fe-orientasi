@@ -51,14 +51,18 @@ interface MenuSection {
 
 const Sidebar = () => {
   const location = useLocation();
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ PKSI: true });
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ PKSI: true, RBSI: true });
 
   // Build menu sections dynamically based on user roles
   const menuSections: MenuSection[] = [
     {
       title: 'Features',
       items: [
-        { label: 'RBSI', icon: <LightbulbRounded />, href: '/program' },
+        {
+          label: 'Manajemen RBSI',
+          icon: <LightbulbRounded />,
+          href: '/rbsi',
+        },
         {
           label: 'PKSI',
           icon: <DescriptionRounded />,
