@@ -51,7 +51,47 @@ interface MenuSection {
 
 const Sidebar = () => {
   const location = useLocation();
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ PKSI: true });
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ PKSI: true, RBSI: true });
+
+  // Build menu sections dynamically based on user roles
+  const menuSections: MenuSection[] = [
+    {
+      title: 'Features',
+      items: [
+        {
+          label: 'Manajemen RBSI',
+          icon: <LightbulbRounded />,
+          href: '/rbsi',
+        },
+        {
+          label: 'PKSI',
+          icon: <DescriptionRounded />,
+          href: '/',
+          subItems: [
+            { label: 'Semua PKSI', icon: <ListAltRounded />, href: '/' },
+            { label: 'PKSI Disetujui', icon: <CheckCircleRounded />, href: '/pksi-disetujui' },
+          ],
+        },
+      ],
+    },
+    // Admin section - only shown to admin users
+    ...(isAdmin() ? [{
+      title: 'Admin',
+      items: [
+        { label: 'User & Roles', icon: <PeopleRounded />, href: '/admin/user-roles' },
+        { label: 'Settings', icon: <SettingsRounded />, href: '/settings' },
+        { label: 'Audit Log', icon: <HistoryRounded />, href: '/audit' },
+        { label: 'Notifications', icon: <NotificationsRounded />, href: '/notifications' },
+      ],
+    }] : []),
+    {
+      title: 'Support',
+      items: [
+        { label: 'Documentation', icon: <MenuBookRounded />, href: '/docs' },
+        { label: 'Help Center', icon: <HelpOutlineRounded />, href: '/support' },
+      ],
+    },
+  ];
 
   // Build menu sections dynamically based on user roles
   const menuSections: MenuSection[] = [

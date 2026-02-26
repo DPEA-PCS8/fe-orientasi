@@ -8,7 +8,7 @@ import AddProgram from './pages/AddProgram';
 import AddInisiatif from './pages/AddInisiatif';
 import PksiList from './pages/PksiList';
 import PksiDisetujui from './pages/PksiDisetujui';
-import ProgramList from './pages/ProgramList';
+import RbsiManagementPage from './pages/RbsiManagementPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { isAuthenticated } from './api/authApi';
 import Profile from './pages/Profile';
@@ -46,16 +46,19 @@ function App() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/program" 
+          <Route
+            path="/rbsi"
             element={
               <ProtectedRoute>
                 <Layout>
-                  <ProgramList />
+                  <RbsiManagementPage />
                 </Layout>
               </ProtectedRoute>
-            } 
+            }
           />
+          {/* Redirect old routes to new unified page */}
+          <Route path="/program" element={<Navigate to="/rbsi" replace />} />
+          <Route path="/monitoring-rbsi" element={<Navigate to="/rbsi" replace />} />
           <Route 
             path="/add-pksi" 
             element={

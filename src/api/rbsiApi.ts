@@ -254,6 +254,76 @@ export async function createInisiatif(request: CreateInisiatifRequest): Promise<
   return data;
 }
 
+export interface UpdateProgramRequest {
+  rbsi_id: string;
+  tahun: number;
+  nomor_program: string;
+  nama_program: string;
+}
+
+/**
+ * Update Program
+ */
+export async function updateProgram(
+  programId: string,
+  request: UpdateProgramRequest
+): Promise<BaseApiResponse<RbsiProgramResponse>> {
+  const token = getAuthToken();
+
+  const response = await fetch(`${BASE_URL}/rbsi/programs/${programId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'APIKey': API_KEY,
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(request),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to update program');
+  }
+
+  return data;
+}
+
+export interface UpdateInisiatifRequest {
+  program_id: string;
+  tahun: number;
+  nomor_inisiatif: string;
+  nama_inisiatif: string;
+}
+
+/**
+ * Update Inisiatif
+ */
+export async function updateInisiatif(
+  inisiatifId: string,
+  request: UpdateInisiatifRequest
+): Promise<BaseApiResponse<RbsiInisiatifResponse>> {
+  const token = getAuthToken();
+
+  const response = await fetch(`${BASE_URL}/rbsi/inisiatifs/${inisiatifId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'APIKey': API_KEY,
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(request),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to update inisiatif');
+  }
+
+  return data;
+}
+
 /**
  * Copy programs from one year to another
  */
@@ -367,7 +437,7 @@ export interface RbsiHistoryResponse {
  */
 export async function getRbsiHistory(rbsiId: string): Promise<BaseApiResponse<RbsiHistoryResponse[]>> {
   const token = getAuthToken();
-  
+
   const response = await fetch(`${BASE_URL}/rbsi/${rbsiId}/history`, {
     method: 'GET',
     headers: {
@@ -381,6 +451,164 @@ export async function getRbsiHistory(rbsiId: string): Promise<BaseApiResponse<Rb
 
   if (!response.ok) {
     throw new Error(data.message || 'Failed to fetch RBSI history');
+  }
+
+  return data;
+}
+
+// ==================== KEP API ====================
+
+export interface RbsiKepResponse {
+  id: string;
+  rbsi_id: string;
+  nomor_kep: string;
+  tahun_pelaporan: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface YearlyProgress {
+  tahun: number;
+  status: 'none' | 'planned' | 'realized';
+}
+
+export interface KepProgressItem {
+  kep_id: string;
+  nomor_kep: string;
+  tahun_pelaporan: number;
+  yearly_progress: YearlyProgress[];
+}
+
+export interface InisiatifKepProgress {
+  inisiatif_id: string;
+  kep_progress: KepProgressItem[];
+}
+
+export interface KepProgressFullResponse {
+  rbsi_id: string;
+  periode: string;
+  kep_list: RbsiKepResponse[];
+  progress: InisiatifKepProgress[];
+}
+
+export interface KepProgressResponse {
+  id?: string;
+  kep_id: string;
+  nomor_kep: string;
+  inisiatif_id: string;
+  yearly_progress: YearlyProgress[];
+  updated_at?: string;
+}
+
+export interface CreateKepRequest {
+  nomor_kep: string;
+  tahun_pelaporan: number;
+  copy_from_latest?: boolean;
+}
+
+export interface UpdateKepProgressRequest {
+  inisiatif_id: string;
+  yearly_progress: YearlyProgress[];
+}
+
+/**
+ * Get KEP list by RBSI
+ */
+export async function getKepList(rbsiId: string): Promise<BaseApiResponse<RbsiKepResponse[]>> {
+  const token = getAuthToken();
+
+  const response = await fetch(`${BASE_URL}/rbsi/${rbsiId}/kep`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'APIKey': API_KEY,
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to fetch KEP list');
+  }
+
+  return data;
+}
+
+/**
+ * Create new KEP
+ */
+export async function createKep(rbsiId: string, request: CreateKepRequest): Promise<BaseApiResponse<RbsiKepResponse>> {
+  const token = getAuthToken();
+
+  const response = await fetch(`${BASE_URL}/rbsi/${rbsiId}/kep`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'APIKey': API_KEY,
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(request),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to create KEP');
+  }
+
+  return data;
+}
+
+/**
+ * Get KEP progress by RBSI
+ */
+export async function getKepProgress(rbsiId: string, tahun?: number): Promise<BaseApiResponse<KepProgressFullResponse>> {
+  const token = getAuthToken();
+  const url = tahun ? `${BASE_URL}/rbsi/${rbsiId}/kep-progress?tahun=${tahun}` : `${BASE_URL}/rbsi/${rbsiId}/kep-progress`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'APIKey': API_KEY,
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to fetch KEP progress');
+  }
+
+  return data;
+}
+
+/**
+ * Update KEP progress
+ */
+export async function updateKepProgress(
+  rbsiId: string,
+  kepId: string,
+  request: UpdateKepProgressRequest
+): Promise<BaseApiResponse<KepProgressResponse>> {
+  const token = getAuthToken();
+
+  const response = await fetch(`${BASE_URL}/rbsi/${rbsiId}/kep/${kepId}/progress`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'APIKey': API_KEY,
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(request),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to update KEP progress');
   }
 
   return data;

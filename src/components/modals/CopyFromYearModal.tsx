@@ -152,55 +152,6 @@ const CopyFromYearModal = ({
     setSelectedInisiatifs(new Map());
   };
 
-  // Helper: Extract numeric suffix from a number string (e.g., "P01" → 1, "P01.02" → 2)
-  const extractNumericSuffix = (numStr: string): number => {
-    // Look for the last sequence of digits
-    const match = numStr.match(/(\d+)$/);
-    return match ? parseInt(match[1], 10) : 0;
-  };
-
-  // Helper: Generate next program number based on existing programs
-  const generateNextProgramNumber = (startIndex: number, format?: string): string => {
-    // Use format from first existing program or default to "P" prefix
-    let prefix = 'P';
-    let padding = 2;
-
-    if (existingPrograms.length > 0) {
-      const sample = existingPrograms[0].nomor_program;
-      const match = sample.match(/^([A-Za-z]*)(\d+)$/);
-      if (match) {
-        prefix = match[1] || 'P';
-        padding = match[2].length;
-      }
-    } else if (format) {
-      const match = format.match(/^([A-Za-z]*)(\d+)$/);
-      if (match) {
-        prefix = match[1] || 'P';
-        padding = match[2].length;
-      }
-    }
-
-    return `${prefix}${String(startIndex).padStart(padding, '0')}`;
-  };
-
-  // Helper: Get max program number from existing programs
-  const getMaxProgramNumber = (): number => {
-    if (existingPrograms.length === 0) return 0;
-    return Math.max(...existingPrograms.map(p => extractNumericSuffix(p.nomor_program)));
-  };
-
-  // Helper: Get max inisiatif number from a program
-  const getMaxInisiatifNumber = (programId: string): number => {
-    const program = existingPrograms.find(p => p.id === programId);
-    if (!program || !program.inisiatifs || program.inisiatifs.length === 0) return 0;
-    return Math.max(...program.inisiatifs.map(i => extractNumericSuffix(i.nomor_inisiatif)));
-  };
-
-  // Helper: Generate inisiatif number with program prefix (no zero padding)
-  const generateInisiatifNumber = (programNomorProgram: string, index: number): string => {
-    return `${programNomorProgram}.${index}`;
-  };
-
   // Handle submit
   const handleSubmit = async () => {
     if (selectedPrograms.size === 0 && selectedInisiatifs.size === 0) {
@@ -224,23 +175,17 @@ const CopyFromYearModal = ({
         .filter((p): p is RbsiProgramResponse => !!p)
         .sort((a, b) => a.nomor_program.localeCompare(b.nomor_program, undefined, { numeric: true }));
 
-      // Calculate starting program number
-      let nextProgramNum = getMaxProgramNumber() + 1;
-      const sampleFormat = sourcePrograms[0]?.nomor_program;
-
-      // Copy selected programs with new sequential numbers
+      // Copy selected programs preserving their original nomor_program
       for (const program of sortedSelectedPrograms) {
-        const newNomorProgram = generateNextProgramNumber(nextProgramNum, sampleFormat);
-        
         setProgress({
           current: completedItems + 1,
           total: totalItems,
-          message: `Menyalin program ${program.nomor_program} → ${newNomorProgram}...`,
+          message: `Menyalin program ${program.nomor_program}...`,
         });
 
         try {
-          await copyProgram(program.id, toTahun, newNomorProgram);
-          nextProgramNum++;
+          // Use the original nomor_program from source program
+          await copyProgram(program.id, toTahun, program.nomor_program);
         } catch (err) {
           errorCount++;
           errors.push(`Program ${program.nomor_program}: ${err instanceof Error ? err.message : 'Gagal'}`);
@@ -264,31 +209,26 @@ const CopyFromYearModal = ({
         }
       }
 
-      // Copy selected inisiatifs with new sequential numbers
+      // Copy selected inisiatifs preserving their original nomor_inisiatif
       for (const [targetProgramId, inisiatifs] of inisiatifsByTargetProgram) {
         const targetProgram = existingPrograms.find(p => p.id === targetProgramId);
         if (!targetProgram) continue;
 
         // Sort inisiatifs by their original number
-        const sortedInisiatifs = [...inisiatifs].sort((a, b) => 
+        const sortedInisiatifs = [...inisiatifs].sort((a, b) =>
           a.sourceInisiatif.nomor_inisiatif.localeCompare(b.sourceInisiatif.nomor_inisiatif, undefined, { numeric: true })
         );
 
-        // Calculate starting inisiatif number for this program
-        let nextInisiatifNum = getMaxInisiatifNumber(targetProgramId) + 1;
-
         for (const { inisiatifId, sourceInisiatif } of sortedInisiatifs) {
-          const newNomorInisiatif = generateInisiatifNumber(targetProgram.nomor_program, nextInisiatifNum);
-          
           setProgress({
             current: completedItems + 1,
             total: totalItems,
-            message: `Menyalin inisiatif ${sourceInisiatif.nomor_inisiatif} → ${newNomorInisiatif}...`,
+            message: `Menyalin inisiatif ${sourceInisiatif.nomor_inisiatif}...`,
           });
 
           try {
-            await copyInisiatif(inisiatifId, targetProgramId, newNomorInisiatif);
-            nextInisiatifNum++;
+            // Use the original nomor_inisiatif from source
+            await copyInisiatif(inisiatifId, targetProgramId, sourceInisiatif.nomor_inisiatif);
           } catch (err) {
             errorCount++;
             errors.push(`Inisiatif ${sourceInisiatif.nomor_inisiatif}: ${err instanceof Error ? err.message : 'Gagal'}`);
