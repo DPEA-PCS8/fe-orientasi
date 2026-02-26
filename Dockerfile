@@ -1,8 +1,21 @@
 # build stage
 FROM node:25.3.0-alpine AS build
 WORKDIR /app
+
+# Copy only package files first for better layer caching
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy source code (excluding cache files via .dockerignore)
 COPY . .
-RUN npm install && npm run build
+
+# Clean any cached build artifacts before building
+RUN rm -rf node_modules/.cache tsconfig.tsbuildinfo dist build
+
+# Build the app
+RUN npm run build
 
 # run stage
 FROM nginx:alpine
