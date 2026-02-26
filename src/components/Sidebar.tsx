@@ -36,6 +36,22 @@ import type { MenuPermissionItem } from '../types/rbac.types';
 
 const DRAWER_WIDTH = 240;
 
+// Mapping of menu codes from database to frontend href paths
+const MENU_CODE_TO_HREF: Record<string, string> = {
+  'RBSI': '/program',
+  'PKSI': '/',
+  'PKSI_ALL': '/',
+  'PKSI_APPROVED': '/pksi-disetujui',
+  'USER_ROLES': '/admin/user-roles',
+  'USER_MANAGEMENT': '/admin/user-roles',
+  'ROLE_PERMISSIONS': '/admin/role-permissions',
+  'SETTINGS': '/settings',
+  'AUDIT_LOG': '/audit',
+  'NOTIFICATIONS': '/notifications',
+  'DOCUMENTATION': '/docs',
+  'HELP_CENTER': '/support',
+};
+
 interface MenuItem {
   label: string;
   icon: React.ReactNode;
