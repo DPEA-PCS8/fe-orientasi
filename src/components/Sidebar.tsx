@@ -25,6 +25,8 @@ import {
   CheckCircleRounded,
   ListAltRounded,
   PeopleRounded,
+  MonitorHeartRounded,
+  AccountTreeRounded,
 } from '@mui/icons-material';
 import { isAdmin } from '../api/authApi';
 
@@ -51,7 +53,7 @@ interface MenuSection {
 
 const Sidebar = () => {
   const location = useLocation();
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ PKSI: true, RBSI: true });
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ PKSI: true, 'Manajemen RBSI': true });
 
   // Build menu sections dynamically based on user roles
   const menuSections: MenuSection[] = [
@@ -62,6 +64,10 @@ const Sidebar = () => {
           label: 'Manajemen RBSI',
           icon: <LightbulbRounded />,
           href: '/rbsi',
+          subItems: [
+            { label: 'RBSI Monitoring', icon: <MonitorHeartRounded />, href: '/rbsi' },
+            { label: 'RBSI Arsitektur', icon: <AccountTreeRounded />, href: '/rbsi-arsitektur' },
+          ],
         },
         {
           label: 'PKSI',
@@ -97,8 +103,9 @@ const Sidebar = () => {
     if (href === '/' && location.pathname === '/') {
       return true;
     }
-    if (href !== '/' && location.pathname.startsWith(href)) {
-      return true;
+    if (href !== '/') {
+      // Exact match or match with trailing slash/path
+      return location.pathname === href || location.pathname.startsWith(href + '/');
     }
     return false;
   };

@@ -9,6 +9,7 @@ import AddInisiatif from './pages/AddInisiatif';
 import PksiList from './pages/PksiList';
 import PksiDisetujui from './pages/PksiDisetujui';
 import RbsiManagementPage from './pages/RbsiManagementPage';
+import RbsiArsitekturPage from './pages/RbsiArsitekturPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { isAuthenticated } from './api/authApi';
 import Profile from './pages/Profile';
@@ -52,6 +53,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <RbsiManagementPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/rbsi-arsitektur"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RbsiArsitekturPage />
                 </Layout>
               </ProtectedRoute>
             }
