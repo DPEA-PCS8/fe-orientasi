@@ -1,18 +1,9 @@
-import JSEncrypt from 'jsencrypt';
 import type { UserInfo, LoginResponse as LoginResponseType } from '../types/auth.types';
 
 const API_KEY = 'da39b92f-a1b8-46d5-a10c-d08b1cc92218';
 
-// RSA Public Key from backend config
-const RSA_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApm4C3tMo4URx1/f/BXfG
-ktEHNQYX0Ew3mUbn5nw9Ot734r9epwCp2XN/CDVw26iU66621gQvmMRib9fu+KNu
-hNTB30HrGAM065Jtvn3/dZ3g1SpquLj5/oQjeVUns6DsG7MhW4uZEXjf28iwZTm5
-xU9kIg3bsXEsWGRC1rKVYmIRfsM00iHi7A7MvRanbCQ1cgPC9ZZqqLFjZokqb5//
-5I/kJCilbE3Cn5/Mc/+XhOh5HQvgRn8HJ+zvMiKTytmks+s3/0L5l2fEnDSIxiP/
-ZchNGzuTOqc7jFA6UpBhLUj1QO76k1KT00V5IPqHsPWb8YzUztjysN6i5IUiMQCE
-9wIDAQAB
------END PUBLIC KEY-----`;
+// RSA Public Key from backend config (Base64 encoded, without PEM headers)
+const RSA_PUBLIC_KEY_BASE64 = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApm4C3tMo4URx1/f/BXfGktEHNQYX0Ew3mUbn5nw9Ot734r9epwCp2XN/CDVw26iU66621gQvmMRib9fu+KNuhNTB30HrGAM065Jtvn3/dZ3g1SpquLj5/oQjeVUns6DsG7MhW4uZEXjf28iwZTm5xU9kIg3bsXEsWGRC1rKVYmIRfsM00iHi7A7MvRanbCQ1cgPC9ZZqqLFjZokqb5//5I/kJCilbE3Cn5/Mc/+XhOh5HQvgRn8HJ+zvMiKTytmks+s3/0L5l2fEnDSIxiP/ZchNGzuTOqc7jFA6UpBhLUj1QO76k1KT00V5IPqHsPWb8YzUztjysN6i5IUiMQCE9wIDAQAB';
 
 export interface LoginResponse {
   status: number;
@@ -21,23 +12,54 @@ export interface LoginResponse {
 }
 
 /**
- * Encrypt password using RSA public key
+ * Import RSA public key for Web Crypto API
  */
-export function encryptPassword(password: string): string {
-  const encrypt = new JSEncrypt();
-  encrypt.setPublicKey(RSA_PUBLIC_KEY);
-  const encrypted = encrypt.encrypt(password);
-  if (!encrypted) {
-    throw new Error('Failed to encrypt password');
+async function importPublicKey(): Promise<CryptoKey> {
+  const binaryString = atob(RSA_PUBLIC_KEY_BASE64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
   }
-  return encrypted;
+
+  return crypto.subtle.importKey(
+    'spki',
+    bytes.buffer,
+    {
+      name: 'RSA-OAEP',
+      hash: 'SHA-256',
+    },
+    false,
+    ['encrypt']
+  );
+}
+
+/**
+ * Encrypt password using RSA-OAEP with SHA-256 (matching backend)
+ */
+export async function encryptPassword(password: string): Promise<string> {
+  const publicKey = await importPublicKey();
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'RSA-OAEP' },
+    publicKey,
+    data
+  );
+
+  const encryptedArray = new Uint8Array(encrypted);
+  let binary = '';
+  for (let i = 0; i < encryptedArray.length; i++) {
+    binary += String.fromCharCode(encryptedArray[i]);
+  }
+  return btoa(binary);
 }
 
 /**
  * Login API call
  */
 export async function login(username: string, password: string): Promise<LoginResponse> {
-  const encryptedPassword = encryptPassword(password);
+  const encryptedPassword = await encryptPassword(password);
 
   const response = await fetch('/api/auth/login', {
     method: 'POST',
