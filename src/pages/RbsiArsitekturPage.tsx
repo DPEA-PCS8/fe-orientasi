@@ -47,18 +47,16 @@ import type { RbsiResponse, RbsiProgramResponse } from '../api/rbsiApi';
 import {
   getAllAplikasi,
   createAplikasi,
-  getAllSkpa,
-  createSkpa,
   getArsitekturByRbsiId,
   createArsitektur,
   updateArsitektur,
   deleteArsitektur,
   getAllSubKategori,
   type AplikasiResponse,
-  type SkpaResponse,
   type ArsitekturRbsiResponse,
   type SubKategoriResponse,
 } from '../api/arsitekturApi';
+import { getAllSkpa, createSkpa, type SkpaData } from '../api/skpaApi';
 import { SubKategoriModal } from '../components/modals';
 import type { SubKategoriItem, SubKategoriCategory } from '../components/modals';
 
@@ -333,7 +331,7 @@ function RbsiArsitekturPage() {
   const fetchSkpaList = async () => {
     try {
       const response = await getAllSkpa();
-      const items: SkpaItem[] = (response.data || []).map((s: SkpaResponse) => ({
+      const items: SkpaItem[] = (response.data || []).map((s: SkpaData) => ({
         id: s.id,
         singkatan: s.kode_skpa,
         namaLengkap: s.nama_skpa,
@@ -691,15 +689,15 @@ function RbsiArsitekturPage() {
     }
 
     try {
-      const response = await createSkpa({
+      const skpaData = await createSkpa({
         kode_skpa: newSkpa.singkatan.toUpperCase(),
         nama_skpa: newSkpa.namaLengkap,
       });
 
       setSkpaList(prev => [...prev, {
-        id: response.data.id,
-        singkatan: response.data.kode_skpa,
-        namaLengkap: response.data.nama_skpa,
+        id: skpaData.id,
+        singkatan: skpaData.kode_skpa,
+        namaLengkap: skpaData.nama_skpa,
       }]);
       setNewSkpa({ singkatan: '', namaLengkap: '' });
       setAddSkpaDialogOpen(false);

@@ -60,7 +60,12 @@ interface MenuSection {
 
 const Sidebar = () => {
   const location = useLocation();
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ PKSI: true, 'Manajemen RBSI': true });
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ 
+    PKSI: true, 
+    'Manajemen RBSI': true,
+    'Master Data': true,
+    'User & Roles': true,
+  });
   const [userPermissions, setUserPermissions] = useState<MenuPermissionItem[]>([]);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
@@ -140,7 +145,7 @@ const Sidebar = () => {
       items: [
         {
           label: 'Manajemen RBSI',
-          icon: <LightbulbRounded />,
+          icon: <LightbulbRounded />, 
           href: '/rbsi',
           menuCode: 'RBSI',
           subItems: [
@@ -156,6 +161,16 @@ const Sidebar = () => {
           subItems: [
             { label: 'Semua PKSI', icon: <ListAltRounded />, href: '/', menuCode: 'PKSI_ALL' },
             { label: 'PKSI Disetujui', icon: <CheckCircleRounded />, href: '/pksi-disetujui', menuCode: 'PKSI_APPROVED' },
+          ],
+        },
+        {
+          label: 'Master Data',
+          icon: <PeopleRounded />,
+          href: '/master-data',
+          menuCode: 'MASTER_DATA',
+          subItems: [
+            { label: 'SKPA', icon: <ListAltRounded />, href: '/skpa', menuCode: 'SKPA' },
+            { label: 'Bidang', icon: <ListAltRounded />, href: '/bidang', menuCode: 'BIDANG' },
           ],
         },
       ],

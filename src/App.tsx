@@ -15,6 +15,8 @@ import { isAuthenticated } from './api/authApi';
 import Profile from './pages/Profile';
 import UserRoleManagement from './pages/UserRoleManagement';
 import RolePermissions from './pages/RolePermissions';
+import SkpaPage from './pages/SkpaPage';
+import BidangPage from './pages/BidangPage';
 
 function App() {
   return (
@@ -131,7 +133,27 @@ function App() {
               </ProtectedRoute>
             } 
           />
-        </Routes>
+        <Route
+          path="/skpa"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <SkpaPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/bidang"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <BidangPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
       </BrowserRouter>
     </ThemeProvider>
   );

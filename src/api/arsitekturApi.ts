@@ -18,6 +18,7 @@ export interface SkpaResponse {
   id: string;
   kode_skpa: string;
   nama_skpa: string;
+  keterangan?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -59,11 +60,6 @@ export interface ArsitekturRbsiResponse {
 export interface AplikasiRequest {
   kode_aplikasi: string;
   nama_aplikasi: string;
-}
-
-export interface SkpaRequest {
-  kode_skpa: string;
-  nama_skpa: string;
 }
 
 export interface SubKategoriRequest {
@@ -138,30 +134,10 @@ export async function deleteAplikasi(id: string): Promise<BaseApiResponse<null>>
 }
 
 // ==================== SKPA API ====================
+// SKPA API functions are centralized in skpaApi.ts for better organization and consistency
+// Import from skpaApi.ts instead:
+// import { getAllSkpa, getSkpaById, getSkpaByKode, createSkpa, updateSkpa, deleteSkpa } from './skpaApi';
 
-export async function getAllSkpa(): Promise<BaseApiResponse<SkpaResponse[]>> {
-  return apiRequest(`${BASE_URL}/arsitektur/skpa`, 'GET');
-}
-
-export async function getSkpaById(id: string): Promise<BaseApiResponse<SkpaResponse>> {
-  return apiRequest(`${BASE_URL}/arsitektur/skpa/${id}`, 'GET');
-}
-
-export async function getSkpaByKode(kode: string): Promise<BaseApiResponse<SkpaResponse>> {
-  return apiRequest(`${BASE_URL}/arsitektur/skpa/kode/${kode}`, 'GET');
-}
-
-export async function createSkpa(request: SkpaRequest): Promise<BaseApiResponse<SkpaResponse>> {
-  return apiRequest(`${BASE_URL}/arsitektur/skpa`, 'POST', request);
-}
-
-export async function updateSkpa(id: string, request: SkpaRequest): Promise<BaseApiResponse<SkpaResponse>> {
-  return apiRequest(`${BASE_URL}/arsitektur/skpa/${id}`, 'PUT', request);
-}
-
-export async function deleteSkpa(id: string): Promise<BaseApiResponse<null>> {
-  return apiRequest(`${BASE_URL}/arsitektur/skpa/${id}`, 'DELETE');
-}
 
 // ==================== SUB KATEGORI API ====================
 
