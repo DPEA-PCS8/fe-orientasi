@@ -46,6 +46,19 @@ export interface KomunikasiSistemInfo {
   is_planned?: boolean;
 }
 
+export interface VariableInfo {
+  id: string;
+  kode: string;
+  nama: string;
+}
+
+export interface PenghargaanInfo {
+  id?: string;
+  kategori: VariableInfo;
+  tanggal: string;
+  deskripsi?: string;
+}
+
 export interface AplikasiData {
   id: string;
   kode_aplikasi: string;
@@ -54,6 +67,7 @@ export interface AplikasiData {
   status_aplikasi: string;
   bidang?: BidangInfo | null;
   skpa?: SkpaInfo | null;
+  tanggal_implementasi?: string;
   akses?: string;
   proses_data_pribadi: boolean;
   data_pribadi_diproses?: string;
@@ -65,6 +79,7 @@ export interface AplikasiData {
   satker_internals?: SatkerInternalInfo[];
   pengguna_eksternals?: PenggunaEksternalInfo[];
   komunikasi_sistems?: KomunikasiSistemInfo[];
+  penghargaans?: PenghargaanInfo[];
   created_at?: string;
   updated_at?: string;
 }
@@ -103,6 +118,12 @@ export interface KomunikasiSistemRequest {
   is_planned?: boolean;
 }
 
+export interface PenghargaanRequest {
+  kategori_id: string;
+  tanggal: string;
+  deskripsi?: string;
+}
+
 export interface AplikasiRequest {
   kode_aplikasi: string;
   nama_aplikasi: string;
@@ -110,6 +131,7 @@ export interface AplikasiRequest {
   status_aplikasi: string;
   bidang_id?: string;
   skpa_id?: string;
+  tanggal_implementasi?: string;
   akses?: string;
   proses_data_pribadi: boolean;
   data_pribadi_diproses?: string;
@@ -121,6 +143,7 @@ export interface AplikasiRequest {
   satker_internals?: SatkerInternalRequest[];
   pengguna_eksternals?: PenggunaEksternalRequest[];
   komunikasi_sistems?: KomunikasiSistemRequest[];
+  penghargaans?: PenghargaanRequest[];
 }
 
 export interface AplikasiSearchParams {
@@ -291,4 +314,31 @@ export async function updateAplikasiStatusWithDetails(id: string, request: Aplik
 
 export async function deleteAplikasi(id: string): Promise<void> {
   await apiRequest<void>(`${BASE_URL}/arsitektur/aplikasi/${id}`, 'DELETE');
+}
+
+// ==================== VARIABLE API ====================
+
+export interface VariableData {
+  id: string;
+  kategori: string;
+  kode: string;
+  nama: string;
+  deskripsi?: string;
+  urutan?: number;
+}
+
+export async function getVariablesByKategori(kategori: string): Promise<VariableData[]> {
+  const response = await apiRequest<VariableData[]>(
+    `${BASE_URL}/arsitektur/variable?kategori=${encodeURIComponent(kategori)}`,
+    'GET'
+  );
+  return response.data;
+}
+
+export async function getAllVariables(): Promise<VariableData[]> {
+  const response = await apiRequest<VariableData[]>(
+    `${BASE_URL}/arsitektur/variable/all`,
+    'GET'
+  );
+  return response.data;
 }

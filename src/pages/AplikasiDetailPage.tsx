@@ -11,11 +11,12 @@ import Grid from '@mui/material/Grid';
 import {
   ArrowBack, Edit, Apps, Link as LinkIcon, Business, People,
   SyncAlt, Lock, Description, Security, Category, AccessTime,
-  OpenInNew, Info, Save, Close, Add, Delete
+  OpenInNew, Info, Save, Close, Add, Delete, EmojiEvents, CalendarMonth
 } from '@mui/icons-material';
 import {
   getAplikasiById, updateAplikasi, type AplikasiData, type AplikasiRequest,
   type UrlRequest, type SatkerInternalRequest, type PenggunaEksternalRequest, type KomunikasiSistemRequest,
+  type PenghargaanRequest, getVariablesByKategori, type VariableData,
   APPLICATION_STATUS_LABELS, ACCESS_TYPE_LABELS,
   KATEGORI_IDLE_LABELS, TIPE_SISTEM_LABELS
 } from '../api/aplikasiApi';
@@ -115,9 +116,10 @@ const AplikasiDetailPage = () => {
   // Dropdown data
   const [bidangList, setBidangList] = useState<BidangData[]>([]);
   const [skpaList, setSkpaList] = useState<SkpaData[]>([]);
+  const [kategoriPenghargaanList, setKategoriPenghargaanList] = useState<VariableData[]>([]);
 
   // Edit mode states
-  type EditSection = 'info' | 'urls' | 'komunikasi' | 'satker' | 'pengguna' | null;
+  type EditSection = 'info' | 'urls' | 'komunikasi' | 'satker' | 'pengguna' | 'penghargaan' | null;
   const [editSection, setEditSection] = useState<EditSection>(null);
 
   // Form data states
@@ -125,6 +127,7 @@ const AplikasiDetailPage = () => {
     deskripsi: '',
     bidang_id: '',
     skpa_id: '',
+    tanggal_implementasi: '',
     akses: '',
     proses_data_pribadi: false,
     data_pribadi_diproses: ''
@@ -134,15 +137,21 @@ const AplikasiDetailPage = () => {
   const [komunikasiForm, setKomunikasiForm] = useState<KomunikasiSistemRequest[]>([]);
   const [satkerForm, setSatkerForm] = useState<SatkerInternalRequest[]>([]);
   const [penggunaForm, setPenggunaForm] = useState<PenggunaEksternalRequest[]>([]);
+  const [penghargaanForm, setPenghargaanForm] = useState<PenghargaanRequest[]>([]);
 
   const { getMenuPermissions, permissionsLoaded } = usePermissions();
   const { canView, canUpdate } = getMenuPermissions(MENU_CODE);
 
   const fetchDropdowns = useCallback(async () => {
     try {
-      const [bidangRes, skpaRes] = await Promise.all([getAllBidang(), getAllSkpa()]);
+      const [bidangRes, skpaRes, kategoriRes] = await Promise.all([
+        getAllBidang(),
+        getAllSkpa(),
+        getVariablesByKategori('KATEGORI_PENGHARGAAN')
+      ]);
       setBidangList(bidangRes || []);
       setSkpaList(skpaRes.data || []);
+      setKategoriPenghargaanList(kategoriRes || []);
     } catch (err) {
       console.error('Failed to fetch dropdowns', err);
     }
@@ -181,6 +190,7 @@ const AplikasiDetailPage = () => {
           deskripsi: aplikasi.deskripsi || '',
           bidang_id: aplikasi.bidang?.id || '',
           skpa_id: aplikasi.skpa?.id || '',
+          tanggal_implementasi: aplikasi.tanggal_implementasi || '',
           akses: aplikasi.akses || '',
           proses_data_pribadi: aplikasi.proses_data_pribadi || false,
           data_pribadi_diproses: aplikasi.data_pribadi_diproses || ''
@@ -204,6 +214,13 @@ const AplikasiDetailPage = () => {
       case 'pengguna':
         setPenggunaForm(aplikasi.pengguna_eksternals?.map(p => ({ nama_pengguna: p.nama_pengguna, keterangan: p.keterangan })) || []);
         break;
+      case 'penghargaan':
+        setPenghargaanForm(aplikasi.penghargaans?.map(p => ({
+          kategori_id: p.kategori?.id || '',
+          tanggal: p.tanggal || '',
+          deskripsi: p.deskripsi
+        })) || []);
+        break;
     }
     setEditSection(section);
   };
@@ -224,6 +241,7 @@ const AplikasiDetailPage = () => {
         status_aplikasi: aplikasi.status_aplikasi,
         bidang_id: aplikasi.bidang?.id,
         skpa_id: aplikasi.skpa?.id,
+        tanggal_implementasi: aplikasi.tanggal_implementasi,
         akses: aplikasi.akses,
         proses_data_pribadi: aplikasi.proses_data_pribadi,
         data_pribadi_diproses: aplikasi.data_pribadi_diproses,
@@ -240,6 +258,11 @@ const AplikasiDetailPage = () => {
           deskripsi_komunikasi: k.deskripsi_komunikasi,
           keterangan: k.keterangan,
           is_planned: k.is_planned
+        })),
+        penghargaans: aplikasi.penghargaans?.map(p => ({
+          kategori_id: p.kategori?.id || '',
+          tanggal: p.tanggal,
+          deskripsi: p.deskripsi
         }))
       };
 
@@ -249,6 +272,7 @@ const AplikasiDetailPage = () => {
           baseRequest.deskripsi = infoForm.deskripsi;
           baseRequest.bidang_id = infoForm.bidang_id || undefined;
           baseRequest.skpa_id = infoForm.skpa_id || undefined;
+          baseRequest.tanggal_implementasi = infoForm.tanggal_implementasi || undefined;
           baseRequest.akses = infoForm.akses || undefined;
           baseRequest.proses_data_pribadi = infoForm.proses_data_pribadi;
           baseRequest.data_pribadi_diproses = infoForm.proses_data_pribadi ? infoForm.data_pribadi_diproses : undefined;
@@ -264,6 +288,9 @@ const AplikasiDetailPage = () => {
           break;
         case 'pengguna':
           baseRequest.pengguna_eksternals = penggunaForm;
+          break;
+        case 'penghargaan':
+          baseRequest.penghargaans = penghargaanForm;
           break;
       }
 
@@ -464,6 +491,17 @@ const AplikasiDetailPage = () => {
                       />
                     </Grid>
                     <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="date"
+                        label="Tanggal Implementasi"
+                        InputLabelProps={{ shrink: true }}
+                        value={infoForm.tanggal_implementasi}
+                        onChange={(e) => setInfoForm(prev => ({ ...prev, tanggal_implementasi: e.target.value }))}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <FormControl fullWidth size="small">
                         <InputLabel>Tipe Akses</InputLabel>
                         <Select
@@ -546,6 +584,13 @@ const AplikasiDetailPage = () => {
                         ) : '-'
                       }
                       icon={<Business sx={{ fontSize: 18 }} />}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <InfoItem 
+                      label="Tanggal Implementasi" 
+                      value={aplikasi.tanggal_implementasi ? new Date(aplikasi.tanggal_implementasi).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+                      icon={<CalendarMonth sx={{ fontSize: 18 }} />}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
@@ -1061,6 +1106,124 @@ const AplikasiDetailPage = () => {
                 <Box sx={{ textAlign: 'center', py: 3, color: 'text.secondary' }}>
                   <People sx={{ fontSize: 40, opacity: 0.3, mb: 1 }} />
                   <Typography variant="body2">Tidak ada pengguna eksternal</Typography>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Penghargaan Aplikasi */}
+          <Card sx={{ mb: 3, borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+            <CardContent sx={{ p: 3 }}>
+              <SectionHeader 
+                icon={<EmojiEvents sx={{ fontSize: 20 }} />} 
+                title="Penghargaan Aplikasi" 
+                count={editSection === 'penghargaan' ? penghargaanForm.length : (aplikasi.penghargaans?.length || 0)}
+                canEdit={canUpdate && editSection !== 'penghargaan'}
+                onEdit={() => startEditSection('penghargaan')}
+              />
+              {editSection === 'penghargaan' ? (
+                <Box>
+                  <Stack spacing={2}>
+                    {penghargaanForm.map((penghargaan, idx) => (
+                      <Paper key={idx} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                        <Grid container spacing={2} alignItems="center">
+                          <Grid size={{ xs: 12, sm: 4 }}>
+                            <Autocomplete
+                              size="small"
+                              options={kategoriPenghargaanList}
+                              getOptionLabel={(option) => option.nama}
+                              value={kategoriPenghargaanList.find(k => k.id === penghargaan.kategori_id) || null}
+                              onChange={(_, value) => {
+                                const newForm = [...penghargaanForm];
+                                newForm[idx] = { ...newForm[idx], kategori_id: value?.id || '' };
+                                setPenghargaanForm(newForm);
+                              }}
+                              renderInput={(params) => <TextField {...params} label="Kategori" />}
+                            />
+                          </Grid>
+                          <Grid size={{ xs: 12, sm: 3 }}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              type="date"
+                              label="Tanggal"
+                              InputLabelProps={{ shrink: true }}
+                              value={penghargaan.tanggal}
+                              onChange={(e) => {
+                                const newForm = [...penghargaanForm];
+                                newForm[idx] = { ...newForm[idx], tanggal: e.target.value };
+                                setPenghargaanForm(newForm);
+                              }}
+                            />
+                          </Grid>
+                          <Grid size={{ xs: 12, sm: 4 }}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              label="Deskripsi"
+                              value={penghargaan.deskripsi || ''}
+                              onChange={(e) => {
+                                const newForm = [...penghargaanForm];
+                                newForm[idx] = { ...newForm[idx], deskripsi: e.target.value };
+                                setPenghargaanForm(newForm);
+                              }}
+                            />
+                          </Grid>
+                          <Grid size={{ xs: 12, sm: 1 }}>
+                            <IconButton size="small" color="error" onClick={() => setPenghargaanForm(penghargaanForm.filter((_, i) => i !== idx))}>
+                              <Delete />
+                            </IconButton>
+                          </Grid>
+                        </Grid>
+                      </Paper>
+                    ))}
+                    <Button
+                      startIcon={<Add />}
+                      onClick={() => setPenghargaanForm([...penghargaanForm, { kategori_id: '', tanggal: '', deskripsi: '' }])}
+                      sx={{ alignSelf: 'flex-start' }}
+                    >
+                      Tambah Penghargaan
+                    </Button>
+                  </Stack>
+                  <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', mt: 2 }}>
+                    <Button size="small" onClick={cancelEdit} disabled={saving} startIcon={<Close />}>
+                      Batal
+                    </Button>
+                    <Button size="small" variant="contained" onClick={saveSection} disabled={saving} startIcon={saving ? <CircularProgress size={16} /> : <Save />}>
+                      Simpan
+                    </Button>
+                  </Box>
+                </Box>
+              ) : aplikasi.penghargaans && aplikasi.penghargaans.length > 0 ? (
+                <Stack spacing={1.5}>
+                  {aplikasi.penghargaans.map((penghargaan, idx) => (
+                    <Paper key={penghargaan.id || idx} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <Box>
+                          <Chip 
+                            label={penghargaan.kategori?.nama || 'N/A'} 
+                            size="small" 
+                            color="primary"
+                            sx={{ mb: 1 }}
+                          />
+                          <Typography variant="body2" fontWeight={600}>
+                            {penghargaan.deskripsi || 'Tidak ada deskripsi'}
+                          </Typography>
+                        </Box>
+                        <Chip 
+                          icon={<CalendarMonth sx={{ fontSize: 14 }} />}
+                          label={penghargaan.tanggal ? new Date(penghargaan.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+                          size="small"
+                          variant="outlined"
+                        />
+                      </Box>
+                    </Paper>
+                  ))}
+                </Stack>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 3, color: 'text.secondary' }}>
+                  <EmojiEvents sx={{ fontSize: 40, opacity: 0.3, mb: 1 }} />
+                  <Typography variant="body2">Tidak ada penghargaan</Typography>
                 </Box>
               )}
             </CardContent>

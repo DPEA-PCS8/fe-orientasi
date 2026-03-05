@@ -33,6 +33,7 @@ const initialForm: FormData = {
   status_aplikasi: APPLICATION_STATUS.AKTIF,
   bidang_id: '',
   skpa_id: '',
+  tanggal_implementasi: '',
   akses: '',
   proses_data_pribadi: false,
   data_pribadi_diproses: '',
@@ -44,6 +45,7 @@ const initialForm: FormData = {
   satker_internals: [],
   pengguna_eksternals: [],
   komunikasi_sistems: [],
+  penghargaans: [],
 };
 
 const AplikasiFormPage = () => {
@@ -94,6 +96,7 @@ const AplikasiFormPage = () => {
           status_aplikasi: data.status_aplikasi,
           bidang_id: data.bidang?.id || '',
           skpa_id: data.skpa?.id || '',
+          tanggal_implementasi: data.tanggal_implementasi || '',
           akses: data.akses || '',
           proses_data_pribadi: data.proses_data_pribadi,
           data_pribadi_diproses: data.data_pribadi_diproses || '',
@@ -120,6 +123,11 @@ const AplikasiFormPage = () => {
             deskripsi_komunikasi: k.deskripsi_komunikasi || '',
             keterangan: k.keterangan || '',
             is_planned: k.is_planned || false,
+          })) || [],
+          penghargaans: data.penghargaans?.map(p => ({
+            kategori_id: p.kategori?.id || '',
+            tanggal: p.tanggal || '',
+            deskripsi: p.deskripsi || '',
           })) || [],
         });
       } catch (err: unknown) {
@@ -265,6 +273,7 @@ const AplikasiFormPage = () => {
         ...form,
         bidang_id: form.bidang_id || undefined,
         skpa_id: form.skpa_id || undefined,
+        tanggal_implementasi: form.tanggal_implementasi || undefined,
       };
 
       if (isEdit && id) {
@@ -466,6 +475,17 @@ const AplikasiFormPage = () => {
                 );
               }}
               fullWidth
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField
+              fullWidth
+              type="date"
+              label="Tanggal Implementasi"
+              name="tanggal_implementasi"
+              value={form.tanggal_implementasi || ''}
+              onChange={handleTextChange}
+              InputLabelProps={{ shrink: true }}
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
