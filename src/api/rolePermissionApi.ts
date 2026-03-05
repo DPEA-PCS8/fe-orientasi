@@ -135,12 +135,14 @@ export async function getAllPermissionMatrices(): Promise<RolePermissionMatrix[]
 }
 
 export async function bulkUpdatePermissions(request: BulkRolePermissionRequest): Promise<RolePermissionResponse[]> {
+  console.log('[bulkUpdatePermissions] Request:', JSON.stringify(request, null, 2));
   const response = await fetch('/api/role-permissions/permissions/bulk', {
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify(request),
   });
   const data: BaseApiResponse<RolePermissionResponse[]> = await response.json();
+  console.log('[bulkUpdatePermissions] Response:', data);
   if (!response.ok) throw new Error(data.message || 'Failed to update permissions');
   return data.data;
 }
@@ -173,11 +175,15 @@ export async function checkPermission(
 
 export async function getMyPermissions(roles: string[]): Promise<RolePermissionMatrix> {
   const rolesParam = roles.map(r => `roles=${encodeURIComponent(r)}`).join('&');
+  console.log('[getMyPermissions] Requesting permissions for roles:', roles);
+  console.log('[getMyPermissions] URL:', `/api/role-permissions/my-permissions?${rolesParam}`);
   const response = await fetch(`/api/role-permissions/my-permissions?${rolesParam}`, {
     method: 'GET',
     headers: getHeaders(),
   });
   const data: BaseApiResponse<RolePermissionMatrix> = await response.json();
+  console.log('[getMyPermissions] Response status:', response.status);
+  console.log('[getMyPermissions] Response data:', data);
   if (!response.ok) throw new Error(data.message || 'Failed to get user permissions');
   return data.data;
 }

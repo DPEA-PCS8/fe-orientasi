@@ -100,12 +100,31 @@ const Sidebar = () => {
     // If permissions not loaded yet, default to showing menu
     if (!permissionsLoaded) return true;
     
-    // Find permission for this menu code
+    // Find direct permission for this menu code
     const permission = userPermissions.find(
       p => p.menu_code.toUpperCase() === menuCode.toUpperCase()
     );
     
-    return permission?.can_view ?? false;
+    // If direct permission found, use it
+    if (permission?.can_view) return true;
+    
+    // Check if any child menu has permission (for parent menus)
+    const childHasPermission = userPermissions.some(
+      p => p.menu_code.toUpperCase().startsWith(menuCode.toUpperCase() + '_') && p.can_view
+    );
+    if (childHasPermission) return true;
+    
+    // If not found and this is a child menu, check parent menu permission
+    const menuCodeParts = menuCode.split('_');
+    if (menuCodeParts.length > 1) {
+      const parentCode = menuCodeParts[0];
+      const parentPermission = userPermissions.find(
+        p => p.menu_code.toUpperCase() === parentCode.toUpperCase()
+      );
+      return parentPermission?.can_view ?? false;
+    }
+    
+    return false;
   };
 
   // Filter menu items based on permissions
@@ -120,20 +139,21 @@ const Sidebar = () => {
         };
       })
       .filter(item => {
-        // Show item if:
-        // 1. It has no subItems and has direct permission, OR
-        // 2. It has subItems and at least one subItem has permission, OR
-        // 3. Parent has permission (for items with subItems where parent has direct access)
+        // Check if parent has direct permission
+        const parentHasPermission = hasViewPermission(item.menuCode);
+        
+        // Has visible children - show the parent
         if (item.subItems && item.subItems.length > 0) {
-          // Has visible children - show the parent
           return true;
         }
-        if (item.subItems && item.subItems.length === 0) {
-          // Had subItems but all filtered out - hide the parent
-          return false;
+        
+        // Originally had subItems but all filtered out - show only if parent has direct permission
+        if (item.subItems !== undefined && item.subItems.length === 0) {
+          return parentHasPermission;
         }
+        
         // No subItems - check direct permission
-        return hasViewPermission(item.menuCode);
+        return parentHasPermission;
       });
   };
 
@@ -156,10 +176,10 @@ const Sidebar = () => {
         {
           label: 'PKSI',
           icon: <DescriptionRounded />,
-          href: '/',
+          href: '/pksi-list',
           menuCode: 'PKSI',
           subItems: [
-            { label: 'Semua PKSI', icon: <ListAltRounded />, href: '/', menuCode: 'PKSI_ALL' },
+            { label: 'Semua PKSI', icon: <ListAltRounded />, href: '/pksi-list', menuCode: 'PKSI_ALL' },
             { label: 'PKSI Disetujui', icon: <CheckCircleRounded />, href: '/pksi-disetujui', menuCode: 'PKSI_APPROVED' },
           ],
         },
