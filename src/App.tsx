@@ -146,7 +146,7 @@ function App() {
         <Route
           path="/skpa"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requireMenuPermission='SKPA'>
               <Layout>
                 <SkpaPage />
               </Layout>
@@ -156,7 +156,7 @@ function App() {
         <Route
           path="/bidang"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requireMenuPermission='BIDANG'>
               <Layout>
                 <BidangPage />
               </Layout>
