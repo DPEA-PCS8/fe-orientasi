@@ -29,6 +29,7 @@ import {
   AccountTreeRounded,
   SecurityRounded,
   ManageAccountsRounded,
+  AppsRounded,
 } from '@mui/icons-material';
 import { isAdmin, getUserRoles } from '../api/authApi';
 import { getMyPermissions } from '../api/rolePermissionApi';
@@ -182,6 +183,12 @@ const Sidebar = () => {
             { label: 'Semua PKSI', icon: <ListAltRounded />, href: '/pksi-list', menuCode: 'PKSI_ALL' },
             { label: 'PKSI Disetujui', icon: <CheckCircleRounded />, href: '/pksi-disetujui', menuCode: 'PKSI_APPROVED' },
           ],
+        },
+        {
+          label: 'Aplikasi',
+          icon: <AppsRounded />,
+          href: '/aplikasi',
+          menuCode: 'APLIKASI',
         },
         {
           label: 'Master Data',

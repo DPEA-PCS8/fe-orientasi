@@ -200,7 +200,11 @@ const BidangPage = () => {
             <TableBody>
               {filteredBidangList.map(row => (
                 <TableRow key={row.id}>
-                  <TableCell>{row.kode_bidang}</TableCell>
+                  <TableCell>
+                    <Typography fontWeight={600}>
+                      {row.kode_bidang}
+                    </Typography>
+                  </TableCell>
                   <TableCell>{row.nama_bidang}</TableCell>
                 {(canUpdate || canDelete) && (
                   <TableCell align="right">

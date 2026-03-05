@@ -18,6 +18,9 @@ import UserRoleManagement from './pages/UserRoleManagement';
 import RolePermissions from './pages/RolePermissions';
 import SkpaPage from './pages/SkpaPage';
 import BidangPage from './pages/BidangPage';
+import AplikasiListPage from './pages/AplikasiListPage';
+import AplikasiDetailPage from './pages/AplikasiDetailPage';
+import AplikasiFormPage from './pages/AplikasiFormPage';
 
 function App() {
   return (
@@ -159,6 +162,47 @@ function App() {
             <ProtectedRoute requireMenuPermission='BIDANG'>
               <Layout>
                 <BidangPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        {/* Aplikasi Routes */}
+        <Route
+          path="/aplikasi"
+          element={
+            <ProtectedRoute requireMenuPermission='APLIKASI'>
+              <Layout>
+                <AplikasiListPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/aplikasi/:id"
+          element={
+            <ProtectedRoute requireMenuPermission='APLIKASI'>
+              <Layout>
+                <AplikasiDetailPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/aplikasi/tambah"
+          element={
+            <ProtectedRoute requireMenuPermission='APLIKASI'>
+              <Layout>
+                <AplikasiFormPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/aplikasi/edit/:id"
+          element={
+            <ProtectedRoute requireMenuPermission='APLIKASI'>
+              <Layout>
+                <AplikasiFormPage />
               </Layout>
             </ProtectedRoute>
           }
