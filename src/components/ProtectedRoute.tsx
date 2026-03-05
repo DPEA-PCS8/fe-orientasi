@@ -40,20 +40,65 @@ const ProtectedRoute = ({
 
       try {
         const roles = getUserRoles();
+        console.log('[ProtectedRoute] User roles:', roles);
+        console.log('[ProtectedRoute] Checking permission for menu:', requireMenuPermission);
+        
         if (roles.length === 0) {
+          console.log('[ProtectedRoute] No roles found, denying access');
           setPermissionChecked(true);
           setHasMenuPermission(false);
           return;
         }
 
+        console.log('[ProtectedRoute] Calling getMyPermissions with roles:', roles);
         const permissions = await getMyPermissions(roles);
-        const menuPerms = permissions.menu_permissions || [];
+        console.log('[ProtectedRoute] Raw permissions response:', permissions);
         
+        const menuPerms = permissions.menu_permissions || [];
+        console.log('[ProtectedRoute] Menu permissions count:', menuPerms.length);
+        console.log('[ProtectedRoute] All menu permissions:', menuPerms.map(p => ({ code: p.menu_code, can_view: p.can_view })));
+        
+        // Find permission for this specific menu code
         const permission = menuPerms.find(
           p => p.menu_code.toUpperCase() === requireMenuPermission.toUpperCase()
         );
+        console.log('[ProtectedRoute] Direct permission for', requireMenuPermission, ':', permission);
         
-        setHasMenuPermission(permission?.can_view ?? false);
+        // If direct permission found and has view access, grant it
+        if (permission?.can_view) {
+          console.log('[ProtectedRoute] Direct permission granted for:', requireMenuPermission);
+          setHasMenuPermission(true);
+          return;
+        }
+        
+        // Check if this is a child menu (has underscore) - check parent permission
+        const menuCodeParts = requireMenuPermission.split('_');
+        if (menuCodeParts.length > 1) {
+          const parentCode = menuCodeParts[0];
+          const parentPermission = menuPerms.find(
+            p => p.menu_code.toUpperCase() === parentCode.toUpperCase()
+          );
+          console.log('[ProtectedRoute] Parent permission for', parentCode, ':', parentPermission);
+          if (parentPermission?.can_view) {
+            console.log('[ProtectedRoute] Parent permission granted for:', parentCode);
+            setHasMenuPermission(true);
+            return;
+          }
+        }
+        
+        // Check if this is a parent menu - check if any child has permission
+        // Find any child menu that starts with this code
+        const childPermission = menuPerms.find(
+          p => p.menu_code.toUpperCase().startsWith(requireMenuPermission.toUpperCase() + '_') && p.can_view
+        );
+        if (childPermission) {
+          console.log('[ProtectedRoute] Child permission found:', childPermission.menu_code);
+          setHasMenuPermission(true);
+          return;
+        }
+        
+        console.log('[ProtectedRoute] No permission found, denying access');
+        setHasMenuPermission(false);
       } catch (error) {
         console.error('Failed to check menu permission:', error);
         setHasMenuPermission(false);

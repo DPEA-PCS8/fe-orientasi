@@ -34,6 +34,7 @@ import {
   Close as CloseIcon,
 } from '@mui/icons-material';
 import { AddPksiModal } from '../components/modals';
+import { usePermissions } from '../hooks/usePermissions';
 
 // Interface untuk data PKSI
 interface PksiData {
@@ -181,6 +182,10 @@ function PksiList() {
   const [pksiData, setPksiData] = useState<PksiData[]>(DUMMY_PKSI);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedPksiId, setSelectedPksiId] = useState<string | null>(null);
+
+  // Permission check for PKSI menu
+  const { getMenuPermissions } = usePermissions();
+  const pksiPermissions = getMenuPermissions('PKSI_ALL');
 
   // Filter state
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
@@ -379,21 +384,23 @@ function PksiList() {
               Filters
             </Button>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setOpenAddModal(true)}
-            sx={{
-              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
-              fontWeight: 500,
-              px: 2.5,
-              '&:hover': {
-                background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
-              },
-            }}
-          >
-            Tambah PKSI
-          </Button>
+          {pksiPermissions.canCreate && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setOpenAddModal(true)}
+              sx={{
+                background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+                fontWeight: 500,
+                px: 2.5,
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
+                },
+              }}
+            >
+              Tambah PKSI
+            </Button>
+          )}
         </Box>
 
         {/* Add PKSI Modal */}

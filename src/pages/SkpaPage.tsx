@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Box, Typography, Button, TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, IconButton, Dialog, DialogContent, CircularProgress, Alert, Select, MenuItem, FormControl, InputLabel, Tooltip, Fade, Chip } from '@mui/material';
+import { Box, Typography, Button, TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, IconButton, Dialog, DialogContent, CircularProgress, Alert, Select, MenuItem, FormControl, InputLabel, Tooltip, Fade, Chip, Skeleton } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material/Select';
-import { Close, Save, Category } from '@mui/icons-material';
+import { Close, Save, Category, Lock, Delete } from '@mui/icons-material';
 import { Add, Edit, Search } from '@mui/icons-material';
-import { getAllSkpa, createSkpa, updateSkpa, type SkpaData, type SkpaRequest } from '../api/skpaApi';
+import { getAllSkpa, createSkpa, updateSkpa, deleteSkpa, type SkpaData, type SkpaRequest } from '../api/skpaApi';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
+import { usePermissions } from '../hooks/usePermissions';
 
 interface FormData {
   kode_skpa: string;
@@ -14,6 +15,8 @@ interface FormData {
 }
 
 const initialForm: FormData = { kode_skpa: '', nama_skpa: '', keterangan: '', bidang_id: '' };
+
+const MENU_CODE = 'SKPA';
 
 const SkpaPage = () => {
   const [skpaList, setSkpaList] = useState<SkpaData[]>([]);
@@ -25,6 +28,11 @@ const SkpaPage = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [form, setForm] = useState<FormData>(initialForm);
   const [editId, setEditId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Permission hook
+  const { getMenuPermissions, permissionsLoaded } = usePermissions();
+  const { canView, canCreate, canUpdate, canDelete } = getMenuPermissions(MENU_CODE);
 
   const fetchBidang = async () => {
     setBidangLoading(true);
@@ -58,11 +66,14 @@ const SkpaPage = () => {
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (permissionsLoaded && canView) {
+      fetchData();
+    }
+  }, [permissionsLoaded, canView]);
 
   const handleOpenDialog = (skpa?: SkpaData) => {
     if (skpa) {
+      if (!canUpdate) return;
       setForm({
         kode_skpa: skpa.kode_skpa,
         nama_skpa: skpa.nama_skpa,
@@ -71,6 +82,7 @@ const SkpaPage = () => {
       });
       setEditId(skpa.id);
     } else {
+      if (!canCreate) return;
       setForm(initialForm);
       setEditId(null);
     }
@@ -135,6 +147,56 @@ const SkpaPage = () => {
     );
   });
 
+  const handleDelete = async (id: string) => {
+    if (!canDelete) return;
+    
+    setLoading(true);
+    setError(null);
+    try {
+      await deleteSkpa(id);
+      await fetchData();
+      setDeleteConfirmId(null);
+    } catch (err: any) {
+      setError(err.message || 'Gagal menghapus data SKPA');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Loading state for permissions
+  if (!permissionsLoaded) {
+    return (
+      <Box p={3}>
+        <Skeleton variant="text" width={200} height={40} />
+        <Skeleton variant="rectangular" height={400} sx={{ mt: 2 }} />
+      </Box>
+    );
+  }
+
+  // No view permission
+  if (!canView) {
+    return (
+      <Box p={3}>
+        <Alert 
+          severity="error" 
+          icon={<Lock />}
+          sx={{ 
+            borderRadius: 2,
+            '& .MuiAlert-icon': { alignItems: 'center' }
+          }}
+        >
+          <Typography variant="h6" gutterBottom>
+            Akses Ditolak
+          </Typography>
+          <Typography variant="body2">
+            Anda tidak memiliki izin untuk mengakses halaman Manajemen SKPA.
+            Silakan hubungi administrator untuk mendapatkan akses.
+          </Typography>
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box p={3}>
       <Typography variant="h5" mb={2}>Manajemen SKPA</Typography>
@@ -147,7 +209,9 @@ const SkpaPage = () => {
           size="small"
           InputProps={{ endAdornment: <Search /> }}
         />
-        <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenDialog()} disabled={loading}>Tambah SKPA</Button>
+        {canCreate && (
+          <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenDialog()} disabled={loading}>Tambah SKPA</Button>
+        )}
       </Box>
       {loading && <Box display="flex" justifyContent="center" my={3}><CircularProgress /></Box>}
       {!loading && (
@@ -159,7 +223,9 @@ const SkpaPage = () => {
                 <TableCell>Nama SKPA</TableCell>
                 <TableCell>Bidang</TableCell>
                 <TableCell>Keterangan</TableCell>
-                <TableCell align="right" width={100}>Aksi</TableCell>
+                {(canUpdate || canDelete) && (
+                  <TableCell align="right" width={120}>Aksi</TableCell>
+                )}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -177,20 +243,46 @@ const SkpaPage = () => {
                     )}
                   </TableCell>
                   <TableCell>{row.keterangan || '-'}</TableCell>
-                  <TableCell align="right">
-                    <IconButton size="small" onClick={() => handleOpenDialog(row)} title="Edit"><Edit /></IconButton>
-                  </TableCell>
+                  {(canUpdate || canDelete) && (
+                    <TableCell align="right">
+                      {canUpdate && (
+                        <IconButton size="small" onClick={() => handleOpenDialog(row)} title="Edit"><Edit /></IconButton>
+                      )}
+                      {canDelete && (
+                        <IconButton size="small" onClick={() => setDeleteConfirmId(row.id)} title="Hapus" color="error"><Delete /></IconButton>
+                      )}
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
               {filteredSkpaList.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">{search ? 'Tidak ada data yang sesuai' : 'Tidak ada data'}</TableCell>
+                  <TableCell colSpan={(canUpdate || canDelete) ? 5 : 4} align="center">{search ? 'Tidak ada data yang sesuai' : 'Tidak ada data'}</TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         </TableContainer>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirmId} onClose={() => setDeleteConfirmId(null)}>
+        <DialogContent>
+          <Typography variant="h6" gutterBottom>Konfirmasi Hapus</Typography>
+          <Typography>Apakah Anda yakin ingin menghapus SKPA ini?</Typography>
+          <Box display="flex" justifyContent="flex-end" gap={1} mt={2}>
+            <Button onClick={() => setDeleteConfirmId(null)}>Batal</Button>
+            <Button 
+              variant="contained" 
+              color="error" 
+              onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+              disabled={loading}
+            >
+              Hapus
+            </Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog Form */}
       <Dialog 

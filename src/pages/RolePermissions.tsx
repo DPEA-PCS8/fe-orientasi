@@ -215,14 +215,18 @@ export default function RolePermissions() {
   );
 
   const handleToggleAll = useCallback(
-    (field: 'can_view' | 'can_create' | 'can_update' | 'can_delete', value: boolean) => {
-      setPermissions(prevPermissions =>
-        prevPermissions.map(perm => ({
+    (field: 'can_view' | 'can_create' | 'can_update' | 'can_delete') => {
+      setPermissions(prevPermissions => {
+        // Check if all permissions are currently checked - if so, uncheck all; otherwise check all
+        const allChecked = prevPermissions.every(perm => perm[field]);
+        const newValue = !allChecked;
+        
+        return prevPermissions.map(perm => ({
           ...perm,
-          [field]: value,
+          [field]: newValue,
           isDirty: true,
-        }))
-      );
+        }));
+      });
     },
     []
   );
@@ -280,6 +284,16 @@ export default function RolePermissions() {
   // Check if selected role is Admin
   const selectedRole = roles.find(r => r.id === selectedRoleId);
   const isAdminRole = selectedRole?.roleName?.toLowerCase() === 'admin';
+
+  // Helper to check permission column states
+  const getColumnState = (field: PermissionKey) => {
+    if (permissions.length === 0) return { allChecked: false, someChecked: false };
+    const checkedCount = permissions.filter(p => p[field]).length;
+    return {
+      allChecked: checkedCount === permissions.length,
+      someChecked: checkedCount > 0 && checkedCount < permissions.length,
+    };
+  };
 
   // Organize permissions by parent/child hierarchy
   const parentMenus = permissions.filter(p => p.parent_id === null);
@@ -419,7 +433,9 @@ export default function RolePermissions() {
                   >
                     Menu
                   </TableCell>
-                  {PERMISSION_COLUMNS.map(col => (
+                  {PERMISSION_COLUMNS.map(col => {
+                    const columnState = getColumnState(col.key);
+                    return (
                     <TableCell 
                       key={col.key}
                       align="center" 
@@ -450,8 +466,9 @@ export default function RolePermissions() {
                           </Box>
                           <Checkbox
                             size="small"
-                            checked={isAdminRole}
-                            onChange={(e) => handleToggleAll(col.key, e.target.checked)}
+                            checked={isAdminRole || columnState.allChecked}
+                            indeterminate={!isAdminRole && columnState.someChecked}
+                            onChange={() => handleToggleAll(col.key)}
                             disabled={isAdminRole}
                             sx={{ 
                               p: 0.25,
@@ -462,7 +479,8 @@ export default function RolePermissions() {
                         </Box>
                       </Tooltip>
                     </TableCell>
-                  ))}
+                    );
+                  })}
                 </TableRow>
               </TableHead>
               <TableBody>

@@ -11,6 +11,7 @@ import PksiDisetujui from './pages/PksiDisetujui';
 import RbsiManagementPage from './pages/RbsiManagementPage';
 import RbsiArsitekturPage from './pages/RbsiArsitekturPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import SmartLanding from './components/SmartLanding';
 import { isAuthenticated } from './api/authApi';
 import Profile from './pages/Profile';
 import UserRoleManagement from './pages/UserRoleManagement';
@@ -30,10 +31,19 @@ function App() {
               isAuthenticated() ? <Navigate to="/" replace /> : <LoginPage />
             } 
           />
+          {/* Smart landing page - redirects based on user permissions */}
           <Route 
             path="/" 
             element={
               <ProtectedRoute>
+                <SmartLanding />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/pksi-list" 
+            element={
+              <ProtectedRoute requireMenuPermission="PKSI_ALL">
                 <Layout>
                   <PksiList />
                 </Layout>
@@ -43,7 +53,7 @@ function App() {
           <Route 
             path="/pksi-disetujui" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireMenuPermission="PKSI_APPROVED">
                 <Layout>
                   <PksiDisetujui />
                 </Layout>
@@ -53,7 +63,7 @@ function App() {
           <Route
             path="/rbsi"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireMenuPermission="RBSI_MONITORING">
                 <Layout>
                   <RbsiManagementPage />
                 </Layout>
@@ -63,7 +73,7 @@ function App() {
           <Route
             path="/rbsi-arsitektur"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireMenuPermission="RBSI_ARCHITECTURE">
                 <Layout>
                   <RbsiArsitekturPage />
                 </Layout>
@@ -76,7 +86,7 @@ function App() {
           <Route 
             path="/add-pksi" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireMenuPermission="PKSI_ALL">
                 <Layout>
                   <AddPksi />
                 </Layout>
@@ -96,7 +106,7 @@ function App() {
           <Route 
             path="/add-program" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireMenuPermission="RBSI_MONITORING">
                 <Layout>
                   <AddProgram />
                 </Layout>
@@ -106,7 +116,7 @@ function App() {
           <Route 
             path="/add-inisiatif" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireMenuPermission="RBSI_MONITORING">
                 <Layout>
                   <AddInisiatif />
                 </Layout>
@@ -136,7 +146,7 @@ function App() {
         <Route
           path="/skpa"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requireMenuPermission='SKPA'>
               <Layout>
                 <SkpaPage />
               </Layout>
@@ -146,7 +156,7 @@ function App() {
         <Route
           path="/bidang"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requireMenuPermission='BIDANG'>
               <Layout>
                 <BidangPage />
               </Layout>

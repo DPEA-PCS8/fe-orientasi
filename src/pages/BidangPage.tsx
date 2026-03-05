@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Box, Typography, Button, TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, IconButton, Dialog, DialogContent, CircularProgress, Alert, Fade } from '@mui/material';
-import { Close, Save, Folder } from '@mui/icons-material';
+import { Box, Typography, Button, TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, IconButton, Dialog, DialogContent, CircularProgress, Alert, Fade, Skeleton } from '@mui/material';
+import { Close, Save, Folder, Lock, Delete } from '@mui/icons-material';
 import { Add, Edit, Search } from '@mui/icons-material';
-import { getAllBidang, createBidang, updateBidang, type BidangData, type BidangRequest } from '../api/bidangApi';
+import { getAllBidang, createBidang, updateBidang, deleteBidang, type BidangData, type BidangRequest } from '../api/bidangApi';
+import { usePermissions } from '../hooks/usePermissions';
 
 interface FormData {
   kode_bidang: string;
@@ -10,6 +11,8 @@ interface FormData {
 }
 
 const initialForm: FormData = { kode_bidang: '', nama_bidang: '' };
+
+const MENU_CODE = 'BIDANG';
 
 const BidangPage = () => {
   const [bidangList, setBidangList] = useState<BidangData[]>([]);
@@ -19,6 +22,11 @@ const BidangPage = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [form, setForm] = useState<FormData>(initialForm);
   const [editId, setEditId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Permission hook
+  const { getMenuPermissions, permissionsLoaded } = usePermissions();
+  const { canView, canCreate, canUpdate, canDelete } = getMenuPermissions(MENU_CODE);
 
   const fetchData = async () => {
     setLoading(true);
@@ -38,14 +46,22 @@ const BidangPage = () => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (permissionsLoaded && canView) {
+      fetchData();
+    }
+  }, [permissionsLoaded, canView]);
+
   const handleOpenDialog = (bidang?: BidangData) => {
     if (bidang) {
+      if (!canUpdate) return;
       setForm({
         kode_bidang: bidang.kode_bidang,
         nama_bidang: bidang.nama_bidang,
       });
       setEditId(bidang.id);
     } else {
+      if (!canCreate) return;
       setForm(initialForm);
       setEditId(null);
     }
@@ -102,6 +118,56 @@ const BidangPage = () => {
     );
   });
 
+  const handleDelete = async (id: string) => {
+    if (!canDelete) return;
+    
+    setLoading(true);
+    setError(null);
+    try {
+      await deleteBidang(id);
+      await fetchData();
+      setDeleteConfirmId(null);
+    } catch (err: any) {
+      setError(err.message || 'Gagal menghapus data Bidang');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Loading state for permissions
+  if (!permissionsLoaded) {
+    return (
+      <Box p={3}>
+        <Skeleton variant="text" width={200} height={40} />
+        <Skeleton variant="rectangular" height={400} sx={{ mt: 2 }} />
+      </Box>
+    );
+  }
+
+  // No view permission
+  if (!canView) {
+    return (
+      <Box p={3}>
+        <Alert 
+          severity="error" 
+          icon={<Lock />}
+          sx={{ 
+            borderRadius: 2,
+            '& .MuiAlert-icon': { alignItems: 'center' }
+          }}
+        >
+          <Typography variant="h6" gutterBottom>
+            Akses Ditolak
+          </Typography>
+          <Typography variant="body2">
+            Anda tidak memiliki izin untuk mengakses halaman Manajemen Bidang.
+            Silakan hubungi administrator untuk mendapatkan akses.
+          </Typography>
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box p={3}>
       <Typography variant="h5" mb={2}>Manajemen Bidang</Typography>
@@ -114,7 +180,9 @@ const BidangPage = () => {
           size="small"
           InputProps={{ endAdornment: <Search /> }}
         />
-        <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenDialog()} disabled={loading}>Tambah Bidang</Button>
+        {canCreate && (
+          <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenDialog()} disabled={loading}>Tambah Bidang</Button>
+        )}
       </Box>
       {loading && <Box display="flex" justifyContent="center" my={3}><CircularProgress /></Box>}
       {!loading && (
@@ -124,7 +192,9 @@ const BidangPage = () => {
               <TableRow>
                 <TableCell>Kode Bidang</TableCell>
                 <TableCell>Nama Bidang</TableCell>
-                <TableCell align="right" width={100}>Aksi</TableCell>
+                {(canUpdate || canDelete) && (
+                  <TableCell align="right" width={120}>Aksi</TableCell>
+                )}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -132,20 +202,46 @@ const BidangPage = () => {
                 <TableRow key={row.id}>
                   <TableCell>{row.kode_bidang}</TableCell>
                   <TableCell>{row.nama_bidang}</TableCell>
+                {(canUpdate || canDelete) && (
                   <TableCell align="right">
-                    <IconButton size="small" onClick={() => handleOpenDialog(row)} title="Edit"><Edit /></IconButton>
+                    {canUpdate && (
+                      <IconButton size="small" onClick={() => handleOpenDialog(row)} title="Edit"><Edit /></IconButton>
+                    )}
+                    {canDelete && (
+                      <IconButton size="small" onClick={() => setDeleteConfirmId(row.id)} title="Hapus" color="error"><Delete /></IconButton>
+                    )}
                   </TableCell>
+                )}
                 </TableRow>
               ))}
               {filteredBidangList.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} align="center">{search ? 'Tidak ada data yang sesuai' : 'Tidak ada data'}</TableCell>
+                  <TableCell colSpan={(canUpdate || canDelete) ? 3 : 2} align="center">{search ? 'Tidak ada data yang sesuai' : 'Tidak ada data'}</TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         </TableContainer>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirmId} onClose={() => setDeleteConfirmId(null)}>
+        <DialogContent>
+          <Typography variant="h6" gutterBottom>Konfirmasi Hapus</Typography>
+          <Typography>Apakah Anda yakin ingin menghapus Bidang ini?</Typography>
+          <Box display="flex" justifyContent="flex-end" gap={1} mt={2}>
+            <Button onClick={() => setDeleteConfirmId(null)}>Batal</Button>
+            <Button 
+              variant="contained" 
+              color="error" 
+              onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+              disabled={loading}
+            >
+              Hapus
+            </Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog Form */}
       <Dialog 
