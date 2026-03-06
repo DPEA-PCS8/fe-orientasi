@@ -65,6 +65,7 @@ export interface AplikasiData {
   nama_aplikasi: string;
   deskripsi?: string;
   status_aplikasi: string;
+  tanggal_status?: string;
   bidang?: BidangInfo | null;
   skpa?: SkpaInfo | null;
   tanggal_implementasi?: string;
@@ -289,6 +290,7 @@ export async function updateAplikasi(id: string, data: AplikasiRequest): Promise
 
 export interface AplikasiStatusUpdateRequest {
   status: string;
+  tanggal_status?: string;
   kategori_idle?: string;
   alasan_idle?: string;
   rencana_pengakhiran?: string;

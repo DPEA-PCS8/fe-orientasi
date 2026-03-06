@@ -10,7 +10,7 @@ import {
 import type { SelectChangeEvent } from '@mui/material/Select';
 import { Add, Edit, Search, Delete, Visibility, Lock, Apps } from '@mui/icons-material';
 import {
-  searchAplikasi, deleteAplikasi, updateAplikasiStatus, updateAplikasiStatusWithDetails,
+  searchAplikasi, deleteAplikasi, updateAplikasiStatusWithDetails,
   type AplikasiData, type AplikasiSearchParams, type AplikasiStatusUpdateRequest,
   APPLICATION_STATUS_LABELS, KATEGORI_IDLE_LABELS
 } from '../api/aplikasiApi';
@@ -36,8 +36,10 @@ const AplikasiListPage = () => {
   // Status popover
   const [statusAnchor, setStatusAnchor] = useState<{ el: HTMLElement; appId: string; currentStatus: string } | null>(null);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
-  const [showIdleForm, setShowIdleForm] = useState(false);
-  const [idleFormData, setIdleFormData] = useState({
+  const [showStatusForm, setShowStatusForm] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string>('');
+  const [statusFormData, setStatusFormData] = useState({
+    tanggal_status: '',
     kategori_idle: '',
     alasan_idle: '',
     rencana_pengakhiran: '',
@@ -144,55 +146,47 @@ const AplikasiListPage = () => {
     setStatusAnchor({ el: event.currentTarget, appId: app.id, currentStatus: app.status_aplikasi });
   };
 
-  const handleStatusChange = async (newStatus: string) => {
+  const handleStatusChange = (newStatus: string) => {
     if (!statusAnchor) return;
     
-    // If selecting IDLE, show the form instead of immediate save
-    if (newStatus === 'IDLE') {
-      setShowIdleForm(true);
-      return;
-    }
-    
-    setUpdatingStatusId(statusAnchor.appId);
-    setStatusAnchor(null);
-    setShowIdleForm(false);
-    
-    try {
-      await updateAplikasiStatus(statusAnchor.appId, newStatus);
-      await fetchData();
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Gagal mengupdate status';
-      setError(errorMessage);
-    } finally {
-      setUpdatingStatusId(null);
-    }
+    // Always show form for status change with date input
+    setSelectedStatus(newStatus);
+    setShowStatusForm(true);
+    // Initialize with today's date
+    setStatusFormData(prev => ({ 
+      ...prev, 
+      tanggal_status: new Date().toISOString().split('T')[0]
+    }));
   };
 
-  const handleIdleFormSubmit = async () => {
-    if (!statusAnchor) return;
+  const handleStatusFormSubmit = async () => {
+    if (!statusAnchor || !selectedStatus) return;
     
     setUpdatingStatusId(statusAnchor.appId);
     const appId = statusAnchor.appId;
     setStatusAnchor(null);
-    setShowIdleForm(false);
+    setShowStatusForm(false);
     
     try {
       const request: AplikasiStatusUpdateRequest = {
-        status: 'IDLE',
-        kategori_idle: idleFormData.kategori_idle || undefined,
-        alasan_idle: idleFormData.alasan_idle || undefined,
-        rencana_pengakhiran: idleFormData.rencana_pengakhiran || undefined,
-        alasan_belum_diakhiri: idleFormData.alasan_belum_diakhiri || undefined
+        status: selectedStatus,
+        tanggal_status: statusFormData.tanggal_status || undefined,
+        kategori_idle: selectedStatus === 'IDLE' ? statusFormData.kategori_idle || undefined : undefined,
+        alasan_idle: selectedStatus === 'IDLE' ? statusFormData.alasan_idle || undefined : undefined,
+        rencana_pengakhiran: selectedStatus === 'IDLE' ? statusFormData.rencana_pengakhiran || undefined : undefined,
+        alasan_belum_diakhiri: selectedStatus === 'IDLE' ? statusFormData.alasan_belum_diakhiri || undefined : undefined
       };
       await updateAplikasiStatusWithDetails(appId, request);
       await fetchData();
       // Reset form
-      setIdleFormData({
+      setStatusFormData({
+        tanggal_status: '',
         kategori_idle: '',
         alasan_idle: '',
         rencana_pengakhiran: '',
         alasan_belum_diakhiri: ''
       });
+      setSelectedStatus('');
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Gagal mengupdate status';
       setError(errorMessage);
@@ -203,8 +197,10 @@ const AplikasiListPage = () => {
 
   const handleStatusPopoverClose = () => {
     setStatusAnchor(null);
-    setShowIdleForm(false);
-    setIdleFormData({
+    setShowStatusForm(false);
+    setSelectedStatus('');
+    setStatusFormData({
+      tanggal_status: '',
       kategori_idle: '',
       alasan_idle: '',
       rencana_pengakhiran: '',
@@ -507,7 +503,7 @@ const AplikasiListPage = () => {
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
       >
         <Box sx={{ p: 1.5, minWidth: 280 }}>
-          {!showIdleForm ? (
+          {!showStatusForm ? (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
               {Object.entries(APPLICATION_STATUS_LABELS).map(([key, label]) => (
                 <MenuItem
@@ -524,52 +520,72 @@ const AplikasiListPage = () => {
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Typography variant="subtitle2" fontWeight={600}>
-                Detail Status IDLE
+                Ubah Status ke {APPLICATION_STATUS_LABELS[selectedStatus] || selectedStatus}
               </Typography>
-              <FormControl size="small" fullWidth>
-                <InputLabel>Kategori Idle</InputLabel>
-                <Select
-                  value={idleFormData.kategori_idle}
-                  label="Kategori Idle"
-                  onChange={(e) => setIdleFormData(prev => ({ ...prev, kategori_idle: e.target.value }))}
-                >
-                  {Object.entries(KATEGORI_IDLE_LABELS).map(([key, label]) => (
-                    <MenuItem key={key} value={key}>{label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
               <TextField
                 size="small"
-                label="Alasan Idle"
-                value={idleFormData.alasan_idle}
-                onChange={(e) => setIdleFormData(prev => ({ ...prev, alasan_idle: e.target.value }))}
-                multiline
-                rows={2}
+                type="date"
+                label="Tanggal Status"
+                InputLabelProps={{ shrink: true }}
+                value={statusFormData.tanggal_status}
+                onChange={(e) => setStatusFormData(prev => ({ ...prev, tanggal_status: e.target.value }))}
                 fullWidth
+                required
+                helperText="Tanggal status mulai berlaku"
               />
-              <TextField
-                size="small"
-                label="Rencana Pengakhiran"
-                value={idleFormData.rencana_pengakhiran}
-                onChange={(e) => setIdleFormData(prev => ({ ...prev, rencana_pengakhiran: e.target.value }))}
-                multiline
-                rows={2}
-                fullWidth
-              />
-              <TextField
-                size="small"
-                label="Alasan Belum Diakhiri"
-                value={idleFormData.alasan_belum_diakhiri}
-                onChange={(e) => setIdleFormData(prev => ({ ...prev, alasan_belum_diakhiri: e.target.value }))}
-                multiline
-                rows={2}
-                fullWidth
-              />
+              {selectedStatus === 'IDLE' && (
+                <>
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>Kategori Idle</InputLabel>
+                    <Select
+                      value={statusFormData.kategori_idle}
+                      label="Kategori Idle"
+                      onChange={(e) => setStatusFormData(prev => ({ ...prev, kategori_idle: e.target.value }))}
+                    >
+                      {Object.entries(KATEGORI_IDLE_LABELS).map(([key, label]) => (
+                        <MenuItem key={key} value={key}>{label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <TextField
+                    size="small"
+                    label="Alasan Idle"
+                    value={statusFormData.alasan_idle}
+                    onChange={(e) => setStatusFormData(prev => ({ ...prev, alasan_idle: e.target.value }))}
+                    multiline
+                    rows={2}
+                    fullWidth
+                  />
+                  <TextField
+                    size="small"
+                    label="Rencana Pengakhiran"
+                    value={statusFormData.rencana_pengakhiran}
+                    onChange={(e) => setStatusFormData(prev => ({ ...prev, rencana_pengakhiran: e.target.value }))}
+                    multiline
+                    rows={2}
+                    fullWidth
+                  />
+                  <TextField
+                    size="small"
+                    label="Alasan Belum Diakhiri"
+                    value={statusFormData.alasan_belum_diakhiri}
+                    onChange={(e) => setStatusFormData(prev => ({ ...prev, alasan_belum_diakhiri: e.target.value }))}
+                    multiline
+                    rows={2}
+                    fullWidth
+                  />
+                </>
+              )}
               <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                <Button size="small" onClick={() => setShowIdleForm(false)}>
+                <Button size="small" onClick={() => setShowStatusForm(false)}>
                   Kembali
                 </Button>
-                <Button size="small" variant="contained" onClick={handleIdleFormSubmit}>
+                <Button 
+                  size="small" 
+                  variant="contained" 
+                  onClick={handleStatusFormSubmit}
+                  disabled={!statusFormData.tanggal_status}
+                >
                   Simpan
                 </Button>
               </Box>

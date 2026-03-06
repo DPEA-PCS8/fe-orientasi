@@ -446,7 +446,7 @@ const AplikasiDetailPage = () => {
 
       <Grid container spacing={3}>
         {/* Left Column - Main Info */}
-        <Grid size={{ xs: 12, lg: 8 }}>
+        <Grid size={{ xs: 12, lg: 7 }}>
           {/* Informasi Umum */}
           <Card sx={{ mb: 3, borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
             <CardContent sx={{ p: 3 }}>
@@ -467,7 +467,7 @@ const AplikasiDetailPage = () => {
                         value={infoForm.deskripsi}
                         onChange={(e) => setInfoForm(prev => ({ ...prev, deskripsi: e.target.value }))}
                         multiline
-                        rows={3}
+                        rows={4}
                       />
                     </Grid>
                     <Grid size={{ xs: 12, sm: 6 }}>
@@ -535,7 +535,7 @@ const AplikasiDetailPage = () => {
                           value={infoForm.data_pribadi_diproses}
                           onChange={(e) => setInfoForm(prev => ({ ...prev, data_pribadi_diproses: e.target.value }))}
                           multiline
-                          rows={2}
+                          rows={3}
                         />
                       </Grid>
                     )}
@@ -598,6 +598,13 @@ const AplikasiDetailPage = () => {
                       label="Tipe Akses" 
                       value={ACCESS_TYPE_LABELS[aplikasi.akses || ''] || aplikasi.akses || '-'}
                       icon={<AccessTime sx={{ fontSize: 18 }} />}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <InfoItem 
+                      label="Tanggal Status" 
+                      value={aplikasi.tanggal_status ? new Date(aplikasi.tanggal_status).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+                      icon={<CalendarMonth sx={{ fontSize: 18 }} />}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
@@ -845,6 +852,8 @@ const AplikasiDetailPage = () => {
                                 newKom[idx] = { ...newKom[idx], deskripsi_komunikasi: e.target.value };
                                 setKomunikasiForm(newKom);
                               }}
+                              multiline
+                              rows={2}
                             />
                           </Grid>
                           <Grid size={{ xs: 12, sm: 2 }}>
@@ -936,7 +945,7 @@ const AplikasiDetailPage = () => {
         </Grid>
 
         {/* Right Column - Stakeholders */}
-        <Grid size={{ xs: 12, lg: 4 }}>
+        <Grid size={{ xs: 12, lg: 5 }}>
           {/* Satker Internal */}
           <Card sx={{ mb: 3, borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
             <CardContent sx={{ p: 3 }}>
@@ -977,6 +986,8 @@ const AplikasiDetailPage = () => {
                                 newSatker[idx] = { ...newSatker[idx], keterangan: e.target.value };
                                 setSatkerForm(newSatker);
                               }}
+                              multiline
+                              rows={2}
                             />
                           </Grid>
                           <Grid size={{ xs: 12, sm: 1 }}>
@@ -1025,7 +1036,7 @@ const AplikasiDetailPage = () => {
           </Card>
 
           {/* Pengguna Eksternal */}
-          <Card sx={{ borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+          <Card sx={{ mb: 3, borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
             <CardContent sx={{ p: 3 }}>
               <SectionHeader 
                 icon={<People sx={{ fontSize: 20 }} />} 
@@ -1064,6 +1075,8 @@ const AplikasiDetailPage = () => {
                                 newPengguna[idx] = { ...newPengguna[idx], keterangan: e.target.value };
                                 setPenggunaForm(newPengguna);
                               }}
+                              multiline
+                              rows={2}
                             />
                           </Grid>
                           <Grid size={{ xs: 12, sm: 1 }}>
@@ -1126,8 +1139,8 @@ const AplikasiDetailPage = () => {
                   <Stack spacing={2}>
                     {penghargaanForm.map((penghargaan, idx) => (
                       <Paper key={idx} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                        <Grid container spacing={2} alignItems="center">
-                          <Grid size={{ xs: 12, sm: 4 }}>
+                        <Grid container spacing={2}>
+                          <Grid size={{ xs: 12, md: 6 }}>
                             <Autocomplete
                               size="small"
                               options={kategoriPenghargaanList}
@@ -1141,7 +1154,7 @@ const AplikasiDetailPage = () => {
                               renderInput={(params) => <TextField {...params} label="Kategori" />}
                             />
                           </Grid>
-                          <Grid size={{ xs: 12, sm: 3 }}>
+                          <Grid size={{ xs: 12, md: 4 }}>
                             <TextField
                               fullWidth
                               size="small"
@@ -1156,7 +1169,12 @@ const AplikasiDetailPage = () => {
                               }}
                             />
                           </Grid>
-                          <Grid size={{ xs: 12, sm: 4 }}>
+                          <Grid size={{ xs: 12, md: 2 }} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                            <IconButton size="small" color="error" onClick={() => setPenghargaanForm(penghargaanForm.filter((_, i) => i !== idx))}>
+                              <Delete />
+                            </IconButton>
+                          </Grid>
+                          <Grid size={{ xs: 12 }}>
                             <TextField
                               fullWidth
                               size="small"
@@ -1167,12 +1185,9 @@ const AplikasiDetailPage = () => {
                                 newForm[idx] = { ...newForm[idx], deskripsi: e.target.value };
                                 setPenghargaanForm(newForm);
                               }}
+                              multiline
+                              rows={3}
                             />
-                          </Grid>
-                          <Grid size={{ xs: 12, sm: 1 }}>
-                            <IconButton size="small" color="error" onClick={() => setPenghargaanForm(penghargaanForm.filter((_, i) => i !== idx))}>
-                              <Delete />
-                            </IconButton>
                           </Grid>
                         </Grid>
                       </Paper>
