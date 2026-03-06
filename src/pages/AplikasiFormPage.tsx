@@ -9,10 +9,10 @@ import Grid from '@mui/material/Grid';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import { ArrowBack, Save, Add, Delete, Apps, Lock } from '@mui/icons-material';
 import {
-  getAplikasiById, createAplikasi, updateAplikasi,
+  getAplikasiById, createAplikasi, updateAplikasi, getVariablesByKategori,
   type AplikasiRequest, type UrlRequest, type SatkerInternalRequest,
-  type PenggunaEksternalRequest, type KomunikasiSistemRequest,
-  APPLICATION_STATUS, APPLICATION_STATUS_LABELS,
+  type PenggunaEksternalRequest, type KomunikasiSistemRequest, type PenghargaanRequest,
+  type VariableData, APPLICATION_STATUS, APPLICATION_STATUS_LABELS,
   ACCESS_TYPE_LABELS, KATEGORI_IDLE_LABELS, TIPE_SISTEM_LABELS
 } from '../api/aplikasiApi';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
@@ -56,6 +56,7 @@ const AplikasiFormPage = () => {
   const [form, setForm] = useState<FormData>(initialForm);
   const [bidangList, setBidangList] = useState<BidangData[]>([]);
   const [skpaList, setSkpaList] = useState<SkpaData[]>([]);
+  const [kategoriPenghargaanList, setKategoriPenghargaanList] = useState<VariableData[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,12 +68,14 @@ const AplikasiFormPage = () => {
   useEffect(() => {
     const fetchFilters = async () => {
       try {
-        const [bidangRes, skpaRes] = await Promise.all([
+        const [bidangRes, skpaRes, kategoriRes] = await Promise.all([
           getAllBidang(),
-          getAllSkpa()
+          getAllSkpa(),
+          getVariablesByKategori('KATEGORI_PENGHARGAAN')
         ]);
         setBidangList(bidangRes || []);
         setSkpaList(skpaRes.data || []);
+        setKategoriPenghargaanList(kategoriRes || []);
       } catch (err) {
         console.error('Failed to load filter data:', err);
       }
@@ -245,6 +248,28 @@ const AplikasiFormPage = () => {
     setForm(prev => ({
       ...prev,
       komunikasi_sistems: prev.komunikasi_sistems?.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Penghargaan handlers
+  const addPenghargaan = () => {
+    setForm(prev => ({
+      ...prev,
+      penghargaans: [...(prev.penghargaans || []), { kategori_id: '', tanggal: '', deskripsi: '' }]
+    }));
+  };
+
+  const updatePenghargaan = (index: number, field: keyof PenghargaanRequest, value: string) => {
+    setForm(prev => ({
+      ...prev,
+      penghargaans: prev.penghargaans?.map((p, i) => i === index ? { ...p, [field]: value } : p)
+    }));
+  };
+
+  const removePenghargaan = (index: number) => {
+    setForm(prev => ({
+      ...prev,
+      penghargaans: prev.penghargaans?.filter((_, i) => i !== index)
     }));
   };
 
@@ -809,6 +834,70 @@ const AplikasiFormPage = () => {
         {(form.komunikasi_sistems?.length || 0) === 0 && (
           <Typography color="text.secondary" textAlign="center" py={2}>
             Tidak ada komunikasi dengan sistem lain.
+          </Typography>
+        )}
+      </Paper>
+
+      {/* Penghargaan Aplikasi */}
+      <Paper sx={{ p: 3, mt: 3 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Typography variant="h6">Penghargaan Aplikasi</Typography>
+          <Button startIcon={<Add />} onClick={addPenghargaan} variant="outlined" size="small">
+            Tambah Penghargaan
+          </Button>
+        </Box>
+        {form.penghargaans?.map((penghargaan, index) => (
+          <Box key={index} mb={2}>
+            <Grid container spacing={2} alignItems="center">
+              <Grid size={{ xs: 12, md: 4 }}>
+                <FormControl fullWidth required>
+                  <InputLabel>Kategori Penghargaan</InputLabel>
+                  <Select
+                    value={penghargaan.kategori_id || ''}
+                    label="Kategori Penghargaan"
+                    onChange={(e) => updatePenghargaan(index, 'kategori_id', e.target.value)}
+                  >
+                    {kategoriPenghargaanList.map((kategori) => (
+                      <MenuItem key={kategori.id} value={kategori.id}>
+                        {kategori.nama}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid size={{ xs: 12, md: 3 }}>
+                <TextField
+                  fullWidth
+                  required
+                  type="date"
+                  label="Tanggal"
+                  value={penghargaan.tanggal || ''}
+                  onChange={(e) => updatePenghargaan(index, 'tanggal', e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField
+                  fullWidth
+                  label="Deskripsi"
+                  value={penghargaan.deskripsi || ''}
+                  onChange={(e) => updatePenghargaan(index, 'deskripsi', e.target.value)}
+                  multiline
+                  rows={1}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 1 }}>
+                <IconButton color="error" onClick={() => removePenghargaan(index)}>
+                  <Delete />
+                </IconButton>
+              </Grid>
+            </Grid>
+            {index < (form.penghargaans?.length || 0) - 1 && <Divider sx={{ mt: 2 }} />}
+          </Box>
+        ))}
+        {(form.penghargaans?.length || 0) === 0 && (
+          <Typography color="text.secondary" textAlign="center" py={2}>
+            Tidak ada penghargaan aplikasi.
           </Typography>
         )}
       </Paper>

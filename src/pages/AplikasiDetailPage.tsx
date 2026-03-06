@@ -305,25 +305,29 @@ const AplikasiDetailPage = () => {
     }
   };
 
-  const getStatusChip = (status: string) => {
-    const statusConfig: Record<string, { color: 'success' | 'warning' | 'error' | 'default'; bgcolor: string }> = {
-      AKTIF: { color: 'success', bgcolor: '#e8f5e9' },
-      IDLE: { color: 'warning', bgcolor: '#fff3e0' },
-      DIAKHIRI: { color: 'error', bgcolor: '#ffebee' },
+  const getStatusConfig = (status: string) => {
+    const statusConfig: Record<string, { gradient: string; badge: string; textColor: string }> = {
+      AKTIF: { 
+        gradient: 'linear-gradient(135deg, #DA251C 0%, #4caf50 100%)',
+        badge: '#4caf50',
+        textColor: 'white'
+      },
+      IDLE: { 
+        gradient: 'linear-gradient(135deg, #DA251C 0%, #ffa726 100%)',
+        badge: '#ffa726',
+        textColor: 'white'
+      },
+      DIAKHIRI: { 
+        gradient: 'linear-gradient(135deg, #DA251C 0%, #424242 100%)',
+        badge: '#757575',
+        textColor: 'white'
+      },
     };
-    const config = statusConfig[status] || { color: 'default', bgcolor: '#f5f5f5' };
-    return (
-      <Chip
-        label={APPLICATION_STATUS_LABELS[status] || status}
-        color={config.color}
-        sx={{ 
-          fontWeight: 600,
-          fontSize: '0.875rem',
-          height: 32,
-          px: 1
-        }}
-      />
-    );
+    return statusConfig[status] || { 
+      gradient: 'linear-gradient(135deg, #DA251C 0%, #ff6b6b 100%)',
+      badge: '#DA251C',
+      textColor: 'white'
+    };
   };
 
   // Loading state for permissions
@@ -391,8 +395,8 @@ const AplikasiDetailPage = () => {
           p: 3, 
           mb: 3, 
           borderRadius: 3,
-          background: 'linear-gradient(135deg, #DA251C 0%, #ff6b6b 100%)',
-          color: 'white',
+          background: getStatusConfig(aplikasi.status_aplikasi).gradient,
+          color: getStatusConfig(aplikasi.status_aplikasi).textColor,
           position: 'relative',
           overflow: 'hidden'
         }}
@@ -400,8 +404,33 @@ const AplikasiDetailPage = () => {
         <Box sx={{ position: 'absolute', right: -50, top: -50, opacity: 0.1 }}>
           <Apps sx={{ fontSize: 200 }} />
         </Box>
+        {/* Status Badge - Top Right */}
+        <Box sx={{ 
+          position: 'absolute', 
+          top: 16, 
+          right: 16, 
+          bgcolor: 'rgba(255,255,255,0.95)', 
+          borderRadius: 2,
+          px: 2,
+          py: 1,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+          zIndex: 2
+        }}>
+          <Typography 
+            variant="body2" 
+            fontWeight={700} 
+            sx={{ 
+              color: getStatusConfig(aplikasi.status_aplikasi).badge,
+              fontSize: '0.875rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}
+          >
+            {APPLICATION_STATUS_LABELS[aplikasi.status_aplikasi] || aplikasi.status_aplikasi}
+          </Typography>
+        </Box>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start" position="relative" zIndex={1}>
-          <Box>
+          <Box sx={{ flex: 1 }}>
             <Button
               startIcon={<ArrowBack />}
               onClick={() => navigate('/aplikasi')}
@@ -418,26 +447,39 @@ const AplikasiDetailPage = () => {
                 <Apps sx={{ fontSize: 32 }} />
               </Avatar>
               <Box>
-                <Box display="flex" alignItems="center" gap={1.5}>
-                  <Typography variant="h4" fontWeight={700} sx={{ textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    {aplikasi.nama_aplikasi}
-                  </Typography>
-                  {getStatusChip(aplikasi.status_aplikasi)}
+                <Typography variant="h4" fontWeight={700} sx={{ textShadow: '0 2px 4px rgba(0,0,0,0.1)', mb: 0.5 }}>
+                  {aplikasi.nama_aplikasi}
+                </Typography>
+                <Box display="flex" alignItems="center" gap={1.5} flexWrap="wrap">
+                  {aplikasi.kode_aplikasi && aplikasi.kode_aplikasi !== aplikasi.nama_aplikasi && (
+                    <Chip
+                      label={aplikasi.kode_aplikasi}
+                      size="small"
+                      sx={{ 
+                        bgcolor: 'rgba(255,255,255,0.25)',
+                        color: 'white',
+                        fontWeight: 600,
+                        fontSize: '0.875rem',
+                        border: '1px solid rgba(255,255,255,0.3)'
+                      }}
+                    />
+                  )}
+                  {aplikasi.kode_aplikasi && aplikasi.kode_aplikasi !== aplikasi.nama_aplikasi && aplikasi.tanggal_status && (
+                    <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.4)', height: 20, alignSelf: 'center' }} />
+                  )}
+                  {aplikasi.tanggal_status && (
+                    <Box display="flex" alignItems="center" sx={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.875rem' }}>
+                      <CalendarMonth sx={{ fontSize: 16, mr: 0.5 }} />
+                      <span style={{ fontWeight: 500 }}>
+                        {aplikasi.status_aplikasi === 'AKTIF' && 'Aktif sejak'}
+                        {aplikasi.status_aplikasi === 'IDLE' && 'Idle sejak'}
+                        {aplikasi.status_aplikasi === 'DIAKHIRI' && 'Diakhiri sejak'}
+                        {': '}
+                        {new Date(aplikasi.tanggal_status).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </span>
+                    </Box>
+                  )}
                 </Box>
-                {aplikasi.kode_aplikasi && 
-                 aplikasi.kode_aplikasi !== aplikasi.nama_aplikasi && (
-                  <Chip
-                    label={aplikasi.kode_aplikasi}
-                    size="small"
-                    sx={{ 
-                      mt: 0.5,
-                      bgcolor: 'rgba(255,255,255,0.2)',
-                      color: 'white',
-                      fontWeight: 600,
-                      fontSize: '0.875rem'
-                    }}
-                  />
-                )}
               </Box>
             </Box>
           </Box>
@@ -598,13 +640,6 @@ const AplikasiDetailPage = () => {
                       label="Tipe Akses" 
                       value={ACCESS_TYPE_LABELS[aplikasi.akses || ''] || aplikasi.akses || '-'}
                       icon={<AccessTime sx={{ fontSize: 18 }} />}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <InfoItem 
-                      label="Tanggal Status" 
-                      value={aplikasi.tanggal_status ? new Date(aplikasi.tanggal_status).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
-                      icon={<CalendarMonth sx={{ fontSize: 18 }} />}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
