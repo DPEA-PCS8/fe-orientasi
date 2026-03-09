@@ -325,6 +325,54 @@ export async function updateInisiatif(
 }
 
 /**
+ * Delete Program (soft delete)
+ */
+export async function deleteProgram(programId: string): Promise<BaseApiResponse<null>> {
+  const token = getAuthToken();
+
+  const response = await fetch(`${BASE_URL}/rbsi/programs/${programId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'APIKey': API_KEY,
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to delete program');
+  }
+
+  return data;
+}
+
+/**
+ * Delete Inisiatif (soft delete)
+ */
+export async function deleteInisiatif(inisiatifId: string): Promise<BaseApiResponse<null>> {
+  const token = getAuthToken();
+
+  const response = await fetch(`${BASE_URL}/rbsi/inisiatifs/${inisiatifId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'APIKey': API_KEY,
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to delete inisiatif');
+  }
+
+  return data;
+}
+
+/**
  * Copy programs from one year to another
  */
 export async function copyProgramsFromYear(
