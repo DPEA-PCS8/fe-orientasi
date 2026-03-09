@@ -47,7 +47,6 @@ import { AddPksiModal, EditPksiModal } from '../components/modals';
 import { usePermissions } from '../hooks/usePermissions';
 import { deletePksiDocument, searchPksiDocuments, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa } from '../api/skpaApi';
-import { getAllAplikasi } from '../api/aplikasiApi';
 
 // Interface untuk data PKSI (transformed from API)
 interface PksiData {
@@ -120,9 +119,8 @@ function PksiList() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedPksiId, setSelectedPksiId] = useState<string | null>(null);
 
-  // SKPA and Aplikasi lookup data
+  // SKPA lookup data
   const [skpaMap, setSkpaMap] = useState<Map<string, string>>(new Map());
-  const [aplikasiMap, setAplikasiMap] = useState<Map<string, string>>(new Map());
 
   // Permission check for PKSI menu
   const { getMenuPermissions } = usePermissions();
@@ -183,27 +181,18 @@ function PksiList() {
     fetchPksiData();
   }, [fetchPksiData]);
 
-  // Fetch SKPA and Aplikasi lookup data
+  // Fetch SKPA lookup data
   useEffect(() => {
     const fetchLookupData = async () => {
       try {
-        const [skpaResponse, aplikasiResponse] = await Promise.all([
-          getAllSkpa(),
-          getAllAplikasi()
-        ]);
+        const skpaResponse = await getAllSkpa();
         
-        // Create lookup maps
+        // Create lookup map
         const skpaLookup = new Map<string, string>();
         (skpaResponse.data || []).forEach((skpa) => {
-          skpaLookup.set(skpa.id, skpa.nama_skpa);
+          skpaLookup.set(skpa.id, skpa.kode_skpa);
         });
         setSkpaMap(skpaLookup);
-
-        const aplikasiLookup = new Map<string, string>();
-        (aplikasiResponse.data || []).forEach((app) => {
-          aplikasiLookup.set(app.id, app.nama_aplikasi);
-        });
-        setAplikasiMap(aplikasiLookup);
       } catch (error) {
         console.error('Failed to fetch lookup data:', error);
       }
@@ -211,20 +200,13 @@ function PksiList() {
     fetchLookupData();
   }, []);
 
-  // Helper function to resolve SKPA GUIDs to names
-  const resolveSkpaNames = (picSatkerBA: string): string => {
-    if (!picSatkerBA || picSatkerBA === '-') return '-';
+  // Helper function to resolve SKPA GUIDs to codes array for Chip display
+  const resolveSkpaCodes = (picSatkerBA: string): string[] => {
+    if (!picSatkerBA || picSatkerBA === '-') return [];
     
     // Split by comma and resolve each GUID
     const guids = picSatkerBA.split(',').map(g => g.trim());
-    const names = guids.map(guid => skpaMap.get(guid) || guid);
-    return names.join(', ');
-  };
-
-  // Helper function to resolve Aplikasi GUID to name
-  const resolveAplikasiName = (aplikasiId: string): string => {
-    if (!aplikasiId || aplikasiId === '-') return '-';
-    return aplikasiMap.get(aplikasiId) || aplikasiId;
+    return guids.map(guid => skpaMap.get(guid) || '').filter(Boolean);
   };
 
   const handleStatusMenuOpen = (event: React.MouseEvent<HTMLElement>, pksiId: string) => {
@@ -867,24 +849,31 @@ function PksiList() {
                         WebkitBoxOrient: 'vertical',
                       }}
                     >
-                      {resolveAplikasiName(item.namaAplikasi)}
+                      {item.namaAplikasi}
                     </Typography>
                   </TableCell>
                   <TableCell sx={{ py: 2 }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: '#1d1d1f',
-                        fontSize: '0.85rem',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                      }}
-                    >
-                      {resolveSkpaNames(item.picSatkerBA)}
-                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {resolveSkpaCodes(item.picSatkerBA).length > 0 ? (
+                        resolveSkpaCodes(item.picSatkerBA).map((code, idx) => (
+                          <Chip
+                            key={idx}
+                            label={code}
+                            size="small"
+                            sx={{
+                              bgcolor: '#DA251C',
+                              color: 'white',
+                              fontWeight: 600,
+                              fontSize: '0.7rem',
+                              height: 24,
+                              borderRadius: '6px',
+                            }}
+                          />
+                        ))
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.85rem' }}>-</Typography>
+                      )}
+                    </Box>
                   </TableCell>
                   <TableCell sx={{ py: 2, textAlign: 'center' }}>
                     <Chip
