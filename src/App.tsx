@@ -21,6 +21,7 @@ import BidangPage from './pages/BidangPage';
 import AplikasiListPage from './pages/AplikasiListPage';
 import AplikasiDetailPage from './pages/AplikasiDetailPage';
 import AplikasiFormPage from './pages/AplikasiFormPage';
+import AuditLogPage from './pages/AuditLogPage';
 
 function App() {
   return (
@@ -203,6 +204,17 @@ function App() {
             <ProtectedRoute requireMenuPermission='APLIKASI'>
               <Layout>
                 <AplikasiFormPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        {/* Audit Log Route */}
+        <Route
+          path="/audit"
+          element={
+            <ProtectedRoute requireMenuPermission='AUDIT_LOG'>
+              <Layout>
+                <AuditLogPage />
               </Layout>
             </ProtectedRoute>
           }
