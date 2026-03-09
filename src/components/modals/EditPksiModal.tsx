@@ -32,6 +32,8 @@ import {
 interface PksiData {
   id: string;
   namaPksi: string;
+  namaAplikasi: string;
+  picSatkerBA: string;
   jangkaWaktu: string;
   tanggalPengajuan: string;
   linkDocsT01: string;

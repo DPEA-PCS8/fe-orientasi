@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -19,6 +19,8 @@ import {
   ListItemIcon,
   ListItemText,
   ListItemSecondaryAction,
+  Autocomplete,
+  Chip,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -28,6 +30,9 @@ import {
   Delete as DeleteIcon,
   InsertDriveFile as FileIcon,
 } from '@mui/icons-material';
+import { getAllSkpa, type SkpaData } from '../../api/skpaApi';
+import { getAllAplikasi, type AplikasiData } from '../../api/aplikasiApi';
+import { createPksiDocument, type PksiDocumentRequest } from '../../api/pksiApi';
 
 interface AddPksiModalProps {
   open: boolean;
@@ -37,11 +42,12 @@ interface AddPksiModalProps {
 
 interface FormData {
   namaPksi: string;
+  namaAplikasi: string;
   tanggalPengajuan: string;
   deskripsiPksi: string;
   mengapaPksiDiperlukan: string;
   kapanHarusDiselesaikan: string;
-  picSatkerBA: string;
+  picSatkerBA: string[];
   kegunaanPksi: string;
   tujuanPksi: string;
   targetPksi: string;
@@ -74,13 +80,16 @@ interface FormErrors {
 
 const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const [expandedSection, setExpandedSection] = useState<string | false>('section1');
+  const [skpaOptions, setSkpaOptions] = useState<SkpaData[]>([]);
+  const [aplikasiOptions, setAplikasiOptions] = useState<AplikasiData[]>([]);
   const [formData, setFormData] = useState<FormData>({
     namaPksi: '',
+    namaAplikasi: '',
     tanggalPengajuan: new Date().toISOString().split('T')[0],
     deskripsiPksi: '',
     mengapaPksiDiperlukan: '',
     kapanHarusDiselesaikan: '',
-    picSatkerBA: '',
+    picSatkerBA: [],
     kegunaanPksi: '',
     tujuanPksi: '',
     targetPksi: '',
@@ -110,7 +119,31 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+
+  useEffect(() => {
+    const fetchSkpa = async () => {
+      try {
+        const response = await getAllSkpa();
+        setSkpaOptions(response.data || []);
+      } catch (error) {
+        console.error('Failed to fetch SKPA:', error);
+      }
+    };
+    const fetchAplikasi = async () => {
+      try {
+        const response = await getAllAplikasi();
+        setAplikasiOptions(response.data || []);
+      } catch (error) {
+        console.error('Failed to fetch Aplikasi:', error);
+      }
+    };
+    if (open) {
+      fetchSkpa();
+      fetchAplikasi();
+    }
+  }, [open]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -140,11 +173,12 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const resetForm = () => {
     setFormData({
       namaPksi: '',
+      namaAplikasi: '',
       tanggalPengajuan: new Date().toISOString().split('T')[0],
       deskripsiPksi: '',
       mengapaPksiDiperlukan: '',
       kapanHarusDiselesaikan: '',
-      picSatkerBA: '',
+      picSatkerBA: [],
       kegunaanPksi: '',
       tujuanPksi: '',
       targetPksi: '',
@@ -172,6 +206,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     });
     setErrors({});
     setSuccessMessage('');
+    setErrorMessage('');
     setExpandedSection('section1');
     setUploadedFiles([]);
   };
@@ -214,11 +249,48 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     }
 
     setIsSubmitting(true);
+    setErrorMessage('');
+    
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const requestData: PksiDocumentRequest = {
+        aplikasi_id: formData.namaAplikasi || undefined,
+        nama_pksi: formData.namaPksi,
+        tanggal_pengajuan: formData.tanggalPengajuan,
+        deskripsi_pksi: formData.deskripsiPksi,
+        mengapa_pksi_diperlukan: formData.mengapaPksiDiperlukan,
+        kapan_harus_diselesaikan: formData.kapanHarusDiselesaikan,
+        pic_satker_ba: formData.picSatkerBA.join(', '),
+        kegunaan_pksi: formData.kegunaanPksi,
+        tujuan_pksi: formData.tujuanPksi,
+        target_pksi: formData.targetPksi,
+        ruang_lingkup: formData.ruangLingkup,
+        batasan_pksi: formData.batasanPksi,
+        hubungan_sistem_lain: formData.hubunganSistemLain,
+        asumsi: formData.asumsi,
+        batasan_desain: formData.batasanDesain,
+        risiko_bisnis: formData.riskoBisnis,
+        risiko_sukses_pksi: formData.risikoSuksesPksi,
+        pengendalian_risiko: formData.pengendalianRisiko,
+        pengelola_aplikasi: formData.pengelolaAplikasi,
+        pengguna_aplikasi: formData.penggunaAplikasi,
+        program_inisiatif_rbsi: formData.programInisiatifRBSI,
+        fungsi_aplikasi: formData.fungsiAplikasi,
+        informasi_yang_dikelola: formData.informasiYangDikelola,
+        dasar_peraturan: formData.dasarPeraturan,
+        tahap1_awal: formData.tahap1Awal,
+        tahap1_akhir: formData.tahap1Akhir,
+        tahap5_awal: formData.tahap5Awal,
+        tahap5_akhir: formData.tahap5Akhir,
+        tahap7_awal: formData.tahap7Awal,
+        tahap7_akhir: formData.tahap7Akhir,
+        rencana_pengelolaan: formData.rencanaPengelolaan,
+      };
+
+      // Call real API - token validation is done inside pksiApi
+      await createPksiDocument(requestData);
       
-      console.log('Form Data:', formData);
       setSuccessMessage('PKSI berhasil ditambahkan!');
+      setErrorMessage('');
       
       setTimeout(() => {
         resetForm();
@@ -227,6 +299,8 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
       }, 1500);
     } catch (error) {
       console.error('Error submitting form:', error);
+      const errMsg = error instanceof Error ? error.message : 'Gagal menambahkan PKSI';
+      setErrorMessage(errMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -272,6 +346,11 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
             {successMessage}
           </Alert>
         )}
+        {errorMessage && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {errorMessage}
+          </Alert>
+        )}
 
         <Stack spacing={2.5}>
           {/* Informasi Dasar */}
@@ -288,6 +367,31 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                 onChange={handleInputChange}
                 error={!!errors.namaPksi}
                 helperText={errors.namaPksi}
+                size="small"
+              />
+              <Autocomplete
+                fullWidth
+                options={aplikasiOptions}
+                getOptionLabel={(option) => `${option.kode_aplikasi} - ${option.nama_aplikasi}`}
+                value={aplikasiOptions.find(app => app.id === formData.namaAplikasi) || null}
+                onChange={(_, newValue) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    namaAplikasi: newValue?.id || ''
+                  }));
+                  if (errors.namaAplikasi) {
+                    setErrors(prev => ({ ...prev, namaAplikasi: undefined }));
+                  }
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Nama Aplikasi"
+                    error={!!errors.namaAplikasi}
+                    helperText={errors.namaAplikasi}
+                    size="small"
+                  />
+                )}
                 size="small"
               />
               <TextField
@@ -319,7 +423,52 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                 <TextField fullWidth label="1.1 Deskripsi PKSI" name="deskripsiPksi" value={formData.deskripsiPksi} onChange={handleInputChange} multiline rows={3} error={!!errors.deskripsiPksi} helperText={errors.deskripsiPksi} size="small" />
                 <TextField fullWidth label="1.2 Mengapa PKSI Diperlukan" name="mengapaPksiDiperlukan" value={formData.mengapaPksiDiperlukan} onChange={handleInputChange} multiline rows={3} error={!!errors.mengapaPksiDiperlukan} helperText={errors.mengapaPksiDiperlukan} size="small" />
                 <TextField fullWidth label="1.3 Kapan Harus Diselesaikan" name="kapanHarusDiselesaikan" value={formData.kapanHarusDiselesaikan} onChange={handleInputChange} multiline rows={2} size="small" />
-                <TextField fullWidth label="1.4 Satuan Kerja Pemilik Aplikasi" name="picSatkerBA" value={formData.picSatkerBA} onChange={handleInputChange} error={!!errors.picSatkerBA} helperText={errors.picSatkerBA} size="small" />
+                <Autocomplete
+                  multiple
+                  fullWidth
+                  options={skpaOptions}
+                  getOptionLabel={(option) => `${option.kode_skpa} - ${option.nama_skpa}`}
+                  value={skpaOptions.filter(skpa => formData.picSatkerBA.includes(skpa.id))}
+                  onChange={(_, newValue) => {
+                    setFormData(prev => ({
+                      ...prev,
+                      picSatkerBA: newValue.map(skpa => skpa.id)
+                    }));
+                    if (errors.picSatkerBA) {
+                      setErrors(prev => ({ ...prev, picSatkerBA: undefined }));
+                    }
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="1.4 Satuan Kerja Pemilik Aplikasi"
+                      error={!!errors.picSatkerBA}
+                      helperText={errors.picSatkerBA}
+                      size="small"
+                    />
+                  )}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => (
+                      <Chip
+                        {...getTagProps({ index })}
+                        key={option.id}
+                        label={option.kode_skpa}
+                        size="small"
+                        sx={{
+                          bgcolor: '#DA251C',
+                          color: 'white',
+                          '& .MuiChip-deleteIcon': {
+                            color: 'rgba(255, 255, 255, 0.7)',
+                            '&:hover': {
+                              color: 'white',
+                            },
+                          },
+                        }}
+                      />
+                    ))
+                  }
+                  size="small"
+                />
               </Stack>
             </AccordionDetails>
           </Accordion>

@@ -1,4 +1,4 @@
-import { getAuthToken } from './authApi';
+import { getAuthToken, validateTokenClaims, debugToken } from './authApi';
 import type { BaseApiResponse } from './rbsiApi';
 
 const API_KEY = 'da39b92f-a1b8-46d5-a10c-d08b1cc92218';
@@ -11,6 +11,9 @@ export interface PksiDocumentData {
   user_id: string;
   user_name: string;
   // Header
+  aplikasi_id?: string;
+  nama_aplikasi?: string;
+  kode_aplikasi?: string;
   nama_pksi: string;
   tanggal_pengajuan?: string;
   // Section 1
@@ -71,6 +74,7 @@ export interface PksiSearchResponse {
 // ==================== REQUEST TYPES ====================
 
 export interface PksiDocumentRequest {
+  aplikasi_id?: string;
   nama_pksi: string;
   tanggal_pengajuan?: string;
   // Section 1
@@ -108,8 +112,8 @@ export interface PksiDocumentRequest {
   tahap7_akhir?: string;
   // Section 7
   rencana_pengelolaan?: string;
-  // User ID
-  user_id: string;
+  // User ID (optional - backend extracts from JWT token)
+  user_id?: string;
 }
 
 export interface UpdateStatusRequest {
@@ -125,19 +129,42 @@ async function apiRequest<T>(
 ): Promise<BaseApiResponse<T>> {
   const token = getAuthToken();
 
+  // Debug logging - call debugToken for detailed info
+  debugToken();
+
+  if (!token) {
+    throw new Error('Sesi login telah berakhir. Silakan login ulang.');
+  }
+
+  // Validate token claims before making request
+  const tokenValidation = validateTokenClaims();
+  if (!tokenValidation.valid) {
+    console.error('Token validation failed:', tokenValidation.missingClaims);
+    throw new Error(`Token tidak valid: ${tokenValidation.missingClaims.join(', ')}. Silakan login ulang.`);
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'APIKey': API_KEY,
+    'Authorization': `Bearer ${token}`,
+  };
+
   const response = await fetch(url, {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
+
+  console.log('Response status:', response.status);
 
   const data = await response.json();
 
   if (!response.ok) {
+    console.log('Error response:', data);
+    // Handle 401 Unauthorized - token expired or invalid
+    if (response.status === 401) {
+      throw new Error('Sesi login telah berakhir atau tidak valid. Silakan login ulang.');
+    }
     throw new Error(data.message || 'Request failed');
   }
 

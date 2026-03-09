@@ -195,3 +195,69 @@ export function isPengembang(): boolean {
 export function isSKPA(): boolean {
   return hasRoleName('SKPA');
 }
+
+/**
+ * Decode JWT token payload (without validation)
+ * Useful for debugging token contents
+ */
+export function decodeJwtPayload(): Record<string, unknown> | null {
+  const token = getAuthToken();
+  if (!token) return null;
+
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    
+    const payload = JSON.parse(atob(parts[1]));
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if JWT token has required claims for API calls
+ */
+export function validateTokenClaims(): { valid: boolean; missingClaims: string[]; payload: Record<string, unknown> | null } {
+  const payload = decodeJwtPayload();
+  if (!payload) {
+    return { valid: false, missingClaims: ['Token tidak ditemukan atau tidak valid'], payload: null };
+  }
+
+  const requiredClaims = ['uuid', 'roles'];
+  const missingClaims = requiredClaims.filter(claim => !(claim in payload));
+
+  // Check token expiration
+  if (payload.exp && typeof payload.exp === 'number') {
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp < now) {
+      missingClaims.push('Token sudah expired');
+    }
+  }
+
+  return {
+    valid: missingClaims.length === 0,
+    missingClaims,
+    payload
+  };
+}
+
+/**
+ * Debug function to log token info to console
+ */
+export function debugToken(): void {
+  const result = validateTokenClaims();
+  console.group('🔐 Token Debug Info');
+  console.log('Valid:', result.valid);
+  if (result.missingClaims.length > 0) {
+    console.warn('Missing/Issues:', result.missingClaims);
+  }
+  if (result.payload) {
+    console.log('Payload:', result.payload);
+    if (result.payload.exp) {
+      const expDate = new Date((result.payload.exp as number) * 1000);
+      console.log('Expires:', expDate.toLocaleString());
+    }
+  }
+  console.groupEnd();
+}
