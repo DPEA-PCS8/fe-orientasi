@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -29,10 +29,20 @@ import {
   InsertDriveFile as FileIcon,
 } from '@mui/icons-material';
 
-interface AddPksiModalProps {
+interface PksiData {
+  id: string;
+  namaPksi: string;
+  jangkaWaktu: string;
+  tanggalPengajuan: string;
+  linkDocsT01: string;
+  status: 'pending' | 'disetujui' | 'tidak_disetujui';
+}
+
+interface EditPksiModalProps {
   open: boolean;
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (updatedData: PksiData) => void;
+  pksiData: PksiData | null;
 }
 
 interface FormData {
@@ -72,7 +82,7 @@ interface FormErrors {
   [key: string]: string | undefined;
 }
 
-const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
+const EditPksiModal = ({ open, onClose, onSuccess, pksiData }: EditPksiModalProps) => {
   const [expandedSection, setExpandedSection] = useState<string | false>('section1');
   const [formData, setFormData] = useState<FormData>({
     namaPksi: '',
@@ -111,6 +121,17 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+
+  // Load data when pksiData changes
+  useEffect(() => {
+    if (pksiData) {
+      setFormData(prev => ({
+        ...prev,
+        namaPksi: pksiData.namaPksi,
+        tanggalPengajuan: pksiData.tanggalPengajuan.split('T')[0],
+      }));
+    }
+  }, [pksiData]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -180,13 +201,6 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     const newErrors: FormErrors = {};
 
     if (!formData.namaPksi) newErrors.namaPksi = 'Nama PKSI wajib diisi';
-    if (!formData.deskripsiPksi) newErrors.deskripsiPksi = 'Deskripsi PKSI wajib diisi';
-    if (!formData.mengapaPksiDiperlukan) newErrors.mengapaPksiDiperlukan = 'Alasan PKSI diperlukan wajib diisi';
-    if (!formData.picSatkerBA) newErrors.picSatkerBA = 'PIC Satker wajib diisi';
-    if (!formData.kegunaanPksi) newErrors.kegunaanPksi = 'Kegunaan PKSI wajib diisi';
-    if (!formData.tujuanPksi) newErrors.tujuanPksi = 'Tujuan PKSI wajib diisi';
-    if (!formData.pengelolaAplikasi) newErrors.pengelolaAplikasi = 'Pengelola Aplikasi wajib diisi';
-    if (!formData.fungsiAplikasi) newErrors.fungsiAplikasi = 'Fungsi Aplikasi wajib diisi';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -209,7 +223,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) {
+    if (!validateForm() || !pksiData) {
       return;
     }
 
@@ -217,12 +231,18 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     try {
       await new Promise((resolve) => setTimeout(resolve, 1500));
       
-      console.log('Form Data:', formData);
-      setSuccessMessage('PKSI berhasil ditambahkan!');
+      const updatedData: PksiData = {
+        ...pksiData,
+        namaPksi: formData.namaPksi,
+        tanggalPengajuan: formData.tanggalPengajuan + 'T00:00:00Z',
+      };
+      
+      console.log('Updated Form Data:', formData);
+      setSuccessMessage('PKSI berhasil diperbarui!');
       
       setTimeout(() => {
         resetForm();
-        onSuccess?.();
+        onSuccess?.(updatedData);
         onClose();
       }, 1500);
     } catch (error) {
@@ -259,7 +279,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
         bgcolor: 'white',
       }}>
         <Typography variant="h6" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-          Tambah PKSI Baru
+          Edit PKSI
         </Typography>
         <IconButton onClick={handleClose} size="small">
           <CloseIcon />
@@ -483,10 +503,10 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                       bgcolor: 'rgba(218, 37, 28, 0.04)',
                     },
                   }}
-                  onClick={() => document.getElementById('modal-file-upload-input')?.click()}
+                  onClick={() => document.getElementById('edit-modal-file-upload-input')?.click()}
                 >
                   <input
-                    id="modal-file-upload-input"
+                    id="edit-modal-file-upload-input"
                     type="file"
                     multiple
                     hidden
@@ -577,11 +597,11 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
             },
           }}
         >
-          {isSubmitting ? 'Menyimpan...' : 'Simpan PKSI'}
+          {isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
         </Button>
       </DialogActions>
     </Dialog>
   );
 };
 
-export default AddPksiModal;
+export default EditPksiModal;

@@ -32,9 +32,19 @@ import {
   KeyboardArrowDown as ArrowDownIcon,
   OpenInNew as OpenInNewIcon,
   Close as CloseIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
-import { AddPksiModal } from '../components/modals';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+} from '@mui/material';
+import { AddPksiModal, EditPksiModal } from '../components/modals';
 import { usePermissions } from '../hooks/usePermissions';
+import { deletePksiDocument } from '../api/pksiApi';
 
 // Interface untuk data PKSI
 interface PksiData {
@@ -175,6 +185,8 @@ const getStatusColor = (status: PksiData['status']) => {
 function PksiList() {
   const [keyword, setKeyword] = useState('');
   const [openAddModal, setOpenAddModal] = useState(false);
+  const [openEditModal, setOpenEditModal] = useState(false);
+  const [selectedPksiForEdit, setSelectedPksiForEdit] = useState<PksiData | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [orderBy, setOrderBy] = useState<keyof PksiData>('namaPksi');
@@ -211,6 +223,54 @@ function PksiList() {
       );
     }
     handleStatusMenuClose();
+  };
+
+  const handleEditClick = (pksi: PksiData) => {
+    setSelectedPksiForEdit(pksi);
+    setOpenEditModal(true);
+  };
+
+  const handleEditSuccess = (updatedData: PksiData) => {
+    setPksiData(prev =>
+      prev.map(item =>
+        item.id === updatedData.id ? updatedData : item
+      )
+    );
+  };
+
+  // Delete functionality
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [pksiToDelete, setPksiToDelete] = useState<PksiData | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteClick = (pksi: PksiData) => {
+    setPksiToDelete(pksi);
+    setOpenDeleteDialog(true);
+  };
+
+  const handleDeleteCancel = () => {
+    setOpenDeleteDialog(false);
+    setPksiToDelete(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!pksiToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      // Call API to delete PKSI
+      await deletePksiDocument(pksiToDelete.id);
+      
+      // Remove from local state
+      setPksiData(prev => prev.filter(item => item.id !== pksiToDelete.id));
+      setOpenDeleteDialog(false);
+      setPksiToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete PKSI:', error);
+      alert('Gagal menghapus PKSI. Silakan coba lagi.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleFilterOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -411,6 +471,17 @@ function PksiList() {
             // Refresh data here if needed
             console.log('PKSI added successfully');
           }}
+        />
+
+        {/* Edit PKSI Modal */}
+        <EditPksiModal
+          open={openEditModal}
+          onClose={() => {
+            setOpenEditModal(false);
+            setSelectedPksiForEdit(null);
+          }}
+          onSuccess={handleEditSuccess}
+          pksiData={selectedPksiForEdit}
         />
 
         {/* Filter Popover */}
@@ -690,6 +761,17 @@ function PksiList() {
                     Status
                   </TableSortLabel>
                 </TableCell>
+                <TableCell 
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    width: 120,
+                    textAlign: 'center',
+                  }}
+                >
+                  Aksi
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -815,6 +897,40 @@ function PksiList() {
                       <ArrowDownIcon sx={{ fontSize: 14, color: getStatusColor(item.status) }} />
                     </Box>
                   </TableCell>
+                  <TableCell sx={{ py: 2, textAlign: 'center' }}>
+                    <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                      <Tooltip title="Edit PKSI">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditClick(item)}
+                          sx={{
+                            color: '#2563EB',
+                            bgcolor: 'rgba(37, 99, 235, 0.08)',
+                            '&:hover': {
+                              bgcolor: 'rgba(37, 99, 235, 0.15)',
+                            },
+                          }}
+                        >
+                          <EditIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Hapus PKSI">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeleteClick(item)}
+                          sx={{
+                            color: '#DC2626',
+                            bgcolor: 'rgba(220, 38, 38, 0.08)',
+                            '&:hover': {
+                              bgcolor: 'rgba(220, 38, 38, 0.15)',
+                            },
+                          }}
+                        >
+                          <DeleteIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -881,6 +997,62 @@ function PksiList() {
           }}
         />
       </Paper>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={openDeleteDialog}
+        onClose={handleDeleteCancel}
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            maxWidth: 400,
+          },
+        }}
+      >
+        <DialogTitle sx={{ 
+          fontWeight: 600, 
+          color: '#1d1d1f',
+          pb: 1,
+        }}>
+          Konfirmasi Hapus
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: '#86868b' }}>
+            Apakah Anda yakin ingin menghapus PKSI{' '}
+            <strong style={{ color: '#1d1d1f' }}>
+              {pksiToDelete?.namaPksi}
+            </strong>
+            ? Tindakan ini tidak dapat dibatalkan.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 2.5, pt: 1 }}>
+          <Button
+            onClick={handleDeleteCancel}
+            disabled={isDeleting}
+            sx={{
+              color: '#86868b',
+              '&:hover': {
+                bgcolor: 'rgba(0, 0, 0, 0.04)',
+              },
+            }}
+          >
+            Batal
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            disabled={isDeleting}
+            variant="contained"
+            sx={{
+              bgcolor: '#DC2626',
+              '&:hover': {
+                bgcolor: '#B91C1C',
+              },
+            }}
+          >
+            {isDeleting ? 'Menghapus...' : 'Hapus'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
