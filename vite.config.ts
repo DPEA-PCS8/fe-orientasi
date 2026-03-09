@@ -7,10 +7,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://backend-app-test-orientasi.apps.ocp.ojk.go.id', // Update this to your backend API URL
+        target: 'https://backend-app-test-orientasi.apps.ocp.ojk.go.id',
         changeOrigin: true,
-        secure: false, // Bypass SSL certificate validation
-        // rewrite: (path) => path.replace(/^\/api/, ''), // Don't rewrite if backend expects /api
+        secure: false,
       },
     },
   },
