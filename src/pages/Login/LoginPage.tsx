@@ -18,6 +18,7 @@ import {
 } from '@mui/icons-material';
 import Alert from '@mui/material/Alert';
 import OJKLogo from '../../assets/OJK_Logo.png';
+import DPEALogo from '../../assets/DPEA_Logo.png';
 import OfficeJobImage from '../../assets/office-job.jpg';
 import { useLoginForm } from '../../hooks/useLoginForm';
 import { login, storeAuthData } from '../../api/authApi';
@@ -121,6 +122,15 @@ const LoginPage = () => {
             <img
               src={OJKLogo}
               alt="OJK Logo"
+              style={{
+                width: 130,
+                height: 130,
+                objectFit: 'contain',
+              }}
+            />
+            <img
+              src={DPEALogo}
+              alt="DPEA Logo"
               style={{
                 width: 130,
                 height: 130,
