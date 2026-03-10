@@ -16,6 +16,7 @@ import {
   AccordionDetails,
   IconButton,
   Chip,
+  styled,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -26,6 +27,41 @@ import { getAllAplikasi, type AplikasiData } from '../../api/aplikasiApi';
 import { getPksiDocumentById, updatePksiDocument, type PksiDocumentRequest } from '../../api/pksiApi';
 import { getUserInfo } from '../../api/authApi';
 import { getAllRbsi, getRbsiById, type RbsiResponse, type RbsiProgramResponse, type RbsiInisiatifResponse } from '../../api/rbsiApi';
+
+// Styled TextField with glass effect
+const GlassTextField = styled(TextField)({
+  '& .MuiOutlinedInput-root': {
+    borderRadius: '12px',
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    backdropFilter: 'blur(10px)',
+    transition: 'all 0.2s ease-in-out',
+    '& fieldset': {
+      borderColor: 'rgba(0, 0, 0, 0.08)',
+      transition: 'all 0.2s ease-in-out',
+    },
+    '&:hover fieldset': {
+      borderColor: 'rgba(0, 0, 0, 0.15)',
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: '#DA251C',
+      borderWidth: '1.5px',
+    },
+    '&.Mui-focused': {
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      boxShadow: '0 4px 20px rgba(218, 37, 28, 0.1)',
+    },
+  },
+  '& .MuiInputLabel-root': {
+    color: '#86868b',
+    fontWeight: 500,
+    '&.Mui-focused': {
+      color: '#DA251C',
+    },
+  },
+  '& .MuiOutlinedInput-input': {
+    color: '#1d1d1f',
+  },
+});
 
 interface SkpaOption {
   id: string;
@@ -366,8 +402,21 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: '16px',
+          borderRadius: '20px',
           maxHeight: '90vh',
+          bgcolor: 'rgba(255, 255, 255, 0.75)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1) inset',
+        }
+      }}
+      slotProps={{
+        backdrop: {
+          sx: {
+            bgcolor: 'rgba(0, 0, 0, 0.3)',
+            backdropFilter: 'blur(8px)',
+          }
         }
       }}
     >
@@ -396,28 +445,36 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
         </IconButton>
       </DialogTitle>
       
-      <DialogContent sx={{ pt: 3, background: 'linear-gradient(180deg, #f5f5f7 0%, #fafafa 100%)' }}>
+      <DialogContent sx={{ 
+        pt: 3, 
+        pb: 4,
+        background: 'linear-gradient(135deg, rgba(245, 245, 247, 0.9) 0%, rgba(250, 250, 250, 0.95) 100%)' 
+      }}>
         {isLoadingData ? (
           <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
-            <CircularProgress />
+            <CircularProgress sx={{ color: '#DA251C' }} />
           </Box>
         ) : (
-          <Stack spacing={3} sx={{ mt:  2}}>
+          <Stack spacing={3} sx={{ mt: 2 }}>
             {/* Informasi Dasar */}
             <Box sx={{ 
-              p: 2.5,
-              borderRadius: '16px', 
-              bgcolor: 'rgba(255, 255, 255, 0.72)',
+              p: 3,
+              borderRadius: '20px', 
+              bgcolor: 'rgba(255, 255, 255, 0.6)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.5)',
-              boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              },
             }}>
-              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.01em' }}>
+              <Typography variant="subtitle1" sx={{ mb: 2.5, fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.01em', fontSize: '1rem' }}>
                 Informasi Dasar
               </Typography>
-              <Stack spacing={2}>
-                <TextField
+              <Stack spacing={2.5}>
+                <GlassTextField
                   fullWidth
                   label="Nama PKSI"
                   name="namaPksi"
@@ -533,8 +590,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
               expanded={expandedSection === 'section1'}
               onChange={handleAccordionChange('section1')}
               sx={{ 
-                boxShadow: 'none', 
-                border: 'none', 
+                mt: expandedSection === 'section1' ? 1 : 0,
                 borderRadius: '16px !important',
                 bgcolor: 'rgba(255, 255, 255, 0.72)',
                 backdropFilter: 'blur(20px)',
@@ -647,8 +703,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
               expanded={expandedSection === 'section2'}
               onChange={handleAccordionChange('section2')}
               sx={{ 
-                boxShadow: 'none', 
-                border: 'none', 
+                mt: expandedSection === 'section2' ? 1 : 0,
                 borderRadius: '16px !important',
                 bgcolor: 'rgba(255, 255, 255, 0.72)',
                 backdropFilter: 'blur(20px)',
@@ -714,8 +769,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
               expanded={expandedSection === 'section3'}
               onChange={handleAccordionChange('section3')}
               sx={{ 
-                boxShadow: 'none', 
-                border: 'none', 
+                mt: expandedSection === 'section3' ? 1 : 0,
                 borderRadius: '16px !important',
                 bgcolor: 'rgba(255, 255, 255, 0.72)',
                 backdropFilter: 'blur(20px)',
@@ -787,8 +841,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
               expanded={expandedSection === 'section4'}
               onChange={handleAccordionChange('section4')}
               sx={{ 
-                boxShadow: 'none', 
-                border: 'none', 
+                mt: expandedSection === 'section4' ? 1 : 0,
                 borderRadius: '16px !important',
                 bgcolor: 'rgba(255, 255, 255, 0.72)',
                 backdropFilter: 'blur(20px)',
@@ -861,8 +914,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
               expanded={expandedSection === 'section5'}
               onChange={handleAccordionChange('section5')}
               sx={{ 
-                boxShadow: 'none', 
-                border: 'none', 
+                mt: expandedSection === 'section5' ? 1 : 0,
                 borderRadius: '16px !important',
                 bgcolor: 'rgba(255, 255, 255, 0.72)',
                 backdropFilter: 'blur(20px)',
@@ -956,8 +1008,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
               expanded={expandedSection === 'section6'}
               onChange={handleAccordionChange('section6')}
               sx={{ 
-                boxShadow: 'none', 
-                border: 'none', 
+                mt: expandedSection === 'section6' ? 1 : 0,
                 borderRadius: '16px !important',
                 bgcolor: 'rgba(255, 255, 255, 0.72)',
                 backdropFilter: 'blur(20px)',
@@ -1016,8 +1067,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
               expanded={expandedSection === 'section7'}
               onChange={handleAccordionChange('section7')}
               sx={{ 
-                boxShadow: 'none', 
-                border: 'none', 
+                mt: expandedSection === 'section7' ? 1 : 0,
                 borderRadius: '16px !important',
                 bgcolor: 'rgba(255, 255, 255, 0.72)',
                 backdropFilter: 'blur(20px)',
@@ -1098,7 +1148,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
             },
             '&.Mui-disabled': {
               background: '#e5e5e7',
-              boxShadow: 'none',
+              
             },
           }}
         >
