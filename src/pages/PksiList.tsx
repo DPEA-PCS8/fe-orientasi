@@ -25,6 +25,9 @@ import {
   FormControlLabel,
   FormGroup,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -157,6 +160,7 @@ function PksiList() {
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedJangkaWaktu, setSelectedJangkaWaktu] = useState<Set<string>>(new Set());
   const [selectedStatus, setSelectedStatus] = useState<Set<string>>(new Set());
+  const [selectedYear, setSelectedYear] = useState<string>('');
 
   // Map sortBy from UI field to API field
   const mapSortField = (field: keyof PksiData): string => {
@@ -353,18 +357,46 @@ function PksiList() {
     setSelectedStatus(newSet);
   };
 
+  const handleYearChange = (year: string) => {
+    setSelectedYear(year);
+  };
+
   const handleResetFilter = () => {
     setSelectedJangkaWaktu(new Set());
     setSelectedStatus(new Set());
+    setSelectedYear('');
   };
 
-  // Filter locally only for jangkaWaktu since API doesn't support it
+  // Generate year options from data
+  const yearOptions = useMemo(() => {
+    const years = new Set<string>();
+    pksiData.forEach(item => {
+      if (item.tanggalPengajuan) {
+        const year = new Date(item.tanggalPengajuan).getFullYear().toString();
+        years.add(year);
+      }
+    });
+    return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
+  }, [pksiData]);
+
+  // Filter locally for jangkaWaktu and year
   const filteredPksi = useMemo(() => {
-    if (selectedJangkaWaktu.size === 0) {
-      return pksiData;
+    let result = pksiData;
+    
+    if (selectedJangkaWaktu.size > 0) {
+      result = result.filter(item => selectedJangkaWaktu.has(item.jangkaWaktu));
     }
-    return pksiData.filter(item => selectedJangkaWaktu.has(item.jangkaWaktu));
-  }, [pksiData, selectedJangkaWaktu]);
+    
+    if (selectedYear) {
+      result = result.filter(item => {
+        if (!item.tanggalPengajuan) return false;
+        const year = new Date(item.tanggalPengajuan).getFullYear().toString();
+        return year === selectedYear;
+      });
+    }
+    
+    return result;
+  }, [pksiData, selectedJangkaWaktu, selectedYear]);
 
   const handleSort = (property: keyof PksiData) => {
     const isAsc = orderBy === property && order === 'asc';
@@ -466,7 +498,7 @@ function PksiList() {
               startIcon={<TuneRounded sx={{ fontSize: 18 }} />}
               onClick={handleFilterOpen}
               sx={{
-                color: selectedJangkaWaktu.size > 0 || selectedStatus.size > 0 ? '#DA251C' : '#86868b',
+                color: selectedJangkaWaktu.size > 0 || selectedStatus.size > 0 || selectedYear ? '#DA251C' : '#86868b',
                 fontWeight: 500,
                 '&:hover': {
                   bgcolor: 'rgba(0, 0, 0, 0.04)',
@@ -575,6 +607,45 @@ function PksiList() {
           </Box>
           
           <Box sx={{ p: 3, minWidth: 320, bgcolor: 'white' }}>
+
+            {/* Year Filter */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+                Periode Tahun
+              </Typography>
+              <FormControl fullWidth size="small">
+                <InputLabel id="year-filter-label">Pilih Tahun</InputLabel>
+                <Select
+                  labelId="year-filter-label"
+                  value={selectedYear}
+                  label="Pilih Tahun"
+                  onChange={(e) => handleYearChange(e.target.value)}
+                  sx={{
+                    borderRadius: '8px',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#e5e5e7',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#DA251C',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#DA251C',
+                    },
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>Semua Tahun</em>
+                  </MenuItem>
+                  {yearOptions.map((year) => (
+                    <MenuItem key={year} value={year}>
+                      {year}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
 
             {/* Jangka Waktu Filter */}
             <Box sx={{ mb: 2.5 }}>
@@ -696,8 +767,8 @@ function PksiList() {
         </Popover>
 
         {/* Table */}
-        <TableContainer sx={{ width: '100%' }}>
-          <Table sx={{ tableLayout: 'fixed', minWidth: 1000 }}>
+        <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 1200 }}>
             <TableHead>
               <TableRow sx={{ bgcolor: '#f5f5f7' }}>
                 <TableCell 
@@ -706,6 +777,7 @@ function PksiList() {
                     color: '#1d1d1f', 
                     py: 2,
                     width: 50,
+                    minWidth: 50,
                     textAlign: 'center',
                   }}
                 >
@@ -717,7 +789,7 @@ function PksiList() {
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
-                    width: '20%',
+                    minWidth: 200,
                   }}
                 >
                   <TableSortLabel
@@ -733,7 +805,7 @@ function PksiList() {
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
-                    width: '15%',
+                    minWidth: 150,
                   }}
                 >
                   Nama Aplikasi
@@ -743,7 +815,7 @@ function PksiList() {
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
-                    width: '15%',
+                    minWidth: 150,
                   }}
                 >
                   SKPA
@@ -754,7 +826,7 @@ function PksiList() {
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
-                    width: 110,
+                    minWidth: 120,
                     textAlign: 'center',
                   }}
                 >
@@ -772,7 +844,7 @@ function PksiList() {
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
-                    width: 140,
+                    minWidth: 150,
                     textAlign: 'center',
                   }}
                 >
@@ -789,7 +861,7 @@ function PksiList() {
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
-                    width: 80,
+                    minWidth: 90,
                     textAlign: 'center',
                   }}
                 >
@@ -801,7 +873,7 @@ function PksiList() {
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
-                    width: 140,
+                    minWidth: 130,
                     textAlign: 'center',
                   }}
                 >
@@ -818,7 +890,7 @@ function PksiList() {
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
-                    width: 120,
+                    minWidth: 100,
                     textAlign: 'center',
                   }}
                 >

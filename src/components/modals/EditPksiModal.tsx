@@ -25,6 +25,7 @@ import { getAllSkpa, type SkpaData } from '../../api/skpaApi';
 import { getAllAplikasi, type AplikasiData } from '../../api/aplikasiApi';
 import { getPksiDocumentById, updatePksiDocument, type PksiDocumentRequest } from '../../api/pksiApi';
 import { getUserInfo } from '../../api/authApi';
+import { getAllRbsi, getRbsiById, type RbsiResponse, type RbsiProgramResponse, type RbsiInisiatifResponse } from '../../api/rbsiApi';
 
 interface SkpaOption {
   id: string;
@@ -132,6 +133,11 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [skpaOptions, setSkpaOptions] = useState<SkpaOption[]>([]);
   const [aplikasiOptions, setAplikasiOptions] = useState<AplikasiData[]>([]);
+  const [rbsiOptions, setRbsiOptions] = useState<RbsiResponse[]>([]);
+  const [programOptions, setProgramOptions] = useState<RbsiProgramResponse[]>([]);
+  const [selectedRbsi, setSelectedRbsi] = useState<RbsiResponse | null>(null);
+  const [selectedProgram, setSelectedProgram] = useState<RbsiProgramResponse | null>(null);
+  const [selectedInisiatif, setSelectedInisiatif] = useState<RbsiInisiatifResponse | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   const handleAccordionChange = (panel: string) => (_: React.SyntheticEvent, isExpanded: boolean) => {
@@ -152,6 +158,9 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
         
         const aplikasiResponse = await getAllAplikasi();
         setAplikasiOptions(aplikasiResponse.data || []);
+
+        const rbsiResponse = await getAllRbsi();
+        setRbsiOptions(rbsiResponse.data || []);
       } catch (error) {
         console.error('Error fetching options:', error);
       }
@@ -366,28 +375,45 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        borderBottom: '1px solid #e5e5e7',
+        borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
         pb: 2,
-        bgcolor: 'white',
+        bgcolor: 'rgba(255, 255, 255, 0.85)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
       }}>
-        <Typography variant="h6" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+        <Typography variant="h6" sx={{ fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.02em' }}>
           Edit PKSI
         </Typography>
-        <IconButton onClick={handleClose} size="small">
+        <IconButton 
+          onClick={handleClose} 
+          size="small"
+          sx={{ 
+            color: '#86868b',
+            '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' }
+          }}
+        >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
       
-      <DialogContent sx={{ pt: 3, bgcolor: 'white' }}>
+      <DialogContent sx={{ pt: 3, background: 'linear-gradient(180deg, #f5f5f7 0%, #fafafa 100%)' }}>
         {isLoadingData ? (
           <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
             <CircularProgress />
           </Box>
         ) : (
-          <Stack spacing={2.5} sx={{ mt: 1 }}>
+          <Stack spacing={3} sx={{ mt:  2}}>
             {/* Informasi Dasar */}
-            <Box>
-              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600, color: '#1d1d1f' }}>
+            <Box sx={{ 
+              p: 2.5,
+              borderRadius: '16px', 
+              bgcolor: 'rgba(255, 255, 255, 0.72)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.5)',
+              boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+            }}>
+              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.01em' }}>
                 Informasi Dasar
               </Typography>
               <Stack spacing={2}>
@@ -421,6 +447,74 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
                   )}
                   size="small"
                 />
+
+                {/* RBSI Cascading Selection */}
+                <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontWeight: 600, color: '#666' }}>
+                  Program Inisiatif RBSI
+                </Typography>
+                <Autocomplete
+                  fullWidth
+                  options={rbsiOptions}
+                  getOptionLabel={(option) => option.periode}
+                  value={selectedRbsi}
+                  onChange={async (_, newValue) => {
+                    setSelectedRbsi(newValue);
+                    setSelectedProgram(null);
+                    setSelectedInisiatif(null);
+                    setProgramOptions([]);
+                    setFormData(prev => ({ ...prev, programInisiatifRBSI: '' }));
+                    
+                    if (newValue) {
+                      try {
+                        const response = await getRbsiById(newValue.id);
+                        setProgramOptions(response.data.programs || []);
+                      } catch (error) {
+                        console.error('Error fetching RBSI programs:', error);
+                      }
+                    }
+                  }}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Pilih RBSI (Periode)" size="small" />
+                  )}
+                  size="small"
+                />
+                <Autocomplete
+                  fullWidth
+                  options={programOptions}
+                  getOptionLabel={(option) => `${option.nomor_program} - ${option.nama_program}`}
+                  value={selectedProgram}
+                  onChange={(_, newValue) => {
+                    setSelectedProgram(newValue);
+                    setSelectedInisiatif(null);
+                    setFormData(prev => ({ ...prev, programInisiatifRBSI: '' }));
+                  }}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Pilih Program" size="small" />
+                  )}
+                  disabled={!selectedRbsi}
+                  size="small"
+                />
+                <Autocomplete
+                  fullWidth
+                  options={selectedProgram?.inisiatifs || []}
+                  getOptionLabel={(option) => `${option.nomor_inisiatif} - ${option.nama_inisiatif}`}
+                  value={selectedInisiatif}
+                  onChange={(_, newValue) => {
+                    setSelectedInisiatif(newValue);
+                    if (newValue && selectedProgram) {
+                      const label = `${newValue.nomor_inisiatif} - ${newValue.nama_inisiatif} (${selectedProgram.nomor_program})`;
+                      setFormData(prev => ({ ...prev, programInisiatifRBSI: label }));
+                    } else {
+                      setFormData(prev => ({ ...prev, programInisiatifRBSI: '' }));
+                    }
+                  }}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Pilih Inisiatif" size="small" />
+                  )}
+                  disabled={!selectedProgram}
+                  size="small"
+                />
+
                 <TextField
                   fullWidth
                   label="Tanggal Pengajuan"
@@ -438,10 +532,26 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
             <Accordion
               expanded={expandedSection === 'section1'}
               onChange={handleAccordionChange('section1')}
-              sx={{ boxShadow: 'none', border: '1px solid #e5e5e7', borderRadius: '8px !important' }}
+              sx={{ 
+                boxShadow: 'none', 
+                border: 'none', 
+                borderRadius: '16px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.72)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: 0 },
+              }}
             >
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem' }}>
+              <AccordionSummary 
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b' }} />}
+                sx={{ 
+                  borderRadius: '16px',
+                  '&.Mui-expanded': { minHeight: 48 },
+                }}
+              >
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', letterSpacing: '-0.01em' }}>
                   1. Pendahuluan
                 </Typography>
               </AccordionSummary>
@@ -536,10 +646,26 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
             <Accordion
               expanded={expandedSection === 'section2'}
               onChange={handleAccordionChange('section2')}
-              sx={{ boxShadow: 'none', border: '1px solid #e5e5e7', borderRadius: '8px !important' }}
+              sx={{ 
+                boxShadow: 'none', 
+                border: 'none', 
+                borderRadius: '16px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.72)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: 0 },
+              }}
             >
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem' }}>
+              <AccordionSummary 
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b' }} />}
+                sx={{ 
+                  borderRadius: '16px',
+                  '&.Mui-expanded': { minHeight: 48 },
+                }}
+              >
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', letterSpacing: '-0.01em' }}>
                   2. Tujuan dan Kegunaan PKSI
                 </Typography>
               </AccordionSummary>
@@ -587,10 +713,26 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
             <Accordion
               expanded={expandedSection === 'section3'}
               onChange={handleAccordionChange('section3')}
-              sx={{ boxShadow: 'none', border: '1px solid #e5e5e7', borderRadius: '8px !important' }}
+              sx={{ 
+                boxShadow: 'none', 
+                border: 'none', 
+                borderRadius: '16px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.72)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: 0 },
+              }}
             >
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem' }}>
+              <AccordionSummary 
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b' }} />}
+                sx={{ 
+                  borderRadius: '16px',
+                  '&.Mui-expanded': { minHeight: 48 },
+                }}
+              >
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', letterSpacing: '-0.01em' }}>
                   3. Cakupan PKSI
                 </Typography>
               </AccordionSummary>
@@ -644,10 +786,26 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
             <Accordion
               expanded={expandedSection === 'section4'}
               onChange={handleAccordionChange('section4')}
-              sx={{ boxShadow: 'none', border: '1px solid #e5e5e7', borderRadius: '8px !important' }}
+              sx={{ 
+                boxShadow: 'none', 
+                border: 'none', 
+                borderRadius: '16px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.72)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: 0 },
+              }}
             >
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem' }}>
+              <AccordionSummary 
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b' }} />}
+                sx={{ 
+                  borderRadius: '16px',
+                  '&.Mui-expanded': { minHeight: 48 },
+                }}
+              >
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', letterSpacing: '-0.01em' }}>
                   4. Risiko dan Batasan PKSI
                 </Typography>
               </AccordionSummary>
@@ -702,10 +860,26 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
             <Accordion
               expanded={expandedSection === 'section5'}
               onChange={handleAccordionChange('section5')}
-              sx={{ boxShadow: 'none', border: '1px solid #e5e5e7', borderRadius: '8px !important' }}
+              sx={{ 
+                boxShadow: 'none', 
+                border: 'none', 
+                borderRadius: '16px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.72)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: 0 },
+              }}
             >
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem' }}>
+              <AccordionSummary 
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b' }} />}
+                sx={{ 
+                  borderRadius: '16px',
+                  '&.Mui-expanded': { minHeight: 48 },
+                }}
+              >
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', letterSpacing: '-0.01em' }}>
                   5. Gambaran Umum Aplikasi yang Diharapkan
                 </Typography>
               </AccordionSummary>
@@ -736,12 +910,10 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
                   <TextField
                     fullWidth
                     label="5.3 Program Inisiatif RBSI"
-                    name="programInisiatifRBSI"
                     value={formData.programInisiatifRBSI}
-                    onChange={handleInputChange}
-                    multiline
-                    rows={2}
+                    InputProps={{ readOnly: true }}
                     size="small"
+                    helperText="Pilih dari dropdown di bagian Informasi Dasar"
                   />
                   <TextField
                     fullWidth
@@ -783,10 +955,26 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
             <Accordion
               expanded={expandedSection === 'section6'}
               onChange={handleAccordionChange('section6')}
-              sx={{ boxShadow: 'none', border: '1px solid #e5e5e7', borderRadius: '8px !important' }}
+              sx={{ 
+                boxShadow: 'none', 
+                border: 'none', 
+                borderRadius: '16px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.72)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: 0 },
+              }}
             >
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem' }}>
+              <AccordionSummary 
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b' }} />}
+                sx={{ 
+                  borderRadius: '16px',
+                  '&.Mui-expanded': { minHeight: 48 },
+                }}
+              >
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', letterSpacing: '-0.01em' }}>
                   6. Usulan Jadwal Pelaksanaan PKSI
                 </Typography>
               </AccordionSummary>
@@ -827,10 +1015,26 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
             <Accordion
               expanded={expandedSection === 'section7'}
               onChange={handleAccordionChange('section7')}
-              sx={{ boxShadow: 'none', border: '1px solid #e5e5e7', borderRadius: '8px !important' }}
+              sx={{ 
+                boxShadow: 'none', 
+                border: 'none', 
+                borderRadius: '16px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.72)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: 0 },
+              }}
             >
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem' }}>
+              <AccordionSummary 
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b' }} />}
+                sx={{ 
+                  borderRadius: '16px',
+                  '&.Mui-expanded': { minHeight: 48 },
+                }}
+              >
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', letterSpacing: '-0.01em' }}>
                   7. Rencana Pengelolaan
                 </Typography>
               </AccordionSummary>
@@ -852,17 +1056,27 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
         )}
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid #e5e5e7', bgcolor: 'white' }}>
+      <DialogActions sx={{ 
+        px: 3, 
+        py: 2, 
+        borderTop: '1px solid rgba(0, 0, 0, 0.06)', 
+        bgcolor: 'rgba(255, 255, 255, 0.85)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+      }}>
         <Button 
           variant="outlined"
           onClick={handleClose} 
           disabled={isSubmitting}
           sx={{
-            borderColor: '#86868b',
+            borderColor: 'rgba(0, 0, 0, 0.12)',
             color: '#86868b',
+            borderRadius: 2,
+            px: 3,
+            fontWeight: 500,
             '&:hover': {
-              borderColor: '#1d1d1f',
-              bgcolor: 'transparent',
+              borderColor: 'rgba(0, 0, 0, 0.24)',
+              bgcolor: 'rgba(0, 0, 0, 0.02)',
             },
           }}
         >
@@ -875,11 +1089,16 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
           sx={{
             background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
             fontWeight: 500,
+            borderRadius: 2,
+            px: 3,
+            boxShadow: '0 4px 14px rgba(218, 37, 28, 0.25)',
             '&:hover': {
               background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
+              boxShadow: '0 6px 20px rgba(218, 37, 28, 0.35)',
             },
             '&.Mui-disabled': {
               background: '#e5e5e7',
+              boxShadow: 'none',
             },
           }}
         >
