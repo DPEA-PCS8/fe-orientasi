@@ -496,20 +496,27 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
                     }));
                   }}
                   renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Nama Aplikasi"
-                      size="small"
-                    />
+                    <GlassTextField {...params} label="Nama Aplikasi" size="small" />
                   )}
                   size="small"
                 />
 
                 {/* RBSI Cascading Selection */}
-                <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontWeight: 600, color: '#666' }}>
-                  Program Inisiatif RBSI
-                </Typography>
-                <Autocomplete
+                <Box sx={{ 
+                  mt: 2, 
+                  p: 2, 
+                  borderRadius: '12px', 
+                  bgcolor: 'rgba(218, 37, 28, 0.03)',
+                  border: '1px solid rgba(218, 37, 28, 0.1)',
+                }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ mb: 2, fontWeight: 600, color: "#DA251C", fontSize: '0.85rem' }}
+                  >
+                    Program Inisiatif RBSI
+                  </Typography>
+                  <Stack spacing={2}>
+                    <Autocomplete
                   fullWidth
                   options={rbsiOptions}
                   getOptionLabel={(option) => option.periode}
@@ -530,12 +537,16 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
                       }
                     }
                   }}
-                  renderInput={(params) => (
-                    <TextField {...params} label="Pilih RBSI (Periode)" size="small" />
-                  )}
-                  size="small"
-                />
-                <Autocomplete
+                      renderInput={(params) => (
+                        <GlassTextField
+                          {...params}
+                          label="Pilih RBSI (Periode)"
+                          size="small"
+                        />
+                      )}
+                      size="small"
+                    />
+                    <Autocomplete
                   fullWidth
                   options={programOptions}
                   getOptionLabel={(option) => `${option.nomor_program} - ${option.nama_program}`}
@@ -545,12 +556,12 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
                     setSelectedInisiatif(null);
                     setFormData(prev => ({ ...prev, programInisiatifRBSI: '' }));
                   }}
-                  renderInput={(params) => (
-                    <TextField {...params} label="Pilih Program" size="small" />
-                  )}
-                  disabled={!selectedRbsi}
-                  size="small"
-                />
+                      renderInput={(params) => (
+                        <GlassTextField {...params} label="Pilih Program" size="small" />
+                      )}
+                      disabled={!selectedRbsi}
+                      size="small"
+                    />
                 <Autocomplete
                   fullWidth
                   options={selectedProgram?.inisiatifs || []}
@@ -565,14 +576,16 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
                       setFormData(prev => ({ ...prev, programInisiatifRBSI: '' }));
                     }
                   }}
-                  renderInput={(params) => (
-                    <TextField {...params} label="Pilih Inisiatif" size="small" />
-                  )}
-                  disabled={!selectedProgram}
-                  size="small"
-                />
+                      renderInput={(params) => (
+                        <GlassTextField {...params} label="Pilih Inisiatif" size="small" />
+                      )}
+                      disabled={!selectedProgram}
+                      size="small"
+                    />
+                  </Stack>
+                </Box>
 
-                <TextField
+                <GlassTextField
                   fullWidth
                   label="Tanggal Pengajuan"
                   name="tanggalPengajuan"
@@ -591,29 +604,36 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
               onChange={handleAccordionChange('section1')}
               sx={{ 
                 mt: expandedSection === 'section1' ? 1 : 0,
-                borderRadius: '16px !important',
-                bgcolor: 'rgba(255, 255, 255, 0.72)',
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
-                boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
                 '&::before': { display: 'none' },
-                '&.Mui-expanded': { margin: 0 },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
               }}
             >
               <AccordionSummary 
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b' }} />}
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
                 sx={{ 
-                  borderRadius: '16px',
-                  '&.Mui-expanded': { minHeight: 48 },
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
                 }}
               >
-                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', letterSpacing: '-0.01em' }}>
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
                   1. Pendahuluan
                 </Typography>
               </AccordionSummary>
-              <AccordionDetails>
-                <Stack spacing={2}>
-                  <TextField
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Stack spacing={2.5}>
+                  <GlassTextField
                     fullWidth
                     label="1.1 Deskripsi PKSI"
                     name="deskripsiPksi"
@@ -625,7 +645,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
                     helperText={errors.deskripsiPksi}
                     size="small"
                   />
-                  <TextField
+                  <GlassTextField
                     fullWidth
                     label="1.2 Mengapa PKSI Diperlukan"
                     name="mengapaPksiDiperlukan"
@@ -637,7 +657,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
                     helperText={errors.mengapaPksiDiperlukan}
                     size="small"
                   />
-                  <TextField
+                  <GlassTextField
                     fullWidth
                     label="1.3 Kapan Harus Diselesaikan"
                     name="kapanHarusDiselesaikan"
@@ -704,28 +724,35 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
               onChange={handleAccordionChange('section2')}
               sx={{ 
                 mt: expandedSection === 'section2' ? 1 : 0,
-                borderRadius: '16px !important',
-                bgcolor: 'rgba(255, 255, 255, 0.72)',
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
-                boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
                 '&::before': { display: 'none' },
-                '&.Mui-expanded': { margin: 0 },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
               }}
             >
               <AccordionSummary 
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b' }} />}
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
                 sx={{ 
-                  borderRadius: '16px',
-                  '&.Mui-expanded': { minHeight: 48 },
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
                 }}
               >
-                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', letterSpacing: '-0.01em' }}>
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
                   2. Tujuan dan Kegunaan PKSI
                 </Typography>
               </AccordionSummary>
-              <AccordionDetails>
-                <Stack spacing={2}>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Stack spacing={2.5}>
                   <TextField
                     fullWidth
                     label="2.1 Kegunaan PKSI"
@@ -770,28 +797,35 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
               onChange={handleAccordionChange('section3')}
               sx={{ 
                 mt: expandedSection === 'section3' ? 1 : 0,
-                borderRadius: '16px !important',
-                bgcolor: 'rgba(255, 255, 255, 0.72)',
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
-                boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
                 '&::before': { display: 'none' },
-                '&.Mui-expanded': { margin: 0 },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
               }}
             >
               <AccordionSummary 
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b' }} />}
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
                 sx={{ 
-                  borderRadius: '16px',
-                  '&.Mui-expanded': { minHeight: 48 },
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
                 }}
               >
-                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', letterSpacing: '-0.01em' }}>
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
                   3. Cakupan PKSI
                 </Typography>
               </AccordionSummary>
-              <AccordionDetails>
-                <Stack spacing={2}>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Stack spacing={2.5}>
                   <TextField
                     fullWidth
                     label="3.1 Ruang Lingkup PKSI (Yang Termasuk)"
@@ -842,28 +876,35 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
               onChange={handleAccordionChange('section4')}
               sx={{ 
                 mt: expandedSection === 'section4' ? 1 : 0,
-                borderRadius: '16px !important',
-                bgcolor: 'rgba(255, 255, 255, 0.72)',
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
-                boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
                 '&::before': { display: 'none' },
-                '&.Mui-expanded': { margin: 0 },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
               }}
             >
               <AccordionSummary 
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b' }} />}
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
                 sx={{ 
-                  borderRadius: '16px',
-                  '&.Mui-expanded': { minHeight: 48 },
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
                 }}
               >
-                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', letterSpacing: '-0.01em' }}>
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
                   4. Risiko dan Batasan PKSI
                 </Typography>
               </AccordionSummary>
-              <AccordionDetails>
-                <Stack spacing={2}>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Stack spacing={2.5}>
                   <TextField
                     fullWidth
                     label="4.1 Batasan yang dapat berpengaruh pada desain sistem PKSI"
@@ -915,28 +956,35 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
               onChange={handleAccordionChange('section5')}
               sx={{ 
                 mt: expandedSection === 'section5' ? 1 : 0,
-                borderRadius: '16px !important',
-                bgcolor: 'rgba(255, 255, 255, 0.72)',
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
-                boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
                 '&::before': { display: 'none' },
-                '&.Mui-expanded': { margin: 0 },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
               }}
             >
               <AccordionSummary 
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b' }} />}
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
                 sx={{ 
-                  borderRadius: '16px',
-                  '&.Mui-expanded': { minHeight: 48 },
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
                 }}
               >
-                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', letterSpacing: '-0.01em' }}>
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
                   5. Gambaran Umum Aplikasi yang Diharapkan
                 </Typography>
               </AccordionSummary>
-              <AccordionDetails>
-                <Stack spacing={2}>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Stack spacing={2.5}>
                   <TextField
                     fullWidth
                     label="5.1 Pengelola Aplikasi"
@@ -1009,28 +1057,35 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
               onChange={handleAccordionChange('section6')}
               sx={{ 
                 mt: expandedSection === 'section6' ? 1 : 0,
-                borderRadius: '16px !important',
-                bgcolor: 'rgba(255, 255, 255, 0.72)',
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
-                boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
                 '&::before': { display: 'none' },
-                '&.Mui-expanded': { margin: 0 },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
               }}
             >
               <AccordionSummary 
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b' }} />}
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
                 sx={{ 
-                  borderRadius: '16px',
-                  '&.Mui-expanded': { minHeight: 48 },
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
                 }}
               >
-                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', letterSpacing: '-0.01em' }}>
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
                   6. Usulan Jadwal Pelaksanaan PKSI
                 </Typography>
               </AccordionSummary>
-              <AccordionDetails>
-                <Stack spacing={2}>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Stack spacing={2.5}>
                   <Box>
                     <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f', fontSize: '0.85rem' }}>
                       Tahap 1: Penyusunan Spesifikasi Kebutuhan Aplikasi
@@ -1068,28 +1123,35 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
               onChange={handleAccordionChange('section7')}
               sx={{ 
                 mt: expandedSection === 'section7' ? 1 : 0,
-                borderRadius: '16px !important',
-                bgcolor: 'rgba(255, 255, 255, 0.72)',
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
-                boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
                 '&::before': { display: 'none' },
-                '&.Mui-expanded': { margin: 0 },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
               }}
             >
               <AccordionSummary 
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b' }} />}
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
                 sx={{ 
-                  borderRadius: '16px',
-                  '&.Mui-expanded': { minHeight: 48 },
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
                 }}
               >
-                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', letterSpacing: '-0.01em' }}>
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
                   7. Rencana Pengelolaan
                 </Typography>
               </AccordionSummary>
-              <AccordionDetails>
-                <TextField
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <GlassTextField
                   fullWidth
                   label="Rencana Pengelolaan"
                   name="rencanaPengelolaan"

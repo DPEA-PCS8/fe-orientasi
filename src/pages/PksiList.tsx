@@ -38,6 +38,7 @@ import {
   Close as CloseIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import {
   Dialog,
@@ -46,7 +47,7 @@ import {
   DialogContentText,
   DialogActions,
 } from '@mui/material';
-import { AddPksiModal, EditPksiModal } from '../components/modals';
+import { AddPksiModal, EditPksiModal, ViewPksiModal } from '../components/modals';
 import { usePermissions } from '../hooks/usePermissions';
 import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa } from '../api/skpaApi';
@@ -138,7 +139,9 @@ function PksiList() {
   const [keyword, setKeyword] = useState('');
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
+  const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedPksiForEdit, setSelectedPksiForEdit] = useState<PksiData | null>(null);
+  const [selectedPksiIdForView, setSelectedPksiIdForView] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [orderBy, setOrderBy] = useState<keyof PksiData>('namaPksi');
@@ -287,6 +290,11 @@ function PksiList() {
   const handleEditClick = (pksi: PksiData) => {
     setSelectedPksiForEdit(pksi);
     setOpenEditModal(true);
+  };
+
+  const handleViewClick = (pksiId: string) => {
+    setSelectedPksiIdForView(pksiId);
+    setOpenViewModal(true);
   };
 
   const handleEditSuccess = () => {
@@ -545,6 +553,16 @@ function PksiList() {
           }}
           onSuccess={handleEditSuccess}
           pksiData={selectedPksiForEdit}
+        />
+
+        {/* View PKSI Modal */}
+        <ViewPksiModal
+          open={openViewModal}
+          onClose={() => {
+            setOpenViewModal(false);
+            setSelectedPksiIdForView(null);
+          }}
+          pksiId={selectedPksiIdForView}
         />
 
         {/* Filter Popover */}
@@ -1072,6 +1090,21 @@ function PksiList() {
                   </TableCell>
                   <TableCell sx={{ py: 2, textAlign: 'center' }}>
                     <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                      <Tooltip title="Lihat Detail PKSI">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleViewClick(item.id)}
+                          sx={{
+                            color: '#059669',
+                            bgcolor: 'rgba(5, 150, 105, 0.08)',
+                            '&:hover': {
+                              bgcolor: 'rgba(5, 150, 105, 0.15)',
+                            },
+                          }}
+                        >
+                          <VisibilityIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
                       <Tooltip title="Edit PKSI">
                         <IconButton
                           size="small"
