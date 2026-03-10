@@ -121,6 +121,25 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [skpaOptions, setSkpaOptions] = useState<SkpaOption[]>([]);
+
+  // Fetch SKPA options on mount
+  useEffect(() => {
+    const fetchSkpaOptions = async () => {
+      try {
+        const response = await getAllSkpa();
+        const mappedSkpa: SkpaOption[] = (response.data || []).map((skpa: SkpaData) => ({
+          id: skpa.id,
+          kode_skpa: skpa.kode_skpa,
+          nama_skpa: skpa.nama_skpa,
+        }));
+        setSkpaOptions(mappedSkpa);
+      } catch (error) {
+        console.error('Error fetching SKPA options:', error);
+      }
+    };
+    fetchSkpaOptions();
+  }, []);
 
   useEffect(() => {
     const fetchSkpa = async () => {
@@ -217,7 +236,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     if (!formData.namaPksi) newErrors.namaPksi = 'Nama PKSI wajib diisi';
     if (!formData.deskripsiPksi) newErrors.deskripsiPksi = 'Deskripsi PKSI wajib diisi';
     if (!formData.mengapaPksiDiperlukan) newErrors.mengapaPksiDiperlukan = 'Alasan PKSI diperlukan wajib diisi';
-    if (!formData.picSatkerBA) newErrors.picSatkerBA = 'PIC Satker wajib diisi';
+    if (formData.picSatkerBA.length === 0) newErrors.picSatkerBA = 'Satuan Kerja Pemilik Aplikasi wajib dipilih';
     if (!formData.kegunaanPksi) newErrors.kegunaanPksi = 'Kegunaan PKSI wajib diisi';
     if (!formData.tujuanPksi) newErrors.tujuanPksi = 'Tujuan PKSI wajib diisi';
     if (!formData.pengelolaAplikasi) newErrors.pengelolaAplikasi = 'Pengelola Aplikasi wajib diisi';
@@ -467,6 +486,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                       />
                     ))
                   }
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
                   size="small"
                 />
               </Stack>
