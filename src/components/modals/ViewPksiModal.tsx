@@ -327,6 +327,24 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId }) 
                   )}
                 </Box>
               </Box>
+
+              {/* Program Inisiatif RBSI */}
+              {pksiData.program_inisiatif_rbsi && (
+                <Box sx={{ 
+                  mt: 2, 
+                  p: 2, 
+                  borderRadius: '12px', 
+                  bgcolor: 'rgba(218, 37, 28, 0.03)',
+                  border: '1px solid rgba(218, 37, 28, 0.1)',
+                }}>
+                  <Typography variant="caption" sx={{ color: '#DA251C', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 1 }}>
+                    Program Inisiatif RBSI
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500, color: '#1d1d1f' }}>
+                    {pksiData.program_inisiatif_rbsi}
+                  </Typography>
+                </Box>
+              )}
             </GlassCard>
 
             {/* Section 1: Pendahuluan */}
@@ -500,25 +518,19 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId }) 
               </Box>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
                 <InfoRow>
-                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>5.3 Program Inisiatif RBSI</Typography>
-                  <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
-                    {pksiData.program_inisiatif_rbsi || '-'}
-                  </Typography>
-                </InfoRow>
-                <InfoRow>
-                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>5.4 Fungsi Aplikasi</Typography>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>5.3 Fungsi Aplikasi</Typography>
                   <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
                     {pksiData.fungsi_aplikasi || '-'}
                   </Typography>
                 </InfoRow>
                 <InfoRow>
-                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>5.5 Informasi yang Dikelola</Typography>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>5.4 Informasi yang Dikelola</Typography>
                   <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
                     {pksiData.informasi_yang_dikelola || '-'}
                   </Typography>
                 </InfoRow>
                 <InfoRow>
-                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>5.6 Dasar Peraturan</Typography>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>5.5 Dasar Peraturan</Typography>
                   <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
                     {pksiData.dasar_peraturan || '-'}
                   </Typography>
@@ -541,7 +553,7 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId }) 
                 {/* Tahap 1 */}
                 <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(218, 37, 28, 0.03)', border: '1px solid rgba(218, 37, 28, 0.1)' }}>
                   <Typography variant="body2" sx={{ fontWeight: 600, color: '#DA251C', mb: 1.5 }}>
-                    Tahap 1: Penyusunan Spesifikasi
+                    Penyusunan Spesifikasi Kebutuhan Aplikasi
                   </Typography>
                   <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
                     <InfoRow>
@@ -558,7 +570,7 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId }) 
                 {/* Tahap 5 */}
                 <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(37, 99, 235, 0.03)', border: '1px solid rgba(37, 99, 235, 0.1)' }}>
                   <Typography variant="body2" sx={{ fontWeight: 600, color: '#2563EB', mb: 1.5 }}>
-                    Tahap 5: Pengembangan
+                    Pengujian Aplikasi – User Acceptance Test (UAT)
                   </Typography>
                   <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
                     <InfoRow>
@@ -575,7 +587,7 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId }) 
                 {/* Tahap 7 */}
                 <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(5, 150, 105, 0.03)', border: '1px solid rgba(5, 150, 105, 0.1)' }}>
                   <Typography variant="body2" sx={{ fontWeight: 600, color: '#059669', mb: 1.5 }}>
-                    Tahap 7: Implementasi
+                    Penggunaan Aplikasi (Go-Live)
                   </Typography>
                   <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
                     <InfoRow>

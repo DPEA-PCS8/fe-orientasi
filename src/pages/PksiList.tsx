@@ -64,6 +64,34 @@ interface PksiData {
   status: 'pending' | 'disetujui' | 'tidak_disetujui';
 }
 
+// Calculate jangka waktu based on timeline dates
+const calculateJangkaWaktu = (apiData: PksiDocumentData): string => {
+  // Get the earliest start date and latest end date from all tahap
+  const startDates = [apiData.tahap1_awal, apiData.tahap5_awal, apiData.tahap7_awal]
+    .filter(Boolean)
+    .map(d => new Date(d!));
+  
+  const endDates = [apiData.tahap1_akhir, apiData.tahap5_akhir, apiData.tahap7_akhir]
+    .filter(Boolean)
+    .map(d => new Date(d!));
+
+  if (startDates.length === 0 || endDates.length === 0) {
+    return 'Single Year';
+  }
+
+  const earliestStart = new Date(Math.min(...startDates.map(d => d.getTime())));
+  const latestEnd = new Date(Math.max(...endDates.map(d => d.getTime())));
+
+  const startYear = earliestStart.getFullYear();
+  const endYear = latestEnd.getFullYear();
+
+  if (startYear === endYear) {
+    return 'Single Year';
+  } else {
+    return `Multiyears ${startYear}-${endYear}`;
+  }
+};
+
 // Transform API data to UI format
 const transformApiData = (apiData: PksiDocumentData): PksiData => {
   // Map backend status to frontend status
@@ -79,7 +107,7 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     namaPksi: apiData.nama_pksi,
     namaAplikasi: apiData.nama_aplikasi || '-',
     picSatkerBA: apiData.pic_satker_ba || '-',
-    jangkaWaktu: apiData.kapan_harus_diselesaikan || 'Single Year',
+    jangkaWaktu: calculateJangkaWaktu(apiData),
     tanggalPengajuan: apiData.tanggal_pengajuan || apiData.created_at || '',
     linkDocsT01: '', // Will be populated when document upload is implemented
     status: mapStatus(apiData.status),
