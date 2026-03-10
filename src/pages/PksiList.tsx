@@ -45,7 +45,7 @@ import {
 } from '@mui/material';
 import { AddPksiModal, EditPksiModal } from '../components/modals';
 import { usePermissions } from '../hooks/usePermissions';
-import { deletePksiDocument, searchPksiDocuments, type PksiDocumentData } from '../api/pksiApi';
+import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa } from '../api/skpaApi';
 
 // Interface untuk data PKSI (transformed from API)
@@ -102,6 +102,33 @@ const getStatusColor = (status: PksiData['status']) => {
     default:
       return '#86868b';
   }
+};
+
+// Color palette for SKPA chips
+const SKPA_COLORS = [
+  { bg: '#DA251C', text: '#FFFFFF' }, // Red
+  { bg: '#2563EB', text: '#FFFFFF' }, // Blue
+  { bg: '#059669', text: '#FFFFFF' }, // Green
+  { bg: '#7C3AED', text: '#FFFFFF' }, // Purple
+  { bg: '#D97706', text: '#FFFFFF' }, // Amber
+  { bg: '#0891B2', text: '#FFFFFF' }, // Cyan
+  { bg: '#DB2777', text: '#FFFFFF' }, // Pink
+  { bg: '#4F46E5', text: '#FFFFFF' }, // Indigo
+  { bg: '#65A30D', text: '#FFFFFF' }, // Lime
+  { bg: '#DC2626', text: '#FFFFFF' }, // Red-600
+];
+
+// Generate consistent color based on SKPA code
+const getSkpaColor = (skpaCode: string): { bg: string; text: string } => {
+  if (!skpaCode) return SKPA_COLORS[0];
+  
+  // Generate hash from skpaCode for consistent color assignment
+  let hash = 0;
+  for (let i = 0; i < skpaCode.length; i++) {
+    hash = skpaCode.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % SKPA_COLORS.length;
+  return SKPA_COLORS[index];
 };
 
 function PksiList() {
@@ -219,13 +246,36 @@ function PksiList() {
     setSelectedPksiId(null);
   };
 
-  const handleStatusChange = (newStatus: PksiData['status']) => {
-    if (selectedPksiId) {
+  // Map frontend status to backend status
+  const mapFrontendToBackendStatus = (frontendStatus: PksiData['status']): 'PENDING' | 'DISETUJUI' | 'DITOLAK' => {
+    switch (frontendStatus) {
+      case 'disetujui':
+        return 'DISETUJUI';
+      case 'tidak_disetujui':
+        return 'DITOLAK';
+      default:
+        return 'PENDING';
+    }
+  };
+
+  const handleStatusChange = async (newStatus: PksiData['status']) => {
+    if (!selectedPksiId) {
+      handleStatusMenuClose();
+      return;
+    }
+
+    try {
+      const backendStatus = mapFrontendToBackendStatus(newStatus);
+      await updatePksiStatus(selectedPksiId, backendStatus);
+      
+      // Update local state after successful API call
       setPksiData(prev => 
         prev.map(item => 
           item.id === selectedPksiId ? { ...item, status: newStatus } : item
         )
       );
+    } catch (error) {
+      console.error('Error updating status:', error);
     }
     handleStatusMenuClose();
   };
@@ -235,12 +285,9 @@ function PksiList() {
     setOpenEditModal(true);
   };
 
-  const handleEditSuccess = (updatedData: PksiData) => {
-    setPksiData(prev =>
-      prev.map(item =>
-        item.id === updatedData.id ? updatedData : item
-      )
-    );
+  const handleEditSuccess = () => {
+    // Refresh data after successful edit
+    fetchPksiData();
   };
 
   // Delete functionality
@@ -650,7 +697,7 @@ function PksiList() {
 
         {/* Table */}
         <TableContainer sx={{ width: '100%' }}>
-          <Table sx={{ tableLayout: 'fixed' }}>
+          <Table sx={{ tableLayout: 'fixed', minWidth: 1000 }}>
             <TableHead>
               <TableRow sx={{ bgcolor: '#f5f5f7' }}>
                 <TableCell 
@@ -670,6 +717,7 @@ function PksiList() {
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
+                    width: '20%',
                   }}
                 >
                   <TableSortLabel
@@ -685,7 +733,7 @@ function PksiList() {
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
-                    width: 150,
+                    width: '15%',
                   }}
                 >
                   Nama Aplikasi
@@ -695,7 +743,7 @@ function PksiList() {
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
-                    width: 180,
+                    width: '15%',
                   }}
                 >
                   SKPA
@@ -706,7 +754,7 @@ function PksiList() {
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
-                    width: 130,
+                    width: 110,
                     textAlign: 'center',
                   }}
                 >
@@ -819,34 +867,24 @@ function PksiList() {
                   >
                     {page * rowsPerPage + index + 1}
                   </TableCell>
-                  <TableCell sx={{ py: 2 }}>
+                  <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word' }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
                         fontWeight: 500,
                         color: '#1d1d1f',
                         lineHeight: 1.5,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
                       }}
                     >
                       {item.namaPksi}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2 }}>
+                  <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word' }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
                         color: '#1d1d1f',
                         fontSize: '0.85rem',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
                       }}
                     >
                       {item.namaAplikasi}
@@ -855,21 +893,24 @@ function PksiList() {
                   <TableCell sx={{ py: 2 }}>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                       {resolveSkpaCodes(item.picSatkerBA).length > 0 ? (
-                        resolveSkpaCodes(item.picSatkerBA).map((code, idx) => (
-                          <Chip
-                            key={idx}
-                            label={code}
-                            size="small"
-                            sx={{
-                              bgcolor: '#DA251C',
-                              color: 'white',
-                              fontWeight: 600,
-                              fontSize: '0.7rem',
-                              height: 24,
-                              borderRadius: '6px',
-                            }}
-                          />
-                        ))
+                        resolveSkpaCodes(item.picSatkerBA).map((code, idx) => {
+                          const chipColor = getSkpaColor(code);
+                          return (
+                            <Chip
+                              key={idx}
+                              label={code}
+                              size="small"
+                              sx={{
+                                bgcolor: chipColor.bg,
+                                color: chipColor.text,
+                                fontWeight: 600,
+                                fontSize: '0.7rem',
+                                height: 24,
+                                borderRadius: '6px',
+                              }}
+                            />
+                          );
+                        })
                       ) : (
                         <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.85rem' }}>-</Typography>
                       )}
