@@ -22,6 +22,7 @@ import {
   Close as CloseIcon,
 } from '@mui/icons-material';
 import { getAllSkpa, type SkpaData } from '../../api/skpaApi';
+import { getAllAplikasi, type AplikasiData } from '../../api/aplikasiApi';
 import { getPksiDocumentById, updatePksiDocument, type PksiDocumentRequest } from '../../api/pksiApi';
 import { getUserInfo } from '../../api/authApi';
 
@@ -51,6 +52,7 @@ interface EditPksiModalProps {
 
 interface FormData {
   namaPksi: string;
+  aplikasiId: string;
   tanggalPengajuan: string;
   deskripsiPksi: string;
   mengapaPksiDiperlukan: string;
@@ -95,6 +97,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
   const [expandedSection, setExpandedSection] = useState<string | false>('section1');
   const [formData, setFormData] = useState<FormData>({
     namaPksi: '',
+    aplikasiId: '',
     tanggalPengajuan: '',
     deskripsiPksi: '',
     mengapaPksiDiperlukan: '',
@@ -128,13 +131,14 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [skpaOptions, setSkpaOptions] = useState<SkpaOption[]>([]);
+  const [aplikasiOptions, setAplikasiOptions] = useState<AplikasiData[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   const handleAccordionChange = (panel: string) => (_: React.SyntheticEvent, isExpanded: boolean) => {
     setExpandedSection(isExpanded ? panel : false);
   };
 
-  // Fetch SKPA options
+  // Fetch SKPA and Aplikasi options
   useEffect(() => {
     const fetchOptions = async () => {
       try {
@@ -145,8 +149,11 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
           nama_skpa: skpa.nama_skpa,
         }));
         setSkpaOptions(mappedSkpa);
+        
+        const aplikasiResponse = await getAllAplikasi();
+        setAplikasiOptions(aplikasiResponse.data || []);
       } catch (error) {
-        console.error('Error fetching SKPA options:', error);
+        console.error('Error fetching options:', error);
       }
     };
     
@@ -166,6 +173,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
         
         setFormData({
           namaPksi: data.nama_pksi || '',
+          aplikasiId: data.aplikasi_id || '',
           tanggalPengajuan: data.tanggal_pengajuan ? data.tanggal_pengajuan.split('T')[0] : '',
           deskripsiPksi: data.deskripsi_pksi || '',
           mengapaPksiDiperlukan: data.mengapa_pksi_diperlukan || '',
@@ -258,6 +266,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
     setIsSubmitting(true);
     try {
       const requestData: PksiDocumentRequest = {
+        aplikasi_id: formData.aplikasiId || undefined,
         nama_pksi: formData.namaPksi,
         tanggal_pengajuan: formData.tanggalPengajuan || undefined,
         deskripsi_pksi: formData.deskripsiPksi,
@@ -304,6 +313,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
   const handleClose = () => {
     setFormData({
       namaPksi: '',
+      aplikasiId: '',
       tanggalPengajuan: '',
       deskripsiPksi: '',
       mengapaPksiDiperlukan: '',
@@ -389,6 +399,26 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
                   onChange={handleInputChange}
                   error={!!errors.namaPksi}
                   helperText={errors.namaPksi}
+                  size="small"
+                />
+                <Autocomplete
+                  fullWidth
+                  options={aplikasiOptions}
+                  getOptionLabel={(option) => `${option.kode_aplikasi} - ${option.nama_aplikasi}`}
+                  value={aplikasiOptions.find(app => app.id === formData.aplikasiId) || null}
+                  onChange={(_, newValue) => {
+                    setFormData(prev => ({
+                      ...prev,
+                      aplikasiId: newValue?.id || ''
+                    }));
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Nama Aplikasi"
+                      size="small"
+                    />
+                  )}
                   size="small"
                 />
                 <TextField

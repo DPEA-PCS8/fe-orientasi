@@ -33,6 +33,13 @@ import {
 import { getAllSkpa, type SkpaData } from '../../api/skpaApi';
 import { getAllAplikasi, type AplikasiData } from '../../api/aplikasiApi';
 import { createPksiDocument, type PksiDocumentRequest } from '../../api/pksiApi';
+import { getUserInfo } from '../../api/authApi';
+
+interface SkpaOption {
+  id: string;
+  kode_skpa: string;
+  nama_skpa: string;
+}
 
 interface AddPksiModalProps {
   open: boolean;
@@ -42,7 +49,7 @@ interface AddPksiModalProps {
 
 interface FormData {
   namaPksi: string;
-  namaAplikasi: string;
+  aplikasiId: string;
   tanggalPengajuan: string;
   deskripsiPksi: string;
   mengapaPksiDiperlukan: string;
@@ -80,11 +87,11 @@ interface FormErrors {
 
 const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const [expandedSection, setExpandedSection] = useState<string | false>('section1');
-  const [skpaOptions, setSkpaOptions] = useState<SkpaData[]>([]);
+  const [skpaOptions, setSkpaOptions] = useState<SkpaOption[]>([]);
   const [aplikasiOptions, setAplikasiOptions] = useState<AplikasiData[]>([]);
   const [formData, setFormData] = useState<FormData>({
     namaPksi: '',
-    namaAplikasi: '',
+    aplikasiId: '',
     tanggalPengajuan: new Date().toISOString().split('T')[0],
     deskripsiPksi: '',
     mengapaPksiDiperlukan: '',
@@ -121,9 +128,8 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [skpaOptions, setSkpaOptions] = useState<SkpaOption[]>([]);
 
-  // Fetch SKPA options on mount
+  // Fetch SKPA and Aplikasi options on mount
   useEffect(() => {
     const fetchSkpaOptions = async () => {
       try {
@@ -138,31 +144,17 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
         console.error('Error fetching SKPA options:', error);
       }
     };
-    fetchSkpaOptions();
-  }, []);
-
-  useEffect(() => {
-    const fetchSkpa = async () => {
-      try {
-        const response = await getAllSkpa();
-        setSkpaOptions(response.data || []);
-      } catch (error) {
-        console.error('Failed to fetch SKPA:', error);
-      }
-    };
-    const fetchAplikasi = async () => {
+    const fetchAplikasiOptions = async () => {
       try {
         const response = await getAllAplikasi();
         setAplikasiOptions(response.data || []);
       } catch (error) {
-        console.error('Failed to fetch Aplikasi:', error);
+        console.error('Error fetching Aplikasi options:', error);
       }
     };
-    if (open) {
-      fetchSkpa();
-      fetchAplikasi();
-    }
-  }, [open]);
+    fetchSkpaOptions();
+    fetchAplikasiOptions();
+  }, []);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -192,7 +184,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const resetForm = () => {
     setFormData({
       namaPksi: '',
-      namaAplikasi: '',
+      aplikasiId: '',
       tanggalPengajuan: new Date().toISOString().split('T')[0],
       deskripsiPksi: '',
       mengapaPksiDiperlukan: '',
@@ -269,48 +261,48 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
 
     setIsSubmitting(true);
     setErrorMessage('');
-    
+
     try {
       const requestData: PksiDocumentRequest = {
-        aplikasi_id: formData.namaAplikasi || undefined,
+        aplikasi_id: formData.aplikasiId || undefined,
         nama_pksi: formData.namaPksi,
-        tanggal_pengajuan: formData.tanggalPengajuan,
+        tanggal_pengajuan: formData.tanggalPengajuan || undefined,
         deskripsi_pksi: formData.deskripsiPksi,
         mengapa_pksi_diperlukan: formData.mengapaPksiDiperlukan,
-        kapan_harus_diselesaikan: formData.kapanHarusDiselesaikan,
-        pic_satker_ba: formData.picSatkerBA.join(', '),
+        kapan_harus_diselesaikan: formData.kapanHarusDiselesaikan || undefined,
+        pic_satker_ba: formData.picSatkerBA.join(','),
         kegunaan_pksi: formData.kegunaanPksi,
         tujuan_pksi: formData.tujuanPksi,
-        target_pksi: formData.targetPksi,
-        ruang_lingkup: formData.ruangLingkup,
-        batasan_pksi: formData.batasanPksi,
-        hubungan_sistem_lain: formData.hubunganSistemLain,
-        asumsi: formData.asumsi,
-        batasan_desain: formData.batasanDesain,
-        risiko_bisnis: formData.riskoBisnis,
-        risiko_sukses_pksi: formData.risikoSuksesPksi,
-        pengendalian_risiko: formData.pengendalianRisiko,
+        target_pksi: formData.targetPksi || undefined,
+        ruang_lingkup: formData.ruangLingkup || undefined,
+        batasan_pksi: formData.batasanPksi || undefined,
+        hubungan_sistem_lain: formData.hubunganSistemLain || undefined,
+        asumsi: formData.asumsi || undefined,
+        batasan_desain: formData.batasanDesain || undefined,
+        risiko_bisnis: formData.riskoBisnis || undefined,
+        risiko_sukses_pksi: formData.risikoSuksesPksi || undefined,
+        pengendalian_risiko: formData.pengendalianRisiko || undefined,
         pengelola_aplikasi: formData.pengelolaAplikasi,
-        pengguna_aplikasi: formData.penggunaAplikasi,
-        program_inisiatif_rbsi: formData.programInisiatifRBSI,
+        pengguna_aplikasi: formData.penggunaAplikasi || undefined,
+        program_inisiatif_rbsi: formData.programInisiatifRBSI || undefined,
         fungsi_aplikasi: formData.fungsiAplikasi,
-        informasi_yang_dikelola: formData.informasiYangDikelola,
-        dasar_peraturan: formData.dasarPeraturan,
-        tahap1_awal: formData.tahap1Awal,
-        tahap1_akhir: formData.tahap1Akhir,
-        tahap5_awal: formData.tahap5Awal,
-        tahap5_akhir: formData.tahap5Akhir,
-        tahap7_awal: formData.tahap7Awal,
-        tahap7_akhir: formData.tahap7Akhir,
-        rencana_pengelolaan: formData.rencanaPengelolaan,
+        informasi_yang_dikelola: formData.informasiYangDikelola || undefined,
+        dasar_peraturan: formData.dasarPeraturan || undefined,
+        tahap1_awal: formData.tahap1Awal || undefined,
+        tahap1_akhir: formData.tahap1Akhir || undefined,
+        tahap5_awal: formData.tahap5Awal || undefined,
+        tahap5_akhir: formData.tahap5Akhir || undefined,
+        tahap7_awal: formData.tahap7Awal || undefined,
+        tahap7_akhir: formData.tahap7Akhir || undefined,
+        rencana_pengelolaan: formData.rencanaPengelolaan || undefined,
+        user_id: getUserInfo()?.uuid || '',
       };
 
-      // Call real API - token validation is done inside pksiApi
       await createPksiDocument(requestData);
-      
+
       setSuccessMessage('PKSI berhasil ditambahkan!');
       setErrorMessage('');
-      
+
       setTimeout(() => {
         resetForm();
         onSuccess?.();
@@ -331,8 +323,8 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   };
 
   return (
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onClose={handleClose}
       maxWidth="md"
       fullWidth
@@ -343,9 +335,9 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
         },
       }}
     >
-      <DialogTitle sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
+      <DialogTitle sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
         alignItems: 'center',
         borderBottom: '1px solid #e5e5e7',
         pb: 2,
@@ -392,22 +384,17 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                 fullWidth
                 options={aplikasiOptions}
                 getOptionLabel={(option) => `${option.kode_aplikasi} - ${option.nama_aplikasi}`}
-                value={aplikasiOptions.find(app => app.id === formData.namaAplikasi) || null}
+                value={aplikasiOptions.find(app => app.id === formData.aplikasiId) || null}
                 onChange={(_, newValue) => {
                   setFormData(prev => ({
                     ...prev,
-                    namaAplikasi: newValue?.id || ''
+                    aplikasiId: newValue?.id || ''
                   }));
-                  if (errors.namaAplikasi) {
-                    setErrors(prev => ({ ...prev, namaAplikasi: undefined }));
-                  }
                 }}
                 renderInput={(params) => (
                   <TextField
                     {...params}
                     label="Nama Aplikasi"
-                    error={!!errors.namaAplikasi}
-                    helperText={errors.namaAplikasi}
                     size="small"
                   />
                 )}
