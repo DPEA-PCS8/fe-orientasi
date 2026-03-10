@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -18,6 +18,8 @@ import {
   ListItemIcon,
   ListItemText,
   ListItemSecondaryAction,
+  Autocomplete,
+  CircularProgress,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -27,9 +29,11 @@ import {
   Delete as DeleteIcon,
   InsertDriveFile as FileIcon,
 } from '@mui/icons-material';
+import { getAllAplikasi, type AplikasiData } from '../api/aplikasiApi';
 
 interface FormData {
   namaPksi: string;
+  aplikasiId: string;
   tanggalPengajuan: string;
   deskripsiPksi: string;
   mengapaPksiDiperlukan: string;
@@ -68,8 +72,11 @@ interface FormErrors {
 const AddPksi = () => {
   const navigate = useNavigate();
   const [expandedSection, setExpandedSection] = useState<string | false>('section1');
+  const [aplikasiList, setAplikasiList] = useState<AplikasiData[]>([]);
+  const [loadingAplikasi, setLoadingAplikasi] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     namaPksi: '',
+    aplikasiId: '',
     tanggalPengajuan: new Date().toISOString().split('T')[0],
     deskripsiPksi: '',
     mengapaPksiDiperlukan: '',
@@ -105,6 +112,21 @@ const AddPksi = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+
+  useEffect(() => {
+    const fetchAplikasi = async () => {
+      setLoadingAplikasi(true);
+      try {
+        const response = await getAllAplikasi();
+        setAplikasiList(response.data);
+      } catch (error) {
+        console.error('Failed to fetch aplikasi:', error);
+      } finally {
+        setLoadingAplikasi(false);
+      }
+    };
+    fetchAplikasi();
+  }, []);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -237,6 +259,35 @@ const AddPksi = () => {
                 value={formData.tanggalPengajuan}
                 onChange={handleInputChange}
                 InputLabelProps={{ shrink: true, required: false }}
+              />
+              <Autocomplete
+                options={aplikasiList}
+                getOptionLabel={(option) => option.nama_aplikasi || ''}
+                loading={loadingAplikasi}
+                value={aplikasiList.find(app => app.id === formData.aplikasiId) || null}
+                onChange={(_, newValue) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    aplikasiId: newValue?.id || ''
+                  }));
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Aplikasi"
+                    error={!!errors.aplikasiId}
+                    helperText={errors.aplikasiId}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loadingAplikasi ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
               />
             </Stack>
           </Box>
