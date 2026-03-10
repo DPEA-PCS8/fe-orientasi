@@ -23,6 +23,7 @@ import {
 } from '@mui/icons-material';
 import { getAllSkpa, type SkpaData } from '../../api/skpaApi';
 import { getPksiDocumentById, updatePksiDocument, type PksiDocumentRequest } from '../../api/pksiApi';
+import { getUserInfo } from '../../api/authApi';
 
 interface SkpaOption {
   id: string;
@@ -280,7 +281,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
         tahap7_awal: formData.tahap7Awal || undefined,
         tahap7_akhir: formData.tahap7Akhir || undefined,
         rencana_pengelolaan: formData.rencanaPengelolaan || undefined,
-        user_id: '', // Will be set by backend from auth token
+        user_id: getUserInfo()?.uuid || '',
       };
 
       await updatePksiDocument(pksiData.id, requestData);

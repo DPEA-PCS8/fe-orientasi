@@ -45,7 +45,7 @@ import {
 } from '@mui/material';
 import { AddPksiModal, EditPksiModal } from '../components/modals';
 import { usePermissions } from '../hooks/usePermissions';
-import { deletePksiDocument, searchPksiDocuments, type PksiDocumentData } from '../api/pksiApi';
+import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa } from '../api/skpaApi';
 
 // Interface untuk data PKSI (transformed from API)
@@ -217,13 +217,36 @@ function PksiList() {
     setSelectedPksiId(null);
   };
 
-  const handleStatusChange = (newStatus: PksiData['status']) => {
-    if (selectedPksiId) {
+  // Map frontend status to backend status
+  const mapFrontendToBackendStatus = (frontendStatus: PksiData['status']): 'PENDING' | 'DISETUJUI' | 'DITOLAK' => {
+    switch (frontendStatus) {
+      case 'disetujui':
+        return 'DISETUJUI';
+      case 'tidak_disetujui':
+        return 'DITOLAK';
+      default:
+        return 'PENDING';
+    }
+  };
+
+  const handleStatusChange = async (newStatus: PksiData['status']) => {
+    if (!selectedPksiId) {
+      handleStatusMenuClose();
+      return;
+    }
+
+    try {
+      const backendStatus = mapFrontendToBackendStatus(newStatus);
+      await updatePksiStatus(selectedPksiId, backendStatus);
+      
+      // Update local state after successful API call
       setPksiData(prev => 
         prev.map(item => 
           item.id === selectedPksiId ? { ...item, status: newStatus } : item
         )
       );
+    } catch (error) {
+      console.error('Error updating status:', error);
     }
     handleStatusMenuClose();
   };

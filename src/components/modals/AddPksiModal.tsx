@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -19,6 +19,8 @@ import {
   ListItemIcon,
   ListItemText,
   ListItemSecondaryAction,
+  Autocomplete,
+  Chip,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -28,6 +30,15 @@ import {
   Delete as DeleteIcon,
   InsertDriveFile as FileIcon,
 } from '@mui/icons-material';
+import { getAllSkpa, type SkpaData } from '../../api/skpaApi';
+import { createPksiDocument, type PksiDocumentRequest } from '../../api/pksiApi';
+import { getUserInfo } from '../../api/authApi';
+
+interface SkpaOption {
+  id: string;
+  kode_skpa: string;
+  nama_skpa: string;
+}
 
 interface AddPksiModalProps {
   open: boolean;
@@ -41,7 +52,7 @@ interface FormData {
   deskripsiPksi: string;
   mengapaPksiDiperlukan: string;
   kapanHarusDiselesaikan: string;
-  picSatkerBA: string;
+  picSatkerBA: string[];
   kegunaanPksi: string;
   tujuanPksi: string;
   targetPksi: string;
@@ -80,7 +91,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     deskripsiPksi: '',
     mengapaPksiDiperlukan: '',
     kapanHarusDiselesaikan: '',
-    picSatkerBA: '',
+    picSatkerBA: [],
     kegunaanPksi: '',
     tujuanPksi: '',
     targetPksi: '',
@@ -111,6 +122,25 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [skpaOptions, setSkpaOptions] = useState<SkpaOption[]>([]);
+
+  // Fetch SKPA options on mount
+  useEffect(() => {
+    const fetchSkpaOptions = async () => {
+      try {
+        const response = await getAllSkpa();
+        const mappedSkpa: SkpaOption[] = (response.data || []).map((skpa: SkpaData) => ({
+          id: skpa.id,
+          kode_skpa: skpa.kode_skpa,
+          nama_skpa: skpa.nama_skpa,
+        }));
+        setSkpaOptions(mappedSkpa);
+      } catch (error) {
+        console.error('Error fetching SKPA options:', error);
+      }
+    };
+    fetchSkpaOptions();
+  }, []);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -144,7 +174,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
       deskripsiPksi: '',
       mengapaPksiDiperlukan: '',
       kapanHarusDiselesaikan: '',
-      picSatkerBA: '',
+      picSatkerBA: [],
       kegunaanPksi: '',
       tujuanPksi: '',
       targetPksi: '',
@@ -182,7 +212,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     if (!formData.namaPksi) newErrors.namaPksi = 'Nama PKSI wajib diisi';
     if (!formData.deskripsiPksi) newErrors.deskripsiPksi = 'Deskripsi PKSI wajib diisi';
     if (!formData.mengapaPksiDiperlukan) newErrors.mengapaPksiDiperlukan = 'Alasan PKSI diperlukan wajib diisi';
-    if (!formData.picSatkerBA) newErrors.picSatkerBA = 'PIC Satker wajib diisi';
+    if (formData.picSatkerBA.length === 0) newErrors.picSatkerBA = 'Satuan Kerja Pemilik Aplikasi wajib dipilih';
     if (!formData.kegunaanPksi) newErrors.kegunaanPksi = 'Kegunaan PKSI wajib diisi';
     if (!formData.tujuanPksi) newErrors.tujuanPksi = 'Tujuan PKSI wajib diisi';
     if (!formData.pengelolaAplikasi) newErrors.pengelolaAplikasi = 'Pengelola Aplikasi wajib diisi';
@@ -215,9 +245,41 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
 
     setIsSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      
-      console.log('Form Data:', formData);
+      const requestData: PksiDocumentRequest = {
+        nama_pksi: formData.namaPksi,
+        tanggal_pengajuan: formData.tanggalPengajuan || undefined,
+        deskripsi_pksi: formData.deskripsiPksi,
+        mengapa_pksi_diperlukan: formData.mengapaPksiDiperlukan,
+        kapan_harus_diselesaikan: formData.kapanHarusDiselesaikan || undefined,
+        pic_satker_ba: formData.picSatkerBA.join(','),
+        kegunaan_pksi: formData.kegunaanPksi,
+        tujuan_pksi: formData.tujuanPksi,
+        target_pksi: formData.targetPksi || undefined,
+        ruang_lingkup: formData.ruangLingkup || undefined,
+        batasan_pksi: formData.batasanPksi || undefined,
+        hubungan_sistem_lain: formData.hubunganSistemLain || undefined,
+        asumsi: formData.asumsi || undefined,
+        batasan_desain: formData.batasanDesain || undefined,
+        risiko_bisnis: formData.riskoBisnis || undefined,
+        risiko_sukses_pksi: formData.risikoSuksesPksi || undefined,
+        pengendalian_risiko: formData.pengendalianRisiko || undefined,
+        pengelola_aplikasi: formData.pengelolaAplikasi,
+        pengguna_aplikasi: formData.penggunaAplikasi || undefined,
+        program_inisiatif_rbsi: formData.programInisiatifRBSI || undefined,
+        fungsi_aplikasi: formData.fungsiAplikasi,
+        informasi_yang_dikelola: formData.informasiYangDikelola || undefined,
+        dasar_peraturan: formData.dasarPeraturan || undefined,
+        tahap1_awal: formData.tahap1Awal || undefined,
+        tahap1_akhir: formData.tahap1Akhir || undefined,
+        tahap5_awal: formData.tahap5Awal || undefined,
+        tahap5_akhir: formData.tahap5Akhir || undefined,
+        tahap7_awal: formData.tahap7Awal || undefined,
+        tahap7_akhir: formData.tahap7Akhir || undefined,
+        rencana_pengelolaan: formData.rencanaPengelolaan || undefined,
+        user_id: getUserInfo()?.uuid || '',
+      };
+
+      await createPksiDocument(requestData);
       setSuccessMessage('PKSI berhasil ditambahkan!');
       
       setTimeout(() => {
@@ -319,7 +381,53 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                 <TextField fullWidth label="1.1 Deskripsi PKSI" name="deskripsiPksi" value={formData.deskripsiPksi} onChange={handleInputChange} multiline rows={3} error={!!errors.deskripsiPksi} helperText={errors.deskripsiPksi} size="small" />
                 <TextField fullWidth label="1.2 Mengapa PKSI Diperlukan" name="mengapaPksiDiperlukan" value={formData.mengapaPksiDiperlukan} onChange={handleInputChange} multiline rows={3} error={!!errors.mengapaPksiDiperlukan} helperText={errors.mengapaPksiDiperlukan} size="small" />
                 <TextField fullWidth label="1.3 Kapan Harus Diselesaikan" name="kapanHarusDiselesaikan" value={formData.kapanHarusDiselesaikan} onChange={handleInputChange} multiline rows={2} size="small" />
-                <TextField fullWidth label="1.4 Satuan Kerja Pemilik Aplikasi" name="picSatkerBA" value={formData.picSatkerBA} onChange={handleInputChange} error={!!errors.picSatkerBA} helperText={errors.picSatkerBA} size="small" />
+                <Autocomplete
+                  multiple
+                  fullWidth
+                  options={skpaOptions}
+                  getOptionLabel={(option) => `${option.kode_skpa} - ${option.nama_skpa}`}
+                  value={skpaOptions.filter(skpa => formData.picSatkerBA.includes(skpa.id))}
+                  onChange={(_, newValue) => {
+                    setFormData(prev => ({
+                      ...prev,
+                      picSatkerBA: newValue.map(skpa => skpa.id)
+                    }));
+                    if (errors.picSatkerBA) {
+                      setErrors(prev => ({ ...prev, picSatkerBA: undefined }));
+                    }
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="1.4 Satuan Kerja Pemilik Aplikasi"
+                      error={!!errors.picSatkerBA}
+                      helperText={errors.picSatkerBA}
+                      size="small"
+                    />
+                  )}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => (
+                      <Chip
+                        {...getTagProps({ index })}
+                        key={option.id}
+                        label={option.kode_skpa}
+                        size="small"
+                        sx={{
+                          bgcolor: '#DA251C',
+                          color: 'white',
+                          '& .MuiChip-deleteIcon': {
+                            color: 'rgba(255, 255, 255, 0.7)',
+                            '&:hover': {
+                              color: 'white',
+                            },
+                          },
+                        }}
+                      />
+                    ))
+                  }
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  size="small"
+                />
               </Stack>
             </AccordionDetails>
           </Accordion>
