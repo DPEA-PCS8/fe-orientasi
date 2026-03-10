@@ -90,6 +90,7 @@ interface AplikasiItem {
   id: string;
   singkatan: string;
   namaLengkap: string;
+  status?: string;
 }
 
 // SKPA type for local state (using API response fields)
@@ -321,6 +322,7 @@ function RbsiArsitekturPage() {
         id: a.id,
         singkatan: a.kode_aplikasi,
         namaLengkap: a.nama_aplikasi,
+        status: a.status_aplikasi,
       }));
       setAplikasiList(items);
     } catch (error) {
@@ -1092,15 +1094,37 @@ function RbsiArsitekturPage() {
     );
   };
 
+  // Check if year status mismatches with actual aplikasi status
+  const checkStatusMismatch = (row: ArsitekturRow, year: number): { isMismatch: boolean; actualStatus?: string } => {
+    const yearStatus = row.yearStatuses[year];
+    if (!yearStatus || !row.portofolioTargetId) return { isMismatch: false };
+
+    // Only check current year - future/past years may intentionally differ
+    const currentYear = new Date().getFullYear();
+    if (year !== currentYear) return { isMismatch: false };
+
+    const targetApp = aplikasiList.find(a => a.id === row.portofolioTargetId);
+    if (!targetApp || !targetApp.status) return { isMismatch: false };
+
+    // Compare yearStatus with actual aplikasi status
+    const isMismatch = yearStatus !== targetApp.status;
+    return { isMismatch, actualStatus: targetApp.status };
+  };
+
   // Render year status cell
   const renderYearStatusCell = (row: ArsitekturRow, year: number) => {
     const status = row.yearStatuses[year] || '';
     const style = getYearStatusStyle(status);
     const isEditing = editingCell?.rowId === row.id && editingCell?.field === `year-${year}`;
+    const { isMismatch, actualStatus } = checkStatusMismatch(row, year);
+
+    const tooltipContent = isMismatch
+      ? `⚠️ Mismatch: RBSI = "${status}", Portofolio = "${actualStatus}"`
+      : (status || 'Belum diatur');
 
     return (
       <>
-        <Tooltip title={status || 'Belum diatur'}>
+        <Tooltip title={tooltipContent}>
           <Box
             onClick={(e) => setEditingCell({ rowId: row.id, field: `year-${year}`, anchorEl: e.currentTarget })}
             sx={{
@@ -1116,7 +1140,25 @@ function RbsiArsitekturPage() {
               fontWeight: 600,
               cursor: 'pointer',
               transition: 'transform 0.1s ease',
+              position: 'relative',
+              border: isMismatch ? '2px solid #FF9800' : 'none',
+              boxShadow: isMismatch ? '0 0 6px rgba(255, 152, 0, 0.5)' : 'none',
               '&:hover': { transform: 'scale(1.1)' },
+              '&::after': isMismatch ? {
+                content: '"⚠"',
+                position: 'absolute',
+                top: -6,
+                right: -6,
+                fontSize: '0.6rem',
+                bgcolor: '#FF9800',
+                color: '#fff',
+                borderRadius: '50%',
+                width: 12,
+                height: 12,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              } : {},
             }}
           >
             {style.label}

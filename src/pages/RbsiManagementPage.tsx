@@ -43,6 +43,7 @@ import {
   Save as SaveIcon,
   History as HistoryIcon,
   Edit as EditIcon,
+  Delete as DeleteIcon,
   ContentCopy as ContentCopyIcon,
   Description as KepIcon,
   Dashboard as DashboardIcon,
@@ -57,6 +58,8 @@ import {
   getKepProgress as apiGetKepProgress,
   updateProgram as apiUpdateProgram,
   updateInisiatif as apiUpdateInisiatif,
+  deleteProgram as apiDeleteProgram,
+  deleteInisiatif as apiDeleteInisiatif,
 } from '../api/rbsiApi';
 import type {
   RbsiResponse,
@@ -169,6 +172,17 @@ function RbsiManagementPage() {
   const [editNomor, setEditNomor] = useState('');
   const [editNama, setEditNama] = useState('');
   const [editLoading, setEditLoading] = useState(false);
+
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteDialogType, setDeleteDialogType] = useState<'program' | 'inisiatif'>('program');
+  const [deletingItem, setDeletingItem] = useState<{
+    id: string;
+    nomor: string;
+    nama: string;
+    inisiatifCount?: number;
+  } | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const currentYear = new Date().getFullYear();
 
@@ -304,19 +318,22 @@ function RbsiManagementPage() {
     }
   };
 
-  const fetchPrograms = async (rbsiId: string, tahun?: number) => {
+  const fetchPrograms = async (rbsiId: string, tahun?: number, preserveExpandedState = false) => {
     setProgramsLoading(true);
     try {
       const response = await getProgramsByRbsi(rbsiId, tahun);
       const fetchedPrograms = response.data || [];
       setPrograms(fetchedPrograms);
 
-      // Expand all programs by default
-      // In monitoring mode, use nomor_program as key (to group by program number)
-      // In table mode, use id as key (unique per program instance)
-      const allProgramIds = new Set<string>();
-      fetchedPrograms.forEach(p => allProgramIds.add(viewMode === 'monitoring' ? p.nomor_program : p.id));
-      setExpandedPrograms(allProgramIds);
+      // Only expand all programs on initial load (when preserveExpandedState is false)
+      // Otherwise, keep the existing expand/collapse state
+      if (!preserveExpandedState) {
+        // In monitoring mode, use nomor_program as key (to group by program number)
+        // In table mode, use id as key (unique per program instance)
+        const allProgramIds = new Set<string>();
+        fetchedPrograms.forEach(p => allProgramIds.add(viewMode === 'monitoring' ? p.nomor_program : p.id));
+        setExpandedPrograms(allProgramIds);
+      }
     } catch (error) {
       console.error('Failed to fetch programs:', error);
       setSnackbar({
@@ -680,7 +697,7 @@ function RbsiManagementPage() {
       });
 
       setEditDialogOpen(false);
-      fetchPrograms(selectedRbsi.id, selectedTahun);
+      fetchPrograms(selectedRbsi.id, selectedTahun, true);
     } catch (error) {
       setSnackbar({
         open: true,
@@ -689,6 +706,61 @@ function RbsiManagementPage() {
       });
     } finally {
       setEditLoading(false);
+    }
+  };
+
+  // Open delete dialog for program
+  const handleDeleteProgram = (program: RbsiProgramResponse) => {
+    setDeleteDialogType('program');
+    setDeletingItem({
+      id: program.id,
+      nomor: program.nomor_program,
+      nama: program.nama_program,
+      inisiatifCount: program.inisiatifs?.length || 0,
+    });
+    setDeleteDialogOpen(true);
+  };
+
+  // Open delete dialog for inisiatif
+  const handleDeleteInisiatif = (inisiatif: { id: string; nomor_inisiatif: string; nama_inisiatif: string }) => {
+    setDeleteDialogType('inisiatif');
+    setDeletingItem({
+      id: inisiatif.id,
+      nomor: inisiatif.nomor_inisiatif,
+      nama: inisiatif.nama_inisiatif,
+    });
+    setDeleteDialogOpen(true);
+  };
+
+  // Confirm delete
+  const handleConfirmDelete = async () => {
+    if (!deletingItem || !selectedRbsi) return;
+
+    setDeleteLoading(true);
+    try {
+      if (deleteDialogType === 'program') {
+        await apiDeleteProgram(deletingItem.id);
+      } else {
+        await apiDeleteInisiatif(deletingItem.id);
+      }
+
+      setSnackbar({
+        open: true,
+        message: `${deleteDialogType === 'program' ? 'Program' : 'Inisiatif'} berhasil dihapus`,
+        severity: 'success',
+      });
+
+      setDeleteDialogOpen(false);
+      setDeletingItem(null);
+      fetchPrograms(selectedRbsi.id, selectedTahun, true);
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error instanceof Error ? error.message : 'Gagal menghapus data',
+        severity: 'error',
+      });
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -1214,6 +1286,22 @@ function RbsiManagementPage() {
                               <EditIcon sx={{ fontSize: 16 }} />
                             </IconButton>
                           </Tooltip>
+                          <Tooltip title="Hapus Program">
+                            <IconButton
+                              size="small"
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleDeleteProgram(program);
+                              }}
+                              sx={{
+                                p: 0.5,
+                                color: '#86868b',
+                                '&:hover': { color: '#d32f2f', bgcolor: 'rgba(211, 47, 47, 0.08)' },
+                              }}
+                            >
+                              <DeleteIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Tooltip>
                           <Chip
                             label={`${program.inisiatifs?.length || 0} Inisiatif`}
                             size="small"
@@ -1292,6 +1380,22 @@ function RbsiManagementPage() {
                                         }}
                                       >
                                         <EditIcon sx={{ fontSize: 14 }} />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Hapus Inisiatif">
+                                      <IconButton
+                                        size="small"
+                                        onClick={e => {
+                                          e.stopPropagation();
+                                          handleDeleteInisiatif(inisiatif);
+                                        }}
+                                        sx={{
+                                          p: 0.25,
+                                          color: '#86868b',
+                                          '&:hover': { color: '#d32f2f', bgcolor: 'rgba(211, 47, 47, 0.08)' },
+                                        }}
+                                      >
+                                        <DeleteIcon sx={{ fontSize: 14 }} />
                                       </IconButton>
                                     </Tooltip>
                                   </Box>
@@ -1430,34 +1534,21 @@ function RbsiManagementPage() {
                                                       <EditIcon sx={{ fontSize: 18 }} />
                                                     </IconButton>
                                                   </Tooltip>
-                                                  <Button
-                                                    size="small"
-                                                    variant="outlined"
-                                                    sx={{
-                                                      fontSize: '0.75rem',
-                                                      px: 2,
-                                                      py: 0.5,
-                                                      borderColor: '#2196F3',
-                                                      color: '#2196F3',
-                                                      '&:hover': { borderColor: '#1976D2', bgcolor: '#E3F2FD' },
-                                                    }}
-                                                  >
-                                                    Mapping
-                                                  </Button>
-                                                  <Button
-                                                    size="small"
-                                                    variant="outlined"
-                                                    sx={{
-                                                      fontSize: '0.75rem',
-                                                      px: 2,
-                                                      py: 0.5,
-                                                      borderColor: '#4CAF50',
-                                                      color: '#4CAF50',
-                                                      '&:hover': { borderColor: '#388E3C', bgcolor: '#E8F5E8' },
-                                                    }}
-                                                  >
-                                                    Detail
-                                                  </Button>
+                                                  <Tooltip title="Hapus">
+                                                    <IconButton
+                                                      size="small"
+                                                      onClick={e => {
+                                                        e.stopPropagation();
+                                                        handleDeleteInisiatif(inisiatif);
+                                                      }}
+                                                      sx={{
+                                                        color: '#d32f2f',
+                                                        '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.08)' },
+                                                      }}
+                                                    >
+                                                      <DeleteIcon sx={{ fontSize: 18 }} />
+                                                    </IconButton>
+                                                  </Tooltip>
                                                 </Box>
                                               </TableCell>
                                             </TableRow>
@@ -1582,7 +1673,7 @@ function RbsiManagementPage() {
         onClose={() => setOpenAddProgramModal(false)}
         onSuccess={() => {
           if (selectedRbsi) {
-            fetchPrograms(selectedRbsi.id, selectedTahun);
+            fetchPrograms(selectedRbsi.id, selectedTahun, true);
           }
         }}
         rbsiId={selectedRbsi?.id || ''}
@@ -1598,7 +1689,7 @@ function RbsiManagementPage() {
         }}
         onSuccess={() => {
           if (selectedRbsi) {
-            fetchPrograms(selectedRbsi.id, selectedTahun);
+            fetchPrograms(selectedRbsi.id, selectedTahun, true);
             if (viewMode === 'monitoring') {
               fetchProgressData(selectedRbsi.id, selectedTahun);
             }
@@ -1623,7 +1714,7 @@ function RbsiManagementPage() {
           onClose={() => setOpenCopyModal(false)}
           onSuccess={() => {
             if (selectedRbsi) {
-              fetchPrograms(selectedRbsi.id, selectedTahun);
+              fetchPrograms(selectedRbsi.id, selectedTahun, true);
             }
           }}
           rbsiId={selectedRbsi.id}
@@ -1687,6 +1778,67 @@ function RbsiManagementPage() {
             }}
           >
             {editLoading ? <CircularProgress size={20} color="inherit" /> : 'Simpan'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => !deleteLoading && setDeleteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '12px' } }}
+      >
+        <DialogTitle sx={{ fontWeight: 600, color: '#d32f2f', pb: 1 }}>
+          Hapus {deleteDialogType === 'program' ? 'Program' : 'Inisiatif'}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1 }}>
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              Apakah Anda yakin ingin menghapus {deleteDialogType === 'program' ? 'program' : 'inisiatif'} berikut?
+            </Typography>
+            {deletingItem && (
+              <Box sx={{ bgcolor: '#f5f5f5', p: 2, borderRadius: 1 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#333' }}>
+                  {deletingItem.nomor}
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#666' }}>
+                  {deletingItem.nama}
+                </Typography>
+                {deleteDialogType === 'program' && deletingItem.inisiatifCount && deletingItem.inisiatifCount > 0 && (
+                  <Alert severity="warning" sx={{ mt: 2 }}>
+                    <Typography variant="body2">
+                      Program ini memiliki <strong>{deletingItem.inisiatifCount} inisiatif</strong>. 
+                      Semua inisiatif tersebut juga akan ikut dihapus.
+                    </Typography>
+                  </Alert>
+                )}
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <Button 
+            onClick={() => {
+              setDeleteDialogOpen(false);
+              setDeletingItem(null);
+            }} 
+            disabled={deleteLoading} 
+            sx={{ color: '#86868b' }}
+          >
+            Batal
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleConfirmDelete}
+            disabled={deleteLoading}
+            sx={{
+              bgcolor: '#d32f2f',
+              '&:hover': { bgcolor: '#b71c1c' },
+            }}
+          >
+            {deleteLoading ? <CircularProgress size={20} color="inherit" /> : 'Hapus'}
           </Button>
         </DialogActions>
       </Dialog>

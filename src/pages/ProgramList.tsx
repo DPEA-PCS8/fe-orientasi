@@ -53,7 +53,7 @@ interface KepData {
 function ProgramList() {
   const [programs, setPrograms] = useState<RbsiProgramResponse[]>([]);
   const [programsLoading, setProgramsLoading] = useState(false);
-  const [keyword, setKeyword] = useState('');
+  const [keyword, setKeyword] = useState(''); 
   const [expandedPrograms, setExpandedPrograms] = useState<Set<string>>(new Set());
 
   // Modal states
@@ -341,16 +341,6 @@ function ProgramList() {
 
     return matchKeyword;
   }).sort((a, b) => compareNomor(a.nomor_program, b.nomor_program));
-
-  const handleMappingClick = (inisiatifId: string) => {
-    console.log('Mapping clicked for inisiatif:', inisiatifId);
-    // TODO: Implement mapping functionality
-  };
-
-  const handleDetailClick = (inisiatifId: string) => {
-    console.log('Detail clicked for inisiatif:', inisiatifId);
-    // TODO: Implement detail view functionality
-  };
 
   return (
     <Box sx={{ 
@@ -768,52 +758,6 @@ function ProgramList() {
                                     <Typography sx={{ fontSize: '0.85rem' }}>
                                       {inisiatif.tahun}
                                     </Typography>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Box sx={{ display: 'flex', gap: 1 }}>
-                                      <Button
-                                        size="small"
-                                        variant="outlined"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleMappingClick(inisiatif.id);
-                                        }}
-                                        sx={{
-                                          fontSize: '0.75rem',
-                                          px: 2,
-                                          py: 0.5,
-                                          borderColor: '#2196F3',
-                                          color: '#2196F3',
-                                          '&:hover': {
-                                            borderColor: '#1976D2',
-                                            bgcolor: '#E3F2FD',
-                                          },
-                                        }}
-                                      >
-                                        Mapping
-                                      </Button>
-                                      <Button
-                                        size="small"
-                                        variant="outlined"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDetailClick(inisiatif.id);
-                                        }}
-                                        sx={{
-                                          fontSize: '0.75rem',
-                                          px: 2,
-                                          py: 0.5,
-                                          borderColor: '#4CAF50',
-                                          color: '#4CAF50',
-                                          '&:hover': {
-                                            borderColor: '#388E3C',
-                                            bgcolor: '#E8F5E8',
-                                          },
-                                        }}
-                                      >
-                                        Detail
-                                      </Button>
-                                    </Box>
                                   </TableCell>
                                 </TableRow>
                               ))

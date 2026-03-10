@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   TextField,
@@ -24,6 +24,10 @@ import {
   Checkbox,
   FormControlLabel,
   FormGroup,
+  CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -32,123 +36,54 @@ import {
   KeyboardArrowDown as ArrowDownIcon,
   OpenInNew as OpenInNewIcon,
   Close as CloseIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
-import { AddPksiModal } from '../components/modals';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+} from '@mui/material';
+import { AddPksiModal, EditPksiModal } from '../components/modals';
 import { usePermissions } from '../hooks/usePermissions';
+import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, type PksiDocumentData } from '../api/pksiApi';
+import { getAllSkpa } from '../api/skpaApi';
 
-// Interface untuk data PKSI
+// Interface untuk data PKSI (transformed from API)
 interface PksiData {
   id: string;
   namaPksi: string;
+  namaAplikasi: string;
+  picSatkerBA: string;
   jangkaWaktu: string;
   tanggalPengajuan: string;
   linkDocsT01: string;
   status: 'pending' | 'disetujui' | 'tidak_disetujui';
 }
 
-// Dummy data PKSI - 100 entries
-const DUMMY_PKSI: PksiData[] = [
-  { id: '1', namaPksi: 'SIP Perbankan Modul Penyusunan KYBPR - KYBPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-01T10:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/abc123', status: 'pending' },
-  { id: '2', namaPksi: 'SIP Perbankan Modul Manajemen Pemeriksaan BPR/BPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-03T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/def456', status: 'disetujui' },
-  { id: '3', namaPksi: 'Supervision Dashboard Perbankan', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-05T09:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/ghi789', status: 'tidak_disetujui' },
-  { id: '4', namaPksi: 'Sistem Informasi Pengawasan Konglomerasi Keuangan (SIPKK) Modul Financial Conglomerate Ratio (FICOR)', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-06T08:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/jkl012', status: 'pending' },
-  { id: '5', namaPksi: 'Sistem Informasi Penanganan Dugaan Pelanggaran (SIPEDANG)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-07T16:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/mno345', status: 'disetujui' },
-  { id: '6', namaPksi: 'Sistem Informasi Pengawasan Profesi Penunjang Akuntan Publik dan Kantor Akuntan Publik', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-08T10:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/pqr678', status: 'pending' },
-  { id: '7', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Profil Nasabah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-09T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/stu901', status: 'disetujui' },
-  { id: '8', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Manajemen Investasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-10T13:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/vwx234', status: 'tidak_disetujui' },
-  { id: '9', namaPksi: 'Sistem Informasi Pengawasan Pasar Modal Terpadu (SIPM) - Modul Monitoring Emiten', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T15:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/yza567', status: 'pending' },
-  { id: '10', namaPksi: 'Sistem Informasi Pengawasan Pasar Modal Terpadu (SIPM) - Modul Pengawasan Profesi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T10:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/bcd890', status: 'disetujui' },
-  { id: '11', namaPksi: 'Sistem Informasi Pengawasan Pasar Modal Terpadu (SIPM) - Modul Pengawasan Lembaga Penunjang', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-13T12:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/efg123', status: 'tidak_disetujui' },
-  { id: '12', namaPksi: 'SIP IKNB - Sistem Informasi Pengawasan Industri Keuangan Non-Bank', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-14T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/hij456', status: 'pending' },
-  { id: '13', namaPksi: 'SIP IKNB Modul Pemeriksaan Langsung Asuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T14:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/klm789', status: 'disetujui' },
-  { id: '14', namaPksi: 'SIP IKNB Modul Pemeriksaan Langsung Asuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T11:20:00Z', linkDocsT01: 'https://docs.google.com/document/d/nop012', status: 'pending' },
-  { id: '15', namaPksi: 'SIP IKNB Modul Pemeriksaan Langsung Dana Pensiun', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T13:50:00Z', linkDocsT01: 'https://docs.google.com/document/d/qrs345', status: 'tidak_disetujui' },
-  { id: '16', namaPksi: 'SIP IKNB Modul Pengawasan Manajemen Investasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-18T10:40:00Z', linkDocsT01: 'https://docs.google.com/document/d/tuv678', status: 'disetujui' },
-  { id: '17', namaPksi: 'SIP IKNB Modul Pengawasan Perusahaan Pemeringkat Efek', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-19T15:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/wxy901', status: 'pending' },
-  { id: '18', namaPksi: 'SIP IKNB Modul Pengawasan Lembaga Konsultasi Bisnis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T12:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/zab234', status: 'tidak_disetujui' },
-  { id: '19', namaPksi: 'Sistem Informasi Pengawasan Pasar Modal Terpadu (SIPM) - Modul Monitoring Laporan Emiten dan Perusahaan Publik (Tahap 1)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-21T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/cde567', status: 'disetujui' },
-  { id: '20', namaPksi: 'Sistem Informasi Pengawasan Pasar Modal Terpadu (SIPM) - Modul Monitoring Laporan Emiten dan Perusahaan Publik (Tahap 2)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-22T09:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/fgh890', status: 'pending' },
-  { id: '21', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Manajemen Aset', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-23T11:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/ijk123', status: 'tidak_disetujui' },
-  { id: '22', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Manajemen Risiko', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-24T13:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/lmn456', status: 'disetujui' },
-  { id: '23', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Kepatuhan Regulasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-25T10:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/opq789', status: 'pending' },
-  { id: '24', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Tata Kelola Perusahaan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-26T15:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/rst012', status: 'tidak_disetujui' },
-  { id: '25', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Analisis Laporan Keuangan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-27T12:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/uvw345', status: 'disetujui' },
-  { id: '26', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Penilaian Kinerja', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-28T14:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/xyz678', status: 'pending' },
-  { id: '27', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Audit Internal', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-01T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/abc901', status: 'tidak_disetujui' },
-  { id: '28', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Governance Framework', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-02T11:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/def234', status: 'disetujui' },
-  { id: '29', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Risk Assessment', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-03T13:20:00Z', linkDocsT01: 'https://docs.google.com/document/d/ghi567', status: 'pending' },
-  { id: '30', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Compliance Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-04T15:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/jkl890', status: 'tidak_disetujui' },
-  { id: '31', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Disclosure Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-05T10:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/mno123', status: 'disetujui' },
-  { id: '32', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Stakeholder Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-06T12:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/pqr456', status: 'pending' },
-  { id: '33', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Innovation Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-07T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/stu789', status: 'tidak_disetujui' },
-  { id: '34', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Technology Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-08T09:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/vwx012', status: 'disetujui' },
-  { id: '35', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Change Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-09T11:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/yza345', status: 'pending' },
-  { id: '36', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Sustainability Reporting', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-10T13:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/bcd678', status: 'tidak_disetujui' },
-  { id: '37', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul ESG Framework', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-11T15:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/efg901', status: 'disetujui' },
-  { id: '38', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Whistleblowing System', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-12T10:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/hij234', status: 'pending' },
-  { id: '39', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Anti-Fraud System', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-13T12:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/klm567', status: 'tidak_disetujui' },
-  { id: '40', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Data Protection', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-14T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/nop890', status: 'disetujui' },
-  { id: '41', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Cybersecurity Framework', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-15T09:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/qrs123', status: 'pending' },
-  { id: '42', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Business Continuity', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-16T11:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/tuv456', status: 'tidak_disetujui' },
-  { id: '43', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Disaster Recovery', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-17T13:20:00Z', linkDocsT01: 'https://docs.google.com/document/d/wxy789', status: 'disetujui' },
-  { id: '44', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Quality Assurance', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-18T15:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/zab012', status: 'pending' },
-  { id: '45', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Testing Framework', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-19T10:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/cde345', status: 'tidak_disetujui' },
-  { id: '46', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Performance Monitoring', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-20T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/fgh678', status: 'disetujui' },
-  { id: '47', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Incident Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-21T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/ijk901', status: 'pending' },
-  { id: '48', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Problem Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-22T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/lmn234', status: 'tidak_disetujui' },
-  { id: '49', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Configuration Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-23T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/opq567', status: 'disetujui' },
-  { id: '50', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Release Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-24T13:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/rst890', status: 'pending' },
-  { id: '51', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Demand Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-25T15:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/uvw123', status: 'tidak_disetujui' },
-  { id: '52', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Financial Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-26T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/xyz456', status: 'disetujui' },
-  { id: '53', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Capacity Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-27T12:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/abc789', status: 'pending' },
-  { id: '54', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Availability Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-28T14:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/def012', status: 'tidak_disetujui' },
-  { id: '55', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Service Continuity', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-29T16:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/ghi345', status: 'disetujui' },
-  { id: '56', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Knowledge Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-30T09:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/jkl678', status: 'pending' },
-  { id: '57', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Portfolio Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-31T11:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/mno901', status: 'tidak_disetujui' },
-  { id: '58', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Program Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-01T13:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/pqr234', status: 'disetujui' },
-  { id: '59', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Project Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-02T15:20:00Z', linkDocsT01: 'https://docs.google.com/document/d/stu567', status: 'pending' },
-  { id: '60', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Resource Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-03T10:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/vwx890', status: 'tidak_disetujui' },
-  { id: '61', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Supplier Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-04T12:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/yza123', status: 'disetujui' },
-  { id: '62', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Customer Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-05T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/bcd456', status: 'pending' },
-  { id: '63', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Asset Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-06T09:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/efg789', status: 'tidak_disetujui' },
-  { id: '64', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Budget Planning', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-07T11:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/hij012', status: 'disetujui' },
-  { id: '65', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Cost Control', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-08T13:20:00Z', linkDocsT01: 'https://docs.google.com/document/d/klm345', status: 'pending' },
-  { id: '66', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Revenue Tracking', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-09T15:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/nop678', status: 'tidak_disetujui' },
-  { id: '67', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Profit Analysis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-10T10:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/qrs901', status: 'disetujui' },
-  { id: '68', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Break-even Analysis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-11T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/tuv234', status: 'pending' },
-  { id: '69', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Cash Flow Analysis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-12T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/wxy567', status: 'tidak_disetujui' },
-  { id: '70', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Forecasting', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-13T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/zab890', status: 'disetujui' },
-  { id: '71', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Budgeting', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-14T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/cde123', status: 'pending' },
-  { id: '72', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Variance Analysis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-15T13:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/fgh456', status: 'tidak_disetujui' },
-  { id: '73', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Trend Analysis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-16T15:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/ijk789', status: 'disetujui' },
-  { id: '74', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Ratio Analysis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-17T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/lmn012', status: 'pending' },
-  { id: '75', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Sensitivity Analysis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-18T12:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/opq345', status: 'tidak_disetujui' },
-  { id: '76', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Scenario Analysis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-19T14:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/rst678', status: 'disetujui' },
-  { id: '77', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Simulation', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-20T16:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/uvw901', status: 'pending' },
-  { id: '78', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Optimization', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-21T09:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/xyz234', status: 'tidak_disetujui' },
-  { id: '79', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Decision Support', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-22T11:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/abc567', status: 'disetujui' },
-  { id: '80', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Analytics Dashboard', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-23T13:20:00Z', linkDocsT01: 'https://docs.google.com/document/d/def890', status: 'pending' },
-  { id: '81', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Reporting Tools', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-24T15:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/ghi123', status: 'tidak_disetujui' },
-  { id: '82', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Data Integration', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-25T10:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/jkl456', status: 'disetujui' },
-  { id: '83', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Data Cleansing', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-26T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/mno789', status: 'pending' },
-  { id: '84', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Data Validation', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-27T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/pqr012', status: 'tidak_disetujui' },
-  { id: '85', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Data Governance', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-28T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/stu345', status: 'disetujui' },
-  { id: '86', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Master Data Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-29T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/vwx678', status: 'pending' },
-  { id: '87', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Reference Data Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-30T13:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/yza901', status: 'tidak_disetujui' },
-  { id: '88', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Data Quality Framework', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-01T15:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/bcd234', status: 'disetujui' },
-  { id: '89', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Data Warehouse', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-02T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/efg567', status: 'pending' },
-  { id: '90', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Data Lake', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-03T12:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/hij890', status: 'tidak_disetujui' },
-  { id: '91', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul ETL Process', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-04T14:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/klm123', status: 'disetujui' },
-  { id: '92', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Streaming Pipeline', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-05T16:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/nop456', status: 'pending' },
-  { id: '93', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Batch Processing', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-06T09:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/qrs789', status: 'tidak_disetujui' },
-  { id: '94', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Real-time Processing', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-07T11:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/tuv012', status: 'disetujui' },
-  { id: '95', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Complex Event Processing', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-08T13:20:00Z', linkDocsT01: 'https://docs.google.com/document/d/wxy345', status: 'pending' },
-  { id: '96', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Stream Fusion', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-09T15:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/zab678', status: 'tidak_disetujui' },
-  { id: '97', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Stream Windowing', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-10T10:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/cde901', status: 'disetujui' },
-  { id: '98', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Stream Enrichment', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-11T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/fgh234', status: 'pending' },
-  { id: '99', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Stream Monitoring', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-12T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/ijk567', status: 'tidak_disetujui' },
-  { id: '100', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Advanced Analytics', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-13T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/lmn890', status: 'disetujui' },
-];
+// Transform API data to UI format
+const transformApiData = (apiData: PksiDocumentData): PksiData => {
+  // Map backend status to frontend status
+  const mapStatus = (status: string): PksiData['status'] => {
+    const statusLower = status.toLowerCase();
+    if (statusLower === 'disetujui' || statusLower === 'approved') return 'disetujui';
+    if (statusLower === 'ditolak' || statusLower === 'rejected' || statusLower === 'tidak_disetujui') return 'tidak_disetujui';
+    return 'pending';
+  };
+
+  return {
+    id: apiData.id,
+    namaPksi: apiData.nama_pksi,
+    namaAplikasi: apiData.nama_aplikasi || '-',
+    picSatkerBA: apiData.pic_satker_ba || '-',
+    jangkaWaktu: apiData.kapan_harus_diselesaikan || 'Single Year',
+    tanggalPengajuan: apiData.tanggal_pengajuan || apiData.created_at || '',
+    linkDocsT01: '', // Will be populated when document upload is implemented
+    status: mapStatus(apiData.status),
+  };
+};
 
 type Order = 'asc' | 'desc';
 
@@ -172,16 +107,50 @@ const getStatusColor = (status: PksiData['status']) => {
   }
 };
 
+// Color palette for SKPA chips
+const SKPA_COLORS = [
+  { bg: '#DA251C', text: '#FFFFFF' }, // Red
+  { bg: '#2563EB', text: '#FFFFFF' }, // Blue
+  { bg: '#059669', text: '#FFFFFF' }, // Green
+  { bg: '#7C3AED', text: '#FFFFFF' }, // Purple
+  { bg: '#D97706', text: '#FFFFFF' }, // Amber
+  { bg: '#0891B2', text: '#FFFFFF' }, // Cyan
+  { bg: '#DB2777', text: '#FFFFFF' }, // Pink
+  { bg: '#4F46E5', text: '#FFFFFF' }, // Indigo
+  { bg: '#65A30D', text: '#FFFFFF' }, // Lime
+  { bg: '#DC2626', text: '#FFFFFF' }, // Red-600
+];
+
+// Generate consistent color based on SKPA code
+const getSkpaColor = (skpaCode: string): { bg: string; text: string } => {
+  if (!skpaCode) return SKPA_COLORS[0];
+  
+  // Generate hash from skpaCode for consistent color assignment
+  let hash = 0;
+  for (let i = 0; i < skpaCode.length; i++) {
+    hash = skpaCode.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % SKPA_COLORS.length;
+  return SKPA_COLORS[index];
+};
+
 function PksiList() {
   const [keyword, setKeyword] = useState('');
   const [openAddModal, setOpenAddModal] = useState(false);
+  const [openEditModal, setOpenEditModal] = useState(false);
+  const [selectedPksiForEdit, setSelectedPksiForEdit] = useState<PksiData | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [orderBy, setOrderBy] = useState<keyof PksiData>('namaPksi');
   const [order, setOrder] = useState<Order>('asc');
-  const [pksiData, setPksiData] = useState<PksiData[]>(DUMMY_PKSI);
+  const [pksiData, setPksiData] = useState<PksiData[]>([]);
+  const [totalElements, setTotalElements] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedPksiId, setSelectedPksiId] = useState<string | null>(null);
+
+  // SKPA lookup data
+  const [skpaMap, setSkpaMap] = useState<Map<string, string>>(new Map());
 
   // Permission check for PKSI menu
   const { getMenuPermissions } = usePermissions();
@@ -191,6 +160,85 @@ function PksiList() {
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedJangkaWaktu, setSelectedJangkaWaktu] = useState<Set<string>>(new Set());
   const [selectedStatus, setSelectedStatus] = useState<Set<string>>(new Set());
+  const [selectedYear, setSelectedYear] = useState<string>('');
+
+  // Map sortBy from UI field to API field
+  const mapSortField = (field: keyof PksiData): string => {
+    const fieldMap: Record<string, string> = {
+      namaPksi: 'namaPksi',
+      tanggalPengajuan: 'tanggalPengajuan',
+      status: 'status',
+    };
+    return fieldMap[field] || 'namaPksi';
+  };
+
+  // Fetch PKSI data from API
+  const fetchPksiData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Map status filter to API format
+      const statusMapping: Record<string, string> = {
+        pending: 'PENDING',
+        disetujui: 'DISETUJUI',
+        tidak_disetujui: 'DITOLAK',
+      };
+      const statusFilter = selectedStatus.size === 1 
+        ? statusMapping[Array.from(selectedStatus)[0]] 
+        : undefined;
+
+      const response = await searchPksiDocuments({
+        search: keyword || undefined,
+        status: statusFilter,
+        page: page,
+        size: rowsPerPage,
+        sortBy: mapSortField(orderBy),
+        sortDir: order,
+      });
+
+      const transformedData = response.content.map(transformApiData);
+      setPksiData(transformedData);
+      setTotalElements(response.total_elements);
+    } catch (error) {
+      console.error('Failed to fetch PKSI data:', error);
+      setPksiData([]);
+      setTotalElements(0);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [keyword, page, rowsPerPage, orderBy, order, selectedStatus]);
+
+  // Fetch data on mount and when dependencies change
+  useEffect(() => {
+    fetchPksiData();
+  }, [fetchPksiData]);
+
+  // Fetch SKPA lookup data
+  useEffect(() => {
+    const fetchLookupData = async () => {
+      try {
+        const skpaResponse = await getAllSkpa();
+        
+        // Create lookup map
+        const skpaLookup = new Map<string, string>();
+        (skpaResponse.data || []).forEach((skpa) => {
+          skpaLookup.set(skpa.id, skpa.kode_skpa);
+        });
+        setSkpaMap(skpaLookup);
+      } catch (error) {
+        console.error('Failed to fetch lookup data:', error);
+      }
+    };
+    fetchLookupData();
+  }, []);
+
+  // Helper function to resolve SKPA GUIDs to codes array for Chip display
+  const resolveSkpaCodes = (picSatkerBA: string): string[] => {
+    if (!picSatkerBA || picSatkerBA === '-') return [];
+    
+    // Split by comma and resolve each GUID
+    const guids = picSatkerBA.split(',').map(g => g.trim());
+    return guids.map(guid => skpaMap.get(guid) || '').filter(Boolean);
+  };
 
   const handleStatusMenuOpen = (event: React.MouseEvent<HTMLElement>, pksiId: string) => {
     setAnchorEl(event.currentTarget);
@@ -202,15 +250,83 @@ function PksiList() {
     setSelectedPksiId(null);
   };
 
-  const handleStatusChange = (newStatus: PksiData['status']) => {
-    if (selectedPksiId) {
+  // Map frontend status to backend status
+  const mapFrontendToBackendStatus = (frontendStatus: PksiData['status']): 'PENDING' | 'DISETUJUI' | 'DITOLAK' => {
+    switch (frontendStatus) {
+      case 'disetujui':
+        return 'DISETUJUI';
+      case 'tidak_disetujui':
+        return 'DITOLAK';
+      default:
+        return 'PENDING';
+    }
+  };
+
+  const handleStatusChange = async (newStatus: PksiData['status']) => {
+    if (!selectedPksiId) {
+      handleStatusMenuClose();
+      return;
+    }
+
+    try {
+      const backendStatus = mapFrontendToBackendStatus(newStatus);
+      await updatePksiStatus(selectedPksiId, backendStatus);
+      
+      // Update local state after successful API call
       setPksiData(prev => 
         prev.map(item => 
           item.id === selectedPksiId ? { ...item, status: newStatus } : item
         )
       );
+    } catch (error) {
+      console.error('Error updating status:', error);
     }
     handleStatusMenuClose();
+  };
+
+  const handleEditClick = (pksi: PksiData) => {
+    setSelectedPksiForEdit(pksi);
+    setOpenEditModal(true);
+  };
+
+  const handleEditSuccess = () => {
+    // Refresh data after successful edit
+    fetchPksiData();
+  };
+
+  // Delete functionality
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [pksiToDelete, setPksiToDelete] = useState<PksiData | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteClick = (pksi: PksiData) => {
+    setPksiToDelete(pksi);
+    setOpenDeleteDialog(true);
+  };
+
+  const handleDeleteCancel = () => {
+    setOpenDeleteDialog(false);
+    setPksiToDelete(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!pksiToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      // Call API to delete PKSI
+      await deletePksiDocument(pksiToDelete.id);
+      
+      // Remove from local state
+      setPksiData(prev => prev.filter(item => item.id !== pksiToDelete.id));
+      setOpenDeleteDialog(false);
+      setPksiToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete PKSI:', error);
+      alert('Gagal menghapus PKSI. Silakan coba lagi.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleFilterOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -241,36 +357,46 @@ function PksiList() {
     setSelectedStatus(newSet);
   };
 
+  const handleYearChange = (year: string) => {
+    setSelectedYear(year);
+  };
+
   const handleResetFilter = () => {
     setSelectedJangkaWaktu(new Set());
     setSelectedStatus(new Set());
+    setSelectedYear('');
   };
 
-  const filteredPksi = (() => {
-    const result = pksiData.filter(item => {
-      // Keyword filter
-      const matchKeyword = item.namaPksi.toLowerCase().includes(keyword.toLowerCase());
-      
-      // Jangka Waktu filter
-      const matchJangkaWaktu = selectedJangkaWaktu.size === 0 || selectedJangkaWaktu.has(item.jangkaWaktu);
-      
-      // Status filter
-      const matchStatus = selectedStatus.size === 0 || selectedStatus.has(item.status);
-      
-      return matchKeyword && matchJangkaWaktu && matchStatus;
-    });
-
-    result.sort((a, b) => {
-      const fieldA = String(a[orderBy] ?? '');
-      const fieldB = String(b[orderBy] ?? '');
-      if (order === 'asc') {
-        return fieldA < fieldB ? -1 : fieldA > fieldB ? 1 : 0;
+  // Generate year options from data
+  const yearOptions = useMemo(() => {
+    const years = new Set<string>();
+    pksiData.forEach(item => {
+      if (item.tanggalPengajuan) {
+        const year = new Date(item.tanggalPengajuan).getFullYear().toString();
+        years.add(year);
       }
-      return fieldA > fieldB ? -1 : fieldA < fieldB ? 1 : 0;
     });
+    return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
+  }, [pksiData]);
 
+  // Filter locally for jangkaWaktu and year
+  const filteredPksi = useMemo(() => {
+    let result = pksiData;
+    
+    if (selectedJangkaWaktu.size > 0) {
+      result = result.filter(item => selectedJangkaWaktu.has(item.jangkaWaktu));
+    }
+    
+    if (selectedYear) {
+      result = result.filter(item => {
+        if (!item.tanggalPengajuan) return false;
+        const year = new Date(item.tanggalPengajuan).getFullYear().toString();
+        return year === selectedYear;
+      });
+    }
+    
     return result;
-  })();
+  }, [pksiData, selectedJangkaWaktu, selectedYear]);
 
   const handleSort = (property: keyof PksiData) => {
     const isAsc = orderBy === property && order === 'asc';
@@ -287,10 +413,8 @@ function PksiList() {
     setPage(0);
   };
 
-  const paginatedPksi = filteredPksi.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
+  // Use filtered data directly (pagination handled by API)
+  const paginatedPksi = filteredPksi;
 
   return (
     <Box sx={{ 
@@ -374,7 +498,7 @@ function PksiList() {
               startIcon={<TuneRounded sx={{ fontSize: 18 }} />}
               onClick={handleFilterOpen}
               sx={{
-                color: selectedJangkaWaktu.size > 0 || selectedStatus.size > 0 ? '#DA251C' : '#86868b',
+                color: selectedJangkaWaktu.size > 0 || selectedStatus.size > 0 || selectedYear ? '#DA251C' : '#86868b',
                 fontWeight: 500,
                 '&:hover': {
                   bgcolor: 'rgba(0, 0, 0, 0.04)',
@@ -408,9 +532,19 @@ function PksiList() {
           open={openAddModal}
           onClose={() => setOpenAddModal(false)}
           onSuccess={() => {
-            // Refresh data here if needed
-            console.log('PKSI added successfully');
+            fetchPksiData();
           }}
+        />
+
+        {/* Edit PKSI Modal */}
+        <EditPksiModal
+          open={openEditModal}
+          onClose={() => {
+            setOpenEditModal(false);
+            setSelectedPksiForEdit(null);
+          }}
+          onSuccess={handleEditSuccess}
+          pksiData={selectedPksiForEdit}
         />
 
         {/* Filter Popover */}
@@ -473,6 +607,45 @@ function PksiList() {
           </Box>
           
           <Box sx={{ p: 3, minWidth: 320, bgcolor: 'white' }}>
+
+            {/* Year Filter */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+                Periode Tahun
+              </Typography>
+              <FormControl fullWidth size="small">
+                <InputLabel id="year-filter-label">Pilih Tahun</InputLabel>
+                <Select
+                  labelId="year-filter-label"
+                  value={selectedYear}
+                  label="Pilih Tahun"
+                  onChange={(e) => handleYearChange(e.target.value)}
+                  sx={{
+                    borderRadius: '8px',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#e5e5e7',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#DA251C',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#DA251C',
+                    },
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>Semua Tahun</em>
+                  </MenuItem>
+                  {yearOptions.map((year) => (
+                    <MenuItem key={year} value={year}>
+                      {year}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
 
             {/* Jangka Waktu Filter */}
             <Box sx={{ mb: 2.5 }}>
@@ -594,8 +767,8 @@ function PksiList() {
         </Popover>
 
         {/* Table */}
-        <TableContainer sx={{ width: '100%' }}>
-          <Table sx={{ tableLayout: 'fixed' }}>
+        <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 1200 }}>
             <TableHead>
               <TableRow sx={{ bgcolor: '#f5f5f7' }}>
                 <TableCell 
@@ -604,6 +777,7 @@ function PksiList() {
                     color: '#1d1d1f', 
                     py: 2,
                     width: 50,
+                    minWidth: 50,
                     textAlign: 'center',
                   }}
                 >
@@ -615,6 +789,7 @@ function PksiList() {
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
+                    minWidth: 200,
                   }}
                 >
                   <TableSortLabel
@@ -626,12 +801,32 @@ function PksiList() {
                   </TableSortLabel>
                 </TableCell>
                 <TableCell 
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    minWidth: 150,
+                  }}
+                >
+                  Nama Aplikasi
+                </TableCell>
+                <TableCell 
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    minWidth: 150,
+                  }}
+                >
+                  SKPA
+                </TableCell>
+                <TableCell 
                   sortDirection={orderBy === 'jangkaWaktu' ? order : false}
                   sx={{ 
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
-                    width: 130,
+                    minWidth: 120,
                     textAlign: 'center',
                   }}
                 >
@@ -649,7 +844,7 @@ function PksiList() {
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
-                    width: 140,
+                    minWidth: 150,
                     textAlign: 'center',
                   }}
                 >
@@ -666,7 +861,7 @@ function PksiList() {
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
-                    width: 80,
+                    minWidth: 90,
                     textAlign: 'center',
                   }}
                 >
@@ -678,7 +873,7 @@ function PksiList() {
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
-                    width: 140,
+                    minWidth: 130,
                     textAlign: 'center',
                   }}
                 >
@@ -690,10 +885,38 @@ function PksiList() {
                     Status
                   </TableSortLabel>
                 </TableCell>
+                <TableCell 
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    minWidth: 100,
+                    textAlign: 'center',
+                  }}
+                >
+                  Aksi
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {paginatedPksi.map((item, index) => (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={9} sx={{ textAlign: 'center', py: 6 }}>
+                    <CircularProgress size={40} sx={{ color: '#DA251C' }} />
+                    <Typography variant="body2" sx={{ mt: 2, color: '#86868b' }}>
+                      Memuat data...
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : paginatedPksi.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} sx={{ textAlign: 'center', py: 6 }}>
+                    <Typography variant="body2" sx={{ color: '#86868b' }}>
+                      Tidak ada data PKSI ditemukan
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : paginatedPksi.map((item, index) => (
                 <TableRow 
                   key={item.id}
                   sx={{
@@ -716,22 +939,54 @@ function PksiList() {
                   >
                     {page * rowsPerPage + index + 1}
                   </TableCell>
-                  <TableCell sx={{ py: 2 }}>
+                  <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word' }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
                         fontWeight: 500,
                         color: '#1d1d1f',
                         lineHeight: 1.5,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
                       }}
                     >
                       {item.namaPksi}
                     </Typography>
+                  </TableCell>
+                  <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#1d1d1f',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      {item.namaAplikasi}
+                    </Typography>
+                  </TableCell>
+                  <TableCell sx={{ py: 2 }}>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {resolveSkpaCodes(item.picSatkerBA).length > 0 ? (
+                        resolveSkpaCodes(item.picSatkerBA).map((code, idx) => {
+                          const chipColor = getSkpaColor(code);
+                          return (
+                            <Chip
+                              key={idx}
+                              label={code}
+                              size="small"
+                              sx={{
+                                bgcolor: chipColor.bg,
+                                color: chipColor.text,
+                                fontWeight: 600,
+                                fontSize: '0.7rem',
+                                height: 24,
+                                borderRadius: '6px',
+                              }}
+                            />
+                          );
+                        })
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.85rem' }}>-</Typography>
+                      )}
+                    </Box>
                   </TableCell>
                   <TableCell sx={{ py: 2, textAlign: 'center' }}>
                     <Chip
@@ -815,6 +1070,40 @@ function PksiList() {
                       <ArrowDownIcon sx={{ fontSize: 14, color: getStatusColor(item.status) }} />
                     </Box>
                   </TableCell>
+                  <TableCell sx={{ py: 2, textAlign: 'center' }}>
+                    <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                      <Tooltip title="Edit PKSI">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditClick(item)}
+                          sx={{
+                            color: '#2563EB',
+                            bgcolor: 'rgba(37, 99, 235, 0.08)',
+                            '&:hover': {
+                              bgcolor: 'rgba(37, 99, 235, 0.15)',
+                            },
+                          }}
+                        >
+                          <EditIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Hapus PKSI">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeleteClick(item)}
+                          sx={{
+                            color: '#DC2626',
+                            bgcolor: 'rgba(220, 38, 38, 0.08)',
+                            '&:hover': {
+                              bgcolor: 'rgba(220, 38, 38, 0.15)',
+                            },
+                          }}
+                        >
+                          <DeleteIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -866,7 +1155,7 @@ function PksiList() {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25]}
           component="div"
-          count={filteredPksi.length}
+          count={totalElements}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
@@ -881,6 +1170,62 @@ function PksiList() {
           }}
         />
       </Paper>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={openDeleteDialog}
+        onClose={handleDeleteCancel}
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            maxWidth: 400,
+          },
+        }}
+      >
+        <DialogTitle sx={{ 
+          fontWeight: 600, 
+          color: '#1d1d1f',
+          pb: 1,
+        }}>
+          Konfirmasi Hapus
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: '#86868b' }}>
+            Apakah Anda yakin ingin menghapus PKSI{' '}
+            <strong style={{ color: '#1d1d1f' }}>
+              {pksiToDelete?.namaPksi}
+            </strong>
+            ? Tindakan ini tidak dapat dibatalkan.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 2.5, pt: 1 }}>
+          <Button
+            onClick={handleDeleteCancel}
+            disabled={isDeleting}
+            sx={{
+              color: '#86868b',
+              '&:hover': {
+                bgcolor: 'rgba(0, 0, 0, 0.04)',
+              },
+            }}
+          >
+            Batal
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            disabled={isDeleting}
+            variant="contained"
+            sx={{
+              bgcolor: '#DC2626',
+              '&:hover': {
+                bgcolor: '#B91C1C',
+              },
+            }}
+          >
+            {isDeleting ? 'Menghapus...' : 'Hapus'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -12,15 +12,28 @@ import {
   AccordionSummary,
   AccordionDetails,
   Divider,
+  IconButton,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemSecondaryAction,
+  Autocomplete,
+  CircularProgress,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
   Save as SaveIcon,
   ExpandMore as ExpandMoreIcon,
+  CloudUpload as CloudUploadIcon,
+  Delete as DeleteIcon,
+  InsertDriveFile as FileIcon,
 } from '@mui/icons-material';
+import { getAllAplikasi, type AplikasiData } from '../api/aplikasiApi';
 
 interface FormData {
   namaPksi: string;
+  aplikasiId: string;
   tanggalPengajuan: string;
   deskripsiPksi: string;
   mengapaPksiDiperlukan: string;
@@ -59,8 +72,11 @@ interface FormErrors {
 const AddPksi = () => {
   const navigate = useNavigate();
   const [expandedSection, setExpandedSection] = useState<string | false>('section1');
+  const [aplikasiList, setAplikasiList] = useState<AplikasiData[]>([]);
+  const [loadingAplikasi, setLoadingAplikasi] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     namaPksi: '',
+    aplikasiId: '',
     tanggalPengajuan: new Date().toISOString().split('T')[0],
     deskripsiPksi: '',
     mengapaPksiDiperlukan: '',
@@ -95,6 +111,44 @@ const AddPksi = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+
+  useEffect(() => {
+    const fetchAplikasi = async () => {
+      setLoadingAplikasi(true);
+      try {
+        const response = await getAllAplikasi();
+        setAplikasiList(response.data);
+      } catch (error) {
+        console.error('Failed to fetch aplikasi:', error);
+      } finally {
+        setLoadingAplikasi(false);
+      }
+    };
+    fetchAplikasi();
+  }, []);
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const newFiles = Array.from(files);
+      setUploadedFiles((prev) => [...prev, ...newFiles]);
+    }
+    // Reset input value to allow uploading same file again
+    event.target.value = '';
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
   const handleAccordionChange = (panel: string) => (_: React.SyntheticEvent, isExpanded: boolean) => {
     setExpandedSection(isExpanded ? panel : false);
@@ -206,6 +260,35 @@ const AddPksi = () => {
                 onChange={handleInputChange}
                 InputLabelProps={{ shrink: true, required: false }}
               />
+              <Autocomplete
+                options={aplikasiList}
+                getOptionLabel={(option) => option.nama_aplikasi || ''}
+                loading={loadingAplikasi}
+                value={aplikasiList.find(app => app.id === formData.aplikasiId) || null}
+                onChange={(_, newValue) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    aplikasiId: newValue?.id || ''
+                  }));
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Aplikasi"
+                    error={!!errors.aplikasiId}
+                    helperText={errors.aplikasiId}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loadingAplikasi ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+              />
             </Stack>
           </Box>
 
@@ -258,7 +341,7 @@ const AddPksi = () => {
                 />
                 <TextField
                   fullWidth
-                  label="1.4 PIC Satker sebagai Business Analyst"
+                  label="1.4 Satuan Kerja Pemilik Aplikasi"
                   name="picSatkerBA"
                   value={formData.picSatkerBA}
                   onChange={handleInputChange}
@@ -614,6 +697,94 @@ const AddPksi = () => {
                 rows={6}
                 placeholder="Jelaskan rencana pengelolaan PKSI..."
               />
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Upload File Section */}
+          <Accordion
+            expanded={expandedSection === 'section8'}
+            onChange={handleAccordionChange('section8')}
+            sx={{ boxShadow: 'none', border: '1px solid #e5e5e7' }}
+          >
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                8. Upload Dokumen T.0.1
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Stack spacing={2}>
+                <Box
+                  sx={{
+                    border: '2px dashed #e5e5e7',
+                    borderRadius: 2,
+                    p: 3,
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                      borderColor: '#DA251C',
+                      bgcolor: 'rgba(218, 37, 28, 0.04)',
+                    },
+                  }}
+                  onClick={() => document.getElementById('file-upload-input')?.click()}
+                >
+                  <input
+                    id="file-upload-input"
+                    type="file"
+                    multiple
+                    hidden
+                    onChange={handleFileUpload}
+                    accept=".pdf"
+                  />
+                  <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
+                  <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                    Klik untuk upload file
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
+                    atau drag & drop file di sini
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
+                    Format yang didukung: PDF
+                  </Typography>
+                </Box>
+
+                {uploadedFiles.length > 0 && (
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>
+                      File yang diupload ({uploadedFiles.length})
+                    </Typography>
+                    <List sx={{ bgcolor: '#f5f5f7', borderRadius: 1 }}>
+                      {uploadedFiles.map((file, index) => (
+                        <ListItem
+                          key={index}
+                          sx={{
+                            borderBottom: index < uploadedFiles.length - 1 ? '1px solid #e5e5e7' : 'none',
+                          }}
+                        >
+                          <ListItemIcon>
+                            <FileIcon sx={{ color: '#DA251C' }} />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={file.name}
+                            secondary={formatFileSize(file.size)}
+                            primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }}
+                            secondaryTypographyProps={{ sx: { color: '#86868b' } }}
+                          />
+                          <ListItemSecondaryAction>
+                            <IconButton
+                              edge="end"
+                              onClick={() => handleRemoveFile(index)}
+                              sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </ListItemSecondaryAction>
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Box>
+                )}
+              </Stack>
             </AccordionDetails>
           </Accordion>
 

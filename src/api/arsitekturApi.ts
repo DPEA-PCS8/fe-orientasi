@@ -10,6 +10,7 @@ export interface AplikasiResponse {
   id: string;
   kode_aplikasi: string;
   nama_aplikasi: string;
+  status_aplikasi?: string;
   created_at: string;
   updated_at: string;
 }

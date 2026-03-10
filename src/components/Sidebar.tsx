@@ -29,6 +29,7 @@ import {
   AccountTreeRounded,
   SecurityRounded,
   ManageAccountsRounded,
+  AppsRounded,
 } from '@mui/icons-material';
 import { isAdmin, getUserRoles } from '../api/authApi';
 import { getMyPermissions } from '../api/rolePermissionApi';
@@ -182,6 +183,12 @@ const Sidebar = () => {
             { label: 'Semua PKSI', icon: <ListAltRounded />, href: '/pksi-list', menuCode: 'PKSI_ALL' },
             { label: 'PKSI Disetujui', icon: <CheckCircleRounded />, href: '/pksi-disetujui', menuCode: 'PKSI_APPROVED' },
           ],
+        },
+        {
+          label: 'Aplikasi',
+          icon: <AppsRounded />,
+          href: '/aplikasi',
+          menuCode: 'APLIKASI',
         },
         {
           label: 'Master Data',
@@ -442,7 +449,7 @@ const Sidebar = () => {
           variant="caption"
           sx={{ color: '#86868b', display: 'block', textAlign: 'center', fontSize: '0.6875rem' }}
         >
-          © 2026 OJK Orientasi
+          © 2026 Departemen Pengembangan Aplikasi Otoritas Jasa Keuangan
         </Typography>
       </Box>
     </Drawer>

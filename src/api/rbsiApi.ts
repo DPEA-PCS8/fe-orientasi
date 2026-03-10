@@ -63,6 +63,53 @@ export async function getAllRbsi(): Promise<BaseApiResponse<RbsiResponse[]>> {
 }
 
 /**
+ * Get all inisiatifs (flattened from all RBSI → Programs → Inisiatifs)
+ */
+export interface FlattenedInisiatif {
+  id: string;
+  program_id: string;
+  program_nama: string;
+  nomor_program: string;
+  rbsi_id: string;
+  rbsi_periode: string;
+  tahun: number;
+  nomor_inisiatif: string;
+  nama_inisiatif: string;
+  label: string; // Combined label for display
+}
+
+export async function getAllInisiatifs(): Promise<FlattenedInisiatif[]> {
+  const response = await getAllRbsi();
+  const rbsiList = response.data || [];
+  const inisiatifs: FlattenedInisiatif[] = [];
+
+  for (const rbsi of rbsiList) {
+    if (rbsi.programs) {
+      for (const program of rbsi.programs) {
+        if (program.inisiatifs) {
+          for (const inisiatif of program.inisiatifs) {
+            inisiatifs.push({
+              id: inisiatif.id,
+              program_id: inisiatif.program_id,
+              program_nama: program.nama_program,
+              nomor_program: program.nomor_program,
+              rbsi_id: rbsi.id,
+              rbsi_periode: rbsi.periode,
+              tahun: inisiatif.tahun,
+              nomor_inisiatif: inisiatif.nomor_inisiatif,
+              nama_inisiatif: inisiatif.nama_inisiatif,
+              label: `${inisiatif.nomor_inisiatif} - ${inisiatif.nama_inisiatif} (${program.nomor_program})`,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return inisiatifs;
+}
+
+/**
  * Get RBSI by ID
  */
 export async function getRbsiById(id: string, tahun?: number): Promise<BaseApiResponse<RbsiResponse>> {
@@ -319,6 +366,54 @@ export async function updateInisiatif(
 
   if (!response.ok) {
     throw new Error(data.message || 'Failed to update inisiatif');
+  }
+
+  return data;
+}
+
+/**
+ * Delete Program (soft delete)
+ */
+export async function deleteProgram(programId: string): Promise<BaseApiResponse<null>> {
+  const token = getAuthToken();
+
+  const response = await fetch(`${BASE_URL}/rbsi/programs/${programId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'APIKey': API_KEY,
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to delete program');
+  }
+
+  return data;
+}
+
+/**
+ * Delete Inisiatif (soft delete)
+ */
+export async function deleteInisiatif(inisiatifId: string): Promise<BaseApiResponse<null>> {
+  const token = getAuthToken();
+
+  const response = await fetch(`${BASE_URL}/rbsi/inisiatifs/${inisiatifId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'APIKey': API_KEY,
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to delete inisiatif');
   }
 
   return data;
