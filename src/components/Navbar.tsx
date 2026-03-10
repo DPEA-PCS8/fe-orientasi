@@ -17,6 +17,7 @@ import {
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import OjkLogoPng from '../assets/OJK_Logo.png';
+import DpeaLogoPng from '../assets/DPEA_Logo.png';
 import { getUserInfo, clearAuthData } from '../api/authApi';
 
 const Navbar = () => {
@@ -61,11 +62,18 @@ const Navbar = () => {
       <Toolbar sx={{ minHeight: '64px !important', height: 64, px: 3 }}>
         {/* Logo & Brand */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <img 
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+            <img 
             src={OjkLogoPng} 
             alt="OJK Logo" 
             style={{ height: 40, width: 'auto' }} 
-          />
+            />
+            <img 
+              src={DpeaLogoPng} 
+              alt="DPEA Logo" 
+              style={{ height: 90, width: 'auto' }} 
+            />
+          </Box>
           <Box
             sx={{
               height: 36,
@@ -84,7 +92,7 @@ const Navbar = () => {
               whiteSpace: 'nowrap',
             }}
           >
-            Kertas Kerja PKSI
+            Kertas Kerja Digital DPEA
           </Typography>
         </Box>
 

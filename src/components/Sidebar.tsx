@@ -449,7 +449,7 @@ const Sidebar = () => {
           variant="caption"
           sx={{ color: '#86868b', display: 'block', textAlign: 'center', fontSize: '0.6875rem' }}
         >
-          © 2026 OJK Orientasi
+          © 2026 Departemen Pengembangan Aplikasi Otoritas Jasa Keuangan
         </Typography>
       </Box>
     </Drawer>
