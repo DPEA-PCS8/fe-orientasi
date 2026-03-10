@@ -1176,7 +1176,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                   variant="body2"
                   sx={{ fontWeight: 600, color: "#86868b" }}
                 >
-                  Tahap 1: Penyusunan Spesifikasi
+                  Penyusunan Spesifikasi Kebutuhan Aplikasi
                 </Typography>
                 <Box
                   sx={{
@@ -1210,7 +1210,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                   variant="body2"
                   sx={{ fontWeight: 600, color: "#86868b" }}
                 >
-                  Tahap 5: UAT
+                  Pengujian Aplikasi – User Acceptance Test (UAT)
                 </Typography>
                 <Box
                   sx={{
@@ -1244,7 +1244,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                   variant="body2"
                   sx={{ fontWeight: 600, color: "#86868b" }}
                 >
-                  Tahap 7: Go-Live
+                  Penggunaan Aplikasi (Go-Live)
                 </Typography>
                 <Box
                   sx={{

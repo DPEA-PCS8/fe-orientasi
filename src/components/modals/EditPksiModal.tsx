@@ -1088,7 +1088,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
                 <Stack spacing={2.5}>
                   <Box>
                     <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f', fontSize: '0.85rem' }}>
-                      Tahap 1: Penyusunan Spesifikasi Kebutuhan Aplikasi
+                      Penyusunan Spesifikasi Kebutuhan Aplikasi
                     </Typography>
                     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
                       <TextField fullWidth label="Awal Tahap" name="tahap1Awal" type="date" value={formData.tahap1Awal} onChange={handleInputChange} InputLabelProps={{ shrink: true }} size="small" />
@@ -1097,7 +1097,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
                   </Box>
                   <Box>
                     <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f', fontSize: '0.85rem' }}>
-                      Tahap 5: Pengujian Aplikasi – User Acceptance Test (UAT)
+                      Pengujian Aplikasi – User Acceptance Test (UAT)
                     </Typography>
                     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
                       <TextField fullWidth label="Awal Tahap" name="tahap5Awal" type="date" value={formData.tahap5Awal} onChange={handleInputChange} InputLabelProps={{ shrink: true }} size="small" />
@@ -1106,7 +1106,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
                   </Box>
                   <Box>
                     <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f', fontSize: '0.85rem' }}>
-                      Tahap 7: Penggunaan Aplikasi (Go-Live)
+                      Penggunaan Aplikasi (Go-Live)
                     </Typography>
                     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
                       <TextField fullWidth label="Awal Tahap" name="tahap7Awal" type="date" value={formData.tahap7Awal} onChange={handleInputChange} InputLabelProps={{ shrink: true }} size="small" />
