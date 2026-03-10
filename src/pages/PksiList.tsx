@@ -235,12 +235,9 @@ function PksiList() {
     setOpenEditModal(true);
   };
 
-  const handleEditSuccess = (updatedData: PksiData) => {
-    setPksiData(prev =>
-      prev.map(item =>
-        item.id === updatedData.id ? updatedData : item
-      )
-    );
+  const handleEditSuccess = () => {
+    // Refresh data after successful edit
+    fetchPksiData();
   };
 
   // Delete functionality
