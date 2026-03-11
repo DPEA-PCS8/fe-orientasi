@@ -1,0 +1,673 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Typography,
+  Box,
+  IconButton,
+  CircularProgress,
+  Chip,
+  Divider,
+  styled,
+} from '@mui/material';
+import {
+  Close as CloseIcon,
+  CalendarMonth as CalendarIcon,
+  Business as BusinessIcon,
+  Description as DescriptionIcon,
+  Flag as FlagIcon,
+  Assignment as AssignmentIcon,
+  Schedule as ScheduleIcon,
+  Settings as SettingsIcon,
+  Warning as WarningIcon,
+  AccountTree as AccountTreeIcon,
+} from '@mui/icons-material';
+import { getPksiDocumentById, type PksiDocumentData } from '../../api/pksiApi';
+import { getAllSkpa } from '../../api/skpaApi';
+
+// Glass Card Component
+const GlassCard = styled(Box)({
+  padding: '20px',
+  borderRadius: '16px',
+  backgroundColor: 'rgba(255, 255, 255, 0.6)',
+  backdropFilter: 'blur(20px)',
+  WebkitBackdropFilter: 'blur(20px)',
+  border: '1px solid rgba(255, 255, 255, 0.8)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+    transform: 'translateY(-2px)',
+  },
+});
+
+// Section Header Component
+const SectionHeader = styled(Box)({
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+  marginBottom: '16px',
+  paddingBottom: '12px',
+  borderBottom: '1px solid rgba(218, 37, 28, 0.1)',
+});
+
+// Info Row Component
+const InfoRow = styled(Box)({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '4px',
+  marginBottom: '12px',
+  '&:last-child': {
+    marginBottom: 0,
+  },
+});
+
+interface ViewPksiModalProps {
+  open: boolean;
+  onClose: () => void;
+  pksiId: string | null;
+}
+
+interface SkpaOption {
+  id: string;
+  kode_skpa: string;
+  nama_skpa: string;
+}
+
+const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId }) => {
+  const [pksiData, setPksiData] = useState<PksiDocumentData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [skpaMap, setSkpaMap] = useState<Map<string, SkpaOption>>(new Map());
+
+  // Fetch SKPA lookup data
+  useEffect(() => {
+    const fetchSkpaData = async () => {
+      try {
+        const response = await getAllSkpa();
+        const skpaLookup = new Map<string, SkpaOption>();
+        (response.data || []).forEach((skpa: SkpaOption) => {
+          skpaLookup.set(skpa.id, skpa);
+        });
+        setSkpaMap(skpaLookup);
+      } catch (error) {
+        console.error('Error fetching SKPA data:', error);
+      }
+    };
+    fetchSkpaData();
+  }, []);
+
+  // Fetch PKSI details
+  useEffect(() => {
+    const fetchPksiDetails = async () => {
+      if (!pksiId || !open) return;
+
+      setIsLoading(true);
+      try {
+        const data = await getPksiDocumentById(pksiId);
+        setPksiData(data);
+      } catch (error) {
+        console.error('Error fetching PKSI details:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPksiDetails();
+  }, [pksiId, open]);
+
+  const handleClose = () => {
+    setPksiData(null);
+    onClose();
+  };
+
+  // Helper to format date
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  };
+
+  // Helper to resolve SKPA codes
+  const resolveSkpaCodes = (picSatkerBA?: string): SkpaOption[] => {
+    if (!picSatkerBA) return [];
+    const guids = picSatkerBA.split(',').map(g => g.trim());
+    return guids.map(guid => skpaMap.get(guid)).filter(Boolean) as SkpaOption[];
+  };
+
+  // Get status styling
+  const getStatusStyle = (status?: string) => {
+    switch (status?.toLowerCase()) {
+      case 'disetujui':
+      case 'approved':
+        return { bgcolor: 'rgba(49, 162, 76, 0.1)', color: '#31A24C', label: 'Disetujui' };
+      case 'ditolak':
+      case 'rejected':
+      case 'tidak_disetujui':
+        return { bgcolor: 'rgba(255, 59, 48, 0.1)', color: '#FF3B30', label: 'Tidak Disetujui' };
+      default:
+        return { bgcolor: 'rgba(255, 149, 0, 0.1)', color: '#FF9500', label: 'Pending' };
+    }
+  };
+
+  const statusStyle = getStatusStyle(pksiData?.status);
+
+  return (
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="lg"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: '24px',
+          maxHeight: '90vh',
+          bgcolor: 'rgba(255, 255, 255, 0.75)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1) inset',
+        },
+      }}
+      slotProps={{
+        backdrop: {
+          sx: {
+            bgcolor: 'rgba(0, 0, 0, 0.3)',
+            backdropFilter: 'blur(8px)',
+          },
+        },
+      }}
+    >
+      {/* Header */}
+      <DialogTitle
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+          pb: 2,
+          bgcolor: 'rgba(255, 255, 255, 0.85)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box
+            sx={{
+              width: 48,
+              height: 48,
+              borderRadius: '14px',
+              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 14px rgba(218, 37, 28, 0.3)',
+            }}
+          >
+            <DescriptionIcon sx={{ color: 'white', fontSize: 24 }} />
+          </Box>
+          <Box>
+            <Typography
+              variant="h6"
+              sx={{ fontWeight: 700, color: '#1d1d1f', letterSpacing: '-0.02em' }}
+            >
+              Detail PKSI
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#86868b' }}>
+              Informasi lengkap dokumen PKSI
+            </Typography>
+          </Box>
+        </Box>
+        <IconButton
+          onClick={handleClose}
+          size="small"
+          sx={{
+            color: '#86868b',
+            bgcolor: 'rgba(0, 0, 0, 0.04)',
+            '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.08)' },
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+
+      {/* Content */}
+      <DialogContent
+        sx={{
+          pt: 3,
+          pb: 4,
+          background: 'linear-gradient(135deg, rgba(245, 245, 247, 0.9) 0%, rgba(250, 250, 250, 0.95) 100%)',
+        }}
+      >
+        {isLoading ? (
+          <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
+            <CircularProgress sx={{ color: '#DA251C' }} />
+          </Box>
+        ) : pksiData ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 2 }}>
+            {/* Header Info Card */}
+            <GlassCard>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                <Box>
+                  <Typography
+                    variant="h5"
+                    sx={{ fontWeight: 700, color: '#1d1d1f', letterSpacing: '-0.02em', mb: 1 }}
+                  >
+                    {pksiData.nama_pksi}
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CalendarIcon sx={{ fontSize: 16, color: '#86868b' }} />
+                    <Typography variant="body2" sx={{ color: '#86868b' }}>
+                      Diajukan: {formatDate(pksiData.tanggal_pengajuan || pksiData.created_at)}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Chip
+                  label={statusStyle.label}
+                  sx={{
+                    bgcolor: statusStyle.bgcolor,
+                    color: statusStyle.color,
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    px: 1,
+                    borderRadius: '8px',
+                  }}
+                />
+              </Box>
+
+              <Divider sx={{ my: 2, borderColor: 'rgba(0, 0, 0, 0.06)' }} />
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Nama Aplikasi
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500, color: '#1d1d1f' }}>
+                    {pksiData.nama_aplikasi || '-'}
+                  </Typography>
+                </InfoRow>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Pengaju
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500, color: '#1d1d1f' }}>
+                    {pksiData.user_name || '-'}
+                  </Typography>
+                </InfoRow>
+              </Box>
+
+              {/* SKPA Chips */}
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 1 }}>
+                  Satuan Kerja Pemilik Aplikasi
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {resolveSkpaCodes(pksiData.pic_satker_ba).length > 0 ? (
+                    resolveSkpaCodes(pksiData.pic_satker_ba).map((skpa, idx) => (
+                      <Chip
+                        key={idx}
+                        label={`${skpa.kode_skpa} - ${skpa.nama_skpa}`}
+                        size="small"
+                        sx={{
+                          bgcolor: '#DA251C',
+                          color: 'white',
+                          fontWeight: 500,
+                          fontSize: '0.75rem',
+                          borderRadius: '6px',
+                        }}
+                      />
+                    ))
+                  ) : (
+                    <Typography variant="body2" sx={{ color: '#86868b' }}>-</Typography>
+                  )}
+                </Box>
+              </Box>
+
+              {/* Program Inisiatif RBSI */}
+              {pksiData.program_inisiatif_rbsi && (
+                <Box sx={{ 
+                  mt: 2, 
+                  p: 2, 
+                  borderRadius: '12px', 
+                  bgcolor: 'rgba(218, 37, 28, 0.03)',
+                  border: '1px solid rgba(218, 37, 28, 0.1)',
+                }}>
+                  <Typography variant="caption" sx={{ color: '#DA251C', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 1 }}>
+                    Program Inisiatif RBSI
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500, color: '#1d1d1f' }}>
+                    {pksiData.program_inisiatif_rbsi}
+                  </Typography>
+                </Box>
+              )}
+            </GlassCard>
+
+            {/* Section 1: Pendahuluan */}
+            <GlassCard>
+              <SectionHeader>
+                <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(218, 37, 28, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <AssignmentIcon sx={{ color: '#DA251C', fontSize: 20 }} />
+                </Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                  1. Pendahuluan
+                </Typography>
+              </SectionHeader>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>1.1 Deskripsi PKSI</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
+                    {pksiData.deskripsi_pksi || '-'}
+                  </Typography>
+                </InfoRow>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>1.2 Mengapa PKSI Diperlukan</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
+                    {pksiData.mengapa_pksi_diperlukan || '-'}
+                  </Typography>
+                </InfoRow>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>1.3 Kapan Harus Diselesaikan</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
+                    {pksiData.kapan_harus_diselesaikan || '-'}
+                  </Typography>
+                </InfoRow>
+              </Box>
+            </GlassCard>
+
+            {/* Section 2: Tujuan dan Kegunaan */}
+            <GlassCard>
+              <SectionHeader>
+                <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(37, 99, 235, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <FlagIcon sx={{ color: '#2563EB', fontSize: 20 }} />
+                </Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                  2. Tujuan dan Kegunaan PKSI
+                </Typography>
+              </SectionHeader>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>2.1 Kegunaan PKSI</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
+                    {pksiData.kegunaan_pksi || '-'}
+                  </Typography>
+                </InfoRow>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>2.2 Tujuan PKSI</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
+                    {pksiData.tujuan_pksi || '-'}
+                  </Typography>
+                </InfoRow>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>2.3 Target PKSI</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
+                    {pksiData.target_pksi || '-'}
+                  </Typography>
+                </InfoRow>
+              </Box>
+            </GlassCard>
+
+            {/* Section 3: Cakupan PKSI */}
+            <GlassCard>
+              <SectionHeader>
+                <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(5, 150, 105, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <AccountTreeIcon sx={{ color: '#059669', fontSize: 20 }} />
+                </Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                  3. Cakupan PKSI
+                </Typography>
+              </SectionHeader>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>3.1 Ruang Lingkup</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
+                    {pksiData.ruang_lingkup || '-'}
+                  </Typography>
+                </InfoRow>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>3.2 Batasan PKSI</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
+                    {pksiData.batasan_pksi || '-'}
+                  </Typography>
+                </InfoRow>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>3.3 Hubungan dengan Sistem Lain</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
+                    {pksiData.hubungan_sistem_lain || '-'}
+                  </Typography>
+                </InfoRow>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>3.4 Asumsi</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
+                    {pksiData.asumsi || '-'}
+                  </Typography>
+                </InfoRow>
+              </Box>
+            </GlassCard>
+
+            {/* Section 4: Risiko dan Batasan */}
+            <GlassCard>
+              <SectionHeader>
+                <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(220, 38, 38, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <WarningIcon sx={{ color: '#DC2626', fontSize: 20 }} />
+                </Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                  4. Risiko dan Batasan PKSI
+                </Typography>
+              </SectionHeader>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>4.1 Batasan Desain</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
+                    {pksiData.batasan_desain || '-'}
+                  </Typography>
+                </InfoRow>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>4.2 Risiko Bisnis</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
+                    {pksiData.risiko_bisnis || '-'}
+                  </Typography>
+                </InfoRow>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>4.3 Risiko Sukses PKSI</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
+                    {pksiData.risiko_sukses_pksi || '-'}
+                  </Typography>
+                </InfoRow>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>4.4 Pengendalian Risiko</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
+                    {pksiData.pengendalian_risiko || '-'}
+                  </Typography>
+                </InfoRow>
+              </Box>
+            </GlassCard>
+
+            {/* Section 5: Gambaran Umum Aplikasi */}
+            <GlassCard>
+              <SectionHeader>
+                <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(124, 58, 237, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <SettingsIcon sx={{ color: '#7C3AED', fontSize: 20 }} />
+                </Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                  5. Gambaran Umum Aplikasi
+                </Typography>
+              </SectionHeader>
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>5.1 Pengelola Aplikasi</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
+                    {pksiData.pengelola_aplikasi || '-'}
+                  </Typography>
+                </InfoRow>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>5.2 Pengguna Aplikasi</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
+                    {pksiData.pengguna_aplikasi || '-'}
+                  </Typography>
+                </InfoRow>
+              </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>5.3 Fungsi Aplikasi</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
+                    {pksiData.fungsi_aplikasi || '-'}
+                  </Typography>
+                </InfoRow>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>5.4 Informasi yang Dikelola</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
+                    {pksiData.informasi_yang_dikelola || '-'}
+                  </Typography>
+                </InfoRow>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>5.5 Dasar Peraturan</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
+                    {pksiData.dasar_peraturan || '-'}
+                  </Typography>
+                </InfoRow>
+              </Box>
+            </GlassCard>
+
+            {/* Section 6: Jadwal Pelaksanaan */}
+            <GlassCard>
+              <SectionHeader>
+                <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(217, 119, 6, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ScheduleIcon sx={{ color: '#D97706', fontSize: 20 }} />
+                </Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                  6. Usulan Jadwal Pelaksanaan
+                </Typography>
+              </SectionHeader>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {/* Tahap 1 */}
+                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(218, 37, 28, 0.03)', border: '1px solid rgba(218, 37, 28, 0.1)' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#DA251C', mb: 1.5 }}>
+                    Penyusunan Spesifikasi Kebutuhan Aplikasi
+                  </Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Awal</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(pksiData.tahap1_awal)}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Akhir</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(pksiData.tahap1_akhir)}</Typography>
+                    </InfoRow>
+                  </Box>
+                </Box>
+
+                {/* Tahap 5 */}
+                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(37, 99, 235, 0.03)', border: '1px solid rgba(37, 99, 235, 0.1)' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#2563EB', mb: 1.5 }}>
+                    Pengujian Aplikasi – User Acceptance Test (UAT)
+                  </Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Awal</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(pksiData.tahap5_awal)}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Akhir</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(pksiData.tahap5_akhir)}</Typography>
+                    </InfoRow>
+                  </Box>
+                </Box>
+
+                {/* Tahap 7 */}
+                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(5, 150, 105, 0.03)', border: '1px solid rgba(5, 150, 105, 0.1)' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#059669', mb: 1.5 }}>
+                    Penggunaan Aplikasi (Go-Live)
+                  </Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Awal</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(pksiData.tahap7_awal)}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Akhir</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(pksiData.tahap7_akhir)}</Typography>
+                    </InfoRow>
+                  </Box>
+                </Box>
+              </Box>
+            </GlassCard>
+
+            {/* Section 7: Rencana Pengelolaan */}
+            <GlassCard>
+              <SectionHeader>
+                <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(8, 145, 178, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <BusinessIcon sx={{ color: '#0891B2', fontSize: 20 }} />
+                </Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                  7. Rencana Pengelolaan
+                </Typography>
+              </SectionHeader>
+
+              <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
+                {pksiData.rencana_pengelolaan || '-'}
+              </Typography>
+            </GlassCard>
+
+            {/* Metadata */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, pt: 1 }}>
+              <Typography variant="caption" sx={{ color: '#86868b' }}>
+                Dibuat: {formatDate(pksiData.created_at)}
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#86868b' }}>
+                Diperbarui: {formatDate(pksiData.updated_at)}
+              </Typography>
+            </Box>
+          </Box>
+        ) : (
+          <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
+            <Typography variant="body2" sx={{ color: '#86868b' }}>
+              Data tidak ditemukan
+            </Typography>
+          </Box>
+        )}
+      </DialogContent>
+
+      {/* Footer */}
+      <DialogActions
+        sx={{
+          p: 2.5,
+          borderTop: '1px solid rgba(0, 0, 0, 0.06)',
+          bgcolor: 'rgba(255, 255, 255, 0.85)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+        }}
+      >
+        <Button
+          variant="outlined"
+          onClick={handleClose}
+          sx={{
+            borderColor: 'rgba(0, 0, 0, 0.12)',
+            color: '#86868b',
+            borderRadius: 2,
+            px: 4,
+            fontWeight: 500,
+            '&:hover': {
+              borderColor: 'rgba(0, 0, 0, 0.24)',
+              bgcolor: 'rgba(0, 0, 0, 0.02)',
+            },
+          }}
+        >
+          Tutup
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+export default ViewPksiModal;

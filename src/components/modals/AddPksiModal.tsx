@@ -21,6 +21,7 @@ import {
   ListItemSecondaryAction,
   Autocomplete,
   Chip,
+  styled,
 } from "@mui/material";
 import {
   Close as CloseIcon,
@@ -44,6 +45,41 @@ import {
   type RbsiProgramResponse,
   type RbsiInisiatifResponse,
 } from "../../api/rbsiApi";
+
+// Styled TextField with glass effect
+const GlassTextField = styled(TextField)({
+  '& .MuiOutlinedInput-root': {
+    borderRadius: '12px',
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    backdropFilter: 'blur(10px)',
+    transition: 'all 0.2s ease-in-out',
+    '& fieldset': {
+      borderColor: 'rgba(0, 0, 0, 0.08)',
+      transition: 'all 0.2s ease-in-out',
+    },
+    '&:hover fieldset': {
+      borderColor: 'rgba(0, 0, 0, 0.15)',
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: '#DA251C',
+      borderWidth: '1.5px',
+    },
+    '&.Mui-focused': {
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      boxShadow: '0 4px 20px rgba(218, 37, 28, 0.1)',
+    },
+  },
+  '& .MuiInputLabel-root': {
+    color: '#86868b',
+    fontWeight: 500,
+    '&.Mui-focused': {
+      color: '#DA251C',
+    },
+  },
+  '& .MuiOutlinedInput-input': {
+    color: '#1d1d1f',
+  },
+});
 
 interface SkpaOption {
   id: string;
@@ -374,9 +410,22 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: "16px",
+          borderRadius: "20px",
           maxHeight: "90vh",
+          bgcolor: 'rgba(255, 255, 255, 0.75)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1) inset',
         },
+      }}
+      slotProps={{
+        backdrop: {
+          sx: {
+            bgcolor: 'rgba(0, 0, 0, 0.3)',
+            backdropFilter: 'blur(8px)',
+          }
+        }
       }}
     >
       <DialogTitle
@@ -412,16 +461,35 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
       <DialogContent
         sx={{
           pt: 3,
-          background: "linear-gradient(180deg, #f5f5f7 0%, #fafafa 100%)",
+          pb: 4,
+          background: "linear-gradient(135deg, rgba(245, 245, 247, 0.9) 0%, rgba(250, 250, 250, 0.95) 100%)",
         }}
       >
         {successMessage && (
-          <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }}>
+          <Alert 
+            severity="success" 
+            sx={{ 
+              mb: 3, 
+              borderRadius: 3,
+              bgcolor: 'rgba(76, 175, 80, 0.1)',
+              border: '1px solid rgba(76, 175, 80, 0.3)',
+              backdropFilter: 'blur(10px)',
+            }}
+          >
             {successMessage}
           </Alert>
         )}
         {errorMessage && (
-          <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+          <Alert 
+            severity="error" 
+            sx={{ 
+              mb: 3, 
+              borderRadius: 3,
+              bgcolor: 'rgba(244, 67, 54, 0.1)',
+              border: '1px solid rgba(244, 67, 54, 0.3)',
+              backdropFilter: 'blur(10px)',
+            }}
+          >
             {errorMessage}
           </Alert>
         )}
@@ -430,30 +498,33 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
           {/* Informasi Dasar */}
           <Box
             sx={{
-              p: 2.5,
-              mb: 1,
-              borderRadius: "16px",
-              bgcolor: "rgba(255, 255, 255, 0.72)",
+              p: 3,
+              borderRadius: "20px",
+              bgcolor: "rgba(255, 255, 255, 0.6)",
               backdropFilter: "blur(20px)",
               WebkitBackdropFilter: "blur(20px)",
-              border: "1px solid rgba(255, 255, 255, 0.5)",
-              boxShadow:
-                "0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)",
+              border: "1px solid rgba(255, 255, 255, 0.8)",
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)",
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: "0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)",
+              },
             }}
           >
             <Typography
               variant="subtitle1"
               sx={{
-                mb: 2,
+                mb: 2.5,
                 fontWeight: 600,
                 color: "#1d1d1f",
                 letterSpacing: "-0.01em",
+                fontSize: '1rem',
               }}
             >
               Informasi Dasar
             </Typography>
-            <Stack spacing={2}>
-              <TextField
+            <Stack spacing={2.5}>
+              <GlassTextField
                 fullWidth
                 label="Nama PKSI"
                 name="namaPksi"
@@ -481,52 +552,60 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                   }));
                 }}
                 renderInput={(params) => (
-                  <TextField {...params} label="Nama Aplikasi" size="small" />
+                  <GlassTextField {...params} label="Nama Aplikasi" size="small" />
                 )}
                 size="small"
               />
 
               {/* RBSI Cascading Selection */}
-              <Typography
-                variant="subtitle2"
-                sx={{ mt: 2, mb: 1, fontWeight: 600, color: "#666" }}
-              >
-                Program Inisiatif RBSI
-              </Typography>
-              <Autocomplete
-                fullWidth
-                options={rbsiOptions}
-                getOptionLabel={(option) => option.periode}
-                value={selectedRbsi}
-                onChange={async (_, newValue) => {
-                  setSelectedRbsi(newValue);
-                  setSelectedProgram(null);
-                  setSelectedInisiatif(null);
-                  setProgramOptions([]);
-                  setFormData((prev) => ({
-                    ...prev,
-                    programInisiatifRBSI: "",
-                  }));
+              <Box sx={{ 
+                mt: 2, 
+                p: 2, 
+                borderRadius: '12px', 
+                bgcolor: 'rgba(218, 37, 28, 0.03)',
+                border: '1px solid rgba(218, 37, 28, 0.1)',
+              }}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{ mb: 2, fontWeight: 600, color: "#DA251C", fontSize: '0.85rem' }}
+                >
+                  Program Inisiatif RBSI
+                </Typography>
+                <Stack spacing={2}>
+                  <Autocomplete
+                    fullWidth
+                    options={rbsiOptions}
+                    getOptionLabel={(option) => option.periode}
+                    value={selectedRbsi}
+                    onChange={async (_, newValue) => {
+                      setSelectedRbsi(newValue);
+                      setSelectedProgram(null);
+                      setSelectedInisiatif(null);
+                      setProgramOptions([]);
+                      setFormData((prev) => ({
+                        ...prev,
+                        programInisiatifRBSI: "",
+                      }));
 
-                  if (newValue) {
-                    try {
-                      const response = await getRbsiById(newValue.id);
-                      setProgramOptions(response.data.programs || []);
-                    } catch (error) {
-                      console.error("Error fetching RBSI programs:", error);
-                    }
-                  }
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Pilih RBSI (Periode)"
+                      if (newValue) {
+                        try {
+                          const response = await getRbsiById(newValue.id);
+                          setProgramOptions(response.data.programs || []);
+                        } catch (error) {
+                          console.error("Error fetching RBSI programs:", error);
+                        }
+                      }
+                    }}
+                    renderInput={(params) => (
+                      <GlassTextField
+                        {...params}
+                        label="Pilih RBSI (Periode)"
+                        size="small"
+                      />
+                    )}
                     size="small"
                   />
-                )}
-                size="small"
-              />
-              <Autocomplete
+                  <Autocomplete
                 fullWidth
                 options={programOptions}
                 getOptionLabel={(option) =>
@@ -542,7 +621,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                   }));
                 }}
                 renderInput={(params) => (
-                  <TextField {...params} label="Pilih Program" size="small" />
+                  <GlassTextField {...params} label="Pilih Program" size="small" />
                 )}
                 disabled={!selectedRbsi}
                 size="small"
@@ -570,13 +649,15 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                   }
                 }}
                 renderInput={(params) => (
-                  <TextField {...params} label="Pilih Inisiatif" size="small" />
+                  <GlassTextField {...params} label="Pilih Inisiatif" size="small" />
                 )}
                 disabled={!selectedProgram}
                 size="small"
               />
+                </Stack>
+              </Box>
 
-              <TextField
+              <GlassTextField
                 fullWidth
                 label="Tanggal Pengajuan"
                 name="tanggalPengajuan"
@@ -594,40 +675,44 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
             expanded={expandedSection === "section1"}
             onChange={handleAccordionChange("section1")}
             sx={{
-              boxShadow: "none",
-              border: "none",
-              borderRadius: "16px !important",
-              bgcolor: "rgba(255, 255, 255, 0.72)",
+              mt: expandedSection === "section1" ? 1 : 0,
+              borderRadius: "20px !important",
+              bgcolor: "rgba(255, 255, 255, 0.6)",
               backdropFilter: "blur(20px)",
               WebkitBackdropFilter: "blur(20px)",
-              boxShadow:
-                "0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)",
+              border: "1px solid rgba(255, 255, 255, 0.8)",
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)",
               "&::before": { display: "none" },
               "&.Mui-expanded": { margin: "0 !important" },
-              my: 0.5,
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: "0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)",
+              },
             }}
           >
             <AccordionSummary
-              expandIcon={<ExpandMoreIcon sx={{ color: "#86868b" }} />}
+              expandIcon={<ExpandMoreIcon sx={{ color: "#86868b", transition: 'transform 0.3s ease' }} />}
               sx={{
-                borderRadius: "16px",
-                "&.Mui-expanded": { minHeight: 48 },
+                borderRadius: "20px",
+                px: 2.5,
+                "&.Mui-expanded": { minHeight: 56 },
+                '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
               }}
             >
               <Typography
                 sx={{
                   fontWeight: 600,
                   color: "#1d1d1f",
-                  fontSize: "0.9rem",
+                  fontSize: "0.95rem",
                   letterSpacing: "-0.01em",
                 }}
               >
                 1. Pendahuluan
               </Typography>
             </AccordionSummary>
-            <AccordionDetails>
-              <Stack spacing={2}>
-                <TextField
+            <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+              <Stack spacing={2.5}>
+                <GlassTextField
                   fullWidth
                   label="1.1 Deskripsi PKSI"
                   name="deskripsiPksi"
@@ -639,7 +724,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                   helperText={errors.deskripsiPksi}
                   size="small"
                 />
-                <TextField
+                <GlassTextField
                   fullWidth
                   label="1.2 Mengapa PKSI Diperlukan"
                   name="mengapaPksiDiperlukan"
@@ -726,8 +811,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
             expanded={expandedSection === "section2"}
             onChange={handleAccordionChange("section2")}
             sx={{
-              boxShadow: "none",
-              border: "none",
+              mt: expandedSection === "section2" ? 1 : 0,
               borderRadius: "16px !important",
               bgcolor: "rgba(255, 255, 255, 0.72)",
               backdropFilter: "blur(20px)",
@@ -801,8 +885,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
             expanded={expandedSection === "section3"}
             onChange={handleAccordionChange("section3")}
             sx={{
-              boxShadow: "none",
-              border: "none",
+              mt: expandedSection === "section3" ? 1 : 0,
               borderRadius: "16px !important",
               bgcolor: "rgba(255, 255, 255, 0.72)",
               backdropFilter: "blur(20px)",
@@ -882,8 +965,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
             expanded={expandedSection === "section4"}
             onChange={handleAccordionChange("section4")}
             sx={{
-              boxShadow: "none",
-              border: "none",
+              mt: expandedSection === "section4" ? 1 : 0,
               borderRadius: "16px !important",
               bgcolor: "rgba(255, 255, 255, 0.72)",
               backdropFilter: "blur(20px)",
@@ -963,8 +1045,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
             expanded={expandedSection === "section5"}
             onChange={handleAccordionChange("section5")}
             sx={{
-              boxShadow: "none",
-              border: "none",
+              mt: expandedSection === "section5" ? 1 : 0,
               borderRadius: "16px !important",
               bgcolor: "rgba(255, 255, 255, 0.72)",
               backdropFilter: "blur(20px)",
@@ -1060,8 +1141,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
             expanded={expandedSection === "section6"}
             onChange={handleAccordionChange("section6")}
             sx={{
-              boxShadow: "none",
-              border: "none",
+              mt: expandedSection === "section6" ? 1 : 0,
               borderRadius: "16px !important",
               bgcolor: "rgba(255, 255, 255, 0.72)",
               backdropFilter: "blur(20px)",
@@ -1096,7 +1176,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                   variant="body2"
                   sx={{ fontWeight: 600, color: "#86868b" }}
                 >
-                  Tahap 1: Penyusunan Spesifikasi
+                  Penyusunan Spesifikasi Kebutuhan Aplikasi
                 </Typography>
                 <Box
                   sx={{
@@ -1130,7 +1210,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                   variant="body2"
                   sx={{ fontWeight: 600, color: "#86868b" }}
                 >
-                  Tahap 5: UAT
+                  Pengujian Aplikasi – User Acceptance Test (UAT)
                 </Typography>
                 <Box
                   sx={{
@@ -1164,7 +1244,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                   variant="body2"
                   sx={{ fontWeight: 600, color: "#86868b" }}
                 >
-                  Tahap 7: Go-Live
+                  Penggunaan Aplikasi (Go-Live)
                 </Typography>
                 <Box
                   sx={{
@@ -1203,8 +1283,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
             expanded={expandedSection === "section7"}
             onChange={handleAccordionChange("section7")}
             sx={{
-              boxShadow: "none",
-              border: "none",
+              mt: expandedSection === "section7" ? 1 : 0,
               borderRadius: "16px !important",
               bgcolor: "rgba(255, 255, 255, 0.72)",
               backdropFilter: "blur(20px)",
@@ -1252,8 +1331,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
             expanded={expandedSection === "section8"}
             onChange={handleAccordionChange("section8")}
             sx={{
-              boxShadow: "none",
-              border: "none",
+              mt: expandedSection === "section8" ? 1 : 0,
               borderRadius: "16px !important",
               bgcolor: "rgba(255, 255, 255, 0.72)",
               backdropFilter: "blur(20px)",
@@ -1430,7 +1508,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
             },
             "&.Mui-disabled": {
               background: "#e5e5e7",
-              boxShadow: "none",
+              
             },
           }}
         >
