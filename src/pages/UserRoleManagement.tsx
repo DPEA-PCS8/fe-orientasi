@@ -208,6 +208,7 @@ export default function UserRoleManagement() {
               <TableCell><strong>Nama Lengkap</strong></TableCell>
               <TableCell><strong>Email</strong></TableCell>
               <TableCell><strong>Department</strong></TableCell>
+              <TableCell><strong>Last Login</strong></TableCell>
               <TableCell><strong>Roles</strong></TableCell>
               <TableCell><strong>Status</strong></TableCell>
               <TableCell align="center"><strong>Actions</strong></TableCell>
@@ -216,7 +217,7 @@ export default function UserRoleManagement() {
           <TableBody>
             {filteredUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} align="center">
+                <TableCell colSpan={8} align="center">
                   <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
                     {searchTerm ? 'Tidak ada user yang ditemukan' : 'Belum ada data user'}
                   </Typography>
@@ -229,6 +230,17 @@ export default function UserRoleManagement() {
                   <TableCell>{user.fullName}</TableCell>
                   <TableCell>{user.email || '-'}</TableCell>
                   <TableCell>{user.department || '-'}</TableCell>
+                  <TableCell>
+                    {user.lastLoginAt
+                      ? new Date(user.lastLoginAt).toLocaleString('id-ID', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : '-'}
+                  </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                       {user.roles.length > 0 ? (
