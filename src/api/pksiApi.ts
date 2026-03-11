@@ -1,7 +1,5 @@
-import { getAuthToken, validateTokenClaims, debugToken } from './authApi';
-import type { BaseApiResponse } from './rbsiApi';
+import { apiRequest, type BaseApiResponse } from './apiClient';
 
-const API_KEY = 'da39b92f-a1b8-46d5-a10c-d08b1cc92218';
 const BASE_URL = '/api';
 
 // ==================== RESPONSE TYPES ====================
@@ -118,57 +116,6 @@ export interface PksiDocumentRequest {
 
 export interface UpdateStatusRequest {
   status: 'PENDING' | 'DISETUJUI' | 'DITOLAK' | 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'REVISION';
-}
-
-// ==================== HELPER ====================
-
-async function apiRequest<T>(
-  url: string,
-  method: string,
-  body?: unknown
-): Promise<BaseApiResponse<T>> {
-  const token = getAuthToken();
-
-  // Debug logging - call debugToken for detailed info
-  debugToken();
-
-  if (!token) {
-    throw new Error('Sesi login telah berakhir. Silakan login ulang.');
-  }
-
-  // Validate token claims before making request
-  const tokenValidation = validateTokenClaims();
-  if (!tokenValidation.valid) {
-    console.error('Token validation failed:', tokenValidation.missingClaims);
-    throw new Error(`Token tidak valid: ${tokenValidation.missingClaims.join(', ')}. Silakan login ulang.`);
-  }
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'APIKey': API_KEY,
-    'Authorization': `Bearer ${token}`,
-  };
-
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  console.log('Response status:', response.status);
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    console.log('Error response:', data);
-    // Handle 401 Unauthorized - token expired or invalid
-    if (response.status === 401) {
-      throw new Error('Sesi login telah berakhir atau tidak valid. Silakan login ulang.');
-    }
-    throw new Error(data.message || 'Request failed');
-  }
-
-  return data;
 }
 
 // ==================== PKSI API ====================

@@ -129,6 +129,22 @@ export function clearAuthData(): void {
 }
 
 /**
+ * Handle logout and redirect to login page
+ * This is called when token expires (401) or user manually logs out
+ */
+export function handleLogout(message?: string): void {
+  clearAuthData();
+  
+  // Store optional message to show after redirect
+  if (message) {
+    sessionStorage.setItem('logout_message', message);
+  }
+  
+  // Redirect to login page
+  window.location.href = '/login';
+}
+
+/**
  * Check if user is authenticated
  */
 export function isAuthenticated(): boolean {

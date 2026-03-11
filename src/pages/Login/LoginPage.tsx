@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -39,6 +39,15 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [showNoRoleWarning, setShowNoRoleWarning] = useState(false);
+
+  // Check for logout message from auto-logout (token expired)
+  useEffect(() => {
+    const logoutMessage = sessionStorage.getItem('logout_message');
+    if (logoutMessage) {
+      setLoginError(logoutMessage);
+      sessionStorage.removeItem('logout_message');
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
