@@ -22,6 +22,7 @@ import AplikasiListPage from './pages/AplikasiListPage';
 import AplikasiDetailPage from './pages/AplikasiDetailPage';
 import AplikasiFormPage from './pages/AplikasiFormPage';
 import AuditLogPage from './pages/AuditLogPage';
+import HistorisAplikasiPage from './pages/HistorisAplikasiPage';
 
 function App() {
   return (
@@ -204,6 +205,17 @@ function App() {
             <ProtectedRoute requireMenuPermission='APLIKASI'>
               <Layout>
                 <AplikasiFormPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        {/* Historis Aplikasi Route */}
+        <Route
+          path="/historis-aplikasi"
+          element={
+            <ProtectedRoute requireMenuPermission='HISTORIS_APLIKASI'>
+              <Layout>
+                <HistorisAplikasiPage />
               </Layout>
             </ProtectedRoute>
           }

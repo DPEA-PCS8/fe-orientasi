@@ -189,6 +189,10 @@ const Sidebar = () => {
           icon: <AppsRounded />,
           href: '/aplikasi',
           menuCode: 'APLIKASI',
+          subItems: [
+            { label: 'Daftar Aplikasi', icon: <AppsRounded />, href: '/aplikasi', menuCode: 'APLIKASI' },
+            { label: 'Historis Aplikasi', icon: <HistoryRounded />, href: '/historis-aplikasi', menuCode: 'HISTORIS_APLIKASI' },
+          ],
         },
         {
           label: 'Master Data',
