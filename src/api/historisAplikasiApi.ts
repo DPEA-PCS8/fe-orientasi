@@ -106,6 +106,9 @@ export interface UpdateSnapshotRequest {
   akses?: string;
   proses_data_pribadi?: boolean;
   keterangan_historis?: string;
+  // Optional changelog fields - if provided, creates a changelog entry
+  changelog_tanggal?: string;
+  changelog_keterangan?: string;
 }
 
 // ==================== HELPER ====================
@@ -251,6 +254,13 @@ export async function addChangelog(snapshotId: string, request: ChangelogRequest
  */
 export async function getChangelogsBySnapshotId(snapshotId: string): Promise<BaseApiResponse<ChangelogInfo[]>> {
   return apiRequest<ChangelogInfo[]>(`${BASE_URL}/arsitektur/historis-aplikasi/${snapshotId}/changelog`, 'GET');
+}
+
+/**
+ * Delete a changelog entry
+ */
+export async function deleteChangelog(changelogId: string): Promise<BaseApiResponse<null>> {
+  return apiRequest<null>(`${BASE_URL}/arsitektur/historis-aplikasi/changelog/${changelogId}`, 'DELETE');
 }
 
 /**
