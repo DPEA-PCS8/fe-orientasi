@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -17,6 +17,8 @@ import {
   IconButton,
   Chip,
   styled,
+  Popover,
+  MenuItem,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -174,7 +176,38 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
   const [selectedRbsi, setSelectedRbsi] = useState<RbsiResponse | null>(null);
   const [selectedProgram, setSelectedProgram] = useState<RbsiProgramResponse | null>(null);
   const [selectedInisiatif, setSelectedInisiatif] = useState<RbsiInisiatifResponse | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [inisiatifPopoverAnchor, setInisiatifPopoverAnchor] = useState<HTMLElement | null>(null);
+  const [popoverWidth, setPopoverWidth] = useState<number>(0);
   const [isLoadingData, setIsLoadingData] = useState(false);
+
+  // Period years derived from selected RBSI
+  const periodYears = useMemo(() => {
+    if (!selectedRbsi) return [];
+    const [startYear, endYear] = selectedRbsi.periode.split('-').map(Number);
+    const years: number[] = [];
+    for (let year = startYear; year <= endYear; year++) {
+      years.push(year);
+    }
+    return years;
+  }, [selectedRbsi]);
+
+  // All inisiatifs grouped by program with year filter
+  const groupedInisiatifs = useMemo(() => {
+    if (!programOptions.length) return [];
+    
+    return programOptions
+      .map(program => {
+        const inisiatifs = (program.inisiatifs || []).filter(
+          inisiatif => !selectedYear || inisiatif.tahun === selectedYear
+        );
+        return {
+          program,
+          inisiatifs,
+        };
+      })
+      .filter(group => group.inisiatifs.length > 0);
+  }, [programOptions, selectedYear]);
 
   const handleAccordionChange = (panel: string) => (_: React.SyntheticEvent, isExpanded: boolean) => {
     setExpandedSection(isExpanded ? panel : false);
@@ -525,6 +558,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
                     setSelectedRbsi(newValue);
                     setSelectedProgram(null);
                     setSelectedInisiatif(null);
+                    setSelectedYear(null);
                     setProgramOptions([]);
                     setFormData(prev => ({ ...prev, programInisiatifRBSI: '' }));
                     
@@ -546,42 +580,174 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
                       )}
                       size="small"
                     />
-                    <Autocomplete
-                  fullWidth
-                  options={programOptions}
-                  getOptionLabel={(option) => `${option.nomor_program} - ${option.nama_program}`}
-                  value={selectedProgram}
-                  onChange={(_, newValue) => {
-                    setSelectedProgram(newValue);
-                    setSelectedInisiatif(null);
-                    setFormData(prev => ({ ...prev, programInisiatifRBSI: '' }));
-                  }}
-                      renderInput={(params) => (
-                        <GlassTextField {...params} label="Pilih Program" size="small" />
-                      )}
-                      disabled={!selectedRbsi}
-                      size="small"
-                    />
-                <Autocomplete
-                  fullWidth
-                  options={selectedProgram?.inisiatifs || []}
-                  getOptionLabel={(option) => `${option.nomor_inisiatif} - ${option.nama_inisiatif}`}
-                  value={selectedInisiatif}
-                  onChange={(_, newValue) => {
-                    setSelectedInisiatif(newValue);
-                    if (newValue && selectedProgram) {
-                      const label = `${newValue.nomor_inisiatif} - ${newValue.nama_inisiatif} (${selectedProgram.nomor_program})`;
-                      setFormData(prev => ({ ...prev, programInisiatifRBSI: label }));
-                    } else {
-                      setFormData(prev => ({ ...prev, programInisiatifRBSI: '' }));
-                    }
-                  }}
-                      renderInput={(params) => (
-                        <GlassTextField {...params} label="Pilih Inisiatif" size="small" />
-                      )}
-                      disabled={!selectedProgram}
-                      size="small"
-                    />
+                
+                {/* Combined Program + Inisiatif Dropdown with Year Filter */}
+                <Box>
+                  <Box
+                    onClick={(e) => {
+                      if (selectedRbsi) {
+                        setPopoverWidth(e.currentTarget.offsetWidth);
+                        setInisiatifPopoverAnchor(e.currentTarget);
+                      }
+                    }}
+                    sx={{
+                      cursor: selectedRbsi ? 'pointer' : 'not-allowed',
+                      py: 1.5,
+                      px: 1.5,
+                      borderRadius: '12px',
+                      border: '1px solid rgba(0, 0, 0, 0.08)',
+                      bgcolor: selectedRbsi ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.04)',
+                      backdropFilter: 'blur(10px)',
+                      '&:hover': selectedRbsi ? { bgcolor: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.2)' } : {},
+                      minHeight: 40,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      opacity: selectedRbsi ? 1 : 0.6,
+                    }}
+                  >
+                    {selectedInisiatif && selectedProgram ? (
+                      <Box sx={{ overflow: 'hidden', flex: 1 }}>
+                        <Typography sx={{ fontSize: '0.875rem', color: '#1d1d1f', fontWeight: 500, wordWrap: 'break-word', whiteSpace: 'normal' }}>
+                          {selectedInisiatif.nomor_inisiatif} - {selectedInisiatif.nama_inisiatif}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.7rem', color: '#86868b', wordWrap: 'break-word', whiteSpace: 'normal' }}>
+                          {selectedProgram.nomor_program} - {selectedProgram.nama_program}
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <Typography sx={{ fontSize: '0.875rem', color: '#86868b' }}>
+                        Pilih Program & Inisiatif...
+                      </Typography>
+                    )}
+                    <ExpandMoreIcon sx={{ color: '#86868b', fontSize: '1.2rem' }} />
+                  </Box>
+                  <Popover
+                    open={Boolean(inisiatifPopoverAnchor)}
+                    anchorEl={inisiatifPopoverAnchor}
+                    onClose={() => {
+                      setInisiatifPopoverAnchor(null);
+                    }}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                    transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                    PaperProps={{ 
+                      sx: { 
+                        borderRadius: '12px', 
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.15)', 
+                        width: popoverWidth || 'auto',
+                        maxHeight: 450,
+                        mt: 0.5,
+                      } 
+                    }}
+                  >
+                    <Box sx={{ py: 1 }}>
+                      {/* Year Filter */}
+                      <Box sx={{ px: 2, pb: 1, borderBottom: '1px solid #e0e0e0' }}>
+                        <Typography variant="caption" sx={{ color: '#86868b', mb: 0.5, display: 'block', fontWeight: 600 }}>
+                          Filter berdasarkan tahun
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                          <Chip
+                            label="Semua"
+                            size="small"
+                            onClick={() => setSelectedYear(null)}
+                            sx={{
+                              bgcolor: selectedYear === null ? '#DA251C' : '#f5f5f5',
+                              color: selectedYear === null ? 'white' : '#666',
+                              fontSize: '0.7rem',
+                              height: 24,
+                              '&:hover': { opacity: 0.8 },
+                            }}
+                          />
+                          {periodYears.map(year => (
+                            <Chip
+                              key={year}
+                              label={year}
+                              size="small"
+                              onClick={() => setSelectedYear(year)}
+                              sx={{
+                                bgcolor: selectedYear === year ? '#DA251C' : '#f5f5f5',
+                                color: selectedYear === year ? 'white' : '#666',
+                                fontSize: '0.7rem',
+                                height: 24,
+                                '&:hover': { opacity: 0.8 },
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      </Box>
+
+                      {/* Program + Inisiatif List */}
+                      <Box sx={{ maxHeight: 330, overflow: 'auto' }}>
+                        {groupedInisiatifs.length === 0 ? (
+                          <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
+                            <Typography variant="body2" sx={{ color: '#86868b' }}>
+                              {selectedYear ? `Tidak ada inisiatif untuk tahun ${selectedYear}` : 'Tidak ada program & inisiatif'}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          groupedInisiatifs.map(({ program, inisiatifs }) => (
+                            <Box key={program.id}>
+                              {/* Program Header */}
+                              <Box
+                                sx={{
+                                  px: 2,
+                                  py: 1,
+                                  bgcolor: '#f8f8f8',
+                                  borderBottom: '1px solid #e0e0e0',
+                                  position: 'sticky',
+                                  top: 0,
+                                  zIndex: 1,
+                                }}
+                              >
+                                <Typography sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#DA251C', wordWrap: 'break-word', whiteSpace: 'normal' }}>
+                                  {program.nomor_program} - {program.nama_program}
+                                </Typography>
+                              </Box>
+                              {/* Inisiatif Items */}
+                              {inisiatifs.map(inisiatif => (
+                                <MenuItem
+                                  key={inisiatif.id}
+                                  selected={selectedInisiatif?.id === inisiatif.id}
+                                  onClick={() => {
+                                    setSelectedProgram(program);
+                                    setSelectedInisiatif(inisiatif);
+                                    const label = `${inisiatif.nomor_inisiatif} - ${inisiatif.nama_inisiatif} (${program.nomor_program})`;
+                                    setFormData(prev => ({ ...prev, programInisiatifRBSI: label }));
+                                    setInisiatifPopoverAnchor(null);
+                                  }}
+                                  sx={{ 
+                                    fontSize: '0.85rem', 
+                                    py: 1.5, 
+                                    px: 2,
+                                    pl: 3,
+                                    borderLeft: '3px solid transparent',
+                                    '&.Mui-selected': {
+                                      borderLeftColor: '#DA251C',
+                                      bgcolor: 'rgba(218, 37, 28, 0.08)',
+                                    },
+                                    '&:hover': {
+                                      borderLeftColor: '#DA251C',
+                                    },
+                                  }}
+                                >
+                                  <Box>
+                                    <Typography sx={{ fontWeight: 500, fontSize: '0.85rem', wordWrap: 'break-word', whiteSpace: 'normal' }}>
+                                      {inisiatif.nomor_inisiatif} - {inisiatif.nama_inisiatif}
+                                    </Typography>
+                                    <Typography sx={{ fontSize: '0.7rem', color: '#86868b' }}>
+                                      Tahun {inisiatif.tahun}
+                                    </Typography>
+                                  </Box>
+                                </MenuItem>
+                              ))}
+                            </Box>
+                          ))
+                        )}
+                      </Box>
+                    </Box>
+                  </Popover>
+                </Box>
                   </Stack>
                 </Box>
 
@@ -602,7 +768,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
             <Accordion
               expanded={expandedSection === 'section1'}
               onChange={handleAccordionChange('section1')}
-              sx={{ 
+              sx={{
                 mt: expandedSection === 'section1' ? 1 : 0,
                 borderRadius: '20px !important',
                 bgcolor: 'rgba(255, 255, 255, 0.6)',
