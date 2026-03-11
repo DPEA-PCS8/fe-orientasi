@@ -1,4 +1,4 @@
-import { apiRequest, type BaseApiResponse } from './apiClient';
+import { apiRequest } from './apiClient';
 
 const BASE_URL = '/api';
 

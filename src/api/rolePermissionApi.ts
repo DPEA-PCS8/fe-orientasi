@@ -1,4 +1,4 @@
-import { apiRequest, getAuthHeaders, type BaseApiResponse } from './apiClient';
+import { apiRequest } from './apiClient';
 import type {
   Menu,
   MenuTree,
