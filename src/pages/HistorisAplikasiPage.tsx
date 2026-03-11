@@ -21,6 +21,7 @@ import {
   type AplikasiStatistikData,
   type UpdateSnapshotRequest,
   addChangelog,
+  deleteChangelog,
   type ChangelogRequest,
   getSnapshotByAplikasiAndTahun,
   type AplikasiSnapshotData
@@ -84,6 +85,7 @@ const HistorisAplikasiPage = () => {
   const [editForm, setEditForm] = useState<UpdateSnapshotRequest>({});
   const [updating, setUpdating] = useState(false);
   const [editYear, setEditYear] = useState<number | null>(null);
+  const [addChangelogOnEdit, setAddChangelogOnEdit] = useState(false);
   const [showCompareDialog, setShowCompareDialog] = useState(false);
   const [compareSnapshots, setCompareSnapshots] = useState<AplikasiSnapshotData[]>([]);
   const [loadingCompare, setLoadingCompare] = useState(false);
@@ -99,6 +101,9 @@ const HistorisAplikasiPage = () => {
     keterangan: ''
   });
   const [addingChangelog, setAddingChangelog] = useState(false);
+  const [showDeleteChangelogConfirm, setShowDeleteChangelogConfirm] = useState(false);
+  const [changelogToDelete, setChangelogToDelete] = useState<{ id: string; keterangan: string } | null>(null);
+  const [deletingChangelog, setDeletingChangelog] = useState(false);
   const [statsAnchorEl, setStatsAnchorEl] = useState<HTMLButtonElement | null>(null);
   const statsOpen = Boolean(statsAnchorEl);
 
@@ -230,6 +235,7 @@ const HistorisAplikasiPage = () => {
       const response = await getSnapshotByAplikasiAndTahun(aplikasiId, tahun);
       setSelectedSnapshot(response.data || null);
       setEditYear(tahun);
+      setAddChangelogOnEdit(false);
       setEditForm({
         kode_aplikasi: response.data?.kode_aplikasi,
         nama_aplikasi: response.data?.nama_aplikasi,
@@ -240,7 +246,9 @@ const HistorisAplikasiPage = () => {
         tanggal_implementasi: response.data?.tanggal_implementasi,
         akses: response.data?.akses,
         proses_data_pribadi: response.data?.proses_data_pribadi,
-        keterangan_historis: ''
+        keterangan_historis: '',
+        changelog_tanggal: new Date().toISOString().split('T')[0],
+        changelog_keterangan: ''
       });
       setShowEditDialog(true);
     } catch (err: unknown) {
@@ -254,8 +262,16 @@ const HistorisAplikasiPage = () => {
     setUpdating(true);
     setError(null);
     try {
-      await updateSnapshot(selectedSnapshot.id, editForm);
-      setSuccess('Snapshot berhasil diupdate');
+      // Only include changelog fields if user chose to add changelog
+      const requestData: UpdateSnapshotRequest = {
+        ...editForm,
+        changelog_tanggal: addChangelogOnEdit ? editForm.changelog_tanggal : undefined,
+        changelog_keterangan: addChangelogOnEdit ? editForm.changelog_keterangan : undefined
+      };
+      await updateSnapshot(selectedSnapshot.id, requestData);
+      setSuccess(addChangelogOnEdit && editForm.changelog_keterangan 
+        ? 'Snapshot berhasil diupdate dengan changelog' 
+        : 'Snapshot berhasil diupdate');
       setShowEditDialog(false);
       await fetchData();
     } catch (err: unknown) {
@@ -793,142 +809,287 @@ const HistorisAplikasiPage = () => {
       </Dialog>
 
       {/* Edit Snapshot Dialog */}
-      <Dialog open={showEditDialog} onClose={() => setShowEditDialog(false)} maxWidth="md" fullWidth>
-        <DialogTitle>
-          Edit Snapshot - {selectedSnapshot?.nama_aplikasi} ({editYear})
+      <Dialog 
+        open={showEditDialog} 
+        onClose={() => setShowEditDialog(false)} 
+        maxWidth="md" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            bgcolor: '#f5f5f7',
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          pb: 1,
+          background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+          color: 'white'
+        }}>
+          <Box display="flex" alignItems="center" gap={1.5}>
+            <Box sx={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              bgcolor: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Edit sx={{ fontSize: 20, color: '#DA251C' }} />
+            </Box>
+            <Box>
+              <Typography variant="h6" fontWeight={600}>
+                Edit Snapshot Historis
+              </Typography>
+              <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                {selectedSnapshot?.kode_aplikasi} - {selectedSnapshot?.nama_aplikasi} (Tahun {editYear})
+              </Typography>
+            </Box>
+          </Box>
         </DialogTitle>
-        <DialogContent dividers>
-          <Box display="flex" flexDirection="column" gap={2}>
-            {/* Basic Info */}
-            <Typography variant="subtitle2" color="text.secondary">Informasi Dasar</Typography>
-            <Box display="flex" gap={2}>
-              <TextField
-                fullWidth
-                label="Kode Aplikasi"
-                value={editForm.kode_aplikasi || ''}
-                onChange={(e) => setEditForm(prev => ({ ...prev, kode_aplikasi: e.target.value }))}
-                size="small"
-              />
-              <TextField
-                fullWidth
-                label="Nama Aplikasi"
-                value={editForm.nama_aplikasi || ''}
-                onChange={(e) => setEditForm(prev => ({ ...prev, nama_aplikasi: e.target.value }))}
-                size="small"
-              />
-            </Box>
-            <TextField
-              fullWidth
-              multiline
-              rows={2}
-              label="Deskripsi"
-              value={editForm.deskripsi || ''}
-              onChange={(e) => setEditForm(prev => ({ ...prev, deskripsi: e.target.value }))}
-              size="small"
-            />
+        <DialogContent sx={{ p: 3, bgcolor: '#f5f5f7' }}>
+          <Box display="flex" flexDirection="column" gap={2.5}>
+            
+            {/* Data Snapshot Card */}
+            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid rgba(0,0,0,0.08)' }}>
+              <Typography variant="subtitle1" fontWeight={600} mb={2} color="#1d1d1f">
+                Informasi Dasar
+              </Typography>
+              <Box display="flex" flexDirection="column" gap={2}>
+                <Box display="flex" gap={2}>
+                  <TextField
+                    fullWidth
+                    label="Kode Aplikasi"
+                    value={editForm.kode_aplikasi || ''}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, kode_aplikasi: e.target.value }))}
+                    size="small"
+                  />
+                  <TextField
+                    fullWidth
+                    label="Nama Aplikasi"
+                    value={editForm.nama_aplikasi || ''}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, nama_aplikasi: e.target.value }))}
+                    size="small"
+                  />
+                </Box>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={2}
+                  label="Deskripsi"
+                  value={editForm.deskripsi || ''}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, deskripsi: e.target.value }))}
+                  size="small"
+                />
+              </Box>
+            </Paper>
 
-            <Divider sx={{ my: 1 }} />
+            {/* Organization Card */}
+            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid rgba(0,0,0,0.08)' }}>
+              <Typography variant="subtitle1" fontWeight={600} mb={2} color="#1d1d1f">
+                Bidang & SKPA
+              </Typography>
+              <Box display="flex" gap={2}>
+                <Autocomplete
+                  fullWidth
+                  size="small"
+                  options={bidangList}
+                  getOptionLabel={(option) => `${option.kode_bidang} - ${option.nama_bidang}`}
+                  value={bidangList.find(b => b.id === editForm.bidang_id) || null}
+                  onChange={(_, newValue) => setEditForm(prev => ({ ...prev, bidang_id: newValue?.id || undefined }))}
+                  renderInput={(params) => <TextField {...params} label="Bidang" />}
+                />
+                <Autocomplete
+                  fullWidth
+                  size="small"
+                  options={skpaList}
+                  getOptionLabel={(option) => `${option.kode_skpa} - ${option.nama_skpa}`}
+                  value={skpaList.find(s => s.id === editForm.skpa_id) || null}
+                  onChange={(_, newValue) => setEditForm(prev => ({ ...prev, skpa_id: newValue?.id || undefined }))}
+                  renderInput={(params) => <TextField {...params} label="SKPA" />}
+                />
+              </Box>
+            </Paper>
 
-            {/* Organization */}
-            <Typography variant="subtitle2" color="text.secondary">Bidang & SKPA</Typography>
-            <Box display="flex" gap={2}>
-              <Autocomplete
-                fullWidth
-                size="small"
-                options={bidangList}
-                getOptionLabel={(option) => `${option.kode_bidang} - ${option.nama_bidang}`}
-                value={bidangList.find(b => b.id === editForm.bidang_id) || null}
-                onChange={(_, newValue) => setEditForm(prev => ({ ...prev, bidang_id: newValue?.id || undefined }))}
-                renderInput={(params) => <TextField {...params} label="Bidang" />}
-              />
-              <Autocomplete
-                fullWidth
-                size="small"
-                options={skpaList}
-                getOptionLabel={(option) => `${option.kode_skpa} - ${option.nama_skpa}`}
-                value={skpaList.find(s => s.id === editForm.skpa_id) || null}
-                onChange={(_, newValue) => setEditForm(prev => ({ ...prev, skpa_id: newValue?.id || undefined }))}
-                renderInput={(params) => <TextField {...params} label="SKPA" />}
-              />
-            </Box>
+            {/* Status & Access Card */}
+            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid rgba(0,0,0,0.08)' }}>
+              <Typography variant="subtitle1" fontWeight={600} mb={2} color="#1d1d1f">
+                Status & Akses
+              </Typography>
+              <Box display="flex" flexDirection="column" gap={2}>
+                <Box display="flex" gap={2}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                      value={editForm.status_aplikasi || ''}
+                      label="Status"
+                      onChange={(e) => setEditForm(prev => ({ ...prev, status_aplikasi: e.target.value }))}
+                    >
+                      <MenuItem value="AKTIF">Aktif</MenuItem>
+                      <MenuItem value="IDLE">Idle</MenuItem>
+                      <MenuItem value="DIAKHIRI">Diakhiri</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Akses</InputLabel>
+                    <Select
+                      value={editForm.akses || ''}
+                      label="Akses"
+                      onChange={(e) => setEditForm(prev => ({ ...prev, akses: e.target.value }))}
+                    >
+                      <MenuItem value="INTERNET">Internet</MenuItem>
+                      <MenuItem value="INTRANET">Intranet</MenuItem>
+                      <MenuItem value="BOTH">Keduanya</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
+                <Box display="flex" gap={2} alignItems="center">
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="Tanggal Implementasi"
+                    value={editForm.tanggal_implementasi || ''}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, tanggal_implementasi: e.target.value }))}
+                    InputLabelProps={{ shrink: true }}
+                    size="small"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={editForm.proses_data_pribadi || false}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, proses_data_pribadi: e.target.checked }))}
+                      />
+                    }
+                    label="Proses Data Pribadi"
+                  />
+                </Box>
+              </Box>
+            </Paper>
 
-            <Divider sx={{ my: 1 }} />
+            {/* Existing Changelogs Card */}
+            {selectedSnapshot && selectedSnapshot.changelogs && selectedSnapshot.changelogs.length > 0 && (
+              <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid rgba(0,0,0,0.08)' }}>
+                <Typography variant="subtitle1" fontWeight={600} mb={2} color="#1d1d1f">
+                  Riwayat Changelog
+                </Typography>
+                <Box display="flex" flexDirection="column" gap={1.5}>
+                  {selectedSnapshot.changelogs.map((log) => (
+                    <Paper 
+                      key={log.id} 
+                      variant="outlined" 
+                      sx={{ 
+                        p: 2, 
+                        bgcolor: '#fafafa',
+                        borderRadius: 1.5,
+                        border: '1px solid rgba(0,0,0,0.08)'
+                      }}
+                    >
+                      <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                        <Box flex={1}>
+                          <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                            <Typography variant="caption" fontWeight={600} color="primary">
+                              {new Date(log.tanggal_perubahan).toLocaleDateString('id-ID', {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric'
+                              })}
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" color="text.primary">
+                            {log.keterangan}
+                          </Typography>
+                        </Box>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => {
+                            setChangelogToDelete({ id: log.id, keterangan: log.keterangan });
+                            setShowDeleteChangelogConfirm(true);
+                          }}
+                          sx={{ ml: 1 }}
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </Paper>
+                  ))}
+                </Box>
+              </Paper>
+            )}
 
-            {/* Status & Access */}
-            <Typography variant="subtitle2" color="text.secondary">Status & Akses</Typography>
-            <Box display="flex" gap={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={editForm.status_aplikasi || ''}
-                  label="Status"
-                  onChange={(e) => setEditForm(prev => ({ ...prev, status_aplikasi: e.target.value }))}
-                >
-                  <MenuItem value="AKTIF">Aktif</MenuItem>
-                  <MenuItem value="IDLE">Idle</MenuItem>
-                  <MenuItem value="DIAKHIRI">Diakhiri</MenuItem>
-                </Select>
-              </FormControl>
-              <FormControl fullWidth size="small">
-                <InputLabel>Akses</InputLabel>
-                <Select
-                  value={editForm.akses || ''}
-                  label="Akses"
-                  onChange={(e) => setEditForm(prev => ({ ...prev, akses: e.target.value }))}
-                >
-                  <MenuItem value="INTERNET">Internet</MenuItem>
-                  <MenuItem value="INTRANET">Intranet</MenuItem>
-                  <MenuItem value="BOTH">Keduanya</MenuItem>
-                </Select>
-              </FormControl>
-            </Box>
-
-            <Box display="flex" gap={2} alignItems="center">
-              <TextField
-                fullWidth
-                type="date"
-                label="Tanggal Implementasi"
-                value={editForm.tanggal_implementasi || ''}
-                onChange={(e) => setEditForm(prev => ({ ...prev, tanggal_implementasi: e.target.value }))}
-                InputLabelProps={{ shrink: true }}
-                size="small"
-              />
+            {/* Add New Changelog Card */}
+            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid rgba(0,0,0,0.08)' }}>
               <FormControlLabel
                 control={
                   <Checkbox
-                    checked={editForm.proses_data_pribadi || false}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, proses_data_pribadi: e.target.checked }))}
+                    checked={addChangelogOnEdit}
+                    onChange={(e) => setAddChangelogOnEdit(e.target.checked)}
+                    sx={{
+                      '&.Mui-checked': {
+                        color: '#DA251C',
+                      },
+                    }}
                   />
                 }
-                label="Proses Data Pribadi"
+                label={
+                  <Typography variant="subtitle1" fontWeight={600} color="#1d1d1f">
+                    Tambahkan Changelog Baru
+                  </Typography>
+                }
               />
-            </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2, ml: 4 }}>
+                Dokumentasikan perubahan beserta dasar/alasannya (contoh: berdasarkan Surat Keputusan No. xxx)
+              </Typography>
+              
+              {addChangelogOnEdit && (
+                <Box sx={{ ml: 4, mt: 2 }}>
+                  <Box display="flex" flexDirection="column" gap={2}>
+                    <TextField
+                      fullWidth
+                      type="date"
+                      label="Tanggal Perubahan"
+                      value={editForm.changelog_tanggal || new Date().toISOString().split('T')[0]}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, changelog_tanggal: e.target.value }))}
+                      InputLabelProps={{ shrink: true }}
+                      size="small"
+                      sx={{ maxWidth: 250 }}
+                    />
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={3}
+                      label="Keterangan Changelog"
+                      value={editForm.changelog_keterangan || ''}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, changelog_keterangan: e.target.value }))}
+                      placeholder="Contoh: Perubahan nama aplikasi berdasarkan Surat Keputusan Direktur No. 123/SK/2026 tanggal 10 Maret 2026"
+                      size="small"
+                      helperText="Jelaskan perubahan yang dilakukan beserta dasar/referensi dokumen jika ada"
+                    />
+                  </Box>
+                </Box>
+              )}
+            </Paper>
 
-            <Divider sx={{ my: 1 }} />
-
-            {/* Changelog */}
-            <Typography variant="subtitle2" color="text.secondary">Catatan Perubahan</Typography>
-            <TextField
-              fullWidth
-              multiline
-              rows={2}
-              label="Keterangan Historis"
-              value={editForm.keterangan_historis || ''}
-              onChange={(e) => setEditForm(prev => ({ ...prev, keterangan_historis: e.target.value }))}
-              placeholder="Jelaskan perubahan pada snapshot ini..."
-              size="small"
-            />
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowEditDialog(false)} disabled={updating}>Batal</Button>
+        <DialogActions sx={{ px: 3, py: 2, bgcolor: '#f5f5f7', borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+          <Button onClick={() => setShowEditDialog(false)} disabled={updating} variant="outlined">
+            Batal
+          </Button>
           <Button
             variant="contained"
             onClick={handleUpdateSnapshot}
             disabled={updating}
             startIcon={updating ? <CircularProgress size={16} /> : undefined}
+            sx={{
+              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
+              },
+            }}
           >
-            {updating ? 'Menyimpan...' : 'Simpan'}
+            {updating ? 'Menyimpan...' : 'Simpan Perubahan'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1269,6 +1430,114 @@ const HistorisAplikasiPage = () => {
             startIcon={deleting ? <CircularProgress size={16} /> : <Delete />}
           >
             {deleting ? 'Menghapus...' : 'Hapus'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Changelog Confirmation Dialog */}
+      <Dialog 
+        open={showDeleteChangelogConfirm} 
+        onClose={() => !deletingChangelog && setShowDeleteChangelogConfirm(false)}
+        maxWidth="xs" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+            backgroundColor: '#ffffff',
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          p: 2,
+          borderBottom: '1px solid #f0f0f0'
+        }}>
+          <Box sx={{ 
+            width: 36, 
+            height: 36, 
+            borderRadius: '50%', 
+            bgcolor: '#fafafa',
+            border: '2px solid #e8e8e8',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }}>
+            <Delete sx={{ fontSize: 18, color: '#333333' }} />
+          </Box>
+          <Typography variant="subtitle1" fontWeight={600} color="#333333">
+            Hapus Changelog?
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ p: '16px', marginTop: '8px' }}>
+          {changelogToDelete && (
+            <Typography variant="body2" color="#555555" sx={{ mb: 1.5, lineHeight: 1.5 }}>
+              "{changelogToDelete.keterangan}"
+            </Typography>
+          )}
+          <Typography variant="caption" color="#999999" display="block">
+            Tindakan ini tidak dapat dibatalkan.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 2, py: 1.5, gap: 1, borderTop: '1px solid #f0f0f0' }}>
+          <Button 
+            onClick={() => setShowDeleteChangelogConfirm(false)} 
+            disabled={deletingChangelog}
+            size="small"
+            sx={{ 
+              minWidth: 80,
+              color: '#666666',
+              borderColor: '#e0e0e0',
+              '&:hover': {
+                backgroundColor: '#f9f9f9',
+                borderColor: '#d0d0d0'
+              }
+            }}
+          >
+            Batal
+          </Button>
+          <Button
+            onClick={async () => {
+              if (!changelogToDelete) return;
+              try {
+                setDeletingChangelog(true);
+                await deleteChangelog(changelogToDelete.id);
+                
+                // Refresh snapshot data
+                const response = await getSnapshotByAplikasiAndTahun(
+                  selectedSnapshot!.aplikasi_id, 
+                  editYear!
+                );
+                setSelectedSnapshot(response.data || null);
+                setShowDeleteChangelogConfirm(false);
+                setChangelogToDelete(null);
+                setSuccess('Changelog berhasil dihapus');
+              } catch (err) {
+                setError('Gagal menghapus changelog: ' + ((err as any).message || 'Unknown error'));
+              } finally {
+                setDeletingChangelog(false);
+              }
+            }}
+            variant="contained"
+            color="error"
+            disabled={deletingChangelog}
+            size="small"
+            sx={{ 
+              minWidth: 80,
+              background: '#e74c3c',
+              '&:hover': {
+                background: '#c0392b'
+              },
+              '&.Mui-disabled': {
+                background: '#f5f5f5',
+                color: '#cccccc'
+              }
+            }}
+          >
+            {deletingChangelog ? 'Hapus...' : 'Hapus'}
           </Button>
         </DialogActions>
       </Dialog>
