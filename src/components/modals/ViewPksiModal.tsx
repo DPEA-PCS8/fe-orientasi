@@ -12,6 +12,11 @@ import {
   Chip,
   Divider,
   styled,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemSecondaryAction,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -24,9 +29,14 @@ import {
   Settings as SettingsIcon,
   Warning as WarningIcon,
   AccountTree as AccountTreeIcon,
+  InsertDriveFile as FileIcon,
+  Download as DownloadIcon,
+  Visibility as VisibilityIcon,
+  AttachFile as AttachFileIcon,
 } from '@mui/icons-material';
 import { getPksiDocumentById, type PksiDocumentData } from '../../api/pksiApi';
 import { getAllSkpa } from '../../api/skpaApi';
+import { getPksiFiles, downloadPksiFile, type PksiFileData } from '../../api/fileApi';
 
 // Glass Card Component
 const GlassCard = styled(Box)({
@@ -81,6 +91,9 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId }) 
   const [pksiData, setPksiData] = useState<PksiDocumentData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [skpaMap, setSkpaMap] = useState<Map<string, SkpaOption>>(new Map());
+  const [pksiFiles, setPksiFiles] = useState<PksiFileData[]>([]);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
 
   // Fetch SKPA lookup data
   useEffect(() => {
@@ -118,9 +131,57 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId }) 
     fetchPksiDetails();
   }, [pksiId, open]);
 
+  // Fetch PKSI files
+  useEffect(() => {
+    const fetchFiles = async () => {
+      if (!pksiId || !open) return;
+
+      setIsLoadingFiles(true);
+      try {
+        const files = await getPksiFiles(pksiId);
+        setPksiFiles(files);
+      } catch (error) {
+        console.error('Error fetching PKSI files:', error);
+        setPksiFiles([]);
+      } finally {
+        setIsLoadingFiles(false);
+      }
+    };
+
+    fetchFiles();
+  }, [pksiId, open]);
+
   const handleClose = () => {
     setPksiData(null);
+    setPksiFiles([]);
     onClose();
+  };
+
+  // Handle file download
+  const handleDownload = async (file: PksiFileData) => {
+    setDownloadingFileId(file.id);
+    try {
+      await downloadPksiFile(file.id, file.original_name);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+    } finally {
+      setDownloadingFileId(null);
+    }
+  };
+
+  // Handle file view in new tab (for PDFs)
+  const handleViewFile = (file: PksiFileData) => {
+    // Open download URL in new tab for preview
+    window.open(`/api/pksi/files/download/${file.id}`, '_blank');
+  };
+
+  // Format file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   // Helper to format date
@@ -617,6 +678,107 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId }) 
               <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
                 {pksiData.rencana_pengelolaan || '-'}
               </Typography>
+            </GlassCard>
+
+            {/* Section 8: Dokumen T.0.1 */}
+            <GlassCard>
+              <SectionHeader>
+                <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(218, 37, 28, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <AttachFileIcon sx={{ color: '#DA251C', fontSize: 20 }} />
+                </Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                  8. Dokumen T.0.1
+                </Typography>
+              </SectionHeader>
+
+              {isLoadingFiles ? (
+                <Box display="flex" justifyContent="center" py={2}>
+                  <CircularProgress size={24} sx={{ color: '#DA251C' }} />
+                </Box>
+              ) : pksiFiles.length > 0 ? (
+                <List dense sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px', p: 1 }}>
+                  {pksiFiles.map((file, index) => (
+                    <ListItem
+                      key={file.id}
+                      sx={{
+                        borderRadius: '8px',
+                        mb: index < pksiFiles.length - 1 ? 1 : 0,
+                        bgcolor: 'white',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                        '&:hover': {
+                          bgcolor: 'rgba(255, 255, 255, 0.9)',
+                        },
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 40 }}>
+                        <FileIcon sx={{ color: '#DA251C', fontSize: 24 }} />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={file.original_name}
+                        secondary={formatFileSize(file.file_size)}
+                        primaryTypographyProps={{
+                          sx: {
+                            fontWeight: 500,
+                            color: '#1d1d1f',
+                            fontSize: '0.9rem',
+                          },
+                        }}
+                        secondaryTypographyProps={{
+                          sx: { color: '#86868b', fontSize: '0.75rem' },
+                        }}
+                      />
+                      <ListItemSecondaryAction>
+                        {file.content_type === 'application/pdf' && (
+                          <IconButton
+                            edge="end"
+                            size="small"
+                            onClick={() => handleViewFile(file)}
+                            sx={{
+                              color: '#0891B2',
+                              mr: 1,
+                              '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' },
+                            }}
+                            title="Lihat"
+                          >
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        )}
+                        <IconButton
+                          edge="end"
+                          size="small"
+                          onClick={() => handleDownload(file)}
+                          disabled={downloadingFileId === file.id}
+                          sx={{
+                            color: '#059669',
+                            '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' },
+                          }}
+                          title="Download"
+                        >
+                          {downloadingFileId === file.id ? (
+                            <CircularProgress size={18} sx={{ color: '#059669' }} />
+                          ) : (
+                            <DownloadIcon fontSize="small" />
+                          )}
+                        </IconButton>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+                </List>
+              ) : (
+                <Box
+                  sx={{
+                    p: 3,
+                    textAlign: 'center',
+                    borderRadius: '12px',
+                    bgcolor: 'rgba(245, 245, 247, 0.8)',
+                  }}
+                >
+                  <FileIcon sx={{ fontSize: 40, color: '#86868b', mb: 1 }} />
+                  <Typography variant="body2" sx={{ color: '#86868b' }}>
+                    Belum ada dokumen yang diupload
+                  </Typography>
+                </Box>
+              )}
             </GlassCard>
 
             {/* Metadata */}
