@@ -1,6 +1,5 @@
-import { getAuthToken } from './authApi';
+import { apiRequest, type BaseApiResponse } from './apiClient';
 
-const API_KEY = 'da39b92f-a1b8-46d5-a10c-d08b1cc92218';
 const BASE_URL = '/api';
 
 export interface RbsiResponse {
@@ -32,34 +31,11 @@ export interface RbsiInisiatifResponse {
   updated_at: string;
 }
 
-export interface BaseApiResponse<T> {
-  status_code: number;
-  message: string;
-  data: T;
-}
-
 /**
  * Get all RBSI
  */
 export async function getAllRbsi(): Promise<BaseApiResponse<RbsiResponse[]>> {
-  const token = getAuthToken();
-  
-  const response = await fetch(`${BASE_URL}/rbsi`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to fetch RBSI list');
-  }
-
-  return data;
+  return apiRequest<RbsiResponse[]>(`${BASE_URL}/rbsi`, 'GET');
 }
 
 /**
@@ -113,124 +89,37 @@ export async function getAllInisiatifs(): Promise<FlattenedInisiatif[]> {
  * Get RBSI by ID
  */
 export async function getRbsiById(id: string, tahun?: number): Promise<BaseApiResponse<RbsiResponse>> {
-  const token = getAuthToken();
   const url = tahun ? `${BASE_URL}/rbsi/${id}?tahun=${tahun}` : `${BASE_URL}/rbsi/${id}`;
-  
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to fetch RBSI');
-  }
-
-  return data;
+  return apiRequest<RbsiResponse>(url, 'GET');
 }
 
 /**
  * Create RBSI
  */
 export async function createRbsi(periode: string): Promise<BaseApiResponse<RbsiResponse>> {
-  const token = getAuthToken();
-  
-  const response = await fetch(`${BASE_URL}/rbsi`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify({ periode }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to create RBSI');
-  }
-
-  return data;
+  return apiRequest<RbsiResponse>(`${BASE_URL}/rbsi`, 'POST', { periode });
 }
 
 /**
  * Update RBSI
  */
 export async function updateRbsi(id: string, periode: string): Promise<BaseApiResponse<RbsiResponse>> {
-  const token = getAuthToken();
-  
-  const response = await fetch(`${BASE_URL}/rbsi/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify({ periode }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to update RBSI');
-  }
-
-  return data;
+  return apiRequest<RbsiResponse>(`${BASE_URL}/rbsi/${id}`, 'PUT', { periode });
 }
 
 /**
  * Delete RBSI
  */
 export async function deleteRbsi(id: string): Promise<BaseApiResponse<null>> {
-  const token = getAuthToken();
-  
-  const response = await fetch(`${BASE_URL}/rbsi/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to delete RBSI');
-  }
-
-  return data;
+  return apiRequest<null>(`${BASE_URL}/rbsi/${id}`, 'DELETE');
 }
 
 /**
  * Get programs by RBSI ID
  */
 export async function getProgramsByRbsi(rbsiId: string, tahun?: number): Promise<BaseApiResponse<RbsiProgramResponse[]>> {
-  const token = getAuthToken();
   const url = tahun ? `${BASE_URL}/rbsi/${rbsiId}/programs?tahun=${tahun}` : `${BASE_URL}/rbsi/${rbsiId}/programs`;
-  
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to fetch programs');
-  }
-
-  return data;
+  return apiRequest<RbsiProgramResponse[]>(url, 'GET');
 }
 
 export interface CreateProgramRequest {
@@ -248,25 +137,7 @@ export interface CreateProgramRequest {
  * Create or Update Program
  */
 export async function createProgram(request: CreateProgramRequest): Promise<BaseApiResponse<RbsiProgramResponse>> {
-  const token = getAuthToken();
-  
-  const response = await fetch(`${BASE_URL}/rbsi/programs`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify(request),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to create program');
-  }
-
-  return data;
+  return apiRequest<RbsiProgramResponse>(`${BASE_URL}/rbsi/programs`, 'POST', request);
 }
 
 export interface CreateInisiatifRequest {
@@ -280,25 +151,7 @@ export interface CreateInisiatifRequest {
  * Create or Update Inisiatif
  */
 export async function createInisiatif(request: CreateInisiatifRequest): Promise<BaseApiResponse<RbsiInisiatifResponse>> {
-  const token = getAuthToken();
-  
-  const response = await fetch(`${BASE_URL}/rbsi/inisiatifs`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify(request),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to create inisiatif');
-  }
-
-  return data;
+  return apiRequest<RbsiInisiatifResponse>(`${BASE_URL}/rbsi/inisiatifs`, 'POST', request);
 }
 
 export interface UpdateProgramRequest {
@@ -315,25 +168,7 @@ export async function updateProgram(
   programId: string,
   request: UpdateProgramRequest
 ): Promise<BaseApiResponse<RbsiProgramResponse>> {
-  const token = getAuthToken();
-
-  const response = await fetch(`${BASE_URL}/rbsi/programs/${programId}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify(request),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to update program');
-  }
-
-  return data;
+  return apiRequest<RbsiProgramResponse>(`${BASE_URL}/rbsi/programs/${programId}`, 'PUT', request);
 }
 
 export interface UpdateInisiatifRequest {
@@ -350,73 +185,21 @@ export async function updateInisiatif(
   inisiatifId: string,
   request: UpdateInisiatifRequest
 ): Promise<BaseApiResponse<RbsiInisiatifResponse>> {
-  const token = getAuthToken();
-
-  const response = await fetch(`${BASE_URL}/rbsi/inisiatifs/${inisiatifId}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify(request),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to update inisiatif');
-  }
-
-  return data;
+  return apiRequest<RbsiInisiatifResponse>(`${BASE_URL}/rbsi/inisiatifs/${inisiatifId}`, 'PUT', request);
 }
 
 /**
  * Delete Program (soft delete)
  */
 export async function deleteProgram(programId: string): Promise<BaseApiResponse<null>> {
-  const token = getAuthToken();
-
-  const response = await fetch(`${BASE_URL}/rbsi/programs/${programId}`, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to delete program');
-  }
-
-  return data;
+  return apiRequest<null>(`${BASE_URL}/rbsi/programs/${programId}`, 'DELETE');
 }
 
 /**
  * Delete Inisiatif (soft delete)
  */
 export async function deleteInisiatif(inisiatifId: string): Promise<BaseApiResponse<null>> {
-  const token = getAuthToken();
-
-  const response = await fetch(`${BASE_URL}/rbsi/inisiatifs/${inisiatifId}`, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to delete inisiatif');
-  }
-
-  return data;
+  return apiRequest<null>(`${BASE_URL}/rbsi/inisiatifs/${inisiatifId}`, 'DELETE');
 }
 
 /**
@@ -427,27 +210,10 @@ export async function copyProgramsFromYear(
   fromTahun: number,
   toTahun: number
 ): Promise<BaseApiResponse<RbsiProgramResponse[]>> {
-  const token = getAuthToken();
-  
-  const response = await fetch(
+  return apiRequest<RbsiProgramResponse[]>(
     `${BASE_URL}/rbsi/${rbsiId}/copy-programs?fromTahun=${fromTahun}&toTahun=${toTahun}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'APIKey': API_KEY,
-        'Authorization': `Bearer ${token}`,
-      },
-    }
+    'POST'
   );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to copy programs');
-  }
-
-  return data;
 }
 
 /**
@@ -461,29 +227,11 @@ export async function copyProgram(
   toTahun: number,
   newNomorProgram?: string
 ): Promise<BaseApiResponse<RbsiProgramResponse>> {
-  const token = getAuthToken();
-  
   let url = `${BASE_URL}/rbsi/programs/${programId}/copy?toTahun=${toTahun}`;
   if (newNomorProgram) {
     url += `&newNomorProgram=${encodeURIComponent(newNomorProgram)}`;
   }
-  
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to copy program');
-  }
-
-  return data;
+  return apiRequest<RbsiProgramResponse>(url, 'POST');
 }
 
 /**
@@ -497,29 +245,11 @@ export async function copyInisiatif(
   toProgramId: string,
   newNomorInisiatif?: string
 ): Promise<BaseApiResponse<RbsiInisiatifResponse>> {
-  const token = getAuthToken();
-  
   let url = `${BASE_URL}/rbsi/inisiatifs/${inisiatifId}/copy?toProgramId=${toProgramId}`;
   if (newNomorInisiatif) {
     url += `&newNomorInisiatif=${encodeURIComponent(newNomorInisiatif)}`;
   }
-  
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to copy inisiatif');
-  }
-
-  return data;
+  return apiRequest<RbsiInisiatifResponse>(url, 'POST');
 }
 
 export interface RbsiHistoryResponse {
@@ -531,24 +261,7 @@ export interface RbsiHistoryResponse {
  * Get RBSI history (all years)
  */
 export async function getRbsiHistory(rbsiId: string): Promise<BaseApiResponse<RbsiHistoryResponse[]>> {
-  const token = getAuthToken();
-
-  const response = await fetch(`${BASE_URL}/rbsi/${rbsiId}/history`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to fetch RBSI history');
-  }
-
-  return data;
+  return apiRequest<RbsiHistoryResponse[]>(`${BASE_URL}/rbsi/${rbsiId}/history`, 'GET');
 }
 
 // ==================== KEP API ====================
@@ -610,74 +323,22 @@ export interface UpdateKepProgressRequest {
  * Get KEP list by RBSI
  */
 export async function getKepList(rbsiId: string): Promise<BaseApiResponse<RbsiKepResponse[]>> {
-  const token = getAuthToken();
-
-  const response = await fetch(`${BASE_URL}/rbsi/${rbsiId}/kep`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to fetch KEP list');
-  }
-
-  return data;
+  return apiRequest<RbsiKepResponse[]>(`${BASE_URL}/rbsi/${rbsiId}/kep`, 'GET');
 }
 
 /**
  * Create new KEP
  */
 export async function createKep(rbsiId: string, request: CreateKepRequest): Promise<BaseApiResponse<RbsiKepResponse>> {
-  const token = getAuthToken();
-
-  const response = await fetch(`${BASE_URL}/rbsi/${rbsiId}/kep`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify(request),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to create KEP');
-  }
-
-  return data;
+  return apiRequest<RbsiKepResponse>(`${BASE_URL}/rbsi/${rbsiId}/kep`, 'POST', request);
 }
 
 /**
  * Get KEP progress by RBSI
  */
 export async function getKepProgress(rbsiId: string, tahun?: number): Promise<BaseApiResponse<KepProgressFullResponse>> {
-  const token = getAuthToken();
   const url = tahun ? `${BASE_URL}/rbsi/${rbsiId}/kep-progress?tahun=${tahun}` : `${BASE_URL}/rbsi/${rbsiId}/kep-progress`;
-
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to fetch KEP progress');
-  }
-
-  return data;
+  return apiRequest<KepProgressFullResponse>(url, 'GET');
 }
 
 /**
@@ -688,23 +349,5 @@ export async function updateKepProgress(
   kepId: string,
   request: UpdateKepProgressRequest
 ): Promise<BaseApiResponse<KepProgressResponse>> {
-  const token = getAuthToken();
-
-  const response = await fetch(`${BASE_URL}/rbsi/${rbsiId}/kep/${kepId}/progress`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify(request),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to update KEP progress');
-  }
-
-  return data;
+  return apiRequest<KepProgressResponse>(`${BASE_URL}/rbsi/${rbsiId}/kep/${kepId}/progress`, 'PUT', request);
 }

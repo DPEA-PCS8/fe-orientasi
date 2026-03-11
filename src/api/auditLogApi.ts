@@ -1,6 +1,5 @@
-import { getAuthToken } from './authApi';
+import { apiRequest, type BaseApiResponse } from './apiClient';
 
-const API_KEY = 'da39b92f-a1b8-46d5-a10c-d08b1cc92218';
 const BASE_URL = '/api';
 
 // ==================== TYPES ====================
@@ -53,12 +52,6 @@ export interface EntityOption {
   label: string;
 }
 
-interface BaseApiResponse<T> {
-  status: number;
-  message: string;
-  data: T;
-}
-
 // ==================== CONSTANTS ====================
 
 export const ACTION_LABELS: Record<AuditAction, { label: string; color: 'success' | 'warning' | 'error' }> = {
@@ -75,8 +68,6 @@ export const ACTION_LABELS: Record<AuditAction, { label: string; color: 'success
 export async function searchAuditLogs(
   params: AuditLogSearchParams
 ): Promise<BaseApiResponse<AuditLogSearchResponse>> {
-  const token = getAuthToken();
-
   const queryParams = new URLSearchParams();
   if (params.entity_name) queryParams.append('entity_name', params.entity_name);
   if (params.entity_id) queryParams.append('entity_id', params.entity_id);
@@ -88,21 +79,10 @@ export async function searchAuditLogs(
   if (params.page !== undefined) queryParams.append('page', params.page.toString());
   if (params.size !== undefined) queryParams.append('size', params.size.toString());
 
-  const response = await fetch(`${BASE_URL}/audit-logs/search?${queryParams.toString()}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to fetch audit logs');
-  }
-
-  return response.json();
+  return apiRequest<AuditLogSearchResponse>(
+    `${BASE_URL}/audit-logs/search?${queryParams.toString()}`,
+    'GET'
+  );
 }
 
 /**
@@ -112,46 +92,20 @@ export async function getAllAuditLogs(
   page: number = 0,
   size: number = 20
 ): Promise<BaseApiResponse<AuditLogSearchResponse>> {
-  const token = getAuthToken();
-
-  const response = await fetch(`${BASE_URL}/audit-logs?page=${page}&size=${size}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to fetch audit logs');
-  }
-
-  return response.json();
+  return apiRequest<AuditLogSearchResponse>(
+    `${BASE_URL}/audit-logs?page=${page}&size=${size}`,
+    'GET'
+  );
 }
 
 /**
  * Get audit log by ID
  */
 export async function getAuditLogById(id: string): Promise<BaseApiResponse<AuditLogData>> {
-  const token = getAuthToken();
-
-  const response = await fetch(`${BASE_URL}/audit-logs/${id}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to fetch audit log');
-  }
-
-  return response.json();
+  return apiRequest<AuditLogData>(
+    `${BASE_URL}/audit-logs/${id}`,
+    'GET'
+  );
 }
 
 /**
@@ -163,26 +117,10 @@ export async function getAuditLogsByEntity(
   page: number = 0,
   size: number = 20
 ): Promise<BaseApiResponse<AuditLogSearchResponse>> {
-  const token = getAuthToken();
-
-  const response = await fetch(
+  return apiRequest<AuditLogSearchResponse>(
     `${BASE_URL}/audit-logs/entity/${entityName}/${entityId}?page=${page}&size=${size}`,
-    {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'APIKey': API_KEY,
-        'Authorization': `Bearer ${token}`,
-      },
-    }
+    'GET'
   );
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to fetch audit logs');
-  }
-
-  return response.json();
 }
 
 /**
@@ -192,72 +130,30 @@ export async function getRecentAuditLogs(
   entityName: string,
   entityId: string
 ): Promise<BaseApiResponse<AuditLogData[]>> {
-  const token = getAuthToken();
-
-  const response = await fetch(
+  return apiRequest<AuditLogData[]>(
     `${BASE_URL}/audit-logs/entity/${entityName}/${entityId}/recent`,
-    {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'APIKey': API_KEY,
-        'Authorization': `Bearer ${token}`,
-      },
-    }
+    'GET'
   );
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to fetch recent audit logs');
-  }
-
-  return response.json();
 }
 
 /**
  * Get audit statistics
  */
 export async function getAuditStatistics(): Promise<BaseApiResponse<AuditStatistics>> {
-  const token = getAuthToken();
-
-  const response = await fetch(`${BASE_URL}/audit-logs/statistics`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to fetch audit statistics');
-  }
-
-  return response.json();
+  return apiRequest<AuditStatistics>(
+    `${BASE_URL}/audit-logs/statistics`,
+    'GET'
+  );
 }
 
 /**
  * Get distinct entity names from audit logs
  */
 export async function getDistinctEntityNames(): Promise<BaseApiResponse<string[]>> {
-  const token = getAuthToken();
-
-  const response = await fetch(`${BASE_URL}/audit-logs/entities`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'APIKey': API_KEY,
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to fetch entity names');
-  }
-
-  return response.json();
+  return apiRequest<string[]>(
+    `${BASE_URL}/audit-logs/entities`,
+    'GET'
+  );
 }
 
 // ==================== HELPER FUNCTIONS ====================
