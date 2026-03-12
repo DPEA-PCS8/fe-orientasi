@@ -5,6 +5,7 @@ const BASE_URL = '/api';
 // Type definitions
 export type UserProfileResponse = {
   uuid: string;
+  username: string;
   full_name: string;
   departemen: string;
   title: string;
