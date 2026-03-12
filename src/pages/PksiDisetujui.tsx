@@ -65,8 +65,21 @@ interface PksiData {
   jangkaWaktu: string;
   tanggalPengajuan: string;
   linkDocsT01: string;
-  status: 'pending' | 'disetujui' | 'tidak_disetujui';
+  progress: string;
 }
+
+// Progress options for PKSI Disetujui
+const PROGRESS_OPTIONS = [
+  'Penyusunan Usreq',
+  'Pengadaan',
+  'Desain',
+  'Coding',
+  'Unit Test',
+  'SIT',
+  'UAT',
+  'Deployment',
+  'Selesai',
+] as const;
 
 type Order = 'asc' | 'desc';
 const calculateJangkaWaktu = (apiData: PksiDocumentData): string => {
@@ -112,7 +125,7 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     jangkaWaktu: calculateJangkaWaktu(apiData),
     tanggalPengajuan: apiData.tanggal_pengajuan || apiData.created_at || '',
     linkDocsT01: '', // Not available in API response
-    status: 'disetujui',
+    progress: apiData.progress || 'Penyusunan Usreq',
   };
 };
 
@@ -185,6 +198,7 @@ function PksiDisetujui() {
     anggotaTimNames: [] as string[],
     iku: 'ya',
     inhouseOutsource: 'inhouse',
+    progress: 'Penyusunan Usreq',
   });
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
@@ -232,6 +246,7 @@ function PksiDisetujui() {
       anggotaTimNames: existingNames,
       iku: pksi.iku !== '-' ? pksi.iku : 'ya',
       inhouseOutsource: pksi.inhouseOutsource !== '-' ? pksi.inhouseOutsource : 'inhouse',
+      progress: pksi.progress || 'Penyusunan Usreq',
     });
     setOpenEditDialog(true);
   };
@@ -248,6 +263,7 @@ function PksiDisetujui() {
         pic_approval_name: editForm.picName,
         anggota_tim: editForm.anggotaTim.join(', '),
         anggota_tim_names: editForm.anggotaTimNames.join(', '),
+        progress: editForm.progress,
       });
       
       // Refresh data
@@ -1097,14 +1113,21 @@ function PksiDisetujui() {
                   </TableSortLabel>
                 </TableCell>
                 <TableCell 
+                  sortDirection={orderBy === 'progress' ? order : false}
                   sx={{ 
                     fontWeight: 600, 
                     color: '#1d1d1f', 
                     py: 2,
-                    minWidth: 130,
+                    minWidth: 160,
                   }}
                 >
-                  Status
+                  <TableSortLabel
+                    active={orderBy === 'progress'}
+                    direction={orderBy === 'progress' ? order : 'asc'}
+                    onClick={() => handleSort('progress')}
+                  >
+                    Progres
+                  </TableSortLabel>
                 </TableCell>
                 <TableCell 
                   sx={{ 
@@ -1322,30 +1345,32 @@ function PksiDisetujui() {
                     </Typography>
                   </TableCell>
                   <TableCell sx={{ py: 2 }}>
-                    <Box
+                    <Chip
+                      label={item.progress}
+                      size="small"
                       sx={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 0.5,
-                        px: 1.5,
-                        py: 0.5,
-                        bgcolor: '#31A24C15',
-                        borderRadius: '6px',
-                        border: '1px solid #31A24C30',
+                        bgcolor: (() => {
+                          const progressIndex = PROGRESS_OPTIONS.indexOf(item.progress as typeof PROGRESS_OPTIONS[number]);
+                          if (progressIndex === -1) return 'rgba(107, 114, 128, 0.1)';
+                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return 'rgba(49, 162, 76, 0.15)'; // Selesai
+                          if (progressIndex >= 6) return 'rgba(37, 99, 235, 0.12)'; // UAT, Deployment
+                          if (progressIndex >= 3) return 'rgba(139, 92, 246, 0.12)'; // Coding, Unit Test, SIT
+                          return 'rgba(217, 119, 6, 0.12)'; // Penyusunan Usreq, Pengadaan, Desain
+                        })(),
+                        color: (() => {
+                          const progressIndex = PROGRESS_OPTIONS.indexOf(item.progress as typeof PROGRESS_OPTIONS[number]);
+                          if (progressIndex === -1) return '#4B5563';
+                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return '#31A24C'; // Selesai
+                          if (progressIndex >= 6) return '#2563EB'; // UAT, Deployment
+                          if (progressIndex >= 3) return '#8B5CF6'; // Coding, Unit Test, SIT
+                          return '#D97706'; // Penyusunan Usreq, Pengadaan, Desain
+                        })(),
+                        fontWeight: 600,
+                        fontSize: '0.7rem',
+                        height: 26,
+                        borderRadius: '8px',
                       }}
-                    >
-                      <CheckCircleRounded sx={{ fontSize: 14, color: '#31A24C' }} />
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontWeight: 600,
-                          fontSize: '0.75rem',
-                          color: '#31A24C',
-                        }}
-                      >
-                        Disetujui
-                      </Typography>
-                    </Box>
+                    />
                   </TableCell>
                   <TableCell sx={{ py: 2 }}>
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -1861,6 +1886,51 @@ function PksiDisetujui() {
               </Select>
             </FormControl>
           </Box>
+
+          {/* Progress Field - Full Width */}
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel 
+              id="edit-progress-label"
+              sx={{ '&.Mui-focused': { color: '#D97706' } }}
+            >
+              Progres
+            </InputLabel>
+            <Select
+              labelId="edit-progress-label"
+              value={editForm.progress}
+              label="Progres"
+              onChange={(e) => setEditForm({ ...editForm, progress: e.target.value })}
+              sx={{
+                borderRadius: '14px',
+                backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                backdropFilter: 'blur(10px)',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(0, 0, 0, 0.08)',
+                },
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(217, 119, 6, 0.3)',
+                  },
+                },
+                '&.Mui-focused': {
+                  backgroundColor: 'rgba(255, 255, 255, 1)',
+                  boxShadow: '0 4px 20px rgba(217, 119, 6, 0.12)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#D97706',
+                    borderWidth: '1.5px',
+                  },
+                },
+              }}
+            >
+              {PROGRESS_OPTIONS.map((option) => (
+                <MenuItem key={option} value={option}>
+                  {option}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </DialogContent>
         <DialogActions sx={{ 
           px: 3, 

@@ -60,6 +60,7 @@ export interface PksiDocumentData {
   pic_approval_name?: string;
   anggota_tim?: string;
   anggota_tim_names?: string;
+  progress?: string;
   // Legacy
   tujuan_pengajuan?: string;
   kapan_diselesaikan?: string;
@@ -127,7 +128,10 @@ export interface UpdateStatusRequest {
   iku?: string;
   inhouse_outsource?: string;
   pic_approval?: string;
+  pic_approval_name?: string;
   anggota_tim?: string;
+  anggota_tim_names?: string;
+  progress?: string;
 }
 
 // ==================== PKSI API ====================
@@ -212,6 +216,7 @@ export async function updatePksiStatus(
     pic_approval_name?: string;
     anggota_tim?: string;
     anggota_tim_names?: string;
+    progress?: string;
   }
 ): Promise<PksiDocumentData> {
   const payload: UpdateStatusRequest = { status, ...approvalData };
