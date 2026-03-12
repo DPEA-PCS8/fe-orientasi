@@ -43,10 +43,11 @@ import {
   Visibility as VisibilityIcon,
   Edit as EditIcon,
 } from '@mui/icons-material';
-import { searchPksiDocuments, type PksiDocumentData } from '../api/pksiApi';
+import { searchPksiDocuments, updatePksiStatus, type PksiDocumentData } from '../api/pksiApi';
 import { uploadPksiFiles, getPksiFiles, deletePksiFile, type PksiFileData } from '../api/fileApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
-import { ViewPksiModal, EditPksiModal } from '../components/modals';
+import { getUsersByRole, type UserSimple } from '../api/userApi';
+import { ViewPksiModal } from '../components/modals';
 
 // Interface untuk data PKSI (transformed from API)
 interface PksiData {
@@ -56,7 +57,9 @@ interface PksiData {
   picSatkerBA: string;
   bidang: string;
   pic: string;
+  picUuid: string;
   anggotaTim: string;
+  anggotaTimUuids: string;
   iku: string;
   inhouseOutsource: string;
   jangkaWaktu: string;
@@ -65,19 +68,7 @@ interface PksiData {
   status: 'pending' | 'disetujui' | 'tidak_disetujui';
 }
 
-// Interface for EditPksiModal
-interface PksiEditData {
-  id: string;
-  namaPksi: string;
-  namaAplikasi: string;
-  picSatkerBA: string;
-  jangkaWaktu: string;
-  tanggalPengajuan: string;
-  linkDocsT01: string;
-  status: 'pending' | 'disetujui' | 'tidak_disetujui';
-}
-
-// Calculate jangka waktu based on timeline dates
+type Order = 'asc' | 'desc';
 const calculateJangkaWaktu = (apiData: PksiDocumentData): string => {
   const startDates = [apiData.tahap1_awal, apiData.tahap5_awal, apiData.tahap7_awal]
     .filter(Boolean)
@@ -112,8 +103,10 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     namaAplikasi: apiData.nama_aplikasi || '-',
     picSatkerBA: apiData.pic_satker_ba || '-',
     bidang: '', // Will be resolved from SKPA lookup
-    pic: apiData.pic_approval || apiData.pengelola_aplikasi || '-',
-    anggotaTim: apiData.anggota_tim || apiData.pengguna_aplikasi || '-',
+    pic: apiData.pic_approval_name || apiData.pic_approval || apiData.pengelola_aplikasi || '-',
+    picUuid: apiData.pic_approval || '',
+    anggotaTim: apiData.anggota_tim_names || apiData.anggota_tim || apiData.pengguna_aplikasi || '-',
+    anggotaTimUuids: apiData.anggota_tim || '',
     iku: apiData.iku || '-',
     inhouseOutsource: apiData.inhouse_outsource || '-',
     jangkaWaktu: calculateJangkaWaktu(apiData),
@@ -122,8 +115,6 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     status: 'disetujui',
   };
 };
-
-type Order = 'asc' | 'desc';
 
 // Color palette for SKPA chips
 const SKPA_COLORS = [
@@ -184,9 +175,39 @@ function PksiDisetujui() {
   const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedPksiIdForView, setSelectedPksiIdForView] = useState<string | null>(null);
 
-  // Edit modal state
-  const [openEditModal, setOpenEditModal] = useState(false);
-  const [selectedPksiForEdit, setSelectedPksiForEdit] = useState<PksiEditData | null>(null);
+  // Edit approval dialog state
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [selectedPksiForEdit, setSelectedPksiForEdit] = useState<PksiData | null>(null);
+  const [editForm, setEditForm] = useState({
+    pic: '',
+    picName: '',
+    anggotaTim: [] as string[],
+    anggotaTimNames: [] as string[],
+    iku: 'ya',
+    inhouseOutsource: 'inhouse',
+  });
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+
+  // Eligible users for PIC/Anggota Tim (Admin + Pengembang)
+  const [eligibleUsers, setEligibleUsers] = useState<UserSimple[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
+  // Fetch eligible users on mount
+  useEffect(() => {
+    const fetchEligibleUsers = async () => {
+      setIsLoadingUsers(true);
+      try {
+        const users = await getUsersByRole('Admin,Pengembang');
+        setEligibleUsers(users);
+      } catch (error) {
+        console.error('Failed to fetch eligible users:', error);
+        setEligibleUsers([]);
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
+    fetchEligibleUsers();
+  }, []);
 
   const handleViewClick = (pksiId: string) => {
     setSelectedPksiIdForView(pksiId);
@@ -194,24 +215,55 @@ function PksiDisetujui() {
   };
 
   const handleEditClick = (pksi: PksiData) => {
-    // Transform PksiData to PksiEditData for EditPksiModal
-    const editData: PksiEditData = {
-      id: pksi.id,
-      namaPksi: pksi.namaPksi,
-      namaAplikasi: pksi.namaAplikasi,
-      picSatkerBA: pksi.picSatkerBA,
-      jangkaWaktu: pksi.jangkaWaktu,
-      tanggalPengajuan: pksi.tanggalPengajuan,
-      linkDocsT01: pksi.linkDocsT01,
-      status: pksi.status,
-    };
-    setSelectedPksiForEdit(editData);
-    setOpenEditModal(true);
+    setSelectedPksiForEdit(pksi);
+    
+    // Parse existing anggota tim UUIDs and names
+    const existingUuids = pksi.anggotaTimUuids && pksi.anggotaTimUuids !== '-' 
+      ? pksi.anggotaTimUuids.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+    const existingNames = pksi.anggotaTim && pksi.anggotaTim !== '-'
+      ? pksi.anggotaTim.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+    
+    setEditForm({
+      pic: pksi.picUuid || '',
+      picName: pksi.pic !== '-' ? pksi.pic : '',
+      anggotaTim: existingUuids,
+      anggotaTimNames: existingNames,
+      iku: pksi.iku !== '-' ? pksi.iku : 'ya',
+      inhouseOutsource: pksi.inhouseOutsource !== '-' ? pksi.inhouseOutsource : 'inhouse',
+    });
+    setOpenEditDialog(true);
   };
 
-  const handleEditSuccess = () => {
-    // Refresh data after successful edit
-    fetchPksiData();
+  const handleEditSubmit = async () => {
+    if (!selectedPksiForEdit) return;
+
+    setIsSubmittingEdit(true);
+    try {
+      await updatePksiStatus(selectedPksiForEdit.id, 'DISETUJUI', {
+        iku: editForm.iku,
+        inhouse_outsource: editForm.inhouseOutsource,
+        pic_approval: editForm.pic,
+        pic_approval_name: editForm.picName,
+        anggota_tim: editForm.anggotaTim.join(', '),
+        anggota_tim_names: editForm.anggotaTimNames.join(', '),
+      });
+      
+      // Refresh data
+      fetchPksiData();
+      setOpenEditDialog(false);
+      setSelectedPksiForEdit(null);
+    } catch (error) {
+      console.error('Error updating PKSI:', error);
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
+  const handleEditCancel = () => {
+    setOpenEditDialog(false);
+    setSelectedPksiForEdit(null);
   };
 
   // Map sortBy from UI field to API field
@@ -1380,16 +1432,494 @@ function PksiDisetujui() {
         pksiId={selectedPksiIdForView}
       />
 
-      {/* Edit PKSI Modal */}
-      <EditPksiModal
-        open={openEditModal}
-        onClose={() => {
-          setOpenEditModal(false);
-          setSelectedPksiForEdit(null);
+      {/* Edit Approval Dialog - Apple Liquid Glass Style */}
+      <Dialog
+        open={openEditDialog}
+        onClose={handleEditCancel}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '24px',
+            overflow: 'hidden',
+            background: 'linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 250, 252, 0.9) 100%)',
+            backdropFilter: 'blur(40px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.6)',
+            boxShadow: '0 24px 80px rgba(0, 0, 0, 0.12), 0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+          },
         }}
-        onSuccess={handleEditSuccess}
-        pksiData={selectedPksiForEdit}
-      />
+      >
+        <DialogTitle sx={{ 
+          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(250, 250, 252, 0.6) 100%)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(0, 0, 0, 0.04)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          py: 2.5,
+          px: 3,
+        }}>
+          <Box sx={{
+            width: 44,
+            height: 44,
+            borderRadius: '14px',
+            background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(217, 119, 6, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 16px rgba(217, 119, 6, 0.15)',
+          }}>
+            <EditIcon sx={{ color: '#D97706', fontSize: 22 }} />
+          </Box>
+          <Box>
+            <Typography sx={{ 
+              fontWeight: 600, 
+              fontSize: '1.1rem',
+              color: '#1d1d1f',
+              letterSpacing: '-0.02em',
+            }}>
+              Edit PKSI Disetujui
+            </Typography>
+            {selectedPksiForEdit && (
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                color: '#86868b',
+                mt: 0.25,
+              }}>
+                {selectedPksiForEdit.namaPksi}
+              </Typography>
+            )}
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, py: 3 }}>
+          {selectedPksiForEdit && (
+            <Box sx={{ 
+              mb: 3,
+              p: 2.5,
+              borderRadius: '16px',
+              background: 'linear-gradient(145deg, rgba(245, 245, 247, 0.8) 0%, rgba(240, 240, 242, 0.6) 100%)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+            }}>
+              <Box sx={{ display: 'flex', gap: 3, mb: 2.5 }}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ 
+                    fontSize: '0.7rem', 
+                    color: '#86868b', 
+                    mb: 0.5,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    fontWeight: 500,
+                  }}>
+                    Nama Aplikasi
+                  </Typography>
+                  <Typography sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f',
+                    fontSize: '0.9rem',
+                  }}>
+                    {selectedPksiForEdit.namaAplikasi}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ 
+                    fontSize: '0.7rem', 
+                    color: '#86868b', 
+                    mb: 0.5,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    fontWeight: 500,
+                  }}>
+                    SKPA
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {resolveSkpaCodes(selectedPksiForEdit.picSatkerBA).length > 0 ? (
+                      resolveSkpaCodes(selectedPksiForEdit.picSatkerBA).map((code, idx) => {
+                        const chipColor = getSkpaColor(code);
+                        return (
+                          <Chip
+                            key={idx}
+                            label={code}
+                            size="small"
+                            sx={{
+                              bgcolor: chipColor.bg,
+                              color: chipColor.text,
+                              fontWeight: 600,
+                              fontSize: '0.65rem',
+                              height: 22,
+                              borderRadius: '6px',
+                            }}
+                          />
+                        );
+                      })
+                    ) : (
+                      <Typography sx={{ color: '#86868b', fontSize: '0.85rem' }}>-</Typography>
+                    )}
+                  </Box>
+                </Box>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 3 }}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ 
+                    fontSize: '0.7rem', 
+                    color: '#86868b', 
+                    mb: 0.5,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    fontWeight: 500,
+                  }}>
+                    Bidang
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {resolveBidangNames(selectedPksiForEdit.picSatkerBA).length > 0 ? (
+                      resolveBidangNames(selectedPksiForEdit.picSatkerBA).map((bidang, idx) => (
+                        <Chip
+                          key={idx}
+                          label={bidang}
+                          size="small"
+                          sx={{
+                            bgcolor: 'rgba(107, 114, 128, 0.12)',
+                            color: '#4B5563',
+                            fontWeight: 500,
+                            fontSize: '0.65rem',
+                            height: 22,
+                            borderRadius: '6px',
+                          }}
+                        />
+                      ))
+                    ) : (
+                      <Typography sx={{ color: '#86868b', fontSize: '0.85rem' }}>-</Typography>
+                    )}
+                  </Box>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ 
+                    fontSize: '0.7rem', 
+                    color: '#86868b', 
+                    mb: 0.5,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    fontWeight: 500,
+                  }}>
+                    Jangka Waktu
+                  </Typography>
+                  <Chip
+                    label={selectedPksiForEdit.jangkaWaktu === 'Single Year' ? 'Single Year' : 'Multiyears'}
+                    size="small"
+                    sx={{
+                      bgcolor: selectedPksiForEdit.jangkaWaktu === 'Single Year' 
+                        ? 'rgba(139, 92, 246, 0.12)' 
+                        : 'rgba(37, 99, 235, 0.12)',
+                      color: selectedPksiForEdit.jangkaWaktu === 'Single Year' ? '#8B5CF6' : '#2563EB',
+                      fontWeight: 600,
+                      fontSize: '0.7rem',
+                      height: 24,
+                      borderRadius: '8px',
+                    }}
+                  />
+                </Box>
+              </Box>
+            </Box>
+          )}
+
+          <Typography sx={{ 
+            fontWeight: 600, 
+            color: '#1d1d1f', 
+            mb: 2,
+            fontSize: '0.85rem',
+            letterSpacing: '-0.01em',
+          }}>
+            Informasi Persetujuan
+          </Typography>
+
+          {/* PIC Field - Liquid Glass Style */}
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel 
+              id="edit-pic-label"
+              sx={{
+                '&.Mui-focused': { color: '#D97706' },
+              }}
+            >
+              PIC *
+            </InputLabel>
+            <Select
+              labelId="edit-pic-label"
+              value={editForm.pic}
+              label="PIC *"
+              onChange={(e) => {
+                const selectedUser = eligibleUsers.find(u => u.uuid === e.target.value);
+                setEditForm({ 
+                  ...editForm, 
+                  pic: e.target.value,
+                  picName: selectedUser?.full_name || '',
+                });
+              }}
+              disabled={isLoadingUsers}
+              sx={{
+                borderRadius: '14px',
+                backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                backdropFilter: 'blur(10px)',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(0, 0, 0, 0.08)',
+                  transition: 'all 0.3s ease',
+                },
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(217, 119, 6, 0.3)',
+                  },
+                },
+                '&.Mui-focused': {
+                  backgroundColor: 'rgba(255, 255, 255, 1)',
+                  boxShadow: '0 4px 20px rgba(217, 119, 6, 0.12)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#D97706',
+                    borderWidth: '1.5px',
+                  },
+                },
+              }}
+            >
+              <MenuItem value=""><em>Pilih PIC</em></MenuItem>
+              {eligibleUsers.map((user) => (
+                <MenuItem key={user.uuid} value={user.uuid}>
+                  {user.full_name} ({user.department || 'No Dept'})
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Anggota Tim Field - Liquid Glass Style */}
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <Autocomplete
+              multiple
+              options={eligibleUsers}
+              getOptionLabel={(option) => typeof option === 'string' ? option : option.full_name}
+              value={eligibleUsers.filter(u => editForm.anggotaTim.includes(u.uuid))}
+              onChange={(_, newValue) => {
+                const users = newValue as UserSimple[];
+                setEditForm({ 
+                  ...editForm, 
+                  anggotaTim: users.map(u => u.uuid),
+                  anggotaTimNames: users.map(u => u.full_name),
+                });
+              }}
+              loading={isLoadingUsers}
+              isOptionEqualToValue={(option, value) => option.uuid === value.uuid}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Anggota Tim *"
+                  placeholder="Pilih anggota tim"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '14px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                      backdropFilter: 'blur(10px)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '& fieldset': {
+                        borderColor: 'rgba(0, 0, 0, 0.08)',
+                        transition: 'all 0.3s ease',
+                      },
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        '& fieldset': {
+                          borderColor: 'rgba(217, 119, 6, 0.3)',
+                        },
+                      },
+                      '&.Mui-focused': {
+                        backgroundColor: 'rgba(255, 255, 255, 1)',
+                        boxShadow: '0 4px 20px rgba(217, 119, 6, 0.12)',
+                        '& fieldset': {
+                          borderColor: '#D97706',
+                          borderWidth: '1.5px',
+                        },
+                      },
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: '#D97706',
+                    },
+                  }}
+                />
+              )}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => {
+                  const { key, ...tagProps } = getTagProps({ index });
+                  return (
+                    <Chip
+                      key={key}
+                      label={option.full_name}
+                      size="small"
+                      {...tagProps}
+                      sx={{ 
+                        background: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)',
+                        color: 'white',
+                        fontWeight: 500,
+                        fontSize: '0.75rem',
+                        borderRadius: '8px',
+                        boxShadow: '0 2px 8px rgba(217, 119, 6, 0.25)',
+                        '& .MuiChip-deleteIcon': {
+                          color: 'rgba(255, 255, 255, 0.8)',
+                          '&:hover': {
+                            color: 'white',
+                          },
+                        },
+                      }}
+                    />
+                  );
+                })
+              }
+            />
+          </FormControl>
+
+          {/* IKU & Inhouse/Outsource - Side by Side */}
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            {/* IKU Field */}
+            <FormControl fullWidth>
+              <InputLabel 
+                id="edit-iku-label"
+                sx={{ '&.Mui-focused': { color: '#D97706' } }}
+              >
+                IKU
+              </InputLabel>
+              <Select
+                labelId="edit-iku-label"
+                value={editForm.iku}
+                label="IKU"
+                onChange={(e) => setEditForm({ ...editForm, iku: e.target.value })}
+                sx={{
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0, 0, 0, 0.08)',
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(217, 119, 6, 0.3)',
+                    },
+                  },
+                  '&.Mui-focused': {
+                    backgroundColor: 'rgba(255, 255, 255, 1)',
+                    boxShadow: '0 4px 20px rgba(217, 119, 6, 0.12)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#D97706',
+                      borderWidth: '1.5px',
+                    },
+                  },
+                }}
+              >
+                <MenuItem value="ya">Ya</MenuItem>
+                <MenuItem value="tidak">Tidak</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* Inhouse/Outsource Field */}
+            <FormControl fullWidth>
+              <InputLabel 
+                id="edit-inhouse-label"
+                sx={{ '&.Mui-focused': { color: '#D97706' } }}
+              >
+                Inhouse/Outsource
+              </InputLabel>
+              <Select
+                labelId="edit-inhouse-label"
+                value={editForm.inhouseOutsource}
+                label="Inhouse/Outsource"
+                onChange={(e) => setEditForm({ ...editForm, inhouseOutsource: e.target.value })}
+                sx={{
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0, 0, 0, 0.08)',
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(217, 119, 6, 0.3)',
+                    },
+                  },
+                  '&.Mui-focused': {
+                    backgroundColor: 'rgba(255, 255, 255, 1)',
+                    boxShadow: '0 4px 20px rgba(217, 119, 6, 0.12)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#D97706',
+                      borderWidth: '1.5px',
+                    },
+                  },
+                }}
+              >
+                <MenuItem value="inhouse">Inhouse</MenuItem>
+                <MenuItem value="outsource">Outsource</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ 
+          px: 3, 
+          py: 2.5, 
+          background: 'linear-gradient(180deg, rgba(250, 250, 252, 0.6) 0%, rgba(245, 245, 247, 0.8) 100%)',
+          borderTop: '1px solid rgba(0, 0, 0, 0.04)',
+          gap: 1.5,
+        }}>
+          <Button
+            onClick={handleEditCancel}
+            sx={{
+              color: '#64748B',
+              fontWeight: 500,
+              px: 3,
+              py: 1,
+              borderRadius: '12px',
+              fontSize: '0.875rem',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                bgcolor: 'rgba(0, 0, 0, 0.04)',
+              },
+            }}
+          >
+            Batal
+          </Button>
+          <Button
+            onClick={handleEditSubmit}
+            disabled={!editForm.pic || editForm.anggotaTim.length === 0 || isSubmittingEdit}
+            variant="contained"
+            startIcon={isSubmittingEdit ? <CircularProgress size={16} color="inherit" /> : null}
+            sx={{
+              background: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)',
+              fontWeight: 600,
+              px: 3,
+              py: 1,
+              borderRadius: '12px',
+              textTransform: 'none',
+              fontSize: '0.875rem',
+              boxShadow: '0 4px 16px rgba(217, 119, 6, 0.3)',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #B45309 0%, #92400E 100%)',
+                boxShadow: '0 6px 24px rgba(217, 119, 6, 0.4)',
+                transform: 'translateY(-1px)',
+              },
+              '&:active': {
+                transform: 'translateY(0)',
+              },
+              '&:disabled': {
+                background: 'rgba(217, 119, 6, 0.3)',
+                color: 'rgba(255, 255, 255, 0.7)',
+                boxShadow: 'none',
+              },
+            }}
+          >
+            {isSubmittingEdit ? 'Menyimpan...' : 'Simpan Perubahan'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Upload Modal */}
       <Dialog
