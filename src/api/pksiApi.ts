@@ -53,6 +53,11 @@ export interface PksiDocumentData {
   status: string;
   created_at?: string;
   updated_at?: string;
+  // Approval fields (set when status = DISETUJUI)
+  iku?: string;
+  inhouse_outsource?: string;
+  pic_approval?: string;
+  anggota_tim?: string;
   // Legacy
   tujuan_pengajuan?: string;
   kapan_diselesaikan?: string;
@@ -116,6 +121,11 @@ export interface PksiDocumentRequest {
 
 export interface UpdateStatusRequest {
   status: 'PENDING' | 'DISETUJUI' | 'DITOLAK' | 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'REVISION';
+  // Approval fields (required when status = DISETUJUI)
+  iku?: string;
+  inhouse_outsource?: string;
+  pic_approval?: string;
+  anggota_tim?: string;
 }
 
 // ==================== PKSI API ====================
@@ -190,8 +200,18 @@ export async function updatePksiDocument(id: string, data: PksiDocumentRequest):
 /**
  * Update PKSI document status
  */
-export async function updatePksiStatus(id: string, status: UpdateStatusRequest['status']): Promise<PksiDocumentData> {
-  const response = await apiRequest<PksiDocumentData>(`${BASE_URL}/pksi/${id}/status`, 'PATCH', { status });
+export async function updatePksiStatus(
+  id: string, 
+  status: UpdateStatusRequest['status'],
+  approvalData?: {
+    iku?: string;
+    inhouse_outsource?: string;
+    pic_approval?: string;
+    anggota_tim?: string;
+  }
+): Promise<PksiDocumentData> {
+  const payload: UpdateStatusRequest = { status, ...approvalData };
+  const response = await apiRequest<PksiDocumentData>(`${BASE_URL}/pksi/${id}/status`, 'PATCH', payload);
   return response.data;
 }
 
