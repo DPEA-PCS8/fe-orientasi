@@ -19,6 +19,7 @@ import {
   Business as BusinessIcon,
   Work as WorkIcon,
   Assignment as AssignmentIcon,
+  Badge as BadgeIcon,
 } from '@mui/icons-material';
 import { getUserInfo } from '../api/authApi';
 import { getUserProfile, type UserProfileResponse } from '../api/userProfileApi';
@@ -189,7 +190,7 @@ const Profile = () => {
       </Box>
 
       {/* Info Cards */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(5, 1fr)' }, gap: 2, mb: 3 }}>
         <Paper
           elevation={0}
           sx={{
@@ -223,6 +224,42 @@ const Profile = () => {
           </Typography>
           <Typography variant="body1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
             {userProfile?.full_name || '-'}
+          </Typography>
+        </Paper>
+
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2.5,
+            borderRadius: 2,
+            border: '1px solid rgba(0, 0, 0, 0.08)',
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+              transform: 'translateY(-2px)',
+            },
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: 1.5,
+                background: 'linear-gradient(135deg, #FF9500 0%, #FF6B00 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <BadgeIcon sx={{ color: '#fff', fontSize: 20 }} />
+            </Box>
+          </Box>
+          <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mb: 0.5 }}>
+            Username
+          </Typography>
+          <Typography variant="body1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+            {userProfile?.username || '-'}
           </Typography>
         </Paper>
 
