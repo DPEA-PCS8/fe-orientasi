@@ -60,6 +60,7 @@ export interface PksiDocumentData {
   pic_approval_name?: string;
   anggota_tim?: string;
   anggota_tim_names?: string;
+  progress?: string;
   // Legacy
   tujuan_pengajuan?: string;
   kapan_diselesaikan?: string;
@@ -127,7 +128,10 @@ export interface UpdateStatusRequest {
   iku?: string;
   inhouse_outsource?: string;
   pic_approval?: string;
+  pic_approval_name?: string;
   anggota_tim?: string;
+  anggota_tim_names?: string;
+  progress?: string;
 }
 
 // ==================== PKSI API ====================
@@ -212,10 +216,32 @@ export async function updatePksiStatus(
     pic_approval_name?: string;
     anggota_tim?: string;
     anggota_tim_names?: string;
+    progress?: string;
   }
 ): Promise<PksiDocumentData> {
   const payload: UpdateStatusRequest = { status, ...approvalData };
   const response = await apiRequest<PksiDocumentData>(`${BASE_URL}/pksi/${id}/status`, 'PATCH', payload);
+  return response.data;
+}
+
+/**
+ * Update PKSI approval fields (for approved documents only)
+ */
+export interface UpdateApprovalRequest {
+  iku?: string;
+  inhouse_outsource?: string;
+  pic_approval?: string;
+  pic_approval_name?: string;
+  anggota_tim?: string;
+  anggota_tim_names?: string;
+  progress?: string;
+}
+
+export async function updatePksiApproval(
+  id: string,
+  approvalData: UpdateApprovalRequest
+): Promise<PksiDocumentData> {
+  const response = await apiRequest<PksiDocumentData>(`${BASE_URL}/pksi/${id}/approval`, 'PATCH', approvalData);
   return response.data;
 }
 
