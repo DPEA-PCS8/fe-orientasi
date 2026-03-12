@@ -305,6 +305,18 @@ function PksiDisetujui() {
         sortDir: order,
       });
 
+      // DEBUG: Log response and user department
+      const userInfoStorage = localStorage.getItem('user_info') || sessionStorage.getItem('user_info');
+      const parsedUserInfo = userInfoStorage ? JSON.parse(userInfoStorage) : null;
+      console.log('=== DEBUG PKSI RESPONSE ===');
+      console.log('User Department:', parsedUserInfo?.department);
+      console.log('User Roles:', parsedUserInfo?.roles);
+      console.log('Full User Info:', parsedUserInfo);
+      console.log('PKSI Response:', response);
+      console.log('PKSI Content:', response.content);
+      console.log('Total Elements:', response.total_elements);
+      console.log('===========================');
+
       const transformedData = response.content.map(transformApiData);
       setPksiData(transformedData);
       setTotalElements(response.total_elements);
