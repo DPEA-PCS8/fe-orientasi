@@ -43,7 +43,7 @@ export async function uploadPksiFiles(pksiId: string, files: File[]): Promise<Pk
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
-      'X-API-Key': API_KEY,
+      'APIKey': API_KEY,
     },
     body: formData,
   });
@@ -76,7 +76,7 @@ export async function uploadTempFiles(sessionId: string, files: File[]): Promise
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
-      'X-API-Key': API_KEY,
+      'APIKey': API_KEY,
     },
     body: formData,
   });
@@ -104,7 +104,7 @@ export async function moveTempFilesToPermanent(pksiId: string, sessionId: string
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
-      'X-API-Key': API_KEY,
+      'APIKey': API_KEY,
       'Content-Type': 'application/json',
     },
   });
@@ -132,7 +132,7 @@ export async function deleteTempFiles(sessionId: string): Promise<void> {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
-      'X-API-Key': API_KEY,
+      'APIKey': API_KEY,
     },
   });
 
@@ -156,7 +156,7 @@ export async function getPksiFiles(pksiId: string): Promise<PksiFileData[]> {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
-      'X-API-Key': API_KEY,
+      'APIKey': API_KEY,
       'Content-Type': 'application/json',
     },
   });
@@ -184,7 +184,7 @@ export async function deletePksiFile(fileId: string): Promise<void> {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
-      'X-API-Key': API_KEY,
+      'APIKey': API_KEY,
     },
   });
 
@@ -215,7 +215,7 @@ export async function downloadPksiFile(fileId: string, fileName: string): Promis
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
-      'X-API-Key': API_KEY,
+      'APIKey': API_KEY,
     },
   });
 
