@@ -225,6 +225,27 @@ export async function updatePksiStatus(
 }
 
 /**
+ * Update PKSI approval fields (for approved documents only)
+ */
+export interface UpdateApprovalRequest {
+  iku?: string;
+  inhouse_outsource?: string;
+  pic_approval?: string;
+  pic_approval_name?: string;
+  anggota_tim?: string;
+  anggota_tim_names?: string;
+  progress?: string;
+}
+
+export async function updatePksiApproval(
+  id: string,
+  approvalData: UpdateApprovalRequest
+): Promise<PksiDocumentData> {
+  const response = await apiRequest<PksiDocumentData>(`${BASE_URL}/pksi/${id}/approval`, 'PATCH', approvalData);
+  return response.data;
+}
+
+/**
  * Delete PKSI document
  */
 export async function deletePksiDocument(id: string): Promise<void> {

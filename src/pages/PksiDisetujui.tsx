@@ -43,7 +43,7 @@ import {
   Visibility as VisibilityIcon,
   Edit as EditIcon,
 } from '@mui/icons-material';
-import { searchPksiDocuments, updatePksiStatus, type PksiDocumentData } from '../api/pksiApi';
+import { searchPksiDocuments, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
 import { uploadPksiFiles, getPksiFiles, deletePksiFile, type PksiFileData } from '../api/fileApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getUsersByRole, type UserSimple } from '../api/userApi';
@@ -256,7 +256,7 @@ function PksiDisetujui() {
 
     setIsSubmittingEdit(true);
     try {
-      await updatePksiStatus(selectedPksiForEdit.id, 'DISETUJUI', {
+      await updatePksiApproval(selectedPksiForEdit.id, {
         iku: editForm.iku,
         inhouse_outsource: editForm.inhouseOutsource,
         pic_approval: editForm.pic,
