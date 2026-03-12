@@ -1,7 +1,21 @@
+import { apiRequest } from './apiClient';
 import type { UserListResponse } from '../types/User';
 
-// API_BASE_URL will be used when connecting to real backend
-// const API_BASE_URL = '/api';
+const BASE_URL = '/api';
+
+// Interface for simple user response
+export interface UserSimple {
+  uuid: string;
+  full_name: string;
+  email: string;
+  department: string;
+}
+
+// Get users by role name
+export const getUsersByRole = async (roleName: string): Promise<UserSimple[]> => {
+  const response = await apiRequest<UserSimple[]>(`${BASE_URL}/users/by-role/${roleName}`, 'GET');
+  return response.data || [];
+};
 
 const DUMMY_USERS = [
   {

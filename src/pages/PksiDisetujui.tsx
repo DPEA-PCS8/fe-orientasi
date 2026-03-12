@@ -112,8 +112,8 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     namaAplikasi: apiData.nama_aplikasi || '-',
     picSatkerBA: apiData.pic_satker_ba || '-',
     bidang: '', // Will be resolved from SKPA lookup
-    pic: apiData.pic_approval || apiData.pengelola_aplikasi || '-',
-    anggotaTim: apiData.anggota_tim || apiData.pengguna_aplikasi || '-',
+    pic: apiData.pic_approval_name || apiData.pic_approval || apiData.pengelola_aplikasi || '-',
+    anggotaTim: apiData.anggota_tim_names || apiData.anggota_tim || apiData.pengguna_aplikasi || '-',
     iku: apiData.iku || '-',
     inhouseOutsource: apiData.inhouse_outsource || '-',
     jangkaWaktu: calculateJangkaWaktu(apiData),

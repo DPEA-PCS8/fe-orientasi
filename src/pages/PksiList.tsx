@@ -52,6 +52,7 @@ import { AddPksiModal, EditPksiModal, ViewPksiModal } from '../components/modals
 import { usePermissions } from '../hooks/usePermissions';
 import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa } from '../api/skpaApi';
+import { getUsersByRole, type UserSimple } from '../api/userApi';
 
 // Interface untuk data PKSI (transformed from API)
 interface PksiData {
@@ -196,12 +197,18 @@ function PksiList() {
   const [selectedAplikasi, setSelectedAplikasi] = useState<string>('');
   const [selectedSkpa, setSelectedSkpa] = useState<Set<string>>(new Set());
 
+  // Users with Pengembang role for PIC and Anggota Tim dropdowns
+  const [pengembangUsers, setPengembangUsers] = useState<UserSimple[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
   // Approval form state
   const [openApprovalDialog, setOpenApprovalDialog] = useState(false);
   const [pendingApprovalPksiId, setPendingApprovalPksiId] = useState<string | null>(null);
   const [approvalForm, setApprovalForm] = useState({
-    pic: '',
-    anggotaTim: [] as string[],
+    pic: '', // UUID of selected PIC
+    picName: '', // Name for display
+    anggotaTim: [] as string[], // UUIDs of selected team members
+    anggotaTimNames: [] as string[], // Names for display
     iku: 'ya',
     inhouseOutsource: 'inhouse',
   });
@@ -276,6 +283,23 @@ function PksiList() {
     fetchLookupData();
   }, []);
 
+  // Fetch users with Admin and Pengembang roles for PIC and Anggota Tim
+  useEffect(() => {
+    const fetchEligibleUsers = async () => {
+      setIsLoadingUsers(true);
+      try {
+        const users = await getUsersByRole('Admin,Pengembang');
+        setPengembangUsers(users);
+      } catch (error) {
+        console.error('Failed to fetch eligible users:', error);
+        setPengembangUsers([]);
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
+    fetchEligibleUsers();
+  }, []);
+
   // Helper function to resolve SKPA GUIDs to codes array for Chip display
   const resolveSkpaCodes = useCallback((picSatkerBA: string): string[] => {
     if (!picSatkerBA || picSatkerBA === '-') return [];
@@ -318,7 +342,9 @@ function PksiList() {
       setPendingApprovalPksiId(selectedPksiId);
       setApprovalForm({
         pic: '',
+        picName: '',
         anggotaTim: [],
+        anggotaTimNames: [],
         iku: 'ya',
         inhouseOutsource: 'inhouse',
       });
@@ -353,11 +379,14 @@ function PksiList() {
     setIsSubmittingApproval(true);
     try {
       // Update status to DISETUJUI with approval data
+      // Send UUIDs for storage, names for display
       await updatePksiStatus(pendingApprovalPksiId, 'DISETUJUI', {
         iku: approvalForm.iku,
         inhouse_outsource: approvalForm.inhouseOutsource,
         pic_approval: approvalForm.pic,
+        pic_approval_name: approvalForm.picName,
         anggota_tim: approvalForm.anggotaTim.join(', '),
+        anggota_tim_names: approvalForm.anggotaTimNames.join(', '),
       });
       
       // Update local state after successful API call
@@ -381,7 +410,9 @@ function PksiList() {
     setPendingApprovalPksiId(null);
     setApprovalForm({
       pic: '',
+      picName: '',
       anggotaTim: [],
+      anggotaTimNames: [],
       iku: 'ya',
       inhouseOutsource: 'inhouse',
     });
@@ -1615,7 +1646,15 @@ function PksiList() {
                 labelId="pic-label"
                 value={approvalForm.pic}
                 label="PIC (User) *"
-                onChange={(e) => setApprovalForm({ ...approvalForm, pic: e.target.value })}
+                onChange={(e) => {
+                  const selectedUser = pengembangUsers.find(u => u.uuid === e.target.value);
+                  setApprovalForm({ 
+                    ...approvalForm, 
+                    pic: e.target.value,
+                    picName: selectedUser?.full_name || ''
+                  });
+                }}
+                disabled={isLoadingUsers}
                 sx={{
                   borderRadius: '12px',
                   backgroundColor: 'rgba(255, 255, 255, 0.6)',
@@ -1638,10 +1677,12 @@ function PksiList() {
                   },
                 }}
               >
-                <MenuItem value=""><em>Pilih PIC</em></MenuItem>
-                <MenuItem value="user1">User 1</MenuItem>
-                <MenuItem value="user2">User 2</MenuItem>
-                <MenuItem value="user3">User 3</MenuItem>
+                <MenuItem value=""><em>{isLoadingUsers ? 'Memuat...' : 'Pilih PIC'}</em></MenuItem>
+                {pengembangUsers.map((user) => (
+                  <MenuItem key={user.uuid} value={user.uuid}>
+                    {user.full_name} {user.department ? `(${user.department})` : ''}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
 
@@ -1649,9 +1690,16 @@ function PksiList() {
             <FormControl fullWidth sx={{ mb: 2.5 }}>
               <Autocomplete
                 multiple
-                options={['User 1', 'User 2', 'User 3', 'User 4', 'User 5']}
-                value={approvalForm.anggotaTim}
-                onChange={(_, newValue) => setApprovalForm({ ...approvalForm, anggotaTim: newValue })}
+                options={pengembangUsers}
+                getOptionLabel={(option) => option.full_name || ''}
+                value={pengembangUsers.filter(u => approvalForm.anggotaTim.includes(u.uuid))}
+                onChange={(_, newValue) => setApprovalForm({ 
+                  ...approvalForm, 
+                  anggotaTim: newValue.map(u => u.uuid),
+                  anggotaTimNames: newValue.map(u => u.full_name)
+                })}
+                isOptionEqualToValue={(option, value) => option.uuid === value.uuid}
+                loading={isLoadingUsers}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -1695,7 +1743,7 @@ function PksiList() {
                     return (
                       <Chip
                         key={key}
-                        label={option}
+                        label={option.full_name}
                         size="small"
                         {...tagProps}
                         sx={{ 
