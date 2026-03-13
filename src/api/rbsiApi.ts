@@ -23,6 +23,7 @@ export interface RbsiProgramResponse {
 
 export interface RbsiInisiatifResponse {
   id: string;
+  group_id: string | null;
   program_id: string;
   tahun: number;
   nomor_inisiatif: string;
@@ -145,6 +146,27 @@ export interface CreateInisiatifRequest {
   tahun: number;
   nomor_inisiatif: string;
   nama_inisiatif: string;
+  group_id?: string; // Optional: link to existing initiative group
+}
+
+export interface InisiatifGroupResponse {
+  id: string;
+  rbsi_id: string;
+  nama_inisiatif: string;
+  keterangan: string | null;
+  tahun_list: number[];
+  nomor_inisiatif_by_year: {
+    tahun: number;
+    nomor_inisiatif: string;
+    program_nomor: string;
+  }[];
+}
+
+/**
+ * Get initiative groups by RBSI ID (for linking initiatives across years)
+ */
+export async function getInisiatifGroups(rbsiId: string): Promise<BaseApiResponse<InisiatifGroupResponse[]>> {
+  return apiRequest<InisiatifGroupResponse[]>(`${BASE_URL}/rbsi/${rbsiId}/inisiatif-groups`, 'GET');
 }
 
 /**
@@ -176,6 +198,7 @@ export interface UpdateInisiatifRequest {
   tahun: number;
   nomor_inisiatif: string;
   nama_inisiatif: string;
+  group_id?: string | null; // Always sent: null = create new group, UUID = use/change to that group
 }
 
 /**
@@ -319,6 +342,25 @@ export interface UpdateKepProgressRequest {
   yearly_progress: YearlyProgress[];
 }
 
+export interface BatchKepProgressUpdate {
+  kep_id: string;
+  group_id: string;
+  yearly_progress: Array<{
+    tahun: number;
+    status: 'none' | 'planned' | 'realized';
+  }>;
+}
+
+export interface BatchKepProgressRequest {
+  updates: BatchKepProgressUpdate[];
+}
+
+export interface BatchKepProgressResponse {
+  total_updated: number;
+  updated_progress: KepProgressResponse[];
+  message: string;
+}
+
 /**
  * Get KEP list by RBSI
  */
@@ -350,4 +392,112 @@ export async function updateKepProgress(
   request: UpdateKepProgressRequest
 ): Promise<BaseApiResponse<KepProgressResponse>> {
   return apiRequest<KepProgressResponse>(`${BASE_URL}/rbsi/${rbsiId}/kep/${kepId}/progress`, 'PUT', request);
+}
+
+/**
+ * Batch update KEP progress (optimized for multiple updates)
+ */
+export async function batchUpdateKepProgress(
+  rbsiId: string,
+  request: BatchKepProgressRequest
+): Promise<BaseApiResponse<BatchKepProgressResponse>> {
+  return apiRequest<BatchKepProgressResponse>(`${BASE_URL}/rbsi/${rbsiId}/kep-progress/batch`, 'PUT', request);
+}
+
+// Monitoring API - Pre-structured data for performance
+export interface RbsiMonitoringResponse {
+  kep_list: KepInfo[];
+  programs: ProgramMonitoring[];
+}
+
+export interface KepInfo {
+  id: string;
+  nomor_kep: string;
+  nama_kep: string;
+  tahun_pelaporan: number;
+}
+
+export interface ProgramMonitoring {
+  nomor_program: string;
+  versions_by_year: Record<number, ProgramVersion>;
+  initiatives: InitiativeMonitoring[];
+}
+
+export interface ProgramVersion {
+  id: string;
+  nama_program: string;
+  tahun: number;
+}
+
+export interface InitiativeMonitoring {
+  group_id: string;
+  nomor_inisiatif: string;
+  versions_by_year: Record<number, InitiativeVersion>;
+  progress_by_kep: Record<string, KepProgressInfo>;
+}
+
+export interface InitiativeVersion {
+  id: string;
+  nomor_inisiatif: string;
+  nama_inisiatif: string;
+  tahun: number;
+  status_badge?: 'new' | 'modified' | 'deleted' | null;
+}
+
+export interface KepProgressInfo {
+  yearly_progress: YearlyProgressInfo[];
+}
+
+export interface YearlyProgressInfo {
+  tahun: number;
+  status: string;
+}
+
+/**
+ * Get monitoring data - Pre-structured for optimal rendering
+ */
+export async function getMonitoringData(rbsiId: string): Promise<BaseApiResponse<RbsiMonitoringResponse>> {
+  return apiRequest<RbsiMonitoringResponse>(`${BASE_URL}/rbsi/${rbsiId}/monitoring`, 'GET');
+}
+
+// Analytics API
+export interface RbsiAnalyticsRequest {
+  tahun_1: number;
+  tahun_2: number;
+}
+
+export interface YearChange {
+  added: number;
+  removed: number;
+  summary: string;
+}
+
+export interface ProgressChanges {
+  has_changes: boolean;
+  changes_by_year: Record<number, YearChange>;
+}
+
+export interface KepEvaluation {
+  kep_id: string;
+  nomor_kep: string;
+  tahun_pelaporan: number;
+  total: number;
+  count_by_year: Record<number, number>;
+  changes?: ProgressChanges;
+}
+
+export interface RbsiAnalyticsResponse {
+  rbsi_id: string;
+  periode: string;
+  evaluations: KepEvaluation[];
+}
+
+/**
+ * Get analytics data - Compare 2 KEPs for progress changes
+ */
+export async function getAnalytics(
+  rbsiId: string,
+  request: RbsiAnalyticsRequest
+): Promise<BaseApiResponse<RbsiAnalyticsResponse>> {
+  return apiRequest<RbsiAnalyticsResponse>(`${BASE_URL}/rbsi/${rbsiId}/analytics`, 'POST', request);
 }

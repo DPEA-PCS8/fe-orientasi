@@ -6,6 +6,7 @@ export { default as AddInisiatifModal } from './AddInisiatifModal';
 export { default as AddPeriodeModal } from './AddPeriodeModal';
 export { default as CopyFromYearModal } from './CopyFromYearModal';
 export { default as HistoryComparisonModal } from './HistoryComparisonModal';
+export { default as AnalyticsModal } from './AnalyticsModal';
 export { default as YearlyChecklistDetailModal } from './YearlyChecklistDetailModal';
 export { default as SubKategoriModal } from './SubKategoriModal';
 export type { SubKategoriItem, SubKategoriCategory } from './SubKategoriModal';

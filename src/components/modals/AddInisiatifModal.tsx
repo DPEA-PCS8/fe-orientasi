@@ -8,16 +8,20 @@ import {
   Button,
   Typography,
   Stack,
+  Box,
   IconButton,
   Alert,
   MenuItem,
   InputAdornment,
+  FormControlLabel,
+  Checkbox,
+  Autocomplete,
 } from '@mui/material';
 import {
   Close as CloseIcon,
   Save as SaveIcon,
 } from '@mui/icons-material';
-import { createInisiatif } from '../../api/rbsiApi';
+import { createInisiatif, getInisiatifGroups, type InisiatifGroupResponse } from '../../api/rbsiApi';
 import type { RbsiProgramResponse } from '../../api/rbsiApi';
 
 interface AddInisiatifModalProps {
@@ -32,6 +36,8 @@ interface FormData {
   nomorInisiatifSuffix: string; // Only the suffix, e.g., "1" for "3.1.1"
   namaInisiatif: string;
   programId: string;
+  usePreviousYear: boolean; // Checkbox: sama seperti tahun sebelumnya?
+  selectedGroupId: string; // Selected initiative group (when usePreviousYear = true)
 }
 
 interface FormErrors {
@@ -43,12 +49,16 @@ const AddInisiatifModal = ({ open, onClose, onSuccess, preselectedProgramId, pro
     nomorInisiatifSuffix: '',
     namaInisiatif: '',
     programId: '',
+    usePreviousYear: false,
+    selectedGroupId: '',
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [inisiatifGroups, setInisiatifGroups] = useState<InisiatifGroupResponse[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
 
   // Get selected program details
   const selectedProgram = programs.find(p => p.id === formData.programId);
@@ -62,15 +72,51 @@ const AddInisiatifModal = ({ open, onClose, onSuccess, preselectedProgramId, pro
     }
   }, [preselectedProgramId, open]);
 
+  // Fetch initiative groups when modal opens and selected program has RBSI ID
+  useEffect(() => {
+    if (open && selectedProgram && formData.usePreviousYear) {
+      fetchInisiatifGroups(selectedProgram.rbsi_id);
+    }
+  }, [open, selectedProgram, formData.usePreviousYear]);
+
+  // Auto-fill nama when group selected
+  useEffect(() => {
+    if (formData.selectedGroupId && inisiatifGroups.length > 0) {
+      const selectedGroup = inisiatifGroups.find(g => g.id === formData.selectedGroupId);
+      if (selectedGroup) {
+        setFormData(prev => ({
+          ...prev,
+          namaInisiatif: selectedGroup.nama_inisiatif,
+        }));
+      }
+    }
+  }, [formData.selectedGroupId, inisiatifGroups]);
+
+  const fetchInisiatifGroups = async (rbsiId: string) => {
+    setLoadingGroups(true);
+    try {
+      const response = await getInisiatifGroups(rbsiId);
+      setInisiatifGroups(response.data || []);
+    } catch (error) {
+      console.error('Failed to fetch inisiatif groups:', error);
+      setInisiatifGroups([]);
+    } finally {
+      setLoadingGroups(false);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       nomorInisiatifSuffix: '',
       namaInisiatif: '',
       programId: preselectedProgramId || '',
+      usePreviousYear: false,
+      selectedGroupId: '',
     });
     setErrors({});
     setSuccessMessage('');
     setErrorMessage('');
+    setInisiatifGroups([]);
   };
 
   const validateForm = (): boolean => {
@@ -126,6 +172,7 @@ const AddInisiatifModal = ({ open, onClose, onSuccess, preselectedProgramId, pro
         tahun: selectedProgram.tahun,
         nomor_inisiatif: fullNomorInisiatif,
         nama_inisiatif: formData.namaInisiatif.trim(),
+        ...(formData.usePreviousYear && formData.selectedGroupId ? { group_id: formData.selectedGroupId } : {}),
       });
 
       setSuccessMessage('Inisiatif berhasil ditambahkan!');
@@ -220,6 +267,79 @@ const AddInisiatifModal = ({ open, onClose, onSuccess, preselectedProgramId, pro
             disabled
             helperText="Tahun otomatis mengikuti program yang dipilih"
           />
+
+          {/* Checkbox: Sama seperti tahun sebelumnya */}
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={formData.usePreviousYear}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setFormData(prev => ({
+                    ...prev,
+                    usePreviousYear: checked,
+                    selectedGroupId: checked ? prev.selectedGroupId : '',
+                  }));
+                }}
+                disabled={!formData.programId}
+                sx={{
+                  color: '#DA251C',
+                  '&.Mui-checked': { color: '#DA251C' },
+                }}
+              />
+            }
+            label={
+              <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
+                Sama seperti tahun sebelumnya (grup inisiatif)
+              </Typography>
+            }
+          />
+
+          {/* Autocomplete: Select Initiative Group with Search (conditional) */}
+          {formData.usePreviousYear && (
+            <Autocomplete
+              fullWidth
+              options={inisiatifGroups}
+              value={inisiatifGroups.find(g => g.id === formData.selectedGroupId) || null}
+              onChange={(_, newValue) => {
+                setFormData(prev => ({
+                  ...prev,
+                  selectedGroupId: newValue?.id || '',
+                }));
+              }}
+              getOptionLabel={(option) => option.nama_inisiatif}
+              disabled={loadingGroups || inisiatifGroups.length === 0}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Pilih Grup Inisiatif"
+                  helperText={
+                    loadingGroups
+                      ? 'Memuat grup inisiatif...'
+                      : inisiatifGroups.length === 0
+                      ? 'Belum ada grup inisiatif tersedia'
+                      : 'Ketik untuk mencari inisiatif dari tahun sebelumnya'
+                  }
+                />
+              )}
+              renderOption={(props, option) => (
+                <li {...props} key={option.id}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, width: '100%' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                      {option.nama_inisiatif}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#666', fontSize: '0.75rem' }}>
+                      Tahun: {option.tahun_list.join(', ')} • Nomor: {option.nomor_inisiatif_by_year[option.nomor_inisiatif_by_year.length - 1]?.nomor_inisiatif || '-'}
+                    </Typography>
+                  </Box>
+                </li>
+              )}
+              ListboxProps={{
+                style: { maxHeight: 280 },
+              }}
+              noOptionsText="Tidak ada grup inisiatif"
+            />
+          )}
 
           {/* Nomor Inisiatif with prefix */}
           <TextField

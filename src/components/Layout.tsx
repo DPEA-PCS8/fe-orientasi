@@ -3,8 +3,6 @@ import { Box, Toolbar } from '@mui/material';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 
-const DRAWER_WIDTH = 240;
-
 interface LayoutProps {
   children: ReactNode;
 }
@@ -19,9 +17,9 @@ const Layout = ({ children }: LayoutProps) => {
         component="main"
         sx={{
           flexGrow: 1,
-          width: `calc(100% - ${DRAWER_WIDTH}px)`,
           minHeight: '100vh',
           bgcolor: '#fbfbfd',
+          transition: 'margin 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         <Toolbar sx={{ minHeight: '64px !important', height: 64 }} />

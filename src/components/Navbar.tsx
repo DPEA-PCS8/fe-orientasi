@@ -54,9 +54,10 @@ const Navbar = () => {
       elevation={0}
       sx={{
         zIndex: (theme) => theme.zIndex.drawer + 1,
-        backgroundColor: 'rgba(251, 251, 253, 0.95)',
+        backgroundColor: 'rgba(251, 251, 253, 0.97)',
         backdropFilter: 'saturate(180%) blur(20px)',
-        borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+        borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
       }}
     >
       <Toolbar sx={{ minHeight: '64px !important', height: 64, px: 3 }}>
