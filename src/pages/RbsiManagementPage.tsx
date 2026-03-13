@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Box,
   TextField,
@@ -29,6 +29,7 @@ import {
   Stack,
   Tabs,
   Tab,
+  Autocomplete,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -47,6 +48,11 @@ import {
   ContentCopy as ContentCopyIcon,
   Description as KepIcon,
   Dashboard as DashboardIcon,
+  FiberNew as NewIcon,
+  RemoveCircleOutline as DeletedIcon,
+  ChangeCircle as ChangedIcon,
+  Close as CloseIcon,
+  Analytics as AnalyticsIcon,
 } from '@mui/icons-material';
 import {
   getAllRbsi,
@@ -54,18 +60,20 @@ import {
   getProgramsByRbsi,
   getKepList as apiGetKepList,
   createKep as apiCreateKep,
-  updateKepProgress,
-  getKepProgress as apiGetKepProgress,
+  batchUpdateKepProgress,
+  getMonitoringData,
   updateProgram as apiUpdateProgram,
   updateInisiatif as apiUpdateInisiatif,
   deleteProgram as apiDeleteProgram,
   deleteInisiatif as apiDeleteInisiatif,
+  getInisiatifGroups,
 } from '../api/rbsiApi';
 import type {
   RbsiResponse,
   RbsiProgramResponse,
   RbsiKepResponse,
-  KepProgressFullResponse,
+  RbsiMonitoringResponse,
+  InisiatifGroupResponse,
 } from '../api/rbsiApi';
 import {
   AddProgramModal,
@@ -73,6 +81,7 @@ import {
   AddPeriodeModal,
   CopyFromYearModal,
   HistoryComparisonModal,
+  AnalyticsModal,
 } from '../components/modals';
 
 // ============ TYPES ============
@@ -89,17 +98,72 @@ interface YearProgress {
   status: 'none' | 'planned' | 'realized';
 }
 
-interface KepProgress {
+// ============ MEMOIZED COMPONENTS ============
+
+// Memoized Progress Cell - only re-renders when its specific data changes
+interface ProgressCellProps {
+  groupId: string;
   kepId: string;
-  nomorKep: string;
-  tahunPelaporan: number;
-  yearlyProgress: YearProgress[];
+  year: number;
+  iniVersion: any;
+  getProgress: (groupId: string, kepId: string, year: number) => 'none' | 'planned' | 'realized';
+  toggleProgress: (groupId: string, kepId: string, year: number) => void;
+  renderStatus: (status: 'none' | 'planned' | 'realized', isEditable: boolean) => React.ReactNode;
+  updateKey: number; // Force re-render when this changes
 }
 
-interface InisiatifKepData {
-  inisiatifId: string;
-  kepProgress: Map<string, KepProgress>;
-}
+const ProgressCell = React.memo<ProgressCellProps>(({ 
+  groupId, 
+  kepId, 
+  year, 
+  iniVersion, 
+  getProgress, 
+  toggleProgress, 
+  renderStatus,
+  updateKey: _updateKey // Used for triggering re-render
+}) => {
+  const status = iniVersion ? getProgress(groupId, kepId, year) : 'none';
+  
+  return (
+    <Tooltip
+      title={
+        iniVersion
+          ? `Klik untuk ubah status tahun ${year}`
+          : 'Tidak ada di KEP ini'
+      }
+    >
+      <Box
+        component="span"
+        onClick={e => {
+          e.stopPropagation();
+          if (iniVersion) {
+            toggleProgress(groupId, kepId, year);
+          }
+        }}
+        sx={{ 
+          cursor: iniVersion ? 'pointer' : 'default', 
+          display: 'inline-flex', 
+          p: 0.15,
+        }}
+      >
+        {iniVersion ? renderStatus(status, true) : (
+          <Box sx={{ width: 18, height: 18, bgcolor: '#f0f0f0', borderRadius: '2px' }} />
+        )}
+      </Box>
+    </Tooltip>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if these specific props change
+  return (
+    prevProps.groupId === nextProps.groupId &&
+    prevProps.kepId === nextProps.kepId &&
+    prevProps.year === nextProps.year &&
+    prevProps.iniVersion === nextProps.iniVersion &&
+    prevProps.updateKey === nextProps.updateKey
+  );
+});
+
+ProgressCell.displayName = 'ProgressCell';
 
 // ============ COMPONENT ============
 
@@ -108,7 +172,13 @@ function RbsiManagementPage() {
   const [viewMode, setViewMode] = useState<'table' | 'monitoring'>('monitoring');
 
   const [keyword, setKeyword] = useState('');
+  const [debouncedKeyword, setDebouncedKeyword] = useState('');
   const [expandedPrograms, setExpandedPrograms] = useState<Set<string>>(new Set());
+  
+  // Resizable panel state
+  const [leftPanelWidth, setLeftPanelWidth] = useState(60); // percentage
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeWidthRef = useRef(60); // Track width during drag without re-rendering
 
   // RBSI State
   const [rbsiList, setRbsiList] = useState<RbsiResponse[]>([]);
@@ -128,11 +198,15 @@ function RbsiManagementPage() {
   const [kepLoading, setKepLoading] = useState(false);
   const [selectedKep, setSelectedKep] = useState<KepData | null>(null);
 
-  // Progress data
-  const [progressMap, setProgressMap] = useState<Map<string, InisiatifKepData>>(new Map());
+  // Optimized monitoring data (pre-structured from backend) - THIS IS THE SOURCE OF TRUTH
+  const [monitoringData, setMonitoringData] = useState<RbsiMonitoringResponse | null>(null);
+  const [allYearsLoading, setAllYearsLoading] = useState(false);
 
   // Track unsaved changes
   const [hasChanges, setHasChanges] = useState(false);
+  
+  // Force re-render map for individual cells (key-based re-render)
+  const [cellUpdates, setCellUpdates] = useState<Map<string, number>>(new Map());
 
   // Modal states
   const [openAddProgramModal, setOpenAddProgramModal] = useState(false);
@@ -141,11 +215,13 @@ function RbsiManagementPage() {
   const [openAddPeriodeModal, setOpenAddPeriodeModal] = useState(false);
   const [openCopyModal, setOpenCopyModal] = useState(false);
   const [openHistoryModal, setOpenHistoryModal] = useState(false);
+  const [openAnalyticsModal, setOpenAnalyticsModal] = useState(false);
 
   // Add KEP dialog
   const [addKepDialogOpen, setAddKepDialogOpen] = useState(false);
   const [newKepNomor, setNewKepNomor] = useState<string>('');
   const [newKepYear, setNewKepYear] = useState<number>(new Date().getFullYear());
+  const [addKepLoading, setAddKepLoading] = useState(false);
 
   // Snackbar
   const [snackbar, setSnackbar] = useState<{
@@ -168,10 +244,16 @@ function RbsiManagementPage() {
     rbsiId?: string;
     programId?: string;
     tahun: number;
+    groupId?: string | null; // Current group_id of initiative (null or UUID)
   } | null>(null);
   const [editNomor, setEditNomor] = useState('');
   const [editNama, setEditNama] = useState('');
   const [editLoading, setEditLoading] = useState(false);
+  
+  // Initiative group management - CACHED globally for performance
+  const [inisiatifGroups, setInisiatifGroups] = useState<InisiatifGroupResponse[]>([]);
+  const [loadingInisiatifGroups, setLoadingInisiatifGroups] = useState(false);
+  const [editGroupId, setEditGroupId] = useState<string | null>(null); // null = create new group, string = use existing
 
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -184,7 +266,18 @@ function RbsiManagementPage() {
   } | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // Track pending changes (only changed items) for efficient save
+  const pendingChangesRef = useRef<Map<string, { kepId: string; groupId: string; yearlyProgress: YearProgress[] }>>(new Map());
+
   const currentYear = new Date().getFullYear();
+
+  // Debounce keyword search for better performance
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedKeyword(keyword);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [keyword]);
 
   // Period years
   const periodYears = React.useMemo(() => {
@@ -212,40 +305,89 @@ function RbsiManagementPage() {
     return prevYear >= startYear ? prevYear : null;
   }, [selectedRbsi, selectedTahun]);
 
-    const fetchProgressData = useCallback(async (rbsiId: string, tahun: number) => {
-    try {
-      const response = await apiGetKepProgress(rbsiId, tahun);
-      const progressData: KepProgressFullResponse = response.data;
+  // ============ COMPARISON HELPER FUNCTIONS ============
 
-      const newProgressMap = new Map<string, InisiatifKepData>();
-
-      if (progressData.progress) {
-        progressData.progress.forEach((inisiatifProgress) => {
-          const kepProgress = new Map<string, KepProgress>();
-
-          inisiatifProgress.kep_progress.forEach((kepItem) => {
-            kepProgress.set(kepItem.kep_id, {
-              kepId: kepItem.kep_id,
-              nomorKep: kepItem.nomor_kep,
-              tahunPelaporan: kepItem.tahun_pelaporan,
-              yearlyProgress: kepItem.yearly_progress.map((yp) => ({
-                tahun: yp.tahun,
-                status: yp.status as 'none' | 'planned' | 'realized',
-              })),
-            });
-          });
-
-          newProgressMap.set(inisiatifProgress.inisiatif_id, {
-            inisiatifId: inisiatifProgress.inisiatif_id,
-            kepProgress,
-          });
+  // Memoized filtered programs from monitoring data (use backend structure directly)
+  const filteredMonitoringPrograms = useMemo(() => {
+    if (!monitoringData) return [];
+    if (!debouncedKeyword) return monitoringData.programs;
+    
+    const lowKeyword = debouncedKeyword.toLowerCase();
+    const filtered = [];
+    
+    for (const program of monitoringData.programs) {
+      // Check if program itself matches
+      let programMatches = false;
+      if (program.nomor_program?.toLowerCase().includes(lowKeyword)) {
+        programMatches = true;
+      }
+      if (!programMatches && program.versions_by_year) {
+        for (const version of Object.values(program.versions_by_year)) {
+          if (version.nama_program?.toLowerCase().includes(lowKeyword)) {
+            programMatches = true;
+            break;
+          }
+        }
+      }
+      
+      // If program matches, include all initiatives
+      if (programMatches) {
+        filtered.push(program);
+        continue;
+      }
+      
+      // Otherwise, filter initiatives
+      const matchingInitiatives = program.initiatives?.filter(ini => {
+        if (ini.nomor_inisiatif?.toLowerCase().includes(lowKeyword)) return true;
+        if (ini.versions_by_year) {
+          for (const iniVersion of Object.values(ini.versions_by_year)) {
+            if (iniVersion.nama_inisiatif?.toLowerCase().includes(lowKeyword)) return true;
+          }
+        }
+        return false;
+      }) || [];
+      
+      // If any initiatives match, include program with only matching initiatives
+      if (matchingInitiatives.length > 0) {
+        filtered.push({
+          ...program,
+          initiatives: matchingInitiatives
         });
       }
+    }
+    
+    return filtered;
+  }, [monitoringData, debouncedKeyword]);
 
-      setProgressMap(newProgressMap);
+  // ============ DATA FETCHING ============
+
+  // Optimized monitoring data fetching - single API call with pre-structured response
+  const fetchMonitoringData = useCallback(async (rbsiId: string) => {
+    setAllYearsLoading(true);
+    try {
+      const response = await getMonitoringData(rbsiId);
+      const data = response.data;
+      
+      // Backend structure is already optimal - use it directly!
+      setMonitoringData(data);
+
+      if (import.meta.env.MODE === 'development') {
+        console.log('[Performance] Monitoring data loaded:', {
+          programs: data.programs.length,
+          totalInitiatives: data.programs.reduce((sum, p) => sum + p.initiatives.length, 0),
+          keps: data.kep_list.length,
+        });
+      }
     } catch (error) {
-      console.error('Failed to fetch progress data:', error);
-      setProgressMap(new Map());
+      console.error('Failed to fetch monitoring data:', error);
+      setSnackbar({
+        open: true,
+        message: error instanceof Error ? error.message : 'Gagal mengambil data monitoring',
+        severity: 'error',
+      });
+      setMonitoringData(null);
+    } finally {
+      setAllYearsLoading(false);
     }
   }, []);
 
@@ -254,10 +396,11 @@ function RbsiManagementPage() {
     fetchRbsiList();
   }, []);
 
-  // Fetch programs and KEP when RBSI selected
+  // Fetch programs, KEP, and inisiatif groups when RBSI selected
   useEffect(() => {
     if (selectedRbsi) {
       fetchKepList(selectedRbsi.id);
+      fetchInisiatifGroups(selectedRbsi.id);
     }
   }, [selectedRbsi]);
 
@@ -289,21 +432,21 @@ function RbsiManagementPage() {
     }
   }, [selectedRbsi, currentYear]);
 
-  // Fetch progress data when in monitoring mode or when selected year changes
+  // Fetch optimized monitoring data (single API call) when in monitoring mode
   useEffect(() => {
-    if (selectedRbsi && kepList.length > 0 && viewMode === 'monitoring' && selectedTahun) {
-      // Reset unsaved changes when switching years (data will be refreshed from backend)
+    if (selectedRbsi && kepList.length > 0 && viewMode === 'monitoring') {
+      // Reset unsaved changes when switching modes (data will be refreshed from backend)
       setHasChanges(false);
-      fetchProgressData(selectedRbsi.id, selectedTahun);
+      fetchMonitoringData(selectedRbsi.id);
     }
-  }, [selectedRbsi, kepList, viewMode, selectedTahun, fetchProgressData]);
+  }, [selectedRbsi, kepList, viewMode, fetchMonitoringData]);
 
   const fetchRbsiList = async () => {
     setRbsiLoading(true);
     try {
       const response = await getAllRbsi();
       setRbsiList(response.data);
-      if (response.data.length > 0 && !selectedRbsi) {
+      if (response.data.length > 0 && !selectedRbsi) {  
         setSelectedRbsi(response.data[0]);
       }
     } catch (error) {
@@ -315,6 +458,19 @@ function RbsiManagementPage() {
       });
     } finally {
       setRbsiLoading(false);
+    }
+  };
+
+  const fetchInisiatifGroups = async (rbsiId: string) => {
+    setLoadingInisiatifGroups(true);
+    try {
+      const response = await getInisiatifGroups(rbsiId);
+      setInisiatifGroups(response.data || []);
+    } catch (error) {
+      console.error('Failed to fetch initiative groups:', error);
+      setInisiatifGroups([]);
+    } finally {
+      setLoadingInisiatifGroups(false);
     }
   };
 
@@ -381,14 +537,90 @@ function RbsiManagementPage() {
     });
   };
 
-  const tokenizeNomor = (value: string): Array<string | number> => {
+  // Resize handlers for split panels
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    resizeWidthRef.current = leftPanelWidth;
+    setIsResizing(true);
+  }, [leftPanelWidth]);
+
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isResizing) return;
+
+      const container = document.querySelector('[data-resize-container]') as HTMLElement;
+      if (!container) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const offsetX = e.clientX - containerRect.left;
+      const newWidthPercent = (offsetX / containerRect.width) * 100;
+
+      // Limit between 30% and 80%
+      const clampedWidth = Math.max(30, Math.min(80, newWidthPercent));
+      
+      // Update resize width ref
+      resizeWidthRef.current = clampedWidth;
+      
+      // Directly update colgroup columns for smooth resizing
+      const colgroups = container.querySelectorAll('colgroup');
+      if (colgroups.length > 0) {
+        const colgroup = colgroups[0];
+        const cols = colgroup.querySelectorAll('col');
+        
+        // Calculate how many KEPs (should be half the total columns)
+        const kepCount = cols.length / 2;
+        
+        // Update name column widths
+        for (let i = 0; i < kepCount; i++) {
+          (cols[i] as HTMLElement).style.width = `${clampedWidth / kepCount}%`;
+        }
+        
+        // Update progress column widths
+        for (let i = kepCount; i < cols.length; i++) {
+          (cols[i] as HTMLElement).style.width = `${(100 - clampedWidth) / kepCount}%`;
+        }
+      }
+    },
+    [isResizing]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+    // Update state with final width
+    setLeftPanelWidth(resizeWidthRef.current);
+  }, []);
+
+  // Add/remove mouse event listeners for resizing
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing, handleMouseMove, handleMouseUp]);
+
+  const tokenizeNomor = (value: string | undefined): Array<string | number> => {
+    if (!value) return [''];
     return value
       .split('.')
       .flatMap(part => part.match(/(\d+|[^\d]+)/g) || [])
       .map(token => (token.match(/^\d+$/) ? parseInt(token, 10) : token.toLowerCase()));
   };
 
-  const compareNomor = (a: string, b: string): number => {
+  const compareNomor = (a: string | undefined, b: string | undefined): number => {
     const aTokens = tokenizeNomor(a);
     const bTokens = tokenizeNomor(b);
     const maxLength = Math.max(aTokens.length, bTokens.length);
@@ -417,110 +649,147 @@ function RbsiManagementPage() {
     return 0;
   };
 
-  const filteredPrograms = programs
-    .filter(program => {
-      const inisiatifs = program.inisiatifs || [];
-      const matchKeyword =
-        program.nama_program.toLowerCase().includes(keyword.toLowerCase()) ||
-        program.nomor_program.toLowerCase().includes(keyword.toLowerCase()) ||
-        inisiatifs.some(ini => ini.nama_inisiatif.toLowerCase().includes(keyword.toLowerCase()));
-      return matchKeyword;
-    })
-    .sort((a, b) => compareNomor(a.nomor_program, b.nomor_program));
+  const filteredPrograms = useMemo(() => {
+    return programs
+      .filter(program => {
+        const inisiatifs = program.inisiatifs || [];
+        const lowKeyword = debouncedKeyword.toLowerCase();
+        const matchKeyword =
+          program.nama_program.toLowerCase().includes(lowKeyword) ||
+          program.nomor_program.toLowerCase().includes(lowKeyword) ||
+          inisiatifs.some(ini => ini.nama_inisiatif.toLowerCase().includes(lowKeyword));
+        return matchKeyword;
+      })
+      .sort((a, b) => compareNomor(a.nomor_program, b.nomor_program));
+  }, [programs, debouncedKeyword]);
 
-  // Get progress for inisiatif in specific KEP
-  const getProgress = (inisiatifId: string, kepId: string, targetYear: number): 'none' | 'planned' | 'realized' => {
-    const data = progressMap.get(inisiatifId);
-    if (!data) {
-      console.warn(`No progress data found for inisiatif ID: ${inisiatifId}`);
-      console.log('Progress map:', progressMap);
-      return 'none';
+  // Get progress - check pending changes first, then backend data
+  const getProgress = useCallback((groupId: string, kepId: string, targetYear: number): 'none' | 'planned' | 'realized' => {
+    // 1. Check pending changes first for instant feedback (optimistic UI)
+    const pendingKey = `${groupId}-${kepId}`;
+    const pendingChange = pendingChangesRef.current.get(pendingKey);
+    if (pendingChange) {
+      const yearProgress = pendingChange.yearlyProgress.find(y => y.tahun === targetYear);
+      if (yearProgress) {
+        return yearProgress.status as 'none' | 'planned' | 'realized';
+      }
     }
 
-    const kepProgress = data.kepProgress.get(kepId);
-    if (!kepProgress) {
-      console.warn(`No progress data found for KEP ID: ${kepId}`);
-      return 'none';
+    // 2. Fall back to backend data (direct O(1) access)
+    if (!monitoringData) return 'none';
+    
+    // Find initiative by group_id
+    for (const program of monitoringData.programs) {
+      const initiative = program.initiatives.find(ini => ini.group_id === groupId);
+      if (initiative) {
+        const progressInfo = initiative.progress_by_kep[kepId];
+        if (progressInfo?.yearly_progress) {
+          const yearProgress = progressInfo.yearly_progress.find(yp => yp.tahun === targetYear);
+          return (yearProgress?.status as 'none' | 'planned' | 'realized') || 'none';
+        }
+        return 'none';
+      }
     }
+    
+    return 'none';
+  }, [monitoringData]);
 
-    const yearProgress = kepProgress.yearlyProgress.find(y => y.tahun === targetYear);
-    return yearProgress?.status || 'none';
-  };
-
-  // Toggle progress status
+  // Toggle progress - NO STATE UPDATE, only pendingChanges + force re-render
+  // TEMPORARY: Currently using 2-state cycle (none ↔ realized) - 'planned' is skipped
+  // To re-enable 3-state cycle, see comments in the "Calculate new status" section below
   const toggleProgress = useCallback(
-    (inisiatifId: string, kepId: string, targetYear: number) => {
-      const currentData = progressMap.get(inisiatifId);
-      const currentKepProgress = currentData?.kepProgress.get(kepId);
-      const currentYearProgress = currentKepProgress?.yearlyProgress.find(yp => yp.tahun === targetYear);
-      const oldStatus = currentYearProgress?.status || 'none';
-
-      let newStatus: 'none' | 'planned' | 'realized';
-      if (oldStatus === 'none') newStatus = 'planned';
-      else if (oldStatus === 'planned') newStatus = 'realized';
-      else newStatus = 'none';
-
-      setProgressMap(prev => {
-        const newMap = new Map(prev);
-        let data = newMap.get(inisiatifId);
-
-        if (!data) {
-          data = {
-            inisiatifId,
-            kepProgress: new Map(),
-          };
-        }
-
-        const newData = { ...data, kepProgress: new Map(data.kepProgress) };
-        let kepProgress = newData.kepProgress.get(kepId);
-
-        if (!kepProgress) {
-          const kep = kepList.find(k => k.id === kepId);
-          const yearlyProgress: YearProgress[] = [];
-          for (let year = periodYears.start; year <= periodYears.end; year++) {
-            yearlyProgress.push({ tahun: year, status: year === targetYear ? newStatus : 'none' });
-          }
-          kepProgress = {
-            kepId,
-            nomorKep: kep?.nomorKep || '',
-            tahunPelaporan: kep?.tahunPelaporan || targetYear,
-            yearlyProgress,
-          };
-        } else if (kepProgress.yearlyProgress.length === 0) {
-          const yearlyProgress: YearProgress[] = [];
-          for (let year = periodYears.start; year <= periodYears.end; year++) {
-            yearlyProgress.push({ tahun: year, status: year === targetYear ? newStatus : 'none' });
-          }
-          kepProgress = {
-            ...kepProgress,
-            yearlyProgress,
-          };
-        } else {
-          kepProgress = {
-            ...kepProgress,
-            yearlyProgress: kepProgress.yearlyProgress.map(yp => {
-              if (yp.tahun === targetYear) {
-                return { ...yp, status: newStatus };
+    (groupId: string, kepId: string, targetYear: number) => {
+      console.log('🔄 Toggle Progress:', { groupId, kepId, targetYear });
+      
+      // Get current status from pending changes first, then backend data
+      const pendingKey = `${groupId}-${kepId}`;
+      const pendingChange = pendingChangesRef.current.get(pendingKey);
+      
+      let oldStatus: 'none' | 'planned' | 'realized' = 'none';
+      let baseYearlyProgress: YearProgress[] | null = null;
+      
+      if (pendingChange) {
+        // Use pending change as base
+        const pendingYear = pendingChange.yearlyProgress.find(yp => yp.tahun === targetYear);
+        oldStatus = (pendingYear?.status as 'none' | 'planned' | 'realized') || 'none';
+        baseYearlyProgress = pendingChange.yearlyProgress;
+      } else {
+        // Use backend data as base
+        if (monitoringData) {
+          for (const program of monitoringData.programs) {
+            const initiative = program.initiatives.find(ini => ini.group_id === groupId);
+            if (initiative) {
+              const progressInfo = initiative.progress_by_kep[kepId];
+              if (progressInfo?.yearly_progress) {
+                const yearProgress = progressInfo.yearly_progress.find(yp => yp.tahun === targetYear);
+                oldStatus = (yearProgress?.status as 'none' | 'planned' | 'realized') || 'none';
+                baseYearlyProgress = progressInfo.yearly_progress.map(yp => ({
+                  tahun: yp.tahun,
+                  status: yp.status as 'none' | 'planned' | 'realized'
+                }));
               }
-              return yp;
-            }),
-          };
+              break;
+            }
+          }
         }
+      }
 
-        newData.kepProgress.set(kepId, kepProgress);
-        newMap.set(inisiatifId, newData);
+      // Calculate new status
+      // TEMPORARY: 2-state cycle (none ↔ realized) - skip 'planned' for now
+      // TODO: Uncomment 3-state cycle below if planning stage is needed again
+      let newStatus: 'none' | 'planned' | 'realized';
+      
+      // 2-state cycle (current):
+      if (oldStatus === 'none') newStatus = 'realized';
+      else newStatus = 'none';
+      
+      // 3-state cycle (for future use if needed):
+      // if (oldStatus === 'none') newStatus = 'planned';
+      // else if (oldStatus === 'planned') newStatus = 'realized';
+      // else newStatus = 'none';
+
+      // Build new yearly progress
+      let newYearlyProgress: YearProgress[];
+      if (!baseYearlyProgress || baseYearlyProgress.length === 0) {
+        // Initialize with all years
+        newYearlyProgress = [];
+        for (let year = periodYears.start; year <= periodYears.end; year++) {
+          newYearlyProgress.push({ tahun: year, status: year === targetYear ? newStatus : 'none' });
+        }
+      } else {
+        // Update specific year
+        newYearlyProgress = baseYearlyProgress.map(yp =>
+          yp.tahun === targetYear ? { ...yp, status: newStatus } : yp
+        );
+      }
+
+      // Track in pending changes only - NO STATE UPDATE!
+      pendingChangesRef.current.set(pendingKey, {
+        kepId,
+        groupId: groupId,
+        yearlyProgress: newYearlyProgress,
+      });
+      
+      console.log('✅ Pending change saved:', {
+        key: pendingKey,
+        oldStatus,
+        newStatus,
+        totalPending: pendingChangesRef.current.size
+      });
+
+      // Force re-render ONLY for affected cells (per KEP-year combo)
+      setHasChanges(true);
+      setCellUpdates(prev => {
+        const newMap = new Map(prev);
+        // Update all years for this initiative-KEP combo
+        for (let year = periodYears.start; year <= periodYears.end; year++) {
+          const cellKey = `${groupId}-${kepId}-${year}`;
+          newMap.set(cellKey, (newMap.get(cellKey) || 0) + 1);
+        }
         return newMap;
       });
-
-      setHasChanges(true);
-
-      setSnackbar({
-        open: true,
-        message: `Tahun ${targetYear}: ${newStatus === 'none' ? 'Tidak ada' : newStatus === 'planned' ? 'Direncanakan' : 'Terealisasi'}`,
-        severity: 'success',
-      });
     },
-    [kepList, periodYears, progressMap]
+    [periodYears, monitoringData]
   );
 
   // Add new KEP
@@ -537,6 +806,7 @@ function RbsiManagementPage() {
       return;
     }
 
+    setAddKepLoading(true);
     try {
       const response = await apiCreateKep(selectedRbsi.id, {
         nomor_kep: newKepNomor || `KEP-${String(kepList.length + 1).padStart(3, '0')}/${newKepYear}`,
@@ -556,7 +826,7 @@ function RbsiManagementPage() {
       setNewKepNomor('');
 
       if (viewMode === 'monitoring') {
-        fetchProgressData(selectedRbsi.id, selectedTahun);
+        fetchMonitoringData(selectedRbsi.id);
       }
 
       setSnackbar({
@@ -571,6 +841,8 @@ function RbsiManagementPage() {
         message: error instanceof Error ? error.message : 'Gagal membuat KEP baru',
         severity: 'error',
       });
+    } finally {
+      setAddKepLoading(false);
     }
   };
 
@@ -579,31 +851,51 @@ function RbsiManagementPage() {
     if (!selectedRbsi) return;
 
     try {
-      const savePromises: Promise<unknown>[] = [];
+      // Build batch update request
+      const updates: Array<{
+        kep_id: string;
+        group_id: string;
+        yearly_progress: Array<{ tahun: number; status: 'none' | 'planned' | 'realized' }>;
+      }> = [];
 
-      progressMap.forEach((data, inisiatifId) => {
-        data.kepProgress.forEach((progress, kepId) => {
-          savePromises.push(
-            updateKepProgress(selectedRbsi.id, kepId, {
-              inisiatif_id: inisiatifId,
-              yearly_progress: progress.yearlyProgress,
-            })
-          );
+      // Use pending changes (only items that were actually modified)
+      pendingChangesRef.current.forEach((change) => {
+        updates.push({
+          kep_id: change.kepId,
+          group_id: change.groupId,
+          yearly_progress: change.yearlyProgress,
         });
       });
 
-      if (savePromises.length > 0) {
-        await Promise.all(savePromises);
+      if (updates.length > 0) {
+        console.log('💾 Batch saving progress:', updates.length, 'updates');
+        console.log('📦 Updates payload:', JSON.stringify(updates, null, 2));
+        
+        const response = await batchUpdateKepProgress(selectedRbsi.id, { updates });
+        console.log('✅ Batch save successful:', response.data);
+        
+        // Clear pending changes after successful save
+        pendingChangesRef.current.clear();
+        
+        // Refetch monitoring data to ensure consistency
+        await fetchMonitoringData(selectedRbsi.id);
+        
+        setSnackbar({
+          open: true,
+          message: response.data.message || 'Perubahan berhasil disimpan',
+          severity: 'success',
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: 'Tidak ada perubahan untuk disimpan',
+          severity: 'info',
+        });
       }
 
-      setSnackbar({
-        open: true,
-        message: 'Perubahan berhasil disimpan',
-        severity: 'success',
-      });
       setHasChanges(false);
     } catch (error) {
-      console.error('Error saving progress:', error);
+      console.error('❌ Error saving progress:', error);
       setSnackbar({
         open: true,
         message: error instanceof Error ? error.message : 'Gagal menyimpan perubahan',
@@ -640,7 +932,7 @@ function RbsiManagementPage() {
   };
 
   // Open edit dialog for inisiatif
-  const handleEditInisiatif = (inisiatif: { id: string; nomor_inisiatif: string; nama_inisiatif: string; program_id: string; tahun: number }, programTahun?: number) => {
+  const handleEditInisiatif = (inisiatif: { id: string; nomor_inisiatif: string; nama_inisiatif: string; program_id: string; tahun: number; group_id?: string | null }, programTahun?: number) => {
     setEditDialogType('inisiatif');
     setEditingItem({
       id: inisiatif.id,
@@ -648,9 +940,15 @@ function RbsiManagementPage() {
       nama: inisiatif.nama_inisiatif,
       programId: inisiatif.program_id,
       tahun: inisiatif.tahun ?? programTahun ?? selectedTahun,
+      groupId: inisiatif.group_id,
     });
     setEditNomor(inisiatif.nomor_inisiatif);
     setEditNama(inisiatif.nama_inisiatif);
+    setEditGroupId(inisiatif.group_id || null);
+    
+    // Use cached groups - no API call needed! 🚀
+    // Groups were already fetched when RBSI was selected
+    
     setEditDialogOpen(true);
   };
 
@@ -682,11 +980,16 @@ function RbsiManagementPage() {
         if (!editingItem.programId) {
           throw new Error('Program ID tidak ditemukan');
         }
+        
+        // Always send group_id: either new value or existing (to properly handle changes)
+        const finalGroupId = editGroupId !== editingItem.groupId ? editGroupId : editingItem.groupId;
+        
         await apiUpdateInisiatif(editingItem.id, {
           program_id: editingItem.programId,
           tahun: tahun,
           nomor_inisiatif: editNomor,
           nama_inisiatif: editNama,
+          group_id: finalGroupId, // Always send (null, existing, or new)
         });
       }
 
@@ -698,6 +1001,11 @@ function RbsiManagementPage() {
 
       setEditDialogOpen(false);
       fetchPrograms(selectedRbsi.id, selectedTahun, true);
+      
+      // Refresh groups cache if inisiatif was edited (group might have changed)
+      if (editDialogType === 'inisiatif') {
+        fetchInisiatifGroups(selectedRbsi.id);
+      }
     } catch (error) {
       setSnackbar({
         open: true,
@@ -910,25 +1218,47 @@ function RbsiManagementPage() {
       {viewMode === 'monitoring' && (
         <Paper sx={{ p: 2, mb: 2, display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
           <Typography variant="body2" sx={{ fontWeight: 600, color: '#666' }}>
-            Keterangan:
+            Keterangan Progress:
           </Typography>
           <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               {renderStatus('none', false)}
               <Typography variant="caption">Tidak Ada</Typography>
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {/* TEMPORARY: Hidden 'planned' state - uncomment if needed */}
+            {/* <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               {renderStatus('planned', false)}
               <Typography variant="caption">Direncanakan</Typography>
-            </Box>
+            </Box> */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               {renderStatus('realized', false)}
               <Typography variant="caption">Terealisasi</Typography>
             </Box>
           </Box>
-          <Typography variant="caption" sx={{ color: '#86868b', ml: 'auto' }}>
-            Hanya KEP tahun yang dipilih yang dapat diedit
+          <Box sx={{ width: '1px', height: 20, bgcolor: '#e0e0e0', mx: 1 }} />
+          <Typography variant="body2" sx={{ fontWeight: 600, color: '#666' }}>
+            Perbandingan KEP:
           </Typography>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', bgcolor: 'rgba(76, 175, 80, 0.1)', color: '#4CAF50', borderRadius: '4px', px: 0.5, py: 0.25 }}>
+                <NewIcon sx={{ fontSize: 14 }} />
+              </Box>
+              <Typography variant="caption">Baru</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', bgcolor: 'rgba(255, 152, 0, 0.1)', color: '#FF9800', borderRadius: '4px', px: 0.5, py: 0.25 }}>
+                <ChangedIcon sx={{ fontSize: 14 }} />
+              </Box>
+              <Typography variant="caption">Diubah</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', bgcolor: 'rgba(244, 67, 54, 0.1)', color: '#f44336', borderRadius: '4px', px: 0.5, py: 0.25 }}>
+                <DeletedIcon sx={{ fontSize: 14 }} />
+              </Box>
+              <Typography variant="caption">Dihapus</Typography>
+            </Box>
+          </Box>
         </Paper>
       )}
 
@@ -979,31 +1309,33 @@ function RbsiManagementPage() {
               }}
             />
 
-            {/* Year Filter Chips */}
-            <Stack direction="row" spacing={0.5}>
-              {tahunOptions.map(tahun => {
-                const kep = kepList.find(k => k.tahunPelaporan === tahun);
-                return (
-                  <Chip
-                    key={tahun}
-                    label={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        {tahun}
-                        {kep && <KepIcon sx={{ fontSize: 12 }} />}
-                      </Box>
-                    }
-                    size="small"
-                    onClick={() => setSelectedTahun(tahun)}
-                    sx={{
-                      fontWeight: 600,
-                      ...(selectedTahun === tahun
-                        ? { bgcolor: '#DA251C', color: 'white' }
-                        : { bgcolor: '#f5f5f7', color: '#666' }),
-                    }}
-                  />
-                );
-              })}
-            </Stack>
+            {/* Year Filter for Table mode */}
+            {viewMode === 'table' && (
+              <Stack direction="row" spacing={0.5}>
+                {tahunOptions.map(tahun => {
+                  const kep = kepList.find(k => k.tahunPelaporan === tahun);
+                  return (
+                    <Chip
+                      key={tahun}
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          {tahun}
+                          {kep && <KepIcon sx={{ fontSize: 12 }} />}
+                        </Box>
+                      }
+                      size="small"
+                      onClick={() => setSelectedTahun(tahun)}
+                      sx={{
+                        fontWeight: 600,
+                        ...(selectedTahun === tahun
+                          ? { bgcolor: '#DA251C', color: 'white' }
+                          : { bgcolor: '#f5f5f7', color: '#666' }),
+                      }}
+                    />
+                  );
+                })}
+              </Stack>
+            )}
           </Box>
 
           {/* Action Buttons - Compact Design */}
@@ -1021,6 +1353,21 @@ function RbsiManagementPage() {
                 <HistoryIcon sx={{ fontSize: 20 }} />
               </IconButton>
             </Tooltip>
+
+            {kepList.length >= 2 && (
+              <Tooltip title="Analytics Progress">
+                <IconButton
+                  size="small"
+                  onClick={() => setOpenAnalyticsModal(true)}
+                  sx={{
+                    color: '#7B1FA2',
+                    '&:hover': { bgcolor: 'rgba(123, 31, 162, 0.08)' },
+                  }}
+                >
+                  <AnalyticsIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+            )}
 
             {previousTahun && (
               <Tooltip title={`Salin dari ${previousTahun}`}>
@@ -1105,8 +1452,8 @@ function RbsiManagementPage() {
           </Box>
         </Box>
 
-        {/* KEP Info Banner */}
-        {selectedKep && (
+        {/* KEP Info Banner (only in table mode) */}
+        {viewMode === 'table' && selectedKep && (
           <Box
             sx={{
               px: 2.5,
@@ -1125,105 +1472,402 @@ function RbsiManagementPage() {
           </Box>
         )}
 
-        {/* Table */}
-        <TableContainer sx={{ maxHeight: 'calc(100vh - 320px)', minHeight: 400 }}>
-          <Table stickyHeader size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell
+        {/* Table / Monitoring View */}
+        {viewMode === 'monitoring' ? (
+          /* ============ MONITORING VIEW - 2 Panel Layout ============ */
+          <Box sx={{ maxHeight: 'calc(100vh - 320px)', minHeight: 400, overflow: 'auto' }}>
+            {/* Loading State */}
+            {(kepLoading || programsLoading || allYearsLoading) ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 4 }}>
+                <CircularProgress size={32} sx={{ color: '#DA251C' }} />
+                <Typography variant="body2" sx={{ mt: 1, color: '#666' }}>
+                  Memuat data...
+                </Typography>
+              </Box>
+            ) : filteredMonitoringPrograms.length === 0 ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 4 }}>
+                <FolderOpenRounded sx={{ fontSize: 48, color: '#ccc', mb: 1 }} />
+                <Typography variant="body2" sx={{ color: '#666' }}>
+                  {debouncedKeyword ? 'Tidak ada program yang sesuai pencarian' : 'Belum ada data program'}
+                </Typography>
+              </Box>
+            ) : (
+              <Box 
+                data-resize-container
+                sx={{ 
+                  position: 'relative',
+                  overflow: 'auto',
+                }}
+              >
+                <Table size="small" stickyHeader>
+                  <colgroup>
+                    {/* Name columns - adjustable width */}
+                    {kepList.map((kep) => (
+                      <col key={`name-col-${kep.id}`} style={{ width: `${leftPanelWidth / kepList.length}%` }} />
+                    ))}
+                    {/* Progress columns - remaining width */}
+                    {kepList.map((kep) => (
+                      <col key={`progress-col-${kep.id}`} style={{ width: `${(100 - leftPanelWidth) / kepList.length}%` }} />
+                    ))}
+                  </colgroup>
+                  <TableHead>
+                    <TableRow>
+                      {/* Program/Inisiatif Name Headers */}
+                      {kepList.map((kep, idx) => {
+                        const isSelected = kep.tahunPelaporan === selectedTahun;
+                        return (
+                          <TableCell
+                            key={`prog-header-${kep.id}`}
+                            sx={{
+                              fontWeight: 600,
+                              color: isSelected ? '#DA251C' : '#2C3E50',
+                              py: 1,
+                              minWidth: 200,
+                              bgcolor: isSelected ? 'rgba(218, 37, 28, 0.08)' : '#f8f9fa',
+                              borderRight: idx === kepList.length - 1 ? '3px solid #DA251C' : '1px solid #e0e0e0',
+                            }}
+                          >
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.7rem' }}>
+                              {kep.nomorKep}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: '#86868b', display: 'block', fontSize: '0.6rem' }}>
+                              Program/Inisiatif
+                            </Typography>
+                          </TableCell>
+                        );
+                      })}
+                      {/* Progress Headers */}
+                      {kepList.map(kep => {
+                        const isSelected = kep.tahunPelaporan === selectedTahun;
+                        const periodYearsArray = Array.from(
+                          { length: periodYears.end - periodYears.start + 1 },
+                          (_, i) => periodYears.start + i
+                        );
+                        return (
+                          <TableCell
+                            key={`progress-header-${kep.id}`}
+                            align="center"
+                            sx={{
+                              fontWeight: 600,
+                              color: isSelected ? '#DA251C' : '#2C3E50',
+                              py: 1,
+                              minWidth: 160,
+                              bgcolor: isSelected ? 'rgba(218, 37, 28, 0.08)' : '#f0f0f0',
+                              borderRight: '1px solid #e0e0e0',
+                            }}
+                          >
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.7rem' }}>
+                              Progress {kep.nomorKep}
+                            </Typography>
+                            <Chip
+                              label="Edit"
+                              size="small"
+                              sx={{ height: 14, fontSize: '0.5rem', bgcolor: '#4CAF50', color: 'white', my: 0.25 }}
+                            />
+                            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.25, mt: 0.25 }}>
+                              {periodYearsArray.map(year => (
+                                <Typography
+                                  key={year}
+                                  variant="caption"
+                                  sx={{
+                                    fontSize: '0.55rem',
+                                    color: year === currentYear ? '#DA251C' : '#86868b',
+                                    fontWeight: year === currentYear ? 700 : 400,
+                                    minWidth: 22,
+                                    textAlign: 'center',
+                                  }}
+                                >
+                                  {year.toString().slice(-2)}
+                                </Typography>
+                              ))}
+                            </Box>
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredMonitoringPrograms.map(program => {
+                        const periodYearsArray = Array.from(
+                          { length: periodYears.end - periodYears.start + 1 },
+                          (_, i) => periodYears.start + i
+                        );
+                        
+                        // Use initiatives from filteredMonitoringPrograms (already filtered)
+                        const filteredInitiatives = program.initiatives || [];
+                        
+                        return (
+                          <React.Fragment key={`prog-${program.nomor_program}`}>
+                            {/* Program Row */}
+                            <TableRow
+                              sx={{
+                                bgcolor: '#f5f5f7',
+                                '&:hover': { bgcolor: 'rgba(218, 37, 28, 0.04)' },
+                              }}
+                            >
+                              {/* Program Name Columns */}
+                              {kepList.map((kep, kepIndex) => {
+                                const isSelected = kep.tahunPelaporan === selectedTahun;
+                                const programVersion = program.versions_by_year[kep.tahunPelaporan]; // O(1) direct access!
+                                
+                                return (
+                                  <TableCell
+                                    key={`prog-name-${program.nomor_program}-${kep.id}`}
+                                    sx={{
+                                      py: 1.5,
+                                      px: 1,
+                                      borderRight: kepIndex === kepList.length - 1 ? '3px solid #DA251C' : '1px solid #e0e0e0',
+                                      bgcolor: isSelected ? 'rgba(218, 37, 28, 0.04)' : '#f5f5f7',
+                                      opacity: programVersion ? 1 : 0.4,
+                                    }}
+                                  >
+                                    {programVersion ? (
+                                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+                                        <FolderRounded sx={{ color: '#DA251C', fontSize: 14, mt: 0.1 }} />
+                                        <Box sx={{ flex: 1 }}>
+                                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: '#2C3E50', lineHeight: 1.2 }}>
+                                            {program.nomor_program}
+                                          </Typography>
+                                          <Typography
+                                            sx={{
+                                              fontSize: '0.65rem',
+                                              color: '#555',
+                                              wordBreak: 'break-word',
+                                              lineHeight: 1.3,
+                                              mt: 0.25,
+                                            }}
+                                          >
+                                            {programVersion.nama_program}
+                                          </Typography>
+                                        </Box>
+                                      </Box>
+                                    ) : (
+                                      <Typography sx={{ fontSize: '0.65rem', color: '#999', fontStyle: 'italic' }}>—</Typography>
+                                    )}
+                                  </TableCell>
+                                );
+                              })}
+                              {/* Program Progress Columns */}
+                              {kepList.map(kep => {
+                                const isSelected = kep.tahunPelaporan === selectedTahun;
+                                const programVersion = program.versions_by_year[kep.tahunPelaporan];
+                                return (
+                                  <TableCell
+                                    key={`prog-progress-${program.nomor_program}-${kep.id}`}
+                                    sx={{
+                                      py: 1.5,
+                                      px: 0.5,
+                                      borderRight: '1px solid #e0e0e0',
+                                      bgcolor: isSelected ? 'rgba(218, 37, 28, 0.04)' : '#f5f5f7',
+                                      textAlign: 'center',
+                                    }}
+                                  >
+                                    {programVersion && (
+                                      <Chip
+                                        label={`${filteredInitiatives.length} inisiatif`}
+                                        size="small"
+                                        sx={{ height: 16, fontSize: '0.55rem' }}
+                                      />
+                                    )}
+                                  </TableCell>
+                                );
+                              })}
+                            </TableRow>
+
+                            {/* Inisiatif Rows */}
+                            {filteredInitiatives.map(initiative => {
+                              const groupId = initiative.group_id;
+                              return (
+                                <TableRow key={`ini-${program.nomor_program}-${groupId}`} sx={{ '&:hover': { bgcolor: 'rgba(0,0,0,0.02)' } }}>
+                                  {/* Inisiatif Name Columns */}
+                                  {kepList.map((kep, kepIndex) => {
+                                    const isSelected = kep.tahunPelaporan === selectedTahun;
+                                    const iniVersion = initiative.versions_by_year[kep.tahunPelaporan]; // O(1) direct access!
+                                    
+                                    return (
+                                      <TableCell
+                                        key={`ini-name-${groupId}-${kep.id}`}
+                                        sx={{
+                                          py: 1,
+                                          px: 1,
+                                          borderRight: kepIndex === kepList.length - 1 ? '3px solid #DA251C' : '1px solid #e0e0e0',
+                                          bgcolor: isSelected ? 'rgba(218, 37, 28, 0.02)' : 'transparent',
+                                          opacity: iniVersion ? 1 : 0.4,
+                                        }}
+                                      >
+                                        {iniVersion ? (
+                                          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+                                            <AssignmentRounded sx={{ color: '#666', fontSize: 12, mt: 0.1 }} />
+                                            <Box sx={{ flex: 1 }}>
+                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3, flexWrap: 'wrap' }}>
+                                                <Typography
+                                                  component="span"
+                                                  sx={{
+                                                    fontSize: '0.6rem',
+                                                    color: '#555',
+                                                    wordBreak: 'break-word',
+                                                    lineHeight: 1.3,
+                                                  }}
+                                                >
+                                                  <Box component="span" sx={{ fontWeight: 600, color: '#333' }}>
+                                                    {iniVersion.nomor_inisiatif}
+                                                  </Box>
+                                                  {' - '}
+                                                  {iniVersion.nama_inisiatif}
+                                                </Typography>
+                                                {iniVersion.status_badge === 'new' && (
+                                                  <Tooltip title="Inisiatif baru di tahun ini" arrow>
+                                                    <Box sx={{ display: 'inline-flex', alignItems: 'center', bgcolor: 'rgba(76, 175, 80, 0.1)', color: '#4CAF50', borderRadius: '4px', px: 0.3, py: 0.1 }}>
+                                                      <NewIcon sx={{ fontSize: 10 }} />
+                                                    </Box>
+                                                  </Tooltip>
+                                                )}
+                                                {iniVersion.status_badge === 'modified' && (
+                                                  <Tooltip title="Inisiatif diubah dari tahun sebelumnya" arrow>
+                                                    <Box sx={{ display: 'inline-flex', alignItems: 'center', bgcolor: 'rgba(255, 152, 0, 0.1)', color: '#FF9800', borderRadius: '4px', px: 0.3, py: 0.1 }}>
+                                                      <ChangedIcon sx={{ fontSize: 10 }} />
+                                                    </Box>
+                                                  </Tooltip>
+                                                )}
+                                                {iniVersion.status_badge === 'deleted' && (
+                                                  <Tooltip title="Inisiatif dihapus setelah tahun ini" arrow>
+                                                    <Box sx={{ display: 'inline-flex', alignItems: 'center', bgcolor: 'rgba(244, 67, 54, 0.1)', color: '#F44336', borderRadius: '4px', px: 0.3, py: 0.1 }}>
+                                                      <DeletedIcon sx={{ fontSize: 10 }} />
+                                                    </Box>
+                                                  </Tooltip>
+                                                )}
+                                              </Box>
+                                            </Box>
+                                          </Box>
+                                        ) : (
+                                          <Typography sx={{ fontSize: '0.6rem', color: '#ccc', fontStyle: 'italic' }}>—</Typography>
+                                        )}
+                                      </TableCell>
+                                    );
+                                  })}
+                                  {/* Inisiatif Progress Columns */}
+                                  {kepList.map(kep => {
+                                    const iniVersion = initiative.versions_by_year[kep.tahunPelaporan];
+                                    
+                                    return (
+                                      <TableCell
+                                        key={`ini-progress-${groupId}-${kep.id}`}
+                                        sx={{
+                                          py: 1,
+                                          px: 0.5,
+                                          borderRight: '1px solid #e0e0e0',
+                                          bgcolor: 'transparent',
+                                          opacity: iniVersion ? 1 : 0.3,
+                                        }}
+                                      >
+                                        <Box sx={{ display: 'flex', gap: 0.25, justifyContent: 'center', alignItems: 'center' }}>
+                                          {periodYearsArray.map(year => {
+                                            const cellKey = `${groupId}-${kep.id}-${year}`;
+                                            const updateKey = cellUpdates.get(cellKey) || 0;
+                                            
+                                            return (
+                                              <ProgressCell
+                                                key={cellKey}
+                                                groupId={groupId}
+                                                kepId={kep.id}
+                                                year={year}
+                                                iniVersion={iniVersion}
+                                                getProgress={getProgress}
+                                                toggleProgress={toggleProgress}
+                                                renderStatus={renderStatus}
+                                                updateKey={updateKey}
+                                              />
+                                            );
+                                          })}
+                                        </Box>
+                                      </TableCell>
+                                    );
+                                  })}
+                                </TableRow>
+                              );
+                            })}
+                          </React.Fragment>
+                        );
+                      })}
+                  </TableBody>
+                </Table>
+
+                {/* RESIZE HANDLE OVERLAY */}
+                <Box
+                  onMouseDown={handleMouseDown}
                   sx={{
-                    fontWeight: 600,
-                    color: '#2C3E50',
-                    py: 1.5,
-                    minWidth: viewMode === 'monitoring' ? 350 : 400,
-                    bgcolor: '#f8f9fa',
-                    borderRight: viewMode === 'monitoring' ? '2px solid #e0e0e0' : undefined,
-                    position: viewMode === 'monitoring' ? 'sticky' : undefined,
-                    left: viewMode === 'monitoring' ? 0 : undefined,
-                    zIndex: viewMode === 'monitoring' ? 3 : undefined,
+                    position: 'absolute',
+                    top: 0,
+                    left: `${leftPanelWidth}%`,
+                    width: 12,
+                    height: '100%',
+                    cursor: 'col-resize',
+                    zIndex: 10,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transform: 'translateX(-50%)',
+                    '&:hover .resize-indicator': {
+                      opacity: 1,
+                    },
                   }}
                 >
-                  {viewMode === 'monitoring' ? 'Inisiatif' : 'Program'}
-                </TableCell>
-
-                {/* KEP Columns (only in monitoring mode) */}
-                {viewMode === 'monitoring' &&
-                  kepList.map(kep => {
-                    const isSelected = kep.tahunPelaporan === selectedTahun;
-                    return (
-                      <TableCell
-                        key={`kep-header-${kep.id}`}
-                        align="center"
-                        sx={{
-                          fontWeight: 600,
-                          color: isSelected ? '#DA251C' : '#2C3E50',
-                          py: 1,
-                          minWidth: 80 + (periodYears.end - periodYears.start + 1) * 28,
-                          bgcolor: isSelected ? 'rgba(218, 37, 28, 0.08)' : '#f8f9fa',
-                          borderRight: '1px solid #e0e0e0',
-                          opacity: isSelected ? 1 : 0.7,
-                        }}
-                      >
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.75rem' }}>
-                          {kep.nomorKep}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: '#86868b', display: 'block', fontSize: '0.65rem' }}>
-                          Tahun {kep.tahunPelaporan}
-                        </Typography>
-                        {isSelected && (
-                          <Chip
-                            label="Edit"
-                            size="small"
-                            sx={{ height: 16, fontSize: '0.55rem', bgcolor: '#4CAF50', color: 'white', mt: 0.25 }}
-                          />
-                        )}
-                        {/* Sub-header: period years */}
-                        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
-                          {Array.from({ length: periodYears.end - periodYears.start + 1 }, (_, i) => periodYears.start + i).map(
-                            year => (
-                              <Typography
-                                key={year}
-                                variant="caption"
-                                sx={{
-                                  fontSize: '0.6rem',
-                                  color: year === currentYear ? '#DA251C' : '#86868b',
-                                  fontWeight: year === currentYear ? 700 : 400,
-                                  minWidth: 24,
-                                  textAlign: 'center',
-                                }}
-                              >
-                                {year.toString().slice(-2)}
-                              </Typography>
-                            )
-                          )}
-                        </Box>
-                      </TableCell>
-                    );
-                  })}
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {kepLoading || programsLoading ? (
+                  <Box
+                    className="resize-indicator"
+                    sx={{
+                      width: 4,
+                      height: 60,
+                      bgcolor: isResizing ? '#DA251C' : '#999',
+                      borderRadius: 2,
+                      opacity: isResizing ? 1 : 0,
+                      transition: 'all 0.2s',
+                      boxShadow: isResizing ? '0 2px 8px rgba(218, 37, 28, 0.3)' : 'none',
+                    }}
+                  />
+                </Box>
+              </Box>
+            )}
+          </Box>
+        ) : (
+          /* ============ TABLE VIEW ============ */
+          <TableContainer sx={{ maxHeight: 'calc(100vh - 320px)', minHeight: 400 }}>
+            <Table stickyHeader size="small">
+              <TableHead>
                 <TableRow>
-                  <TableCell colSpan={kepList.length + 1} sx={{ textAlign: 'center', py: 4 }}>
-                    <CircularProgress size={32} sx={{ color: '#DA251C' }} />
-                    <Typography variant="body2" sx={{ mt: 1, color: '#666' }}>
-                      Memuat data...
-                    </Typography>
+                  <TableCell
+                    sx={{
+                      fontWeight: 600,
+                      color: '#2C3E50',
+                      py: 1.5,
+                      minWidth: 400,
+                      bgcolor: '#f8f9fa',
+                    }}
+                  >
+                    Program
                   </TableCell>
                 </TableRow>
-              ) : filteredPrograms.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={kepList.length + 1} sx={{ textAlign: 'center', py: 4 }}>
-                    <FolderOpenRounded sx={{ fontSize: 48, color: '#ccc', mb: 1 }} />
-                    <Typography variant="body2" sx={{ color: '#666' }}>
-                      {keyword ? 'Tidak ada program yang sesuai pencarian' : 'Belum ada data program'}
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredPrograms.map(program => (
+              </TableHead>
+              <TableBody>
+                {(kepLoading || programsLoading) ? (
+                  <TableRow>
+                    <TableCell sx={{ textAlign: 'center', py: 4 }}>
+                      <CircularProgress size={32} sx={{ color: '#DA251C' }} />
+                      <Typography variant="body2" sx={{ mt: 1, color: '#666' }}>
+                        Memuat data...
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredPrograms.length === 0 ? (
+                  <TableRow>
+                    <TableCell sx={{ textAlign: 'center', py: 4 }}>
+                      <FolderOpenRounded sx={{ fontSize: 48, color: '#ccc', mb: 1 }} />
+                      <Typography variant="body2" sx={{ color: '#666' }}>
+                        {keyword ? 'Tidak ada program yang sesuai pencarian' : 'Belum ada data program'}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredPrograms.map(program => (
                   <React.Fragment key={program.id}>
                     {/* Program Row */}
                     <TableRow
@@ -1232,26 +1876,18 @@ function RbsiManagementPage() {
                         '&:hover': { bgcolor: 'rgba(218, 37, 28, 0.04)' },
                         cursor: 'pointer',
                       }}
-                      onClick={() => toggleExpand(viewMode === 'monitoring' ? program.nomor_program : program.id)}
+                      onClick={() => toggleExpand(program.id)}
                     >
                       <TableCell
                         sx={{
                           py: 1.5,
                           borderLeft: '4px solid #DA251C',
-                          borderRight: viewMode === 'monitoring' ? '2px solid #e0e0e0' : undefined,
-                          position: viewMode === 'monitoring' ? 'sticky' : undefined,
-                          left: viewMode === 'monitoring' ? 0 : undefined,
                           bgcolor: '#f5f5f7',
-                          zIndex: viewMode === 'monitoring' ? 2 : undefined,
                         }}
                       >
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <IconButton size="small">
-                            {expandedPrograms.has(viewMode === 'monitoring' ? program.nomor_program : program.id) ? (
-                              <ExpandIcon />
-                            ) : (
-                              <CollapseIcon />
-                            )}
+                            {expandedPrograms.has(program.id) ? <ExpandIcon /> : <CollapseIcon />}
                           </IconButton>
                           <FolderRounded sx={{ color: '#DA251C', fontSize: 20 }} />
                           <Typography fontWeight={600} sx={{ color: '#2C3E50', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
@@ -1309,332 +1945,140 @@ function RbsiManagementPage() {
                           />
                         </Box>
                       </TableCell>
-
-                      {/* Empty KEP Columns for Program Row */}
-                      {viewMode === 'monitoring' &&
-                        kepList.map(kep => {
-                          const isSelected = kep.tahunPelaporan === selectedTahun;
-                          return (
-                            <TableCell
-                              key={`program-${program.id}-kep-${kep.id}`}
-                              sx={{
-                                py: 1,
-                                borderRight: '1px solid #e0e0e0',
-                                bgcolor: isSelected ? 'rgba(218, 37, 28, 0.04)' : '#f5f5f7',
-                                opacity: isSelected ? 1 : 0.6,
-                              }}
-                            />
-                          );
-                        })}
                     </TableRow>
 
-                    {/* Inisiatif Rows */}
-                    {expandedPrograms.has(viewMode === 'monitoring' ? program.nomor_program : program.id) && (
-                      <>
-                        {viewMode === 'monitoring' ? (
-                          // Monitoring view: direct rows
-                          (program.inisiatifs ?? [])
-                            .sort((a, b) => compareNomor(a.nomor_inisiatif, b.nomor_inisiatif))
-                            .map(inisiatif => (
-                              <TableRow key={inisiatif.id} sx={{ '&:hover': { bgcolor: 'rgba(0,0,0,0.02)' } }}>
-                                <TableCell
-                                  sx={{
-                                    py: 1,
-                                    pl: 6,
-                                    borderRight: '2px solid #e0e0e0',
-                                    position: 'sticky',
-                                    left: 0,
-                                    bgcolor: 'white',
-                                    zIndex: 1,
-                                  }}
-                                >
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <AssignmentRounded sx={{ color: '#666', fontSize: 16 }} />
-                                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 500, color: '#333', whiteSpace: 'nowrap' }}>
-                                      {inisiatif.nomor_inisiatif}
-                                    </Typography>
-                                    <Typography
-                                      sx={{
-                                        fontSize: '0.8rem',
-                                        color: '#666',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                        maxWidth: 180,
-                                      }}
-                                      title={inisiatif.nama_inisiatif}
-                                    >
-                                      {inisiatif.nama_inisiatif}
-                                    </Typography>
-                                    <Tooltip title="Edit Inisiatif">
-                                      <IconButton
-                                        size="small"
-                                        onClick={e => {
-                                          e.stopPropagation();
-                                          handleEditInisiatif(inisiatif, program.tahun);
-                                        }}
-                                        sx={{
-                                          p: 0.25,
-                                          color: '#86868b',
-                                          '&:hover': { color: '#DA251C', bgcolor: 'rgba(218, 37, 28, 0.08)' },
-                                        }}
-                                      >
-                                        <EditIcon sx={{ fontSize: 14 }} />
-                                      </IconButton>
-                                    </Tooltip>
-                                    <Tooltip title="Hapus Inisiatif">
-                                      <IconButton
-                                        size="small"
-                                        onClick={e => {
-                                          e.stopPropagation();
-                                          handleDeleteInisiatif(inisiatif);
-                                        }}
-                                        sx={{
-                                          p: 0.25,
-                                          color: '#86868b',
-                                          '&:hover': { color: '#d32f2f', bgcolor: 'rgba(211, 47, 47, 0.08)' },
-                                        }}
-                                      >
-                                        <DeleteIcon sx={{ fontSize: 14 }} />
-                                      </IconButton>
-                                    </Tooltip>
-                                  </Box>
-                                </TableCell>
-
-                                {/* KEP Progress Columns */}
-                                {kepList.map(kep => {
-                                  const periodYearsArray = Array.from(
-                                    { length: periodYears.end - periodYears.start + 1 },
-                                    (_, i) => periodYears.start + i
-                                  );
-                                  // Only allow editing for the KEP that matches selected year
-                                  const isKepEditable = kep.tahunPelaporan === selectedTahun;
-
-                                  return (
-                                    <TableCell
-                                      key={`${inisiatif.id}-kep-${kep.id}`}
-                                      align="center"
-                                      sx={{
-                                        py: 0.5,
-                                        px: 1,
-                                        borderRight: '1px solid #e0e0e0',
-                                        bgcolor: isKepEditable
-                                          ? 'rgba(218, 37, 28, 0.04)'
-                                          : 'transparent',
-                                        opacity: isKepEditable ? 1 : 0.6,
-                                      }}
-                                    >
-                                      <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-                                        {periodYearsArray.map(year => {
-                                          const status = getProgress(inisiatif.id, kep.id, year);
-                                          console.log(`Inisiatif ${inisiatif.nomor_inisiatif} - KEP ${kep.nomorKep} - Tahun ${year}: Status = ${status}`);
-                                          return (
-                                            <Tooltip
-                                              key={year}
-                                              title={
-                                                isKepEditable
-                                                  ? `Klik untuk ubah status tahun ${year}`
-                                                  : `${kep.nomorKep} - ${year}: ${status === 'none' ? 'Tidak ada' : status === 'planned' ? 'Direncanakan' : 'Terealisasi'}`
-                                              }
-                                            >
-                                              <Box
-                                                component="span"
-                                                onClick={e => {
-                                                  e.stopPropagation();
-                                                  if (isKepEditable) {
-                                                    toggleProgress(inisiatif.id, kep.id, year);
-                                                  }
-                                                }}
-                                                sx={{
-                                                  cursor: isKepEditable ? 'pointer' : 'default',
-                                                  display: 'inline-flex',
-                                                  p: 0.25,
-                                                }}
-                                              >
-                                                {renderStatus(status, isKepEditable)}
-                                              </Box>
-                                            </Tooltip>
-                                          );
-                                        })}
-                                      </Box>
+                    {/* Inisiatif Rows - Table View */}
+                    {expandedPrograms.has(program.id) && (
+                      <TableRow>
+                        <TableCell colSpan={1} sx={{ p: 0, border: 'none' }}>
+                          <Collapse in={expandedPrograms.has(program.id)} timeout="auto">
+                            <Box sx={{ bgcolor: '#fafafa', p: 2 }}>
+                              <Table size="small">
+                                <TableHead>
+                                  <TableRow>
+                                    <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem', color: '#666' }}>
+                                      Nomor
                                     </TableCell>
-                                  );
-                                })}
-                              </TableRow>
-                            ))
-                        ) : (
-                          // Table view: collapsed with inner table
-                          <TableRow>
-                            <TableCell colSpan={1} sx={{ p: 0, border: 'none' }}>
-                              <Collapse in={expandedPrograms.has(program.id)} timeout="auto">
-                                <Box sx={{ bgcolor: '#fafafa', p: 2 }}>
-                                  <Table size="small">
-                                    <TableHead>
-                                      <TableRow>
-                                        <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem', color: '#666' }}>
-                                          Nomor
-                                        </TableCell>
-                                        <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem', color: '#666' }}>
-                                          Nama Inisiatif
-                                        </TableCell>
-                                        <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem', color: '#666' }}>
-                                          Tahun
-                                        </TableCell>
-                                        <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem', color: '#666' }}>
-                                          Aksi
-                                        </TableCell>
-                                      </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                      {(program.inisiatifs?.length ?? 0) === 0 ? (
-                                        <TableRow>
-                                          <TableCell colSpan={4} sx={{ textAlign: 'center', py: 3, color: '#999' }}>
-                                            <FolderOpenRounded sx={{ fontSize: 40, mb: 1, opacity: 0.5 }} />
-                                            <Typography variant="body2">Belum ada inisiatif</Typography>
+                                    <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem', color: '#666' }}>
+                                      Nama Inisiatif
+                                    </TableCell>
+                                    <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem', color: '#666' }}>
+                                      Tahun
+                                    </TableCell>
+                                    <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem', color: '#666' }}>
+                                      Aksi
+                                    </TableCell>
+                                  </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                  {(program.inisiatifs?.length ?? 0) === 0 ? (
+                                    <TableRow>
+                                      <TableCell colSpan={4} sx={{ textAlign: 'center', py: 3, color: '#999' }}>
+                                        <FolderOpenRounded sx={{ fontSize: 40, mb: 1, opacity: 0.5 }} />
+                                        <Typography variant="body2">Belum ada inisiatif</Typography>
+                                      </TableCell>
+                                    </TableRow>
+                                  ) : (
+                                    [...(program.inisiatifs ?? [])]
+                                      .sort((a, b) => compareNomor(a.nomor_inisiatif, b.nomor_inisiatif))
+                                      .map(inisiatif => (
+                                        <TableRow
+                                          key={inisiatif.id}
+                                          sx={{ '&:hover': { bgcolor: 'rgba(218, 37, 28, 0.04)' } }}
+                                        >
+                                          <TableCell>
+                                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                                              {inisiatif.nomor_inisiatif}
+                                            </Typography>
+                                          </TableCell>
+                                          <TableCell>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                              <AssignmentRounded sx={{ color: '#666', fontSize: 18 }} />
+                                              <Typography sx={{ fontSize: '0.9rem', fontWeight: 500 }}>
+                                                {inisiatif.nama_inisiatif}
+                                              </Typography>
+                                            </Box>
+                                          </TableCell>
+                                          <TableCell>
+                                            <Typography sx={{ fontSize: '0.85rem' }}>{inisiatif.tahun}</Typography>
+                                          </TableCell>
+                                          <TableCell>
+                                            <Box sx={{ display: 'flex', gap: 1 }}>
+                                              <Tooltip title="Edit">
+                                                <IconButton
+                                                  size="small"
+                                                  onClick={e => {
+                                                    e.stopPropagation();
+                                                    handleEditInisiatif(inisiatif, program.tahun);
+                                                  }}
+                                                  sx={{
+                                                    color: '#FF9800',
+                                                    '&:hover': { bgcolor: 'rgba(255, 152, 0, 0.08)' },
+                                                  }}
+                                                >
+                                                  <EditIcon sx={{ fontSize: 18 }} />
+                                                </IconButton>
+                                              </Tooltip>
+                                              <Tooltip title="Hapus">
+                                                <IconButton
+                                                  size="small"
+                                                  onClick={e => {
+                                                    e.stopPropagation();
+                                                    handleDeleteInisiatif(inisiatif);
+                                                  }}
+                                                  sx={{
+                                                    color: '#d32f2f',
+                                                    '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.08)' },
+                                                  }}
+                                                >
+                                                  <DeleteIcon sx={{ fontSize: 18 }} />
+                                                </IconButton>
+                                              </Tooltip>
+                                            </Box>
                                           </TableCell>
                                         </TableRow>
-                                      ) : (
-                                        [...(program.inisiatifs ?? [])]
-                                          .sort((a, b) => compareNomor(a.nomor_inisiatif, b.nomor_inisiatif))
-                                          .map(inisiatif => (
-                                            <TableRow
-                                              key={inisiatif.id}
-                                              sx={{ '&:hover': { bgcolor: 'rgba(218, 37, 28, 0.04)' } }}
-                                            >
-                                              <TableCell>
-                                                <Typography sx={{ fontSize: '0.85rem', fontWeight: 500 }}>
-                                                  {inisiatif.nomor_inisiatif}
-                                                </Typography>
-                                              </TableCell>
-                                              <TableCell>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                                  <AssignmentRounded sx={{ color: '#666', fontSize: 18 }} />
-                                                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 500 }}>
-                                                    {inisiatif.nama_inisiatif}
-                                                  </Typography>
-                                                </Box>
-                                              </TableCell>
-                                              <TableCell>
-                                                <Typography sx={{ fontSize: '0.85rem' }}>{inisiatif.tahun}</Typography>
-                                              </TableCell>
-                                              <TableCell>
-                                                <Box sx={{ display: 'flex', gap: 1 }}>
-                                                  <Tooltip title="Edit">
-                                                    <IconButton
-                                                      size="small"
-                                                      onClick={e => {
-                                                        e.stopPropagation();
-                                                        handleEditInisiatif(inisiatif, program.tahun);
-                                                      }}
-                                                      sx={{
-                                                        color: '#FF9800',
-                                                        '&:hover': { bgcolor: 'rgba(255, 152, 0, 0.08)' },
-                                                      }}
-                                                    >
-                                                      <EditIcon sx={{ fontSize: 18 }} />
-                                                    </IconButton>
-                                                  </Tooltip>
-                                                  <Tooltip title="Hapus">
-                                                    <IconButton
-                                                      size="small"
-                                                      onClick={e => {
-                                                        e.stopPropagation();
-                                                        handleDeleteInisiatif(inisiatif);
-                                                      }}
-                                                      sx={{
-                                                        color: '#d32f2f',
-                                                        '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.08)' },
-                                                      }}
-                                                    >
-                                                      <DeleteIcon sx={{ fontSize: 18 }} />
-                                                    </IconButton>
-                                                  </Tooltip>
-                                                </Box>
-                                              </TableCell>
-                                            </TableRow>
-                                          ))
-                                      )}
-                                      {/* Tambah Inisiatif Row */}
-                                      <TableRow>
-                                        <TableCell colSpan={4} sx={{ py: 1.5 }}>
-                                          <Button
-                                            size="small"
-                                            startIcon={<AddIcon />}
-                                            onClick={e => {
-                                              e.stopPropagation();
-                                              setSelectedProgramIdForInisiatif(program.id);
-                                              setOpenAddInisiatifModal(true);
-                                            }}
-                                            sx={{
-                                              color: '#DA251C',
-                                              fontSize: '0.85rem',
-                                              fontWeight: 500,
-                                              '&:hover': { bgcolor: 'rgba(218, 37, 28, 0.08)' },
-                                            }}
-                                          >
-                                            Tambah Inisiatif
-                                          </Button>
-                                        </TableCell>
-                                      </TableRow>
-                                    </TableBody>
-                                  </Table>
-                                </Box>
-                              </Collapse>
-                            </TableCell>
-                          </TableRow>
-                        )}
-
-                        {/* Add Inisiatif button for monitoring view */}
-                        {viewMode === 'monitoring' && (
-                          <TableRow>
-                            <TableCell
-                              sx={{
-                                py: 1,
-                                pl: 6,
-                                borderRight: '2px solid #e0e0e0',
-                                position: 'sticky',
-                                left: 0,
-                                bgcolor: 'white',
-                              }}
-                            >
-                              <Button
-                                size="small"
-                                startIcon={<AddIcon />}
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  setSelectedProgramIdForInisiatif(program.id);
-                                  setOpenAddInisiatifModal(true);
-                                }}
-                                sx={{
-                                  color: '#DA251C',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 500,
-                                  '&:hover': { bgcolor: 'rgba(218, 37, 28, 0.08)' },
-                                }}
-                              >
-                                Tambah Inisiatif
-                              </Button>
-                            </TableCell>
-                            {kepList.map(kep => (
-                              <TableCell
-                                key={`add-ini-${program.id}-${kep.id}`}
-                                sx={{ borderRight: '1px solid #e0e0e0' }}
-                              />
-                            ))}
-                          </TableRow>
-                        )}
-                      </>
+                                      ))
+                                  )}
+                                  {/* Tambah Inisiatif Row */}
+                                  <TableRow>
+                                    <TableCell colSpan={4} sx={{ py: 1.5 }}>
+                                      <Button
+                                        size="small"
+                                        startIcon={<AddIcon />}
+                                        onClick={e => {
+                                          e.stopPropagation();
+                                          setSelectedProgramIdForInisiatif(program.id);
+                                          setOpenAddInisiatifModal(true);
+                                        }}
+                                        sx={{
+                                          color: '#DA251C',
+                                          fontSize: '0.85rem',
+                                          fontWeight: 500,
+                                          '&:hover': { bgcolor: 'rgba(218, 37, 28, 0.08)' },
+                                        }}
+                                      >
+                                        Tambah Inisiatif
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                </TableBody>
+                              </Table>
+                            </Box>
+                          </Collapse>
+                        </TableCell>
+                      </TableRow>
                     )}
                   </React.Fragment>
                 ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
       </Paper>
 
       {/* Add KEP Dialog */}
-      <Dialog open={addKepDialogOpen} onClose={() => setAddKepDialogOpen(false)}>
+      <Dialog open={addKepDialogOpen} onClose={() => !addKepLoading && setAddKepDialogOpen(false)}>
         <DialogTitle>Tambah KEP Baru</DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -1645,6 +2089,7 @@ function RbsiManagementPage() {
               onChange={e => setNewKepNomor(e.target.value)}
               placeholder="KEP-001/2025"
               helperText="Contoh: KEP-001/2025"
+              disabled={addKepLoading}
             />
             <TextField
               fullWidth
@@ -1653,16 +2098,33 @@ function RbsiManagementPage() {
               value={newKepYear}
               onChange={e => setNewKepYear(parseInt(e.target.value) || currentYear)}
               inputProps={{ min: periodYears.start, max: periodYears.end + 5 }}
+              disabled={addKepLoading}
             />
             <Alert severity="info">
               KEP baru akan menggunakan data program dan inisiatif yang sama. Anda dapat mengubah progress per KEP setelahnya.
             </Alert>
+            {addKepLoading && (
+              <Alert severity="warning" icon={<CircularProgress size={20} />}>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  Sedang membuat KEP dan menyalin data progress...
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#666' }}>
+                  Proses ini mungkin memakan waktu beberapa detik. Mohon tunggu.
+                </Typography>
+              </Alert>
+            )}
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAddKepDialogOpen(false)}>Batal</Button>
-          <Button variant="contained" onClick={handleAddKep} sx={{ bgcolor: '#DA251C' }}>
-            Tambah
+          <Button onClick={() => setAddKepDialogOpen(false)} disabled={addKepLoading}>Batal</Button>
+          <Button 
+            variant="contained" 
+            onClick={handleAddKep} 
+            disabled={addKepLoading}
+            startIcon={addKepLoading ? <CircularProgress size={16} color="inherit" /> : null}
+            sx={{ bgcolor: '#DA251C', '&:hover': { bgcolor: '#B91C14' } }}
+          >
+            {addKepLoading ? 'Membuat...' : 'Tambah'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1690,8 +2152,9 @@ function RbsiManagementPage() {
         onSuccess={() => {
           if (selectedRbsi) {
             fetchPrograms(selectedRbsi.id, selectedTahun, true);
+            fetchInisiatifGroups(selectedRbsi.id); // Refresh groups cache
             if (viewMode === 'monitoring') {
-              fetchProgressData(selectedRbsi.id, selectedTahun);
+              fetchMonitoringData(selectedRbsi.id);
             }
           }
         }}
@@ -1734,19 +2197,42 @@ function RbsiManagementPage() {
         />
       )}
 
+      {/* Analytics Modal */}
+      {selectedRbsi && kepList.length >= 2 && (
+        <AnalyticsModal
+          open={openAnalyticsModal}
+          onClose={() => setOpenAnalyticsModal(false)}
+          rbsiId={selectedRbsi.id}
+          periode={selectedRbsi.periode}
+          kepList={kepList}
+        />
+      )}
+
       {/* Edit Program/Inisiatif Dialog */}
       <Dialog
         open={editDialogOpen}
         onClose={() => !editLoading && setEditDialogOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: '12px' } }}
+        PaperProps={{ sx: { borderRadius: '16px' } }}
       >
-        <DialogTitle sx={{ fontWeight: 600, color: '#1d1d1f', pb: 1 }}>
-          Edit {editDialogType === 'program' ? 'Program' : 'Inisiatif'}
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          borderBottom: '1px solid #e5e5e7',
+          pb: 2,
+          bgcolor: 'white',
+        }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+            Edit {editDialogType === 'program' ? 'Program' : 'Inisiatif'}
+          </Typography>
+          <IconButton onClick={() => setEditDialogOpen(false)} size="small" disabled={editLoading}>
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <DialogContent sx={{ pt: 3, bgcolor: 'white' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 2 }}>
             <TextField
               fullWidth
               label={editDialogType === 'program' ? 'Nomor Program' : 'Nomor Inisiatif'}
@@ -1762,22 +2248,111 @@ function RbsiManagementPage() {
               multiline
               rows={2}
             />
+            
+            {/* Group Management (only for Inisiatif) */}
+            {editDialogType === 'inisiatif' && (
+              <>
+                <Typography variant="body2" sx={{ color: '#666' }}>
+                  Manajemen Grup Inisiatif
+                </Typography>
+                <Autocomplete
+                  fullWidth
+                  options={[{ id: 'NEW_GROUP', nama_inisiatif: '🆕 Buat Grup Baru (Pisahkan dari grup)', tahun_list: [], nomor_inisiatif_by_year: [] }, ...inisiatifGroups]}
+                  value={
+                    editGroupId === null
+                      ? { id: 'NEW_GROUP', nama_inisiatif: '🆕 Buat Grup Baru (Pisahkan dari grup)', tahun_list: [], nomor_inisiatif_by_year: [] }
+                      : inisiatifGroups.find(g => g.id === editGroupId) || null
+                  }
+                  onChange={(_, newValue) => {
+                    if (!newValue) {
+                      setEditGroupId(null);
+                    } else if (newValue.id === 'NEW_GROUP') {
+                      setEditGroupId(null);
+                    } else {
+                      setEditGroupId(newValue.id);
+                    }
+                  }}
+                  getOptionLabel={(option) => option.nama_inisiatif}
+                  disabled={loadingInisiatifGroups}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Grup Inisiatif"
+                      size="small"
+                      helperText={
+                        loadingInisiatifGroups
+                          ? 'Memuat grup...'
+                          : editGroupId === null
+                          ? 'Inisiatif ini akan membuat grup baru (terpisah dari grup lain)'
+                          : 'Inisiatif ini akan di-link dengan grup yang dipilih'
+                      }
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <li {...props} key={option.id}>
+                      {option.id === 'NEW_GROUP' ? (
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#4CAF50' }}>
+                          {option.nama_inisiatif}
+                        </Typography>
+                      ) : (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, width: '100%' }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                            {option.nama_inisiatif}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: '#666', fontSize: '0.75rem' }}>
+                            Tahun: {option.tahun_list.join(', ')} • Nomor: {option.nomor_inisiatif_by_year[option.nomor_inisiatif_by_year.length - 1]?.nomor_inisiatif || '-'}
+                          </Typography>
+                        </Box>
+                      )}
+                    </li>
+                  )}
+                  ListboxProps={{
+                    style: { maxHeight: 280 },
+                  }}
+                  noOptionsText="Tidak ada grup inisiatif"
+                />
+                {editingItem?.groupId && (
+                  <Alert severity="info" sx={{ fontSize: '0.8rem' }}>
+                    Grup saat ini: <strong>{inisiatifGroups.find(g => g.id === editingItem.groupId)?.nama_inisiatif || 'Unknown'}</strong>
+                  </Alert>
+                )}
+              </>
+            )}
           </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2, pt: 0 }}>
-          <Button onClick={() => setEditDialogOpen(false)} disabled={editLoading} sx={{ color: '#86868b' }}>
+        <DialogActions sx={{ p: 2.5, borderTop: '1px solid #e5e5e7', bgcolor: 'white' }}>
+          <Button 
+            variant="outlined"
+            onClick={() => setEditDialogOpen(false)} 
+            disabled={editLoading}
+            sx={{
+              borderColor: '#86868b',
+              color: '#86868b',
+              '&:hover': {
+                borderColor: '#1d1d1f',
+                bgcolor: 'transparent',
+              },
+            }}
+          >
             Batal
           </Button>
           <Button
             variant="contained"
+            startIcon={editLoading ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
             onClick={handleSaveEdit}
-            disabled={editLoading || !editNomor.trim() || !editNama.trim()}
+            disabled={editLoading || !editNomor?.trim() || !editNama?.trim()}
             sx={{
-              bgcolor: '#DA251C',
-              '&:hover': { bgcolor: '#B91C14' },
+              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+              fontWeight: 500,
+              '&:hover': {
+                background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
+              },
+              '&.Mui-disabled': {
+                background: '#e5e5e7',
+              },
             }}
           >
-            {editLoading ? <CircularProgress size={20} color="inherit" /> : 'Simpan'}
+            {editLoading ? 'Menyimpan...' : 'Simpan'}
           </Button>
         </DialogActions>
       </Dialog>
