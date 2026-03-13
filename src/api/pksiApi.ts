@@ -191,6 +191,7 @@ export async function searchPksiDocuments(params: {
         nama_pksi: pksi.nama_pksi,
         nama_aplikasi: pksi.nama_aplikasi,
         pic_satker: pksi.pic_satker,
+        pic_satker_names: pksi.pic_satker_names,
         status: pksi.status
       });
     });

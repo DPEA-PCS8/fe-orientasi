@@ -51,7 +51,6 @@ import {
 import { AddPksiModal, EditPksiModal, ViewPksiModal } from '../components/modals';
 import { usePermissions } from '../hooks/usePermissions';
 import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, type PksiDocumentData } from '../api/pksiApi';
-import { getAllSkpa } from '../api/skpaApi';
 import { getUsersByRole, type UserSimple } from '../api/userApi';
 
 // Interface untuk data PKSI (transformed from API)
@@ -182,9 +181,6 @@ function PksiList() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedPksiId, setSelectedPksiId] = useState<string | null>(null);
 
-  // SKPA lookup data
-  const [skpaMap, setSkpaMap] = useState<Map<string, string>>(new Map());
-
   // Permission check for PKSI menu
   const { getMenuPermissions } = usePermissions();
   const pksiPermissions = getMenuPermissions('PKSI_ALL');
@@ -274,25 +270,6 @@ function PksiList() {
     fetchPksiData();
   }, [fetchPksiData]);
 
-  // Fetch SKPA lookup data
-  useEffect(() => {
-    const fetchLookupData = async () => {
-      try {
-        const skpaResponse = await getAllSkpa();
-        
-        // Create lookup map
-        const skpaLookup = new Map<string, string>();
-        (skpaResponse.data || []).forEach((skpa) => {
-          skpaLookup.set(skpa.id, skpa.kode_skpa);
-        });
-        setSkpaMap(skpaLookup);
-      } catch (error) {
-        console.error('Failed to fetch lookup data:', error);
-      }
-    };
-    fetchLookupData();
-  }, []);
-
   // Fetch users with Admin and Pengembang roles for PIC and Anggota Tim
   useEffect(() => {
     const fetchEligibleUsers = async () => {
@@ -310,14 +287,13 @@ function PksiList() {
     fetchEligibleUsers();
   }, []);
 
-  // Helper function to resolve SKPA GUIDs to codes array for Chip display
-  const resolveSkpaCodes = useCallback((picSatkerBA: string): string[] => {
-    if (!picSatkerBA || picSatkerBA === '-') return [];
+  // Helper function to parse SKPA codes from pic_satker_names (comma-separated string from backend)
+  const resolveSkpaCodes = useCallback((picSatkerNames: string): string[] => {
+    if (!picSatkerNames || picSatkerNames === '-') return [];
     
-    // Split by comma and resolve each GUID
-    const guids = picSatkerBA.split(',').map(g => g.trim());
-    return guids.map(guid => skpaMap.get(guid) || '').filter(Boolean);
-  }, [skpaMap]);
+    // Backend now sends comma-separated kode_skpa values directly (e.g., "DIMB, DLIK")
+    return picSatkerNames.split(',').map(s => s.trim()).filter(Boolean);
+  }, []);
 
   const handleStatusMenuOpen = (event: React.MouseEvent<HTMLElement>, pksiId: string) => {
     setAnchorEl(event.currentTarget);
@@ -537,10 +513,15 @@ function PksiList() {
     return Array.from(aplikasiSet).sort();
   }, [pksiData]);
 
-  // Generate SKPA options from skpaMap
+  // Generate SKPA options from pksiData (pic_satker_names is now comma-separated codes)
   const skpaOptions = useMemo(() => {
-    return Array.from(skpaMap.values()).sort();
-  }, [skpaMap]);
+    const skpaSet = new Set<string>();
+    pksiData.forEach(item => {
+      const codes = resolveSkpaCodes(item.picSatkerBA);
+      codes.forEach(code => skpaSet.add(code));
+    });
+    return Array.from(skpaSet).sort();
+  }, [pksiData, resolveSkpaCodes]);
 
   // Count active filters
   const activeFilterCount = useMemo(() => {

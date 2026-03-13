@@ -114,7 +114,7 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     id: apiData.id,
     namaPksi: apiData.nama_pksi,
     namaAplikasi: apiData.nama_aplikasi || '-',
-    picSatkerBA: apiData.pic_satker_ba || '-',
+    picSatkerBA: apiData.pic_satker_names || apiData.pic_satker_ba || '-',
     bidang: '', // Will be resolved from SKPA lookup
     pic: apiData.pic_approval_name || apiData.pic_approval || apiData.pengelola_aplikasi || '-',
     picUuid: apiData.pic_approval || '',
@@ -165,8 +165,7 @@ function PksiDisetujui() {
   const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
-  // SKPA lookup data
-  const [skpaMap, setSkpaMap] = useState<Map<string, string>>(new Map());
+  // SKPA full lookup data (for resolving Bidang info)
   const [skpaFullMap, setSkpaFullMap] = useState<Map<string, SkpaData>>(new Map());
 
   // Filter state
@@ -334,19 +333,16 @@ function PksiDisetujui() {
     fetchPksiData();
   }, [fetchPksiData]);
 
-  // Fetch SKPA lookup data
+  // Fetch SKPA lookup data (for Bidang resolution)
   useEffect(() => {
     const fetchLookupData = async () => {
       try {
         const skpaResponse = await getAllSkpa();
         
-        const skpaLookup = new Map<string, string>();
         const skpaFullLookup = new Map<string, SkpaData>();
         (skpaResponse.data || []).forEach((skpa) => {
-          skpaLookup.set(skpa.id, skpa.kode_skpa);
           skpaFullLookup.set(skpa.id, skpa);
         });
-        setSkpaMap(skpaLookup);
         setSkpaFullMap(skpaFullLookup);
       } catch (error) {
         console.error('Failed to fetch lookup data:', error);
@@ -355,13 +351,13 @@ function PksiDisetujui() {
     fetchLookupData();
   }, []);
 
-  // Helper function to resolve SKPA GUIDs to codes array for Chip display
-  const resolveSkpaCodes = useCallback((picSatkerBA: string): string[] => {
-    if (!picSatkerBA || picSatkerBA === '-') return [];
+  // Helper function to parse SKPA codes from pic_satker_names (comma-separated string from backend)
+  const resolveSkpaCodes = useCallback((picSatkerNames: string): string[] => {
+    if (!picSatkerNames || picSatkerNames === '-') return [];
     
-    const guids = picSatkerBA.split(',').map(g => g.trim());
-    return guids.map(guid => skpaMap.get(guid) || '').filter(Boolean);
-  }, [skpaMap]);
+    // Backend now sends comma-separated kode_skpa values directly (e.g., "DIMB, DLIK")
+    return picSatkerNames.split(',').map(s => s.trim()).filter(Boolean);
+  }, []);
 
   // Helper function to resolve Bidang abbreviations from SKPA GUIDs
   const resolveBidangNames = useCallback((picSatkerBA: string): string[] => {
@@ -426,10 +422,15 @@ function PksiDisetujui() {
     return Array.from(aplikasiSet).sort();
   }, [pksiData]);
 
-  // Generate SKPA options from skpaMap
+  // Generate SKPA options from pksiData (pic_satker_names is now comma-separated codes)
   const skpaOptions = useMemo(() => {
-    return Array.from(skpaMap.values()).sort();
-  }, [skpaMap]);
+    const skpaSet = new Set<string>();
+    pksiData.forEach(item => {
+      const codes = resolveSkpaCodes(item.picSatkerBA);
+      codes.forEach(code => skpaSet.add(code));
+    });
+    return Array.from(skpaSet).sort();
+  }, [pksiData, resolveSkpaCodes]);
 
   // Count active filters
   const activeFilterCount = useMemo(() => {
