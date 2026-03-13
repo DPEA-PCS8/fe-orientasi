@@ -205,6 +205,16 @@ const Sidebar = () => {
           ],
         },
         {
+          label: 'FS2',
+          icon: <DescriptionRounded />,
+          href: '/fs2-list',
+          menuCode: 'FS2',
+          subItems: [
+            { label: 'Semua F.S.2', icon: <ListAltRounded />, href: '/fs2-list', menuCode: 'FS2_ALL' },
+            { label: 'F.S.2 Disetujui', icon: <CheckCircleRounded />, href: '/fs2-disetujui', menuCode: 'FS2_APPROVED' },
+          ],
+        },
+        {
           label: 'Master Data',
           icon: <PeopleRounded />,
           href: '/master-data',
