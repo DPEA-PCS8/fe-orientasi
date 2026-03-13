@@ -1199,7 +1199,7 @@ function RbsiManagementPage() {
       </Box>
 
       {/* View Mode Tabs */}
-      <Paper sx={{ mb: 2, borderRadius: 2 }}>
+      <Paper sx={{ mb: 2, borderRadius: 0.5 }}>
         <Tabs
           value={viewMode}
           onChange={(_, newValue) => setViewMode(newValue)}
@@ -1625,19 +1625,8 @@ function RbsiManagementPage() {
                                       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
                                         <FolderRounded sx={{ color: '#DA251C', fontSize: 14, mt: 0.1 }} />
                                         <Box sx={{ flex: 1 }}>
-                                          <Typography sx={{ fontSize: '0.7rem', fontWeight: 600, color: '#2C3E50', lineHeight: 1.2 }}>
-                                            {program.nomor_program}
-                                          </Typography>
-                                          <Typography
-                                            sx={{
-                                              fontSize: '0.65rem',
-                                              color: '#555',
-                                              wordBreak: 'break-word',
-                                              lineHeight: 1.3,
-                                              mt: 0.25,
-                                            }}
-                                          >
-                                            {programVersion.nama_program}
+                                          <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: '#2C3E50', lineHeight: 1.2 }}>
+                                            {program.nomor_program} - {programVersion.nama_program}
                                           </Typography>
                                         </Box>
                                       </Box>
@@ -1651,6 +1640,10 @@ function RbsiManagementPage() {
                               {kepList.map(kep => {
                                 const isSelected = kep.tahunPelaporan === selectedTahun;
                                 const programVersion = program.versions_by_year[kep.tahunPelaporan];
+                                // Count initiatives that exist in this KEP's year
+                                const initiativeCountInYear = filteredInitiatives.filter(
+                                  ini => ini.versions_by_year[kep.tahunPelaporan]
+                                ).length;
                                 return (
                                   <TableCell
                                     key={`prog-progress-${program.nomor_program}-${kep.id}`}
@@ -1664,9 +1657,9 @@ function RbsiManagementPage() {
                                   >
                                     {programVersion && (
                                       <Chip
-                                        label={`${filteredInitiatives.length} inisiatif`}
+                                        label={`${initiativeCountInYear} inisiatif`}
                                         size="small"
-                                        sx={{ height: 16, fontSize: '0.55rem' }}
+                                        sx={{ height: 16, fontSize: '0.65rem' }}
                                       />
                                     )}
                                   </TableCell>
@@ -1703,7 +1696,7 @@ function RbsiManagementPage() {
                                                 <Typography
                                                   component="span"
                                                   sx={{
-                                                    fontSize: '0.6rem',
+                                                    fontSize: '0.75rem',
                                                     color: '#555',
                                                     wordBreak: 'break-word',
                                                     lineHeight: 1.3,
