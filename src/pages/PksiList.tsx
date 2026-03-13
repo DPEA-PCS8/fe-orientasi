@@ -28,6 +28,7 @@ import {
   FormControl,
   InputLabel,
   Select,
+  Autocomplete,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -50,7 +51,7 @@ import {
 import { AddPksiModal, EditPksiModal, ViewPksiModal } from '../components/modals';
 import { usePermissions } from '../hooks/usePermissions';
 import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, type PksiDocumentData } from '../api/pksiApi';
-import { getAllSkpa } from '../api/skpaApi';
+import { getUsersByRole, type UserSimple } from '../api/userApi';
 
 // Interface untuk data PKSI (transformed from API)
 interface PksiData {
@@ -106,7 +107,7 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     id: apiData.id,
     namaPksi: apiData.nama_pksi,
     namaAplikasi: apiData.nama_aplikasi || '-',
-    picSatkerBA: apiData.pic_satker_ba || '-',
+    picSatkerBA: apiData.pic_satker_names || apiData.pic_satker_ba || '-',
     jangkaWaktu: calculateJangkaWaktu(apiData),
     tanggalPengajuan: apiData.tanggal_pengajuan || apiData.created_at || '',
     linkDocsT01: '', // Will be populated when document upload is implemented
@@ -180,18 +181,43 @@ function PksiList() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedPksiId, setSelectedPksiId] = useState<string | null>(null);
 
-  // SKPA lookup data
-  const [skpaMap, setSkpaMap] = useState<Map<string, string>>(new Map());
-
   // Permission check for PKSI menu
   const { getMenuPermissions } = usePermissions();
   const pksiPermissions = getMenuPermissions('PKSI_ALL');
+
+  // Get user info for department-based filtering
+  const userInfoStorage = localStorage.getItem('user_info') || sessionStorage.getItem('user_info');
+  const userInfo = useMemo(() => userInfoStorage ? JSON.parse(userInfoStorage) : null, [userInfoStorage]);
+  const userDepartment = useMemo(() => userInfo?.department || '', [userInfo]);
+  const userRoles: string[] = useMemo(() => userInfo?.roles || [], [userInfo]);
+  const isAdminOrPengembang = useMemo(() => userRoles.some((role: string) => 
+    role.toLowerCase() === 'admin' || role.toLowerCase() === 'pengembang'
+  ), [userRoles]);
 
   // Filter state
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedJangkaWaktu, setSelectedJangkaWaktu] = useState<Set<string>>(new Set());
   const [selectedStatus, setSelectedStatus] = useState<Set<string>>(new Set());
   const [selectedYear, setSelectedYear] = useState<string>('');
+  const [selectedAplikasi, setSelectedAplikasi] = useState<string>('');
+  const [selectedSkpa, setSelectedSkpa] = useState<Set<string>>(new Set());
+
+  // Users with Pengembang role for PIC and Anggota Tim dropdowns
+  const [pengembangUsers, setPengembangUsers] = useState<UserSimple[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
+  // Approval form state
+  const [openApprovalDialog, setOpenApprovalDialog] = useState(false);
+  const [pendingApprovalPksiId, setPendingApprovalPksiId] = useState<string | null>(null);
+  const [approvalForm, setApprovalForm] = useState({
+    pic: '', // UUID of selected PIC
+    picName: '', // Name for display
+    anggotaTim: [] as string[], // UUIDs of selected team members
+    anggotaTimNames: [] as string[], // Names for display
+    iku: 'ya',
+    inhouseOutsource: 'inhouse',
+  });
+  const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
 
   // Map sortBy from UI field to API field
   const mapSortField = (field: keyof PksiData): string => {
@@ -226,9 +252,31 @@ function PksiList() {
         sortDir: order,
       });
 
-      const transformedData = response.content.map(transformApiData);
+      // DEBUG: Log response and user department
+      console.log('=== DEBUG PKSI LIST ===');
+      console.log('User Department:', userDepartment);
+      console.log('User Roles:', userRoles);
+      console.log('Is Admin/Pengembang:', isAdminOrPengembang);
+      console.log('PKSI Response:', response);
+      console.log('Total Elements:', response.total_elements);
+      console.log('========================');
+
+      let transformedData = response.content.map(transformApiData);
+      
+      // Filter by user department if not Admin/Pengembang
+      if (!isAdminOrPengembang && userDepartment) {
+        console.log('Filtering by department:', userDepartment);
+        transformedData = transformedData.filter(pksi => {
+          const skpaCodes = pksi.picSatkerBA.split(',').map(s => s.trim().toUpperCase());
+          const matches = skpaCodes.includes(userDepartment.toUpperCase());
+          console.log(`PKSI "${pksi.namaPksi}" - SKPA: [${skpaCodes.join(', ')}] - Matches ${userDepartment}: ${matches}`);
+          return matches;
+        });
+        console.log('Filtered count:', transformedData.length);
+      }
+      
       setPksiData(transformedData);
-      setTotalElements(response.total_elements);
+      setTotalElements(isAdminOrPengembang ? response.total_elements : transformedData.length);
     } catch (error) {
       console.error('Failed to fetch PKSI data:', error);
       setPksiData([]);
@@ -236,40 +284,37 @@ function PksiList() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, page, rowsPerPage, orderBy, order, selectedStatus]);
+  }, [keyword, page, rowsPerPage, orderBy, order, selectedStatus, userDepartment, userRoles, isAdminOrPengembang]);
 
   // Fetch data on mount and when dependencies change
   useEffect(() => {
     fetchPksiData();
   }, [fetchPksiData]);
 
-  // Fetch SKPA lookup data
+  // Fetch users with Admin and Pengembang roles for PIC and Anggota Tim
   useEffect(() => {
-    const fetchLookupData = async () => {
+    const fetchEligibleUsers = async () => {
+      setIsLoadingUsers(true);
       try {
-        const skpaResponse = await getAllSkpa();
-        
-        // Create lookup map
-        const skpaLookup = new Map<string, string>();
-        (skpaResponse.data || []).forEach((skpa) => {
-          skpaLookup.set(skpa.id, skpa.kode_skpa);
-        });
-        setSkpaMap(skpaLookup);
+        const users = await getUsersByRole('Admin,Pengembang');
+        setPengembangUsers(users);
       } catch (error) {
-        console.error('Failed to fetch lookup data:', error);
+        console.error('Failed to fetch eligible users:', error);
+        setPengembangUsers([]);
+      } finally {
+        setIsLoadingUsers(false);
       }
     };
-    fetchLookupData();
+    fetchEligibleUsers();
   }, []);
 
-  // Helper function to resolve SKPA GUIDs to codes array for Chip display
-  const resolveSkpaCodes = (picSatkerBA: string): string[] => {
-    if (!picSatkerBA || picSatkerBA === '-') return [];
+  // Helper function to parse SKPA codes from pic_satker_names (comma-separated string from backend)
+  const resolveSkpaCodes = useCallback((picSatkerNames: string): string[] => {
+    if (!picSatkerNames || picSatkerNames === '-') return [];
     
-    // Split by comma and resolve each GUID
-    const guids = picSatkerBA.split(',').map(g => g.trim());
-    return guids.map(guid => skpaMap.get(guid) || '').filter(Boolean);
-  };
+    // Backend now sends comma-separated kode_skpa values directly (e.g., "DIMB, DLIK")
+    return picSatkerNames.split(',').map(s => s.trim()).filter(Boolean);
+  }, []);
 
   const handleStatusMenuOpen = (event: React.MouseEvent<HTMLElement>, pksiId: string) => {
     setAnchorEl(event.currentTarget);
@@ -299,6 +344,23 @@ function PksiList() {
       return;
     }
 
+    // If approving, show approval form instead
+    if (newStatus === 'disetujui') {
+      setPendingApprovalPksiId(selectedPksiId);
+      setApprovalForm({
+        pic: '',
+        picName: '',
+        anggotaTim: [],
+        anggotaTimNames: [],
+        iku: 'ya',
+        inhouseOutsource: 'inhouse',
+      });
+      setOpenApprovalDialog(true);
+      handleStatusMenuClose();
+      return;
+    }
+
+    // For other statuses, update directly
     try {
       const backendStatus = mapFrontendToBackendStatus(newStatus);
       await updatePksiStatus(selectedPksiId, backendStatus);
@@ -313,6 +375,54 @@ function PksiList() {
       console.error('Error updating status:', error);
     }
     handleStatusMenuClose();
+  };
+
+  const handleApprovalSubmit = async () => {
+    if (!pendingApprovalPksiId || !approvalForm.pic || approvalForm.anggotaTim.length === 0) {
+      alert('Mohon isi semua field yang diperlukan');
+      return;
+    }
+
+    setIsSubmittingApproval(true);
+    try {
+      // Update status to DISETUJUI with approval data
+      // Send UUIDs for storage, names for display
+      await updatePksiStatus(pendingApprovalPksiId, 'DISETUJUI', {
+        iku: approvalForm.iku,
+        inhouse_outsource: approvalForm.inhouseOutsource,
+        pic_approval: approvalForm.pic,
+        pic_approval_name: approvalForm.picName,
+        anggota_tim: approvalForm.anggotaTim.join(', '),
+        anggota_tim_names: approvalForm.anggotaTimNames.join(', '),
+      });
+      
+      // Update local state after successful API call
+      setPksiData(prev => 
+        prev.map(item => 
+          item.id === pendingApprovalPksiId ? { ...item, status: 'disetujui' } : item
+        )
+      );
+
+      setOpenApprovalDialog(false);
+      setPendingApprovalPksiId(null);
+    } catch (error) {
+      console.error('Error approving PKSI:', error);
+    } finally {
+      setIsSubmittingApproval(false);
+    }
+  };
+
+  const handleApprovalCancel = () => {
+    setOpenApprovalDialog(false);
+    setPendingApprovalPksiId(null);
+    setApprovalForm({
+      pic: '',
+      picName: '',
+      anggotaTim: [],
+      anggotaTimNames: [],
+      iku: 'ya',
+      inhouseOutsource: 'inhouse',
+    });
   };
 
   const handleEditClick = (pksi: PksiData) => {
@@ -393,14 +503,12 @@ function PksiList() {
     setSelectedStatus(newSet);
   };
 
-  const handleYearChange = (year: string) => {
-    setSelectedYear(year);
-  };
-
   const handleResetFilter = () => {
     setSelectedJangkaWaktu(new Set());
     setSelectedStatus(new Set());
     setSelectedYear('');
+    setSelectedAplikasi('');
+    setSelectedSkpa(new Set());
   };
 
   // Generate year options from data
@@ -415,12 +523,48 @@ function PksiList() {
     return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
   }, [pksiData]);
 
-  // Filter locally for jangkaWaktu and year
+  // Generate aplikasi options from data
+  const aplikasiOptions = useMemo(() => {
+    const aplikasiSet = new Set<string>();
+    pksiData.forEach(item => {
+      if (item.namaAplikasi && item.namaAplikasi !== '-') {
+        aplikasiSet.add(item.namaAplikasi);
+      }
+    });
+    return Array.from(aplikasiSet).sort();
+  }, [pksiData]);
+
+  // Generate SKPA options from pksiData (pic_satker_names is now comma-separated codes)
+  const skpaOptions = useMemo(() => {
+    const skpaSet = new Set<string>();
+    pksiData.forEach(item => {
+      const codes = resolveSkpaCodes(item.picSatkerBA);
+      codes.forEach(code => skpaSet.add(code));
+    });
+    return Array.from(skpaSet).sort();
+  }, [pksiData, resolveSkpaCodes]);
+
+  // Count active filters
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedJangkaWaktu.size > 0) count++;
+    if (selectedStatus.size > 0) count++;
+    if (selectedYear) count++;
+    if (selectedAplikasi) count++;
+    if (selectedSkpa.size > 0) count++;
+    return count;
+  }, [selectedJangkaWaktu, selectedStatus, selectedYear, selectedAplikasi, selectedSkpa]);
+
+  // Filter locally for jangkaWaktu, year, aplikasi, and skpa
   const filteredPksi = useMemo(() => {
     let result = pksiData;
     
     if (selectedJangkaWaktu.size > 0) {
-      result = result.filter(item => selectedJangkaWaktu.has(item.jangkaWaktu));
+      result = result.filter(item => {
+        if (selectedJangkaWaktu.has('Single Year') && item.jangkaWaktu === 'Single Year') return true;
+        if (selectedJangkaWaktu.has('Multiyears') && item.jangkaWaktu.startsWith('Multiyears')) return true;
+        return false;
+      });
     }
     
     if (selectedYear) {
@@ -430,9 +574,20 @@ function PksiList() {
         return year === selectedYear;
       });
     }
+
+    if (selectedAplikasi) {
+      result = result.filter(item => item.namaAplikasi === selectedAplikasi);
+    }
+
+    if (selectedSkpa.size > 0) {
+      result = result.filter(item => {
+        const itemSkpaCodes = resolveSkpaCodes(item.picSatkerBA);
+        return itemSkpaCodes.some(code => selectedSkpa.has(code));
+      });
+    }
     
     return result;
-  }, [pksiData, selectedJangkaWaktu, selectedYear]);
+  }, [pksiData, selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa, resolveSkpaCodes]);
 
   const handleSort = (property: keyof PksiData) => {
     const isAsc = orderBy === property && order === 'asc';
@@ -496,7 +651,8 @@ function PksiList() {
             borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
           }}
         >
-          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+          {/* Search & Filter */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <TextField
               placeholder="Cari nama PKSI..."
               size="small"
@@ -534,7 +690,7 @@ function PksiList() {
               startIcon={<TuneRounded sx={{ fontSize: 18 }} />}
               onClick={handleFilterOpen}
               sx={{
-                color: selectedJangkaWaktu.size > 0 || selectedStatus.size > 0 || selectedYear ? '#DA251C' : '#86868b',
+                color: activeFilterCount > 0 ? '#DA251C' : '#86868b',
                 fontWeight: 500,
                 '&:hover': {
                   bgcolor: 'rgba(0, 0, 0, 0.04)',
@@ -542,6 +698,13 @@ function PksiList() {
               }}
             >
               Filters
+              {activeFilterCount > 0 && (
+                <Chip
+                  label={activeFilterCount}
+                  size="small"
+                  sx={{ ml: 1, bgcolor: '#DA251C', color: 'white', height: 20, fontSize: '0.7rem' }}
+                />
+              )}
             </Button>
           </Box>
           {pksiPermissions.canCreate && (
@@ -562,36 +725,6 @@ function PksiList() {
             </Button>
           )}
         </Box>
-
-        {/* Add PKSI Modal */}
-        <AddPksiModal
-          open={openAddModal}
-          onClose={() => setOpenAddModal(false)}
-          onSuccess={() => {
-            fetchPksiData();
-          }}
-        />
-
-        {/* Edit PKSI Modal */}
-        <EditPksiModal
-          open={openEditModal}
-          onClose={() => {
-            setOpenEditModal(false);
-            setSelectedPksiForEdit(null);
-          }}
-          onSuccess={handleEditSuccess}
-          pksiData={selectedPksiForEdit}
-        />
-
-        {/* View PKSI Modal */}
-        <ViewPksiModal
-          open={openViewModal}
-          onClose={() => {
-            setOpenViewModal(false);
-            setSelectedPksiIdForView(null);
-          }}
-          pksiId={selectedPksiIdForView}
-        />
 
         {/* Filter Popover */}
         <Popover
@@ -652,7 +785,104 @@ function PksiList() {
             </IconButton>
           </Box>
           
-          <Box sx={{ p: 3, minWidth: 320, bgcolor: 'white' }}>
+          <Box sx={{ p: 3, minWidth: 320, maxHeight: 450, overflowY: 'auto', bgcolor: 'white' }}>
+
+            {/* Nama Aplikasi Filter */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+                Nama Aplikasi
+              </Typography>
+              <FormControl fullWidth size="small">
+                <InputLabel id="aplikasi-filter-label">Pilih Aplikasi</InputLabel>
+                <Select
+                  labelId="aplikasi-filter-label"
+                  value={selectedAplikasi}
+                  label="Pilih Aplikasi"
+                  onChange={(e) => setSelectedAplikasi(e.target.value)}
+                  sx={{
+                    borderRadius: '8px',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#e5e5e7',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#DA251C',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#DA251C',
+                    },
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>Semua Aplikasi</em>
+                  </MenuItem>
+                  {aplikasiOptions.map((aplikasi) => (
+                    <MenuItem key={aplikasi} value={aplikasi}>
+                      {aplikasi}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
+            {/* SKPA Filter */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+                SKPA
+              </Typography>
+              <Autocomplete
+                multiple
+                size="small"
+                options={skpaOptions}
+                value={Array.from(selectedSkpa)}
+                onChange={(_, newValue) => setSelectedSkpa(new Set(newValue))}
+                disableCloseOnSelect
+                renderOption={(props, option, { selected }) => {
+                  const { key, ...restProps } = props;
+                  return (
+                    <li key={key} {...restProps}>
+                      <Checkbox
+                        size="small"
+                        checked={selected}
+                        sx={{ mr: 1, '&.Mui-checked': { color: '#DA251C' } }}
+                      />
+                      {option}
+                    </li>
+                  );
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder={selectedSkpa.size === 0 ? 'Pilih SKPA' : ''}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '8px',
+                        '& fieldset': { borderColor: '#e5e5e7' },
+                        '&:hover fieldset': { borderColor: '#DA251C' },
+                        '&.Mui-focused fieldset': { borderColor: '#DA251C' },
+                      },
+                    }}
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return (
+                      <Chip
+                        key={key}
+                        label={option}
+                        size="small"
+                        {...tagProps}
+                        sx={{ bgcolor: '#DA251C', color: 'white', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } }}
+                      />
+                    );
+                  })
+                }
+              />
+            </Box>
+
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
 
             {/* Year Filter */}
             <Box sx={{ mb: 2.5 }}>
@@ -665,7 +895,7 @@ function PksiList() {
                   labelId="year-filter-label"
                   value={selectedYear}
                   label="Pilih Tahun"
-                  onChange={(e) => handleYearChange(e.target.value)}
+                  onChange={(e) => setSelectedYear(e.target.value)}
                   sx={{
                     borderRadius: '8px',
                     '& .MuiOutlinedInput-notchedOutline': {
@@ -718,8 +948,8 @@ function PksiList() {
                   control={
                     <Checkbox
                       size="small"
-                      checked={selectedJangkaWaktu.has('Multiyears 2024-2025')}
-                      onChange={() => handleJangkaWaktuChange('Multiyears 2024-2025')}
+                      checked={selectedJangkaWaktu.has('Multiyears')}
+                      onChange={() => handleJangkaWaktuChange('Multiyears')}
                       sx={{
                         '&.Mui-checked': {
                           color: '#DA251C',
@@ -727,7 +957,7 @@ function PksiList() {
                       }}
                     />
                   }
-                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Multiyears 2024-2025</Typography>}
+                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Multiyears</Typography>}
                 />
               </FormGroup>
             </Box>
@@ -812,6 +1042,36 @@ function PksiList() {
           </Box>
         </Popover>
 
+        {/* Add PKSI Modal */}
+        <AddPksiModal
+          open={openAddModal}
+          onClose={() => setOpenAddModal(false)}
+          onSuccess={() => {
+            fetchPksiData();
+          }}
+        />
+
+        {/* Edit PKSI Modal */}
+        <EditPksiModal
+          open={openEditModal}
+          onClose={() => {
+            setOpenEditModal(false);
+            setSelectedPksiForEdit(null);
+          }}
+          onSuccess={handleEditSuccess}
+          pksiData={selectedPksiForEdit}
+        />
+
+        {/* View PKSI Modal */}
+        <ViewPksiModal
+          open={openViewModal}
+          onClose={() => {
+            setOpenViewModal(false);
+            setSelectedPksiIdForView(null);
+          }}
+          pksiId={selectedPksiIdForView}
+        />
+
         {/* Table */}
         <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
           <Table sx={{ minWidth: 1200 }}>
@@ -828,6 +1088,23 @@ function PksiList() {
                   }}
                 >
                   No
+                </TableCell>
+                <TableCell 
+                  sortDirection={orderBy === 'namaAplikasi' ? order : false}
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    minWidth: 150,
+                  }}
+                >
+                  <TableSortLabel
+                    active={orderBy === 'namaAplikasi'}
+                    direction={orderBy === 'namaAplikasi' ? order : 'asc'}
+                    onClick={() => handleSort('namaAplikasi')}
+                  >
+                    Nama Aplikasi
+                  </TableSortLabel>
                 </TableCell>
                 <TableCell 
                   sortDirection={orderBy === 'namaPksi' ? order : false}
@@ -847,6 +1124,7 @@ function PksiList() {
                   </TableSortLabel>
                 </TableCell>
                 <TableCell 
+                  sortDirection={orderBy === 'picSatkerBA' ? order : false}
                   sx={{ 
                     fontWeight: 600, 
                     color: '#1d1d1f', 
@@ -854,17 +1132,13 @@ function PksiList() {
                     minWidth: 150,
                   }}
                 >
-                  Nama Aplikasi
-                </TableCell>
-                <TableCell 
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 150,
-                  }}
-                >
-                  SKPA
+                  <TableSortLabel
+                    active={orderBy === 'picSatkerBA'}
+                    direction={orderBy === 'picSatkerBA' ? order : 'asc'}
+                    onClick={() => handleSort('picSatkerBA')}
+                  >
+                    SKPA
+                  </TableSortLabel>
                 </TableCell>
                 <TableCell 
                   sortDirection={orderBy === 'jangkaWaktu' ? order : false}
@@ -873,7 +1147,6 @@ function PksiList() {
                     color: '#1d1d1f', 
                     py: 2,
                     minWidth: 120,
-                    textAlign: 'center',
                   }}
                 >
                   <TableSortLabel
@@ -891,7 +1164,6 @@ function PksiList() {
                     color: '#1d1d1f', 
                     py: 2,
                     minWidth: 150,
-                    textAlign: 'center',
                   }}
                 >
                   <TableSortLabel
@@ -908,7 +1180,6 @@ function PksiList() {
                     color: '#1d1d1f', 
                     py: 2,
                     minWidth: 90,
-                    textAlign: 'center',
                   }}
                 >
                   Docs T.01
@@ -920,7 +1191,6 @@ function PksiList() {
                     color: '#1d1d1f', 
                     py: 2,
                     minWidth: 130,
-                    textAlign: 'center',
                   }}
                 >
                   <TableSortLabel
@@ -937,7 +1207,6 @@ function PksiList() {
                     color: '#1d1d1f', 
                     py: 2,
                     minWidth: 100,
-                    textAlign: 'center',
                   }}
                 >
                   Aksi
@@ -989,23 +1258,23 @@ function PksiList() {
                     <Typography 
                       variant="body2" 
                       sx={{ 
-                        fontWeight: 500,
                         color: '#1d1d1f',
-                        lineHeight: 1.5,
+                        fontSize: '0.85rem',
                       }}
                     >
-                      {item.namaPksi}
+                      {item.namaAplikasi}
                     </Typography>
                   </TableCell>
                   <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word' }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
+                        fontWeight: 500,
                         color: '#1d1d1f',
-                        fontSize: '0.85rem',
+                        lineHeight: 1.5,
                       }}
                     >
-                      {item.namaAplikasi}
+                      {item.namaPksi}
                     </Typography>
                   </TableCell>
                   <TableCell sx={{ py: 2 }}>
@@ -1034,7 +1303,7 @@ function PksiList() {
                       )}
                     </Box>
                   </TableCell>
-                  <TableCell sx={{ py: 2, textAlign: 'center' }}>
+                  <TableCell sx={{ py: 2 }}>
                     <Chip
                       label={item.jangkaWaktu === 'Single Year' ? 'Single Year' : 'Multiyears'}
                       size="small"
@@ -1050,7 +1319,7 @@ function PksiList() {
                       }}
                     />
                   </TableCell>
-                  <TableCell sx={{ py: 2, textAlign: 'center' }}>
+                  <TableCell sx={{ py: 2 }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
@@ -1065,7 +1334,7 @@ function PksiList() {
                       })}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2, textAlign: 'center' }}>
+                  <TableCell sx={{ py: 2 }}>
                     <Tooltip title="Buka dokumen T.01">
                       <IconButton
                         component={Link}
@@ -1084,7 +1353,7 @@ function PksiList() {
                       </IconButton>
                     </Tooltip>
                   </TableCell>
-                  <TableCell sx={{ py: 2, textAlign: 'center' }}>
+                  <TableCell sx={{ py: 2 }}>
                     <Box
                       onClick={(e) => handleStatusMenuOpen(e, item.id)}
                       sx={{
@@ -1116,8 +1385,8 @@ function PksiList() {
                       <ArrowDownIcon sx={{ fontSize: 14, color: getStatusColor(item.status) }} />
                     </Box>
                   </TableCell>
-                  <TableCell sx={{ py: 2, textAlign: 'center' }}>
-                    <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                  <TableCell sx={{ py: 2 }}>
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
                       <Tooltip title="Lihat Detail PKSI">
                         <IconButton
                           size="small"
@@ -1284,6 +1553,345 @@ function PksiList() {
             }}
           >
             {isDeleting ? 'Menghapus...' : 'Hapus'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Approval Form Dialog */}
+      <Dialog
+        open={openApprovalDialog}
+        onClose={handleApprovalCancel}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            maxHeight: '90vh',
+            bgcolor: 'rgba(255, 255, 255, 0.75)',
+            backdropFilter: 'blur(40px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1) inset',
+          },
+        }}
+        slotProps={{
+          backdrop: {
+            sx: {
+              bgcolor: 'rgba(0, 0, 0, 0.3)',
+              backdropFilter: 'blur(8px)',
+            }
+          }
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+            pb: 2,
+            bgcolor: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+          }}
+        >
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.02em' }}
+          >
+            Persetujuan PKSI
+          </Typography>
+          <IconButton
+            onClick={handleApprovalCancel}
+            size="small"
+            sx={{
+              color: '#86868b',
+              '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent
+          sx={{
+            pt: 3,
+            pb: 4,
+            background: 'linear-gradient(135deg, rgba(245, 245, 247, 0.9) 0%, rgba(250, 250, 250, 0.95) 100%)',
+          }}
+        >
+          {/* Form Card */}
+          <Box
+            sx={{
+              p: 3,
+              borderRadius: '20px',
+              bgcolor: 'rgba(255, 255, 255, 0.6)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              },
+            }}
+          >
+            <Typography
+              variant="subtitle1"
+              sx={{
+                mb: 2.5,
+                fontWeight: 600,
+                color: '#1d1d1f',
+                letterSpacing: '-0.01em',
+                fontSize: '1rem',
+              }}
+            >
+              Informasi Persetujuan
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#86868b', mb: 3 }}>
+              Mohon lengkapi form di bawah untuk menyetujui PKSI ini:
+            </Typography>
+
+            {/* PIC Field */}
+            <FormControl fullWidth sx={{ mb: 2.5 }}>
+              <InputLabel id="pic-label">PIC (User) *</InputLabel>
+              <Select
+                labelId="pic-label"
+                value={approvalForm.pic}
+                label="PIC (User) *"
+                onChange={(e) => {
+                  const selectedUser = pengembangUsers.find(u => u.uuid === e.target.value);
+                  setApprovalForm({ 
+                    ...approvalForm, 
+                    pic: e.target.value,
+                    picName: selectedUser?.full_name || ''
+                  });
+                }}
+                disabled={isLoadingUsers}
+                sx={{
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.2s ease-in-out',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0, 0, 0, 0.08)',
+                    transition: 'all 0.2s ease-in-out',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0, 0, 0, 0.15)',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#31A24C',
+                    borderWidth: '1.5px',
+                  },
+                  '&.Mui-focused': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    boxShadow: '0 4px 20px rgba(49, 162, 76, 0.1)',
+                  },
+                }}
+              >
+                <MenuItem value=""><em>{isLoadingUsers ? 'Memuat...' : 'Pilih PIC'}</em></MenuItem>
+                {pengembangUsers.map((user) => (
+                  <MenuItem key={user.uuid} value={user.uuid}>
+                    {user.full_name} {user.department ? `(${user.department})` : ''}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Anggota Tim Field */}
+            <FormControl fullWidth sx={{ mb: 2.5 }}>
+              <Autocomplete
+                multiple
+                options={pengembangUsers}
+                getOptionLabel={(option) => option.full_name || ''}
+                value={pengembangUsers.filter(u => approvalForm.anggotaTim.includes(u.uuid))}
+                onChange={(_, newValue) => setApprovalForm({ 
+                  ...approvalForm, 
+                  anggotaTim: newValue.map(u => u.uuid),
+                  anggotaTimNames: newValue.map(u => u.full_name)
+                })}
+                isOptionEqualToValue={(option, value) => option.uuid === value.uuid}
+                loading={isLoadingUsers}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Anggota Tim *"
+                    placeholder="Pilih anggota tim"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '12px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                        backdropFilter: 'blur(10px)',
+                        transition: 'all 0.2s ease-in-out',
+                        '& fieldset': {
+                          borderColor: 'rgba(0, 0, 0, 0.08)',
+                          transition: 'all 0.2s ease-in-out',
+                        },
+                        '&:hover fieldset': {
+                          borderColor: 'rgba(0, 0, 0, 0.15)',
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#31A24C',
+                          borderWidth: '1.5px',
+                        },
+                        '&.Mui-focused': {
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          boxShadow: '0 4px 20px rgba(49, 162, 76, 0.1)',
+                        },
+                      },
+                      '& .MuiInputLabel-root': {
+                        color: '#86868b',
+                        fontWeight: 500,
+                        '&.Mui-focused': {
+                          color: '#31A24C',
+                        },
+                      },
+                    }}
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return (
+                      <Chip
+                        key={key}
+                        label={option.full_name}
+                        size="small"
+                        {...tagProps}
+                        sx={{ 
+                          bgcolor: '#31A24C', 
+                          color: 'white',
+                          fontWeight: 500,
+                          '& .MuiChip-deleteIcon': {
+                            color: 'rgba(255, 255, 255, 0.7)',
+                            '&:hover': {
+                              color: 'white',
+                            },
+                          },
+                        }}
+                      />
+                    );
+                  })
+                }
+              />
+            </FormControl>
+
+            {/* IKU Field */}
+            <FormControl fullWidth sx={{ mb: 2.5 }}>
+              <InputLabel id="iku-label">IKU</InputLabel>
+              <Select
+                labelId="iku-label"
+                value={approvalForm.iku}
+                label="IKU"
+                onChange={(e) => setApprovalForm({ ...approvalForm, iku: e.target.value })}
+                sx={{
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.2s ease-in-out',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0, 0, 0, 0.08)',
+                    transition: 'all 0.2s ease-in-out',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0, 0, 0, 0.15)',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#31A24C',
+                    borderWidth: '1.5px',
+                  },
+                  '&.Mui-focused': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    boxShadow: '0 4px 20px rgba(49, 162, 76, 0.1)',
+                  },
+                }}
+              >
+                <MenuItem value="ya">Ya</MenuItem>
+                <MenuItem value="tidak">Tidak</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* Inhouse/Outsource Field */}
+            <FormControl fullWidth sx={{ mb: 3 }}>
+              <InputLabel id="inhouse-label">Inhouse/Outsource</InputLabel>
+              <Select
+                labelId="inhouse-label"
+                value={approvalForm.inhouseOutsource}
+                label="Inhouse/Outsource"
+                onChange={(e) => setApprovalForm({ ...approvalForm, inhouseOutsource: e.target.value })}
+                sx={{
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.2s ease-in-out',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0, 0, 0, 0.08)',
+                    transition: 'all 0.2s ease-in-out',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0, 0, 0, 0.15)',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#31A24C',
+                    borderWidth: '1.5px',
+                  },
+                  '&.Mui-focused': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    boxShadow: '0 4px 20px rgba(49, 162, 76, 0.1)',
+                  },
+                }}
+              >
+                <MenuItem value="inhouse">Inhouse</MenuItem>
+                <MenuItem value="outsource">Outsource</MenuItem>
+              </Select>
+            </FormControl>
+
+            <Typography variant="caption" sx={{ color: '#FF3B30' }}>
+              * Field yang wajib diisi
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions 
+          sx={{ 
+            p: 2.5, 
+            bgcolor: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            borderTop: '1px solid rgba(0, 0, 0, 0.06)',
+          }}
+        >
+          <Button
+            onClick={handleApprovalCancel}
+            disabled={isSubmittingApproval}
+            sx={{
+              color: '#86868b',
+              borderRadius: '10px',
+              px: 3,
+              '&:hover': {
+                bgcolor: 'rgba(0, 0, 0, 0.04)',
+              },
+            }}
+          >
+            Batal
+          </Button>
+          <Button
+            onClick={handleApprovalSubmit}
+            disabled={isSubmittingApproval}
+            variant="contained"
+            sx={{
+              bgcolor: '#31A24C',
+              borderRadius: '10px',
+              px: 3,
+              boxShadow: '0 4px 14px rgba(49, 162, 76, 0.3)',
+              '&:hover': {
+                bgcolor: '#2D8E41',
+                boxShadow: '0 6px 20px rgba(49, 162, 76, 0.4)',
+              },
+              '&:disabled': {
+                bgcolor: 'rgba(49, 162, 76, 0.5)',
+              },
+            }}
+          >
+            {isSubmittingApproval ? 'Menyetujui...' : 'Setujui'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -53,10 +53,19 @@ export interface PksiDocumentData {
   status: string;
   created_at?: string;
   updated_at?: string;
+  // Approval fields (set when status = DISETUJUI)
+  iku?: string;
+  inhouse_outsource?: string;
+  pic_approval?: string;
+  pic_approval_name?: string;
+  anggota_tim?: string;
+  anggota_tim_names?: string;
+  progress?: string;
   // Legacy
   tujuan_pengajuan?: string;
   kapan_diselesaikan?: string;
   pic_satker?: string;
+  pic_satker_names?: string;
 }
 
 export interface PksiSearchResponse {
@@ -116,6 +125,14 @@ export interface PksiDocumentRequest {
 
 export interface UpdateStatusRequest {
   status: 'PENDING' | 'DISETUJUI' | 'DITOLAK' | 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'REVISION';
+  // Approval fields (required when status = DISETUJUI)
+  iku?: string;
+  inhouse_outsource?: string;
+  pic_approval?: string;
+  pic_approval_name?: string;
+  anggota_tim?: string;
+  anggota_tim_names?: string;
+  progress?: string;
 }
 
 // ==================== PKSI API ====================
@@ -156,10 +173,30 @@ export async function searchPksiDocuments(params: {
   if (params.sortBy) queryParams.append('sortBy', params.sortBy);
   if (params.sortDir) queryParams.append('sortDir', params.sortDir);
 
+  console.log('[PKSI API] searchPksiDocuments - Request params:', params);
+  console.log('[PKSI API] searchPksiDocuments - URL:', `${BASE_URL}/pksi/search?${queryParams.toString()}`);
+
   const response = await apiRequest<PksiSearchResponse>(
     `${BASE_URL}/pksi/search?${queryParams.toString()}`,
     'GET'
   );
+
+  console.log('[PKSI API] searchPksiDocuments - Response:', response.data);
+  console.log('[PKSI API] searchPksiDocuments - Total elements:', response.data?.total_elements);
+  console.log('[PKSI API] searchPksiDocuments - Content count:', response.data?.content?.length);
+  if (response.data?.content) {
+    response.data.content.forEach((pksi, idx) => {
+      console.log(`[PKSI API] PKSI[${idx}]:`, {
+        id: pksi.id,
+        nama_pksi: pksi.nama_pksi,
+        nama_aplikasi: pksi.nama_aplikasi,
+        pic_satker: pksi.pic_satker,
+        pic_satker_names: pksi.pic_satker_names,
+        status: pksi.status
+      });
+    });
+  }
+
   return response.data;
 }
 
@@ -190,8 +227,42 @@ export async function updatePksiDocument(id: string, data: PksiDocumentRequest):
 /**
  * Update PKSI document status
  */
-export async function updatePksiStatus(id: string, status: UpdateStatusRequest['status']): Promise<PksiDocumentData> {
-  const response = await apiRequest<PksiDocumentData>(`${BASE_URL}/pksi/${id}/status`, 'PATCH', { status });
+export async function updatePksiStatus(
+  id: string, 
+  status: UpdateStatusRequest['status'],
+  approvalData?: {
+    iku?: string;
+    inhouse_outsource?: string;
+    pic_approval?: string;
+    pic_approval_name?: string;
+    anggota_tim?: string;
+    anggota_tim_names?: string;
+    progress?: string;
+  }
+): Promise<PksiDocumentData> {
+  const payload: UpdateStatusRequest = { status, ...approvalData };
+  const response = await apiRequest<PksiDocumentData>(`${BASE_URL}/pksi/${id}/status`, 'PATCH', payload);
+  return response.data;
+}
+
+/**
+ * Update PKSI approval fields (for approved documents only)
+ */
+export interface UpdateApprovalRequest {
+  iku?: string;
+  inhouse_outsource?: string;
+  pic_approval?: string;
+  pic_approval_name?: string;
+  anggota_tim?: string;
+  anggota_tim_names?: string;
+  progress?: string;
+}
+
+export async function updatePksiApproval(
+  id: string,
+  approvalData: UpdateApprovalRequest
+): Promise<PksiDocumentData> {
+  const response = await apiRequest<PksiDocumentData>(`${BASE_URL}/pksi/${id}/approval`, 'PATCH', approvalData);
   return response.data;
 }
 

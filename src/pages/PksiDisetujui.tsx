@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   TextField,
@@ -15,137 +15,147 @@ import {
   Paper,
   IconButton,
   Tooltip,
-  Link,
   Chip,
   Popover,
   Checkbox,
   FormControlLabel,
   FormGroup,
   Button,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Autocomplete,
 } from '@mui/material';
 import {
   Search as SearchIcon,
   TuneRounded,
-  OpenInNew as OpenInNewIcon,
   Close as CloseIcon,
   CheckCircleRounded,
+  CloudUpload as CloudUploadIcon,
+  InsertDriveFile as FileIcon,
+  Delete as DeleteIcon,
+  Visibility as VisibilityIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
+import { searchPksiDocuments, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
+import { uploadPksiFiles, getPksiFiles, deletePksiFile, type PksiFileData } from '../api/fileApi';
+import { getAllSkpa, type SkpaData } from '../api/skpaApi';
+import { getUsersByRole, type UserSimple } from '../api/userApi';
+import { ViewPksiModal } from '../components/modals';
 
-// Interface untuk data PKSI
+// Interface untuk data PKSI (transformed from API)
 interface PksiData {
   id: string;
   namaPksi: string;
+  namaAplikasi: string;
+  picSatkerBA: string; // Display value: kode_skpa names (e.g., "DIMB, DLIK")
+  picSatkerUuids: string; // Original UUIDs for bidang lookup
+  bidang: string;
+  pic: string;
+  picUuid: string;
+  anggotaTim: string;
+  anggotaTimUuids: string;
+  iku: string;
+  inhouseOutsource: string;
   jangkaWaktu: string;
   tanggalPengajuan: string;
   linkDocsT01: string;
-  status: 'pending' | 'disetujui' | 'tidak_disetujui';
+  progress: string;
 }
 
-// Dummy data PKSI - 100 entries (same as PksiList)
-const DUMMY_PKSI: PksiData[] = [
-  { id: '1', namaPksi: 'SIP Perbankan Modul Penyusunan KYBPR - KYBPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-01T10:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/abc123', status: 'pending' },
-  { id: '2', namaPksi: 'SIP Perbankan Modul Manajemen Pemeriksaan BPR/BPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-03T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/def456', status: 'disetujui' },
-  { id: '3', namaPksi: 'Supervision Dashboard Perbankan', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-05T09:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/ghi789', status: 'tidak_disetujui' },
-  { id: '4', namaPksi: 'Sistem Informasi Pengawasan Konglomerasi Keuangan (SIPKK) Modul Financial Conglomerate Ratio (FICOR)', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-06T08:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/jkl012', status: 'pending' },
-  { id: '5', namaPksi: 'Sistem Informasi Penanganan Dugaan Pelanggaran (SIPEDANG)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-07T16:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/mno345', status: 'disetujui' },
-  { id: '6', namaPksi: 'Sistem Informasi Pengawasan Profesi Penunjang Akuntan Publik dan Kantor Akuntan Publik', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-08T10:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/pqr678', status: 'pending' },
-  { id: '7', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Profil Nasabah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-09T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/stu901', status: 'disetujui' },
-  { id: '8', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Manajemen Investasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-10T13:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/vwx234', status: 'tidak_disetujui' },
-  { id: '9', namaPksi: 'Sistem Informasi Pengawasan Pasar Modal Terpadu (SIPM) - Modul Monitoring Emiten', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T15:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/yza567', status: 'pending' },
-  { id: '10', namaPksi: 'Sistem Informasi Pengawasan Pasar Modal Terpadu (SIPM) - Modul Pengawasan Profesi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T10:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/bcd890', status: 'disetujui' },
-  { id: '11', namaPksi: 'Sistem Informasi Pengawasan Pasar Modal Terpadu (SIPM) - Modul Pengawasan Lembaga Penunjang', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-13T12:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/efg123', status: 'tidak_disetujui' },
-  { id: '12', namaPksi: 'SIP IKNB - Sistem Informasi Pengawasan Industri Keuangan Non-Bank', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-14T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/hij456', status: 'pending' },
-  { id: '13', namaPksi: 'SIP IKNB Modul Pemeriksaan Langsung Asuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T14:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/klm789', status: 'disetujui' },
-  { id: '14', namaPksi: 'SIP IKNB Modul Pemeriksaan Langsung Asuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T11:20:00Z', linkDocsT01: 'https://docs.google.com/document/d/nop012', status: 'pending' },
-  { id: '15', namaPksi: 'SIP IKNB Modul Pemeriksaan Langsung Dana Pensiun', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T13:50:00Z', linkDocsT01: 'https://docs.google.com/document/d/qrs345', status: 'tidak_disetujui' },
-  { id: '16', namaPksi: 'SIP IKNB Modul Pengawasan Manajemen Investasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-18T10:40:00Z', linkDocsT01: 'https://docs.google.com/document/d/tuv678', status: 'disetujui' },
-  { id: '17', namaPksi: 'SIP IKNB Modul Pengawasan Perusahaan Pemeringkat Efek', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-19T15:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/wxy901', status: 'pending' },
-  { id: '18', namaPksi: 'SIP IKNB Modul Pengawasan Lembaga Konsultasi Bisnis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T12:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/zab234', status: 'tidak_disetujui' },
-  { id: '19', namaPksi: 'Sistem Informasi Pengawasan Pasar Modal Terpadu (SIPM) - Modul Monitoring Laporan Emiten dan Perusahaan Publik (Tahap 1)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-21T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/cde567', status: 'disetujui' },
-  { id: '20', namaPksi: 'Sistem Informasi Pengawasan Pasar Modal Terpadu (SIPM) - Modul Monitoring Laporan Emiten dan Perusahaan Publik (Tahap 2)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-22T09:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/fgh890', status: 'pending' },
-  { id: '21', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Manajemen Aset', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-23T11:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/ijk123', status: 'tidak_disetujui' },
-  { id: '22', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Manajemen Risiko', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-24T13:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/lmn456', status: 'disetujui' },
-  { id: '23', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Kepatuhan Regulasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-25T10:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/opq789', status: 'pending' },
-  { id: '24', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Tata Kelola Perusahaan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-26T15:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/rst012', status: 'tidak_disetujui' },
-  { id: '25', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Analisis Laporan Keuangan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-27T12:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/uvw345', status: 'disetujui' },
-  { id: '26', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Penilaian Kinerja', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-28T14:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/xyz678', status: 'pending' },
-  { id: '27', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Audit Internal', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-01T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/abc901', status: 'tidak_disetujui' },
-  { id: '28', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Governance Framework', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-02T11:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/def234', status: 'disetujui' },
-  { id: '29', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Risk Assessment', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-03T13:20:00Z', linkDocsT01: 'https://docs.google.com/document/d/ghi567', status: 'pending' },
-  { id: '30', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Compliance Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-04T15:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/jkl890', status: 'tidak_disetujui' },
-  { id: '31', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Disclosure Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-05T10:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/mno123', status: 'disetujui' },
-  { id: '32', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Stakeholder Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-06T12:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/pqr456', status: 'pending' },
-  { id: '33', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Innovation Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-07T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/stu789', status: 'tidak_disetujui' },
-  { id: '34', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Technology Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-08T09:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/vwx012', status: 'disetujui' },
-  { id: '35', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Change Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-09T11:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/yza345', status: 'pending' },
-  { id: '36', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Sustainability Reporting', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-10T13:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/bcd678', status: 'tidak_disetujui' },
-  { id: '37', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul ESG Framework', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-11T15:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/efg901', status: 'disetujui' },
-  { id: '38', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Whistleblowing System', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-12T10:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/hij234', status: 'pending' },
-  { id: '39', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Anti-Fraud System', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-13T12:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/klm567', status: 'tidak_disetujui' },
-  { id: '40', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Data Protection', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-14T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/nop890', status: 'disetujui' },
-  { id: '41', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Cybersecurity Framework', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-15T09:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/qrs123', status: 'pending' },
-  { id: '42', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Business Continuity', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-16T11:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/tuv456', status: 'tidak_disetujui' },
-  { id: '43', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Disaster Recovery', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-17T13:20:00Z', linkDocsT01: 'https://docs.google.com/document/d/wxy789', status: 'disetujui' },
-  { id: '44', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Quality Assurance', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-18T15:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/zab012', status: 'pending' },
-  { id: '45', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Testing Framework', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-19T10:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/cde345', status: 'tidak_disetujui' },
-  { id: '46', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Performance Monitoring', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-20T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/fgh678', status: 'disetujui' },
-  { id: '47', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Incident Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-21T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/ijk901', status: 'pending' },
-  { id: '48', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Problem Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-22T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/lmn234', status: 'tidak_disetujui' },
-  { id: '49', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Configuration Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-23T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/opq567', status: 'disetujui' },
-  { id: '50', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Release Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-24T13:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/rst890', status: 'pending' },
-  { id: '51', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Demand Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-25T15:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/uvw123', status: 'tidak_disetujui' },
-  { id: '52', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Financial Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-26T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/xyz456', status: 'disetujui' },
-  { id: '53', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Capacity Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-27T12:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/abc789', status: 'pending' },
-  { id: '54', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Availability Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-28T14:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/def012', status: 'tidak_disetujui' },
-  { id: '55', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Service Continuity', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-29T16:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/ghi345', status: 'disetujui' },
-  { id: '56', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Knowledge Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-30T09:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/jkl678', status: 'pending' },
-  { id: '57', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Portfolio Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-03-31T11:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/mno901', status: 'tidak_disetujui' },
-  { id: '58', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Program Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-01T13:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/pqr234', status: 'disetujui' },
-  { id: '59', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Project Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-02T15:20:00Z', linkDocsT01: 'https://docs.google.com/document/d/stu567', status: 'pending' },
-  { id: '60', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Resource Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-03T10:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/vwx890', status: 'tidak_disetujui' },
-  { id: '61', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Supplier Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-04T12:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/yza123', status: 'disetujui' },
-  { id: '62', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Customer Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-05T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/bcd456', status: 'pending' },
-  { id: '63', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Asset Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-06T09:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/efg789', status: 'tidak_disetujui' },
-  { id: '64', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Budget Planning', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-07T11:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/hij012', status: 'disetujui' },
-  { id: '65', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Cost Control', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-08T13:20:00Z', linkDocsT01: 'https://docs.google.com/document/d/klm345', status: 'pending' },
-  { id: '66', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Revenue Tracking', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-09T15:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/nop678', status: 'tidak_disetujui' },
-  { id: '67', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Profit Analysis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-10T10:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/qrs901', status: 'disetujui' },
-  { id: '68', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Break-even Analysis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-11T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/tuv234', status: 'pending' },
-  { id: '69', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Cash Flow Analysis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-12T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/wxy567', status: 'tidak_disetujui' },
-  { id: '70', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Forecasting', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-13T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/zab890', status: 'disetujui' },
-  { id: '71', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Budgeting', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-14T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/cde123', status: 'pending' },
-  { id: '72', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Variance Analysis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-15T13:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/fgh456', status: 'tidak_disetujui' },
-  { id: '73', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Trend Analysis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-16T15:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/ijk789', status: 'disetujui' },
-  { id: '74', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Ratio Analysis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-17T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/lmn012', status: 'pending' },
-  { id: '75', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Sensitivity Analysis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-18T12:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/opq345', status: 'tidak_disetujui' },
-  { id: '76', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Scenario Analysis', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-19T14:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/rst678', status: 'disetujui' },
-  { id: '77', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Simulation', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-20T16:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/uvw901', status: 'pending' },
-  { id: '78', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Optimization', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-21T09:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/xyz234', status: 'tidak_disetujui' },
-  { id: '79', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Decision Support', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-22T11:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/abc567', status: 'disetujui' },
-  { id: '80', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Analytics Dashboard', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-23T13:20:00Z', linkDocsT01: 'https://docs.google.com/document/d/def890', status: 'pending' },
-  { id: '81', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Reporting Tools', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-24T15:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/ghi123', status: 'tidak_disetujui' },
-  { id: '82', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Data Integration', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-25T10:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/jkl456', status: 'disetujui' },
-  { id: '83', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Data Cleansing', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-26T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/mno789', status: 'pending' },
-  { id: '84', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Data Validation', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-27T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/pqr012', status: 'tidak_disetujui' },
-  { id: '85', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Data Governance', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-28T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/stu345', status: 'disetujui' },
-  { id: '86', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Master Data Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-29T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/vwx678', status: 'pending' },
-  { id: '87', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Reference Data Management', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-04-30T13:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/yza901', status: 'tidak_disetujui' },
-  { id: '88', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Data Quality Framework', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-01T15:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/bcd234', status: 'disetujui' },
-  { id: '89', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Data Warehouse', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-02T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/efg567', status: 'pending' },
-  { id: '90', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Data Lake', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-03T12:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/hij890', status: 'tidak_disetujui' },
-  { id: '91', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul ETL Process', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-04T14:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/klm123', status: 'disetujui' },
-  { id: '92', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Streaming Pipeline', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-05T16:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/nop456', status: 'pending' },
-  { id: '93', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Batch Processing', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-06T09:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/qrs789', status: 'tidak_disetujui' },
-  { id: '94', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Real-time Processing', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-07T11:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/tuv012', status: 'disetujui' },
-  { id: '95', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Complex Event Processing', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-08T13:20:00Z', linkDocsT01: 'https://docs.google.com/document/d/wxy345', status: 'pending' },
-  { id: '96', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Stream Fusion', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-09T15:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/zab678', status: 'tidak_disetujui' },
-  { id: '97', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Stream Windowing', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-10T10:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/cde901', status: 'disetujui' },
-  { id: '98', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Stream Enrichment', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-11T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/fgh234', status: 'pending' },
-  { id: '99', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Stream Monitoring', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-12T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/ijk567', status: 'tidak_disetujui' },
-  { id: '100', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Advanced Analytics', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-05-13T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/lmn890', status: 'disetujui' },
-];
+// Progress options for PKSI Disetujui
+const PROGRESS_OPTIONS = [
+  'Penyusunan Usreq',
+  'Pengadaan',
+  'Desain',
+  'Coding',
+  'Unit Test',
+  'SIT',
+  'UAT',
+  'Deployment',
+  'Selesai',
+] as const;
 
 type Order = 'asc' | 'desc';
+const calculateJangkaWaktu = (apiData: PksiDocumentData): string => {
+  const startDates = [apiData.tahap1_awal, apiData.tahap5_awal, apiData.tahap7_awal]
+    .filter(Boolean)
+    .map(d => new Date(d!));
+  
+  const endDates = [apiData.tahap1_akhir, apiData.tahap5_akhir, apiData.tahap7_akhir]
+    .filter(Boolean)
+    .map(d => new Date(d!));
+
+  if (startDates.length === 0 || endDates.length === 0) {
+    return 'Single Year';
+  }
+
+  const earliestStart = new Date(Math.min(...startDates.map(d => d.getTime())));
+  const latestEnd = new Date(Math.max(...endDates.map(d => d.getTime())));
+
+  const startYear = earliestStart.getFullYear();
+  const endYear = latestEnd.getFullYear();
+
+  if (startYear === endYear) {
+    return 'Single Year';
+  } else {
+    return `Multiyears ${startYear}-${endYear}`;
+  }
+};
+
+// Transform API data to UI format
+const transformApiData = (apiData: PksiDocumentData): PksiData => {
+  return {
+    id: apiData.id,
+    namaPksi: apiData.nama_pksi,
+    namaAplikasi: apiData.nama_aplikasi || '-',
+    picSatkerBA: apiData.pic_satker_names || apiData.pic_satker_ba || '-', // Display kode_skpa names
+    picSatkerUuids: apiData.pic_satker_ba || '', // Original UUIDs for bidang lookup
+    bidang: '', // Will be resolved from SKPA lookup
+    pic: apiData.pic_approval_name || apiData.pic_approval || apiData.pengelola_aplikasi || '-',
+    picUuid: apiData.pic_approval || '',
+    anggotaTim: apiData.anggota_tim_names || apiData.anggota_tim || apiData.pengguna_aplikasi || '-',
+    anggotaTimUuids: apiData.anggota_tim || '',
+    iku: apiData.iku || '-',
+    inhouseOutsource: apiData.inhouse_outsource || '-',
+    jangkaWaktu: calculateJangkaWaktu(apiData),
+    tanggalPengajuan: apiData.tanggal_pengajuan || apiData.created_at || '',
+    linkDocsT01: '', // Not available in API response
+    progress: apiData.progress || 'Penyusunan Usreq',
+  };
+};
+
+// Color palette for SKPA chips
+const SKPA_COLORS = [
+  { bg: '#DA251C', text: '#FFFFFF' },
+  { bg: '#2563EB', text: '#FFFFFF' },
+  { bg: '#059669', text: '#FFFFFF' },
+  { bg: '#7C3AED', text: '#FFFFFF' },
+  { bg: '#D97706', text: '#FFFFFF' },
+  { bg: '#0891B2', text: '#FFFFFF' },
+  { bg: '#DB2777', text: '#FFFFFF' },
+  { bg: '#4F46E5', text: '#FFFFFF' },
+  { bg: '#65A30D', text: '#FFFFFF' },
+  { bg: '#DC2626', text: '#FFFFFF' },
+];
+
+// Generate consistent color based on SKPA code
+const getSkpaColor = (skpaCode: string): { bg: string; text: string } => {
+  if (!skpaCode) return SKPA_COLORS[0];
+  
+  let hash = 0;
+  for (let i = 0; i < skpaCode.length; i++) {
+    hash = skpaCode.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % SKPA_COLORS.length;
+  return SKPA_COLORS[index];
+};
 
 function PksiDisetujui() {
   const [keyword, setKeyword] = useState('');
@@ -153,13 +163,238 @@ function PksiDisetujui() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [orderBy, setOrderBy] = useState<keyof PksiData>('namaPksi');
   const [order, setOrder] = useState<Order>('asc');
+  const [pksiData, setPksiData] = useState<PksiData[]>([]);
+  const [totalElements, setTotalElements] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Get user info for department-based filtering
+  const userInfoStorage = localStorage.getItem('user_info') || sessionStorage.getItem('user_info');
+  const userInfo = useMemo(() => userInfoStorage ? JSON.parse(userInfoStorage) : null, [userInfoStorage]);
+  const userDepartment = useMemo(() => userInfo?.department || '', [userInfo]);
+  const userRoles: string[] = useMemo(() => userInfo?.roles || [], [userInfo]);
+  const isAdminOrPengembang = useMemo(() => userRoles.some((role: string) => 
+    role.toLowerCase() === 'admin' || role.toLowerCase() === 'pengembang'
+  ), [userRoles]);
+
+  // SKPA full lookup data (for resolving Bidang info)
+  const [skpaFullMap, setSkpaFullMap] = useState<Map<string, SkpaData>>(new Map());
 
   // Filter state
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedJangkaWaktu, setSelectedJangkaWaktu] = useState<Set<string>>(new Set());
+  const [selectedYear, setSelectedYear] = useState<string>('');
+  const [selectedAplikasi, setSelectedAplikasi] = useState<string>('');
+  const [selectedSkpa, setSelectedSkpa] = useState<Set<string>>(new Set());
 
-  // Only get approved PKSI
-  const approvedPksiData = DUMMY_PKSI.filter(item => item.status === 'disetujui');
+  // Upload modal state
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [selectedPksiForUpload, setSelectedPksiForUpload] = useState<PksiData | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [existingFiles, setExistingFiles] = useState<PksiFileData[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+
+  // View modal state
+  const [openViewModal, setOpenViewModal] = useState(false);
+  const [selectedPksiIdForView, setSelectedPksiIdForView] = useState<string | null>(null);
+
+  // Edit approval dialog state
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [selectedPksiForEdit, setSelectedPksiForEdit] = useState<PksiData | null>(null);
+  const [editForm, setEditForm] = useState({
+    pic: '',
+    picName: '',
+    anggotaTim: [] as string[],
+    anggotaTimNames: [] as string[],
+    iku: 'ya',
+    inhouseOutsource: 'inhouse',
+    progress: 'Penyusunan Usreq',
+  });
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+
+  // Eligible users for PIC/Anggota Tim (Admin + Pengembang)
+  const [eligibleUsers, setEligibleUsers] = useState<UserSimple[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
+  // Fetch eligible users on mount
+  useEffect(() => {
+    const fetchEligibleUsers = async () => {
+      setIsLoadingUsers(true);
+      try {
+        const users = await getUsersByRole('Admin,Pengembang');
+        setEligibleUsers(users);
+      } catch (error) {
+        console.error('Failed to fetch eligible users:', error);
+        setEligibleUsers([]);
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
+    fetchEligibleUsers();
+  }, []);
+
+  const handleViewClick = (pksiId: string) => {
+    setSelectedPksiIdForView(pksiId);
+    setOpenViewModal(true);
+  };
+
+  const handleEditClick = (pksi: PksiData) => {
+    setSelectedPksiForEdit(pksi);
+    
+    // Parse existing anggota tim UUIDs and names
+    const existingUuids = pksi.anggotaTimUuids && pksi.anggotaTimUuids !== '-' 
+      ? pksi.anggotaTimUuids.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+    const existingNames = pksi.anggotaTim && pksi.anggotaTim !== '-'
+      ? pksi.anggotaTim.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+    
+    setEditForm({
+      pic: pksi.picUuid || '',
+      picName: pksi.pic !== '-' ? pksi.pic : '',
+      anggotaTim: existingUuids,
+      anggotaTimNames: existingNames,
+      iku: pksi.iku !== '-' ? pksi.iku : 'ya',
+      inhouseOutsource: pksi.inhouseOutsource !== '-' ? pksi.inhouseOutsource : 'inhouse',
+      progress: pksi.progress || 'Penyusunan Usreq',
+    });
+    setOpenEditDialog(true);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!selectedPksiForEdit) return;
+
+    setIsSubmittingEdit(true);
+    try {
+      await updatePksiApproval(selectedPksiForEdit.id, {
+        iku: editForm.iku,
+        inhouse_outsource: editForm.inhouseOutsource,
+        pic_approval: editForm.pic,
+        pic_approval_name: editForm.picName,
+        anggota_tim: editForm.anggotaTim.join(', '),
+        anggota_tim_names: editForm.anggotaTimNames.join(', '),
+        progress: editForm.progress,
+      });
+      
+      // Refresh data
+      fetchPksiData();
+      setOpenEditDialog(false);
+      setSelectedPksiForEdit(null);
+    } catch (error) {
+      console.error('Error updating PKSI:', error);
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
+  const handleEditCancel = () => {
+    setOpenEditDialog(false);
+    setSelectedPksiForEdit(null);
+  };
+
+  // Map sortBy from UI field to API field
+  const mapSortField = (field: keyof PksiData): string => {
+    const fieldMap: Record<string, string> = {
+      namaPksi: 'namaPksi',
+      tanggalPengajuan: 'tanggalPengajuan',
+      status: 'status',
+    };
+    return fieldMap[field] || 'namaPksi';
+  };
+
+  // Fetch PKSI data from API - only approved
+  const fetchPksiData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await searchPksiDocuments({
+        search: keyword || undefined,
+        status: 'DISETUJUI',
+        page: page,
+        size: rowsPerPage,
+        sortBy: mapSortField(orderBy),
+        sortDir: order,
+      });
+
+      // DEBUG: Log response and user department
+      console.log('=== DEBUG PKSI DISETUJUI ===');
+      console.log('User Department:', userDepartment);
+      console.log('User Roles:', userRoles);
+      console.log('Is Admin/Pengembang:', isAdminOrPengembang);
+      console.log('PKSI Response:', response);
+      console.log('Total Elements:', response.total_elements);
+      console.log('===========================');
+
+      let transformedData = response.content.map(transformApiData);
+      
+      // Filter by user department if not Admin/Pengembang
+      if (!isAdminOrPengembang && userDepartment) {
+        console.log('Filtering by department:', userDepartment);
+        transformedData = transformedData.filter(pksi => {
+          const skpaCodes = pksi.picSatkerBA.split(',').map(s => s.trim().toUpperCase());
+          const matches = skpaCodes.includes(userDepartment.toUpperCase());
+          console.log(`PKSI "${pksi.namaPksi}" - SKPA: [${skpaCodes.join(', ')}] - Matches ${userDepartment}: ${matches}`);
+          return matches;
+        });
+        console.log('Filtered count:', transformedData.length);
+      }
+      
+      setPksiData(transformedData);
+      setTotalElements(isAdminOrPengembang ? response.total_elements : transformedData.length);
+    } catch (error) {
+      console.error('Failed to fetch PKSI data:', error);
+      setPksiData([]);
+      setTotalElements(0);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [keyword, page, rowsPerPage, orderBy, order, userDepartment, userRoles, isAdminOrPengembang]);
+
+  // Fetch data on mount and when dependencies change
+  useEffect(() => {
+    fetchPksiData();
+  }, [fetchPksiData]);
+
+  // Fetch SKPA lookup data (for Bidang resolution)
+  useEffect(() => {
+    const fetchLookupData = async () => {
+      try {
+        const skpaResponse = await getAllSkpa();
+        
+        const skpaFullLookup = new Map<string, SkpaData>();
+        (skpaResponse.data || []).forEach((skpa) => {
+          skpaFullLookup.set(skpa.id, skpa);
+        });
+        setSkpaFullMap(skpaFullLookup);
+      } catch (error) {
+        console.error('Failed to fetch lookup data:', error);
+      }
+    };
+    fetchLookupData();
+  }, []);
+
+  // Helper function to parse SKPA codes from pic_satker_names (comma-separated string from backend)
+  const resolveSkpaCodes = useCallback((picSatkerNames: string): string[] => {
+    if (!picSatkerNames || picSatkerNames === '-') return [];
+    
+    // Backend now sends comma-separated kode_skpa values directly (e.g., "DIMB, DLIK")
+    return picSatkerNames.split(',').map(s => s.trim()).filter(Boolean);
+  }, []);
+
+  // Helper function to resolve Bidang abbreviations from SKPA UUIDs
+  const resolveBidangNames = useCallback((picSatkerUuids: string): string[] => {
+    if (!picSatkerUuids || picSatkerUuids === '-') return [];
+    
+    // picSatkerUuids contains comma-separated UUIDs
+    const uuids = picSatkerUuids.split(',').map(g => g.trim()).filter(Boolean);
+    const bidangNames = new Set<string>();
+    uuids.forEach(uuid => {
+      const skpa = skpaFullMap.get(uuid);
+      if (skpa?.bidang?.kode_bidang) {
+        bidangNames.add(skpa.bidang.kode_bidang);
+      }
+    });
+    return Array.from(bidangNames);
+  }, [skpaFullMap]);
 
   const handleFilterOpen = (event: React.MouseEvent<HTMLElement>) => {
     setFilterAnchorEl(event.currentTarget);
@@ -181,30 +416,89 @@ function PksiDisetujui() {
 
   const handleResetFilter = () => {
     setSelectedJangkaWaktu(new Set());
+    setSelectedYear('');
+    setSelectedAplikasi('');
+    setSelectedSkpa(new Set());
   };
 
-  const filteredPksi = (() => {
-    let result = approvedPksiData.filter(item => {
-      // Keyword filter
-      const matchKeyword = item.namaPksi.toLowerCase().includes(keyword.toLowerCase());
-      
-      // Jangka Waktu filter
-      const matchJangkaWaktu = selectedJangkaWaktu.size === 0 || selectedJangkaWaktu.has(item.jangkaWaktu);
-      
-      return matchKeyword && matchJangkaWaktu;
-    });
-
-    result.sort((a, b) => {
-      const fieldA = String(a[orderBy] ?? '');
-      const fieldB = String(b[orderBy] ?? '');
-      if (order === 'asc') {
-        return fieldA < fieldB ? -1 : fieldA > fieldB ? 1 : 0;
+  // Generate year options from data
+  const yearOptions = useMemo(() => {
+    const years = new Set<string>();
+    pksiData.forEach(item => {
+      if (item.tanggalPengajuan) {
+        const year = new Date(item.tanggalPengajuan).getFullYear().toString();
+        years.add(year);
       }
-      return fieldA > fieldB ? -1 : fieldA < fieldB ? 1 : 0;
     });
+    return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
+  }, [pksiData]);
 
+  // Generate aplikasi options from data
+  const aplikasiOptions = useMemo(() => {
+    const aplikasiSet = new Set<string>();
+    pksiData.forEach(item => {
+      if (item.namaAplikasi && item.namaAplikasi !== '-') {
+        aplikasiSet.add(item.namaAplikasi);
+      }
+    });
+    return Array.from(aplikasiSet).sort();
+  }, [pksiData]);
+
+  // Generate SKPA options from pksiData (pic_satker_names is now comma-separated codes)
+  const skpaOptions = useMemo(() => {
+    const skpaSet = new Set<string>();
+    pksiData.forEach(item => {
+      const codes = resolveSkpaCodes(item.picSatkerBA);
+      codes.forEach(code => skpaSet.add(code));
+    });
+    return Array.from(skpaSet).sort();
+  }, [pksiData, resolveSkpaCodes]);
+
+  // Count active filters
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedJangkaWaktu.size > 0) count++;
+    if (selectedYear) count++;
+    if (selectedAplikasi) count++;
+    if (selectedSkpa.size > 0) count++;
+    return count;
+  }, [selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa]);
+
+  // Filter locally based on all filter criteria
+  const filteredPksi = useMemo(() => {
+    let result = pksiData;
+    
+    if (selectedJangkaWaktu.size > 0) {
+      result = result.filter(item => {
+        if (selectedJangkaWaktu.has('Single Year') && item.jangkaWaktu === 'Single Year') return true;
+        if (selectedJangkaWaktu.has('Multiyears') && item.jangkaWaktu.startsWith('Multiyears')) return true;
+        return false;
+      });
+    }
+
+    if (selectedYear) {
+      result = result.filter(item => {
+        if (!item.tanggalPengajuan) return false;
+        const year = new Date(item.tanggalPengajuan).getFullYear().toString();
+        return year === selectedYear;
+      });
+    }
+
+    if (selectedAplikasi) {
+      result = result.filter(item => item.namaAplikasi === selectedAplikasi);
+    }
+
+    if (selectedSkpa.size > 0) {
+      result = result.filter(item => {
+        const itemSkpaCodes = resolveSkpaCodes(item.picSatkerBA);
+        return itemSkpaCodes.some(code => selectedSkpa.has(code));
+      });
+    }
+    
     return result;
-  })();
+  }, [pksiData, selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa, resolveSkpaCodes]);
+
+  const paginatedPksi = filteredPksi;
 
   const handleSort = (property: keyof PksiData) => {
     const isAsc = orderBy === property && order === 'asc';
@@ -221,10 +515,72 @@ function PksiDisetujui() {
     setPage(0);
   };
 
-  const paginatedPksi = filteredPksi.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
+  // Upload modal handlers
+  const handleUploadClick = async (pksi: PksiData) => {
+    setSelectedPksiForUpload(pksi);
+    setUploadModalOpen(true);
+    setUploadedFiles([]);
+    
+    // Fetch existing files for this PKSI
+    setIsLoadingFiles(true);
+    try {
+      const files = await getPksiFiles(pksi.id);
+      setExistingFiles(files);
+    } catch (error) {
+      console.error('Failed to fetch existing files:', error);
+      setExistingFiles([]);
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  };
+
+  const handleUploadModalClose = () => {
+    setUploadModalOpen(false);
+    setSelectedPksiForUpload(null);
+    setUploadedFiles([]);
+    setExistingFiles([]);
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      setUploadedFiles(prev => [...prev, ...Array.from(files)]);
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDeleteExistingFile = async (fileId: string) => {
+    try {
+      await deletePksiFile(fileId);
+      setExistingFiles(prev => prev.filter(f => f.id !== fileId));
+    } catch (error) {
+      console.error('Failed to delete file:', error);
+    }
+  };
+
+  const handleUploadSubmit = async () => {
+    if (!selectedPksiForUpload || uploadedFiles.length === 0) return;
+    
+    setIsUploading(true);
+    try {
+      const uploadedResult = await uploadPksiFiles(selectedPksiForUpload.id, uploadedFiles);
+      setExistingFiles(prev => [...prev, ...uploadedResult]);
+      setUploadedFiles([]);
+    } catch (error) {
+      console.error('Failed to upload files:', error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
   return (
     <Box sx={{ 
@@ -248,7 +604,7 @@ function PksiDisetujui() {
           </Typography>
         </Box>
         <Typography variant="body1" sx={{ color: '#86868b', ml: 0.5 }}>
-          Daftar PKSI yang telah disetujui ({approvedPksiData.length} item)
+          Daftar PKSI yang telah disetujui ({totalElements} item)
         </Typography>
       </Box>
 
@@ -272,7 +628,8 @@ function PksiDisetujui() {
             borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
           }}
         >
-          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+          {/* Search & Filter */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <TextField
               placeholder="Cari nama PKSI..."
               size="small"
@@ -310,7 +667,7 @@ function PksiDisetujui() {
               startIcon={<TuneRounded sx={{ fontSize: 18 }} />}
               onClick={handleFilterOpen}
               sx={{
-                color: selectedJangkaWaktu.size > 0 ? '#31A24C' : '#86868b',
+                color: activeFilterCount > 0 ? '#31A24C' : '#86868b',
                 fontWeight: 500,
                 '&:hover': {
                   bgcolor: 'rgba(0, 0, 0, 0.04)',
@@ -318,9 +675,16 @@ function PksiDisetujui() {
               }}
             >
               Filters
+              {activeFilterCount > 0 && (
+                <Chip
+                  label={activeFilterCount}
+                  size="small"
+                  sx={{ ml: 1, bgcolor: '#31A24C', color: 'white', height: 20, fontSize: '0.7rem' }}
+                />
+              )}
             </Button>
           </Box>
-          
+
           {/* Status Badge */}
           <Chip
             icon={<CheckCircleRounded sx={{ fontSize: 16 }} />}
@@ -352,24 +716,190 @@ function PksiDisetujui() {
           PaperProps={{
             sx: {
               mt: 1,
-              borderRadius: 2,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+              borderRadius: '16px',
+              boxShadow: '0 20px 40px rgba(49, 162, 76, 0.1)',
+              overflow: 'hidden',
+              border: '1px solid #e8f5e9',
             },
           }}
         >
-          <Box sx={{ p: 2.5, minWidth: 300 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+          {/* Header */}
+          <Box sx={{
+            background: '#31A24C',
+            p: 2.5,
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                bgcolor: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <TuneRounded sx={{ fontSize: 16, color: '#31A24C' }} />
+              </Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'white' }}>
                 Filter
               </Typography>
-              <IconButton size="small" onClick={handleFilterClose}>
-                <CloseIcon sx={{ fontSize: 18 }} />
-              </IconButton>
+            </Box>
+            <IconButton 
+              size="small" 
+              onClick={handleFilterClose}
+              sx={{ 
+                color: 'white', 
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } 
+              }}
+            >
+              <CloseIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Box>
+          
+          <Box sx={{ p: 3, minWidth: 320, maxHeight: 400, overflowY: 'auto', bgcolor: 'white' }}>
+
+            {/* Nama Aplikasi Filter */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+                Nama Aplikasi
+              </Typography>
+              <FormControl fullWidth size="small">
+                <InputLabel id="aplikasi-filter-label-disetujui">Pilih Aplikasi</InputLabel>
+                <Select
+                  labelId="aplikasi-filter-label-disetujui"
+                  value={selectedAplikasi}
+                  label="Pilih Aplikasi"
+                  onChange={(e) => setSelectedAplikasi(e.target.value)}
+                  sx={{
+                    borderRadius: '8px',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#e5e5e7',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                    },
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>Semua Aplikasi</em>
+                  </MenuItem>
+                  {aplikasiOptions.map((aplikasi) => (
+                    <MenuItem key={aplikasi} value={aplikasi}>
+                      {aplikasi}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Box>
 
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
+            {/* SKPA Filter */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+                SKPA
+              </Typography>
+              <Autocomplete
+                multiple
+                size="small"
+                options={skpaOptions}
+                value={Array.from(selectedSkpa)}
+                onChange={(_, newValue) => setSelectedSkpa(new Set(newValue))}
+                disableCloseOnSelect
+                renderOption={(props, option, { selected }) => {
+                  const { key, ...restProps } = props;
+                  return (
+                    <li key={key} {...restProps}>
+                      <Checkbox
+                        size="small"
+                        checked={selected}
+                        sx={{ mr: 1, '&.Mui-checked': { color: '#31A24C' } }}
+                      />
+                      {option}
+                    </li>
+                  );
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder={selectedSkpa.size === 0 ? 'Pilih SKPA' : ''}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '8px',
+                        '& fieldset': { borderColor: '#e5e5e7' },
+                        '&:hover fieldset': { borderColor: '#31A24C' },
+                        '&.Mui-focused fieldset': { borderColor: '#31A24C' },
+                      },
+                    }}
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return (
+                      <Chip
+                        key={key}
+                        label={option}
+                        size="small"
+                        {...tagProps}
+                        sx={{ bgcolor: '#31A24C', color: 'white', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } }}
+                      />
+                    );
+                  })
+                }
+              />
+            </Box>
+
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
+            {/* Year Filter */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+                Periode Tahun
+              </Typography>
+              <FormControl fullWidth size="small">
+                <InputLabel id="year-filter-label-disetujui">Pilih Tahun</InputLabel>
+                <Select
+                  labelId="year-filter-label-disetujui"
+                  value={selectedYear}
+                  label="Pilih Tahun"
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  sx={{
+                    borderRadius: '8px',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#e5e5e7',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                    },
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>Semua Tahun</em>
+                  </MenuItem>
+                  {yearOptions.map((year) => (
+                    <MenuItem key={year} value={year}>
+                      {year}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
             {/* Jangka Waktu Filter */}
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1 }}>
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
                 Jangka Waktu
               </Typography>
               <FormGroup>
@@ -386,14 +916,14 @@ function PksiDisetujui() {
                       }}
                     />
                   }
-                  label={<Typography variant="body2">Single Year</Typography>}
+                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Single Year</Typography>}
                 />
                 <FormControlLabel
                   control={
                     <Checkbox
                       size="small"
-                      checked={selectedJangkaWaktu.has('Multiyears 2024-2025')}
-                      onChange={() => handleJangkaWaktuChange('Multiyears 2024-2025')}
+                      checked={selectedJangkaWaktu.has('Multiyears')}
+                      onChange={() => handleJangkaWaktuChange('Multiyears')}
                       sx={{
                         '&.Mui-checked': {
                           color: '#31A24C',
@@ -401,24 +931,26 @@ function PksiDisetujui() {
                       }}
                     />
                   }
-                  label={<Typography variant="body2">Multiyears 2024-2025</Typography>}
+                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Multiyears</Typography>}
                 />
               </FormGroup>
             </Box>
 
-            <Box sx={{ borderTop: '1px solid rgba(0,0,0,0.06)', my: 2 }} />
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
 
             {/* Reset Button */}
             <Button
               fullWidth
               variant="outlined"
-              size="small"
               onClick={handleResetFilter}
               sx={{
+                py: 1,
+                borderRadius: '8px',
                 color: '#31A24C',
                 borderColor: '#31A24C',
+                fontWeight: 600,
                 '&:hover': {
-                  bgcolor: 'rgba(49, 162, 76, 0.04)',
+                  bgcolor: '#e8f5e9',
                   borderColor: '#31A24C',
                 },
               }}
@@ -429,14 +961,47 @@ function PksiDisetujui() {
         </Popover>
 
         {/* Table */}
-        <TableContainer sx={{ width: '100%' }}>
-          <Table>
-            <TableHead sx={{ bgcolor: '#f5f5f7' }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}>No</TableCell>
+        <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 1800 }}>
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f5f5f7' }}>
+                <TableCell 
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    width: 50,
+                    minWidth: 50,
+                    textAlign: 'center',
+                  }}
+                >
+                  No
+                </TableCell>
+                <TableCell 
+                  sortDirection={orderBy === 'namaAplikasi' ? order : false}
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    minWidth: 150,
+                  }}
+                >
+                  <TableSortLabel
+                    active={orderBy === 'namaAplikasi'}
+                    direction={orderBy === 'namaAplikasi' ? order : 'asc'}
+                    onClick={() => handleSort('namaAplikasi')}
+                  >
+                    Nama Aplikasi
+                  </TableSortLabel>
+                </TableCell>
                 <TableCell 
                   sortDirection={orderBy === 'namaPksi' ? order : false}
-                  sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    minWidth: 200,
+                  }}
                 >
                   <TableSortLabel
                     active={orderBy === 'namaPksi'}
@@ -447,8 +1012,115 @@ function PksiDisetujui() {
                   </TableSortLabel>
                 </TableCell>
                 <TableCell 
+                  sortDirection={orderBy === 'picSatkerBA' ? order : false}
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    minWidth: 150,
+                  }}
+                >
+                  <TableSortLabel
+                    active={orderBy === 'picSatkerBA'}
+                    direction={orderBy === 'picSatkerBA' ? order : 'asc'}
+                    onClick={() => handleSort('picSatkerBA')}
+                  >
+                    SKPA
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell 
+                  sortDirection={orderBy === 'bidang' ? order : false}
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    minWidth: 150,
+                  }}
+                >
+                  <TableSortLabel
+                    active={orderBy === 'bidang'}
+                    direction={orderBy === 'bidang' ? order : 'asc'}
+                    onClick={() => handleSort('bidang')}
+                  >
+                    Bidang
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell 
+                  sortDirection={orderBy === 'pic' ? order : false}
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    minWidth: 150,
+                  }}
+                >
+                  <TableSortLabel
+                    active={orderBy === 'pic'}
+                    direction={orderBy === 'pic' ? order : 'asc'}
+                    onClick={() => handleSort('pic')}
+                  >
+                    PIC
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell 
+                  sortDirection={orderBy === 'anggotaTim' ? order : false}
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    minWidth: 180,
+                  }}
+                >
+                  <TableSortLabel
+                    active={orderBy === 'anggotaTim'}
+                    direction={orderBy === 'anggotaTim' ? order : 'asc'}
+                    onClick={() => handleSort('anggotaTim')}
+                  >
+                    Anggota Tim
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell 
+                  sortDirection={orderBy === 'iku' ? order : false}
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    minWidth: 150,
+                  }}
+                >
+                  <TableSortLabel
+                    active={orderBy === 'iku'}
+                    direction={orderBy === 'iku' ? order : 'asc'}
+                    onClick={() => handleSort('iku')}
+                  >
+                    IKU
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell 
+                  sortDirection={orderBy === 'inhouseOutsource' ? order : false}
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    minWidth: 140,
+                  }}
+                >
+                  <TableSortLabel
+                    active={orderBy === 'inhouseOutsource'}
+                    direction={orderBy === 'inhouseOutsource' ? order : 'asc'}
+                    onClick={() => handleSort('inhouseOutsource')}
+                  >
+                    Inhouse/Outsource
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell 
                   sortDirection={orderBy === 'jangkaWaktu' ? order : false}
-                  sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    minWidth: 120,
+                  }}
                 >
                   <TableSortLabel
                     active={orderBy === 'jangkaWaktu'}
@@ -460,7 +1132,12 @@ function PksiDisetujui() {
                 </TableCell>
                 <TableCell 
                   sortDirection={orderBy === 'tanggalPengajuan' ? order : false}
-                  sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    minWidth: 150,
+                  }}
                 >
                   <TableSortLabel
                     active={orderBy === 'tanggalPengajuan'}
@@ -470,87 +1147,313 @@ function PksiDisetujui() {
                     Tanggal Pengajuan
                   </TableSortLabel>
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}>Lampiran Docs T.01</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2 }}>Status</TableCell>
+                <TableCell 
+                  sortDirection={orderBy === 'progress' ? order : false}
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    minWidth: 160,
+                  }}
+                >
+                  <TableSortLabel
+                    active={orderBy === 'progress'}
+                    direction={orderBy === 'progress' ? order : 'asc'}
+                    onClick={() => handleSort('progress')}
+                  >
+                    Progres
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell 
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f', 
+                    py: 2,
+                    minWidth: 100,
+                  }}
+                >
+                  Aksi
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {paginatedPksi.map((item, index) => (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={13} sx={{ textAlign: 'center', py: 6 }}>
+                    <CircularProgress size={40} sx={{ color: '#31A24C' }} />
+                    <Typography variant="body2" sx={{ mt: 2, color: '#86868b' }}>
+                      Memuat data...
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : paginatedPksi.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={13} sx={{ textAlign: 'center', py: 6 }}>
+                    <Typography variant="body2" sx={{ color: '#86868b' }}>
+                      Tidak ada data PKSI disetujui ditemukan
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : paginatedPksi.map((item, index) => (
                 <TableRow 
                   key={item.id}
                   sx={{
-                    borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
                     '&:hover': {
                       bgcolor: 'rgba(49, 162, 76, 0.02)',
                     },
+                    '&:not(:last-child)': {
+                      borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+                    },
                   }}
                 >
-                  <TableCell sx={{ color: '#86868b', py: 2 }}>
+                  <TableCell 
+                    sx={{ 
+                      color: '#86868b', 
+                      py: 2,
+                      textAlign: 'center',
+                      fontWeight: 500,
+                      fontSize: '0.85rem',
+                    }}
+                  >
                     {page * rowsPerPage + index + 1}
                   </TableCell>
-                  <TableCell sx={{ color: '#1d1d1f', py: 2 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#1d1d1f',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      {item.namaAplikasi}
+                    </Typography>
+                  </TableCell>
+                  <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        fontWeight: 500,
+                        color: '#1d1d1f',
+                        lineHeight: 1.5,
+                      }}
+                    >
                       {item.namaPksi}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ color: '#1d1d1f', py: 2 }}>
+                  <TableCell sx={{ py: 2 }}>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {resolveSkpaCodes(item.picSatkerBA).length > 0 ? (
+                        resolveSkpaCodes(item.picSatkerBA).map((code, idx) => {
+                          const chipColor = getSkpaColor(code);
+                          return (
+                            <Chip
+                              key={idx}
+                              label={code}
+                              size="small"
+                              sx={{
+                                bgcolor: chipColor.bg,
+                                color: chipColor.text,
+                                fontWeight: 600,
+                                fontSize: '0.7rem',
+                                height: 24,
+                                borderRadius: '6px',
+                              }}
+                            />
+                          );
+                        })
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.85rem' }}>-</Typography>
+                      )}
+                    </Box>
+                  </TableCell>
+                  {/* Bidang Column */}
+                  <TableCell sx={{ py: 2 }}>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {resolveBidangNames(item.picSatkerUuids).length > 0 ? (
+                        resolveBidangNames(item.picSatkerUuids).map((bidang, idx) => (
+                          <Chip
+                            key={idx}
+                            label={bidang}
+                            size="small"
+                            sx={{
+                              bgcolor: 'rgba(107, 114, 128, 0.1)',
+                              color: '#4B5563',
+                              fontWeight: 500,
+                              fontSize: '0.7rem',
+                              height: 24,
+                              borderRadius: '6px',
+                            }}
+                          />
+                        ))
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.85rem' }}>-</Typography>
+                      )}
+                    </Box>
+                  </TableCell>
+                  {/* PIC Column */}
+                  <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#1d1d1f',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      {item.pic}
+                    </Typography>
+                  </TableCell>
+                  {/* Anggota Tim Column */}
+                  <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word', maxWidth: 200 }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#1d1d1f',
+                        fontSize: '0.85rem',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                      }}
+                    >
+                      {item.anggotaTim}
+                    </Typography>
+                  </TableCell>
+                  {/* IKU Column */}
+                  <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word', maxWidth: 180 }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#1d1d1f',
+                        fontSize: '0.85rem',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                      }}
+                    >
+                      {item.iku}
+                    </Typography>
+                  </TableCell>
+                  {/* Inhouse/Outsource Column */}
+                  <TableCell sx={{ py: 2 }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#1d1d1f',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      {item.inhouseOutsource}
+                    </Typography>
+                  </TableCell>
+                  <TableCell sx={{ py: 2 }}>
                     <Chip
-                      label={item.jangkaWaktu}
+                      label={item.jangkaWaktu === 'Single Year' ? 'Single Year' : 'Multiyears'}
                       size="small"
                       sx={{
-                        bgcolor: item.jangkaWaktu === 'Single Year' ? '#8B5CF6' : '#2563EB',
-                        color: 'white',
-                        fontWeight: 500,
+                        bgcolor: item.jangkaWaktu === 'Single Year' 
+                          ? 'rgba(139, 92, 246, 0.1)' 
+                          : 'rgba(37, 99, 235, 0.1)',
+                        color: item.jangkaWaktu === 'Single Year' ? '#8B5CF6' : '#2563EB',
+                        fontWeight: 600,
+                        fontSize: '0.75rem',
+                        height: 26,
+                        borderRadius: '6px',
                       }}
                     />
                   </TableCell>
-                  <TableCell sx={{ color: '#1d1d1f', py: 2 }}>
-                    {new Date(item.tanggalPengajuan).toLocaleDateString('id-ID', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </TableCell>
                   <TableCell sx={{ py: 2 }}>
-                    <Tooltip title="Buka dokumen">
-                      <IconButton
-                        component={Link}
-                        href={item.linkDocsT01}
-                        target="_blank"
-                        size="small"
-                        sx={{
-                          color: '#31A24C',
-                          '&:hover': {
-                            bgcolor: 'rgba(49, 162, 76, 0.1)',
-                          },
-                        }}
-                      >
-                        <OpenInNewIcon sx={{ fontSize: 18 }} />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell sx={{ py: 2 }}>
-                    <Box
-                      sx={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 0.5,
-                        px: 1.5,
-                        py: 0.75,
-                        bgcolor: '#31A24C20',
-                        borderRadius: '8px',
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#1d1d1f',
+                        fontSize: '0.85rem',
                       }}
                     >
-                      <CheckCircleRounded sx={{ fontSize: 14, color: '#31A24C' }} />
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontWeight: 500,
-                          color: '#31A24C',
-                        }}
-                      >
-                        Disetujui
-                      </Typography>
+                      {new Date(item.tanggalPengajuan).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </Typography>
+                  </TableCell>
+                  <TableCell sx={{ py: 2 }}>
+                    <Chip
+                      label={item.progress}
+                      size="small"
+                      sx={{
+                        bgcolor: (() => {
+                          const progressIndex = PROGRESS_OPTIONS.indexOf(item.progress as typeof PROGRESS_OPTIONS[number]);
+                          if (progressIndex === -1) return 'rgba(107, 114, 128, 0.1)';
+                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return 'rgba(49, 162, 76, 0.15)'; // Selesai
+                          if (progressIndex >= 6) return 'rgba(37, 99, 235, 0.12)'; // UAT, Deployment
+                          if (progressIndex >= 3) return 'rgba(139, 92, 246, 0.12)'; // Coding, Unit Test, SIT
+                          return 'rgba(217, 119, 6, 0.12)'; // Penyusunan Usreq, Pengadaan, Desain
+                        })(),
+                        color: (() => {
+                          const progressIndex = PROGRESS_OPTIONS.indexOf(item.progress as typeof PROGRESS_OPTIONS[number]);
+                          if (progressIndex === -1) return '#4B5563';
+                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return '#31A24C'; // Selesai
+                          if (progressIndex >= 6) return '#2563EB'; // UAT, Deployment
+                          if (progressIndex >= 3) return '#8B5CF6'; // Coding, Unit Test, SIT
+                          return '#D97706'; // Penyusunan Usreq, Pengadaan, Desain
+                        })(),
+                        fontWeight: 600,
+                        fontSize: '0.7rem',
+                        height: 26,
+                        borderRadius: '8px',
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell sx={{ py: 2 }}>
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      <Tooltip title="Lihat Detail PKSI">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleViewClick(item.id)}
+                          sx={{
+                            color: '#059669',
+                            bgcolor: 'rgba(5, 150, 105, 0.08)',
+                            '&:hover': {
+                              bgcolor: 'rgba(5, 150, 105, 0.15)',
+                            },
+                          }}
+                        >
+                          <VisibilityIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Edit PKSI">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditClick(item)}
+                          sx={{
+                            color: '#D97706',
+                            bgcolor: 'rgba(217, 119, 6, 0.08)',
+                            '&:hover': {
+                              bgcolor: 'rgba(217, 119, 6, 0.15)',
+                            },
+                          }}
+                        >
+                          <EditIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Upload Dokumen T.1.1">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleUploadClick(item)}
+                          sx={{
+                            color: '#2563EB',
+                            bgcolor: 'rgba(37, 99, 235, 0.08)',
+                            '&:hover': {
+                              bgcolor: 'rgba(37, 99, 235, 0.15)',
+                            },
+                          }}
+                        >
+                          <CloudUploadIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
                   </TableCell>
                 </TableRow>
@@ -563,7 +1466,7 @@ function PksiDisetujui() {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25]}
           component="div"
-          count={filteredPksi.length}
+          count={totalElements}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
@@ -578,6 +1481,871 @@ function PksiDisetujui() {
           }}
         />
       </Paper>
+
+      {/* View PKSI Modal */}
+      <ViewPksiModal
+        open={openViewModal}
+        onClose={() => {
+          setOpenViewModal(false);
+          setSelectedPksiIdForView(null);
+        }}
+        pksiId={selectedPksiIdForView}
+      />
+
+      {/* Edit Approval Dialog - Apple Liquid Glass Style */}
+      <Dialog
+        open={openEditDialog}
+        onClose={handleEditCancel}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '24px',
+            overflow: 'hidden',
+            background: 'linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 250, 252, 0.9) 100%)',
+            backdropFilter: 'blur(40px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.6)',
+            boxShadow: '0 24px 80px rgba(0, 0, 0, 0.12), 0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ 
+          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(250, 250, 252, 0.6) 100%)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(0, 0, 0, 0.04)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          py: 2.5,
+          px: 3,
+        }}>
+          <Box sx={{
+            width: 44,
+            height: 44,
+            borderRadius: '14px',
+            background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(217, 119, 6, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 16px rgba(217, 119, 6, 0.15)',
+          }}>
+            <EditIcon sx={{ color: '#D97706', fontSize: 22 }} />
+          </Box>
+          <Box>
+            <Typography sx={{ 
+              fontWeight: 600, 
+              fontSize: '1.1rem',
+              color: '#1d1d1f',
+              letterSpacing: '-0.02em',
+            }}>
+              Edit PKSI Disetujui
+            </Typography>
+            {selectedPksiForEdit && (
+              <Typography sx={{ 
+                fontSize: '0.8rem', 
+                color: '#86868b',
+                mt: 0.25,
+              }}>
+                {selectedPksiForEdit.namaPksi}
+              </Typography>
+            )}
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, py: 3 }}>
+          {selectedPksiForEdit && (
+            <Box sx={{ 
+              mb: 3,
+              p: 2.5,
+              borderRadius: '16px',
+              background: 'linear-gradient(145deg, rgba(245, 245, 247, 0.8) 0%, rgba(240, 240, 242, 0.6) 100%)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+            }}>
+              <Box sx={{ display: 'flex', gap: 3, mb: 2.5 }}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ 
+                    fontSize: '0.7rem', 
+                    color: '#86868b', 
+                    mb: 0.5,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    fontWeight: 500,
+                  }}>
+                    Nama Aplikasi
+                  </Typography>
+                  <Typography sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f',
+                    fontSize: '0.9rem',
+                  }}>
+                    {selectedPksiForEdit.namaAplikasi}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ 
+                    fontSize: '0.7rem', 
+                    color: '#86868b', 
+                    mb: 0.5,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    fontWeight: 500,
+                  }}>
+                    SKPA
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {resolveSkpaCodes(selectedPksiForEdit.picSatkerBA).length > 0 ? (
+                      resolveSkpaCodes(selectedPksiForEdit.picSatkerBA).map((code, idx) => {
+                        const chipColor = getSkpaColor(code);
+                        return (
+                          <Chip
+                            key={idx}
+                            label={code}
+                            size="small"
+                            sx={{
+                              bgcolor: chipColor.bg,
+                              color: chipColor.text,
+                              fontWeight: 600,
+                              fontSize: '0.65rem',
+                              height: 22,
+                              borderRadius: '6px',
+                            }}
+                          />
+                        );
+                      })
+                    ) : (
+                      <Typography sx={{ color: '#86868b', fontSize: '0.85rem' }}>-</Typography>
+                    )}
+                  </Box>
+                </Box>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 3 }}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ 
+                    fontSize: '0.7rem', 
+                    color: '#86868b', 
+                    mb: 0.5,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    fontWeight: 500,
+                  }}>
+                    Bidang
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {resolveBidangNames(selectedPksiForEdit.picSatkerUuids).length > 0 ? (
+                      resolveBidangNames(selectedPksiForEdit.picSatkerUuids).map((bidang, idx) => (
+                        <Chip
+                          key={idx}
+                          label={bidang}
+                          size="small"
+                          sx={{
+                            bgcolor: 'rgba(107, 114, 128, 0.12)',
+                            color: '#4B5563',
+                            fontWeight: 500,
+                            fontSize: '0.65rem',
+                            height: 22,
+                            borderRadius: '6px',
+                          }}
+                        />
+                      ))
+                    ) : (
+                      <Typography sx={{ color: '#86868b', fontSize: '0.85rem' }}>-</Typography>
+                    )}
+                  </Box>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ 
+                    fontSize: '0.7rem', 
+                    color: '#86868b', 
+                    mb: 0.5,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    fontWeight: 500,
+                  }}>
+                    Jangka Waktu
+                  </Typography>
+                  <Chip
+                    label={selectedPksiForEdit.jangkaWaktu === 'Single Year' ? 'Single Year' : 'Multiyears'}
+                    size="small"
+                    sx={{
+                      bgcolor: selectedPksiForEdit.jangkaWaktu === 'Single Year' 
+                        ? 'rgba(139, 92, 246, 0.12)' 
+                        : 'rgba(37, 99, 235, 0.12)',
+                      color: selectedPksiForEdit.jangkaWaktu === 'Single Year' ? '#8B5CF6' : '#2563EB',
+                      fontWeight: 600,
+                      fontSize: '0.7rem',
+                      height: 24,
+                      borderRadius: '8px',
+                    }}
+                  />
+                </Box>
+              </Box>
+            </Box>
+          )}
+
+          <Typography sx={{ 
+            fontWeight: 600, 
+            color: '#1d1d1f', 
+            mb: 2,
+            fontSize: '0.85rem',
+            letterSpacing: '-0.01em',
+          }}>
+            Informasi Persetujuan
+          </Typography>
+
+          {/* PIC Field - Liquid Glass Style */}
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel 
+              id="edit-pic-label"
+              sx={{
+                '&.Mui-focused': { color: '#D97706' },
+              }}
+            >
+              PIC *
+            </InputLabel>
+            <Select
+              labelId="edit-pic-label"
+              value={editForm.pic}
+              label="PIC *"
+              onChange={(e) => {
+                const selectedUser = eligibleUsers.find(u => u.uuid === e.target.value);
+                setEditForm({ 
+                  ...editForm, 
+                  pic: e.target.value,
+                  picName: selectedUser?.full_name || '',
+                });
+              }}
+              disabled={isLoadingUsers}
+              sx={{
+                borderRadius: '14px',
+                backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                backdropFilter: 'blur(10px)',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(0, 0, 0, 0.08)',
+                  transition: 'all 0.3s ease',
+                },
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(217, 119, 6, 0.3)',
+                  },
+                },
+                '&.Mui-focused': {
+                  backgroundColor: 'rgba(255, 255, 255, 1)',
+                  boxShadow: '0 4px 20px rgba(217, 119, 6, 0.12)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#D97706',
+                    borderWidth: '1.5px',
+                  },
+                },
+              }}
+            >
+              <MenuItem value=""><em>Pilih PIC</em></MenuItem>
+              {eligibleUsers.map((user) => (
+                <MenuItem key={user.uuid} value={user.uuid}>
+                  {user.full_name} ({user.department || 'No Dept'})
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Anggota Tim Field - Liquid Glass Style */}
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <Autocomplete
+              multiple
+              options={eligibleUsers}
+              getOptionLabel={(option) => typeof option === 'string' ? option : option.full_name}
+              value={eligibleUsers.filter(u => editForm.anggotaTim.includes(u.uuid))}
+              onChange={(_, newValue) => {
+                const users = newValue as UserSimple[];
+                setEditForm({ 
+                  ...editForm, 
+                  anggotaTim: users.map(u => u.uuid),
+                  anggotaTimNames: users.map(u => u.full_name),
+                });
+              }}
+              loading={isLoadingUsers}
+              isOptionEqualToValue={(option, value) => option.uuid === value.uuid}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Anggota Tim *"
+                  placeholder="Pilih anggota tim"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '14px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                      backdropFilter: 'blur(10px)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '& fieldset': {
+                        borderColor: 'rgba(0, 0, 0, 0.08)',
+                        transition: 'all 0.3s ease',
+                      },
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        '& fieldset': {
+                          borderColor: 'rgba(217, 119, 6, 0.3)',
+                        },
+                      },
+                      '&.Mui-focused': {
+                        backgroundColor: 'rgba(255, 255, 255, 1)',
+                        boxShadow: '0 4px 20px rgba(217, 119, 6, 0.12)',
+                        '& fieldset': {
+                          borderColor: '#D97706',
+                          borderWidth: '1.5px',
+                        },
+                      },
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: '#D97706',
+                    },
+                  }}
+                />
+              )}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => {
+                  const { key, ...tagProps } = getTagProps({ index });
+                  return (
+                    <Chip
+                      key={key}
+                      label={option.full_name}
+                      size="small"
+                      {...tagProps}
+                      sx={{ 
+                        background: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)',
+                        color: 'white',
+                        fontWeight: 500,
+                        fontSize: '0.75rem',
+                        borderRadius: '8px',
+                        boxShadow: '0 2px 8px rgba(217, 119, 6, 0.25)',
+                        '& .MuiChip-deleteIcon': {
+                          color: 'rgba(255, 255, 255, 0.8)',
+                          '&:hover': {
+                            color: 'white',
+                          },
+                        },
+                      }}
+                    />
+                  );
+                })
+              }
+            />
+          </FormControl>
+
+          {/* IKU & Inhouse/Outsource - Side by Side */}
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            {/* IKU Field */}
+            <FormControl fullWidth>
+              <InputLabel 
+                id="edit-iku-label"
+                sx={{ '&.Mui-focused': { color: '#D97706' } }}
+              >
+                IKU
+              </InputLabel>
+              <Select
+                labelId="edit-iku-label"
+                value={editForm.iku}
+                label="IKU"
+                onChange={(e) => setEditForm({ ...editForm, iku: e.target.value })}
+                sx={{
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0, 0, 0, 0.08)',
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(217, 119, 6, 0.3)',
+                    },
+                  },
+                  '&.Mui-focused': {
+                    backgroundColor: 'rgba(255, 255, 255, 1)',
+                    boxShadow: '0 4px 20px rgba(217, 119, 6, 0.12)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#D97706',
+                      borderWidth: '1.5px',
+                    },
+                  },
+                }}
+              >
+                <MenuItem value="ya">Ya</MenuItem>
+                <MenuItem value="tidak">Tidak</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* Inhouse/Outsource Field */}
+            <FormControl fullWidth>
+              <InputLabel 
+                id="edit-inhouse-label"
+                sx={{ '&.Mui-focused': { color: '#D97706' } }}
+              >
+                Inhouse/Outsource
+              </InputLabel>
+              <Select
+                labelId="edit-inhouse-label"
+                value={editForm.inhouseOutsource}
+                label="Inhouse/Outsource"
+                onChange={(e) => setEditForm({ ...editForm, inhouseOutsource: e.target.value })}
+                sx={{
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0, 0, 0, 0.08)',
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(217, 119, 6, 0.3)',
+                    },
+                  },
+                  '&.Mui-focused': {
+                    backgroundColor: 'rgba(255, 255, 255, 1)',
+                    boxShadow: '0 4px 20px rgba(217, 119, 6, 0.12)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#D97706',
+                      borderWidth: '1.5px',
+                    },
+                  },
+                }}
+              >
+                <MenuItem value="inhouse">Inhouse</MenuItem>
+                <MenuItem value="outsource">Outsource</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+
+          {/* Progress Field - Full Width */}
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel 
+              id="edit-progress-label"
+              sx={{ '&.Mui-focused': { color: '#D97706' } }}
+            >
+              Progres
+            </InputLabel>
+            <Select
+              labelId="edit-progress-label"
+              value={editForm.progress}
+              label="Progres"
+              onChange={(e) => setEditForm({ ...editForm, progress: e.target.value })}
+              sx={{
+                borderRadius: '14px',
+                backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                backdropFilter: 'blur(10px)',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(0, 0, 0, 0.08)',
+                },
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(217, 119, 6, 0.3)',
+                  },
+                },
+                '&.Mui-focused': {
+                  backgroundColor: 'rgba(255, 255, 255, 1)',
+                  boxShadow: '0 4px 20px rgba(217, 119, 6, 0.12)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#D97706',
+                    borderWidth: '1.5px',
+                  },
+                },
+              }}
+            >
+              {PROGRESS_OPTIONS.map((option) => (
+                <MenuItem key={option} value={option}>
+                  {option}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions sx={{ 
+          px: 3, 
+          py: 2.5, 
+          background: 'linear-gradient(180deg, rgba(250, 250, 252, 0.6) 0%, rgba(245, 245, 247, 0.8) 100%)',
+          borderTop: '1px solid rgba(0, 0, 0, 0.04)',
+          gap: 1.5,
+        }}>
+          <Button
+            onClick={handleEditCancel}
+            sx={{
+              color: '#64748B',
+              fontWeight: 500,
+              px: 3,
+              py: 1,
+              borderRadius: '12px',
+              fontSize: '0.875rem',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                bgcolor: 'rgba(0, 0, 0, 0.04)',
+              },
+            }}
+          >
+            Batal
+          </Button>
+          <Button
+            onClick={handleEditSubmit}
+            disabled={!editForm.pic || editForm.anggotaTim.length === 0 || isSubmittingEdit}
+            variant="contained"
+            startIcon={isSubmittingEdit ? <CircularProgress size={16} color="inherit" /> : null}
+            sx={{
+              background: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)',
+              fontWeight: 600,
+              px: 3,
+              py: 1,
+              borderRadius: '12px',
+              textTransform: 'none',
+              fontSize: '0.875rem',
+              boxShadow: '0 4px 16px rgba(217, 119, 6, 0.3)',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #B45309 0%, #92400E 100%)',
+                boxShadow: '0 6px 24px rgba(217, 119, 6, 0.4)',
+                transform: 'translateY(-1px)',
+              },
+              '&:active': {
+                transform: 'translateY(0)',
+              },
+              '&:disabled': {
+                background: 'rgba(217, 119, 6, 0.3)',
+                color: 'rgba(255, 255, 255, 0.7)',
+                boxShadow: 'none',
+              },
+            }}
+          >
+            {isSubmittingEdit ? 'Menyimpan...' : 'Simpan Perubahan'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Upload Modal */}
+      <Dialog
+        open={uploadModalOpen}
+        onClose={handleUploadModalClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            overflow: 'hidden',
+          },
+        }}
+      >
+        <DialogTitle sx={{ 
+          fontWeight: 600, 
+          color: '#1d1d1f',
+          borderBottom: '1px solid rgba(0,0,0,0.08)',
+          bgcolor: '#fafafa',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          py: 2,
+          px: 3,
+        }}>
+          <Box sx={{
+            width: 40,
+            height: 40,
+            borderRadius: '10px',
+            bgcolor: 'rgba(37, 99, 235, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <CloudUploadIcon sx={{ color: '#2563EB', fontSize: 22 }} />
+          </Box>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem', color: '#1d1d1f' }}>
+              Upload Dokumen T.1.1
+            </Typography>
+            {selectedPksiForUpload && (
+              <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 0.25 }}>
+                {selectedPksiForUpload.namaPksi}
+              </Typography>
+            )}
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
+          {/* Upload Area */}
+          <Box
+            sx={{
+              border: '2px dashed rgba(37, 99, 235, 0.25)',
+              borderRadius: '12px',
+              p: 3,
+              textAlign: 'center',
+              bgcolor: 'rgba(37, 99, 235, 0.02)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                borderColor: '#2563EB',
+                bgcolor: 'rgba(37, 99, 235, 0.06)',
+                transform: 'translateY(-1px)',
+              },
+            }}
+            component="label"
+          >
+            <input
+              type="file"
+              multiple
+              hidden
+              onChange={handleFileSelect}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+            />
+            <Box sx={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              bgcolor: 'rgba(37, 99, 235, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mx: 'auto',
+              mb: 1.5,
+            }}>
+              <CloudUploadIcon sx={{ fontSize: 28, color: '#2563EB' }} />
+            </Box>
+            <Typography variant="body1" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 0.5 }}>
+              Klik untuk memilih file
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#86868b' }}>
+              Format: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX
+            </Typography>
+          </Box>
+
+          {/* Existing Files */}
+          {isLoadingFiles ? (
+            <Box sx={{ textAlign: 'center', py: 3 }}>
+              <CircularProgress size={24} sx={{ color: '#31A24C' }} />
+            </Box>
+          ) : existingFiles.length > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="body2" sx={{ 
+                fontWeight: 600, 
+                color: '#1d1d1f', 
+                mb: 1.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}>
+                <CheckCircleRounded sx={{ color: '#31A24C', fontSize: 18 }} />
+                File Terupload ({existingFiles.length})
+              </Typography>
+              <Box sx={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: 1,
+                maxHeight: 150,
+                overflowY: 'auto',
+                pr: 0.5,
+              }}>
+                {existingFiles.map((file) => (
+                  <Box
+                    key={file.id}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      p: 1.5,
+                      bgcolor: 'rgba(49, 162, 76, 0.06)',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(49, 162, 76, 0.15)',
+                    }}
+                  >
+                    <Box sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '8px',
+                      bgcolor: 'rgba(49, 162, 76, 0.12)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                      <FileIcon sx={{ color: '#31A24C', fontSize: 18 }} />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          fontWeight: 500, 
+                          color: '#1d1d1f',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        {file.original_name}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontSize: '0.75rem' }}>
+                        {formatFileSize(file.file_size)}
+                      </Typography>
+                    </Box>
+                    <Tooltip title="Hapus file">
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handleDeleteExistingFile(file.id)}
+                        sx={{ 
+                          color: '#DC2626',
+                          bgcolor: 'rgba(220, 38, 38, 0.08)',
+                          width: 32,
+                          height: 32,
+                          '&:hover': {
+                            bgcolor: 'rgba(220, 38, 38, 0.15)',
+                          },
+                        }}
+                      >
+                        <DeleteIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
+
+          {/* Selected Files (new uploads) */}
+          {uploadedFiles.length > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="body2" sx={{ 
+                fontWeight: 600, 
+                color: '#1d1d1f', 
+                mb: 1.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}>
+                <FileIcon sx={{ color: '#2563EB', fontSize: 18 }} />
+                File Dipilih ({uploadedFiles.length})
+              </Typography>
+              <Box sx={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: 1,
+                maxHeight: 150,
+                overflowY: 'auto',
+                pr: 0.5,
+              }}>
+                {uploadedFiles.map((file, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      p: 1.5,
+                      bgcolor: 'rgba(37, 99, 235, 0.04)',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(37, 99, 235, 0.15)',
+                    }}
+                  >
+                    <Box sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '8px',
+                      bgcolor: 'rgba(37, 99, 235, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                      <FileIcon sx={{ color: '#2563EB', fontSize: 18 }} />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          fontWeight: 500, 
+                          color: '#1d1d1f',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        {file.name}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontSize: '0.75rem' }}>
+                        {formatFileSize(file.size)}
+                      </Typography>
+                    </Box>
+                    <Tooltip title="Hapus dari daftar">
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handleRemoveFile(index)}
+                        sx={{ 
+                          color: '#DC2626',
+                          bgcolor: 'rgba(220, 38, 38, 0.08)',
+                          width: 32,
+                          height: 32,
+                          '&:hover': {
+                            bgcolor: 'rgba(220, 38, 38, 0.15)',
+                          },
+                        }}
+                      >
+                        <CloseIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ 
+          px: 3, 
+          py: 2, 
+          borderTop: '1px solid rgba(0,0,0,0.08)',
+          bgcolor: '#fafafa',
+          gap: 1.5,
+        }}>
+          <Button
+            onClick={handleUploadModalClose}
+            sx={{
+              color: '#64748B',
+              fontWeight: 500,
+              px: 2.5,
+              borderRadius: '8px',
+              '&:hover': {
+                bgcolor: 'rgba(0, 0, 0, 0.05)',
+              },
+            }}
+          >
+            Tutup
+          </Button>
+          <Button
+            onClick={handleUploadSubmit}
+            disabled={uploadedFiles.length === 0 || isUploading}
+            variant="contained"
+            startIcon={isUploading ? <CircularProgress size={16} color="inherit" /> : <CloudUploadIcon />}
+            sx={{
+              bgcolor: '#2563EB',
+              fontWeight: 500,
+              px: 2.5,
+              borderRadius: '8px',
+              textTransform: 'none',
+              boxShadow: 'none',
+              '&:hover': {
+                bgcolor: '#1D4ED8',
+                boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+              },
+              '&:disabled': {
+                bgcolor: 'rgba(37, 99, 235, 0.4)',
+                color: 'rgba(255, 255, 255, 0.8)',
+              },
+            }}
+          >
+            {isUploading ? 'Mengupload...' : 'Upload File'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
