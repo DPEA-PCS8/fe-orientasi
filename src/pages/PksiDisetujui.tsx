@@ -114,7 +114,7 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     id: apiData.id,
     namaPksi: apiData.nama_pksi,
     namaAplikasi: apiData.nama_aplikasi || '-',
-    picSatkerBA: apiData.pic_satker_ba || '-',
+    picSatkerBA: apiData.pic_satker_names || apiData.pic_satker_ba || '-',
     bidang: '', // Will be resolved from SKPA lookup
     pic: apiData.pic_approval_name || apiData.pic_approval || apiData.pengelola_aplikasi || '-',
     picUuid: apiData.pic_approval || '',
@@ -165,8 +165,16 @@ function PksiDisetujui() {
   const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
-  // SKPA lookup data
-  const [skpaMap, setSkpaMap] = useState<Map<string, string>>(new Map());
+  // Get user info for department-based filtering
+  const userInfoStorage = localStorage.getItem('user_info') || sessionStorage.getItem('user_info');
+  const userInfo = useMemo(() => userInfoStorage ? JSON.parse(userInfoStorage) : null, [userInfoStorage]);
+  const userDepartment = useMemo(() => userInfo?.department || '', [userInfo]);
+  const userRoles: string[] = useMemo(() => userInfo?.roles || [], [userInfo]);
+  const isAdminOrPengembang = useMemo(() => userRoles.some((role: string) => 
+    role.toLowerCase() === 'admin' || role.toLowerCase() === 'pengembang'
+  ), [userRoles]);
+
+  // SKPA full lookup data (for resolving Bidang info)
   const [skpaFullMap, setSkpaFullMap] = useState<Map<string, SkpaData>>(new Map());
 
   // Filter state
@@ -306,20 +314,30 @@ function PksiDisetujui() {
       });
 
       // DEBUG: Log response and user department
-      const userInfoStorage = localStorage.getItem('user_info') || sessionStorage.getItem('user_info');
-      const parsedUserInfo = userInfoStorage ? JSON.parse(userInfoStorage) : null;
-      console.log('=== DEBUG PKSI RESPONSE ===');
-      console.log('User Department:', parsedUserInfo?.department);
-      console.log('User Roles:', parsedUserInfo?.roles);
-      console.log('Full User Info:', parsedUserInfo);
+      console.log('=== DEBUG PKSI DISETUJUI ===');
+      console.log('User Department:', userDepartment);
+      console.log('User Roles:', userRoles);
+      console.log('Is Admin/Pengembang:', isAdminOrPengembang);
       console.log('PKSI Response:', response);
-      console.log('PKSI Content:', response.content);
       console.log('Total Elements:', response.total_elements);
       console.log('===========================');
 
-      const transformedData = response.content.map(transformApiData);
+      let transformedData = response.content.map(transformApiData);
+      
+      // Filter by user department if not Admin/Pengembang
+      if (!isAdminOrPengembang && userDepartment) {
+        console.log('Filtering by department:', userDepartment);
+        transformedData = transformedData.filter(pksi => {
+          const skpaCodes = pksi.picSatkerBA.split(',').map(s => s.trim().toUpperCase());
+          const matches = skpaCodes.includes(userDepartment.toUpperCase());
+          console.log(`PKSI "${pksi.namaPksi}" - SKPA: [${skpaCodes.join(', ')}] - Matches ${userDepartment}: ${matches}`);
+          return matches;
+        });
+        console.log('Filtered count:', transformedData.length);
+      }
+      
       setPksiData(transformedData);
-      setTotalElements(response.total_elements);
+      setTotalElements(isAdminOrPengembang ? response.total_elements : transformedData.length);
     } catch (error) {
       console.error('Failed to fetch PKSI data:', error);
       setPksiData([]);
@@ -327,26 +345,23 @@ function PksiDisetujui() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, page, rowsPerPage, orderBy, order]);
+  }, [keyword, page, rowsPerPage, orderBy, order, userDepartment, userRoles, isAdminOrPengembang]);
 
   // Fetch data on mount and when dependencies change
   useEffect(() => {
     fetchPksiData();
   }, [fetchPksiData]);
 
-  // Fetch SKPA lookup data
+  // Fetch SKPA lookup data (for Bidang resolution)
   useEffect(() => {
     const fetchLookupData = async () => {
       try {
         const skpaResponse = await getAllSkpa();
         
-        const skpaLookup = new Map<string, string>();
         const skpaFullLookup = new Map<string, SkpaData>();
         (skpaResponse.data || []).forEach((skpa) => {
-          skpaLookup.set(skpa.id, skpa.kode_skpa);
           skpaFullLookup.set(skpa.id, skpa);
         });
-        setSkpaMap(skpaLookup);
         setSkpaFullMap(skpaFullLookup);
       } catch (error) {
         console.error('Failed to fetch lookup data:', error);
@@ -355,13 +370,13 @@ function PksiDisetujui() {
     fetchLookupData();
   }, []);
 
-  // Helper function to resolve SKPA GUIDs to codes array for Chip display
-  const resolveSkpaCodes = useCallback((picSatkerBA: string): string[] => {
-    if (!picSatkerBA || picSatkerBA === '-') return [];
+  // Helper function to parse SKPA codes from pic_satker_names (comma-separated string from backend)
+  const resolveSkpaCodes = useCallback((picSatkerNames: string): string[] => {
+    if (!picSatkerNames || picSatkerNames === '-') return [];
     
-    const guids = picSatkerBA.split(',').map(g => g.trim());
-    return guids.map(guid => skpaMap.get(guid) || '').filter(Boolean);
-  }, [skpaMap]);
+    // Backend now sends comma-separated kode_skpa values directly (e.g., "DIMB, DLIK")
+    return picSatkerNames.split(',').map(s => s.trim()).filter(Boolean);
+  }, []);
 
   // Helper function to resolve Bidang abbreviations from SKPA GUIDs
   const resolveBidangNames = useCallback((picSatkerBA: string): string[] => {
@@ -426,10 +441,15 @@ function PksiDisetujui() {
     return Array.from(aplikasiSet).sort();
   }, [pksiData]);
 
-  // Generate SKPA options from skpaMap
+  // Generate SKPA options from pksiData (pic_satker_names is now comma-separated codes)
   const skpaOptions = useMemo(() => {
-    return Array.from(skpaMap.values()).sort();
-  }, [skpaMap]);
+    const skpaSet = new Set<string>();
+    pksiData.forEach(item => {
+      const codes = resolveSkpaCodes(item.picSatkerBA);
+      codes.forEach(code => skpaSet.add(code));
+    });
+    return Array.from(skpaSet).sort();
+  }, [pksiData, resolveSkpaCodes]);
 
   // Count active filters
   const activeFilterCount = useMemo(() => {

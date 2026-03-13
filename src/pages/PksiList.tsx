@@ -51,7 +51,6 @@ import {
 import { AddPksiModal, EditPksiModal, ViewPksiModal } from '../components/modals';
 import { usePermissions } from '../hooks/usePermissions';
 import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, type PksiDocumentData } from '../api/pksiApi';
-import { getAllSkpa } from '../api/skpaApi';
 import { getUsersByRole, type UserSimple } from '../api/userApi';
 
 // Interface untuk data PKSI (transformed from API)
@@ -108,7 +107,7 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     id: apiData.id,
     namaPksi: apiData.nama_pksi,
     namaAplikasi: apiData.nama_aplikasi || '-',
-    picSatkerBA: apiData.pic_satker_ba || '-',
+    picSatkerBA: apiData.pic_satker_names || apiData.pic_satker_ba || '-',
     jangkaWaktu: calculateJangkaWaktu(apiData),
     tanggalPengajuan: apiData.tanggal_pengajuan || apiData.created_at || '',
     linkDocsT01: '', // Will be populated when document upload is implemented
@@ -182,12 +181,18 @@ function PksiList() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedPksiId, setSelectedPksiId] = useState<string | null>(null);
 
-  // SKPA lookup data
-  const [skpaMap, setSkpaMap] = useState<Map<string, string>>(new Map());
-
   // Permission check for PKSI menu
   const { getMenuPermissions } = usePermissions();
   const pksiPermissions = getMenuPermissions('PKSI_ALL');
+
+  // Get user info for department-based filtering
+  const userInfoStorage = localStorage.getItem('user_info') || sessionStorage.getItem('user_info');
+  const userInfo = useMemo(() => userInfoStorage ? JSON.parse(userInfoStorage) : null, [userInfoStorage]);
+  const userDepartment = useMemo(() => userInfo?.department || '', [userInfo]);
+  const userRoles: string[] = useMemo(() => userInfo?.roles || [], [userInfo]);
+  const isAdminOrPengembang = useMemo(() => userRoles.some((role: string) => 
+    role.toLowerCase() === 'admin' || role.toLowerCase() === 'pengembang'
+  ), [userRoles]);
 
   // Filter state
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
@@ -247,9 +252,31 @@ function PksiList() {
         sortDir: order,
       });
 
-      const transformedData = response.content.map(transformApiData);
+      // DEBUG: Log response and user department
+      console.log('=== DEBUG PKSI LIST ===');
+      console.log('User Department:', userDepartment);
+      console.log('User Roles:', userRoles);
+      console.log('Is Admin/Pengembang:', isAdminOrPengembang);
+      console.log('PKSI Response:', response);
+      console.log('Total Elements:', response.total_elements);
+      console.log('========================');
+
+      let transformedData = response.content.map(transformApiData);
+      
+      // Filter by user department if not Admin/Pengembang
+      if (!isAdminOrPengembang && userDepartment) {
+        console.log('Filtering by department:', userDepartment);
+        transformedData = transformedData.filter(pksi => {
+          const skpaCodes = pksi.picSatkerBA.split(',').map(s => s.trim().toUpperCase());
+          const matches = skpaCodes.includes(userDepartment.toUpperCase());
+          console.log(`PKSI "${pksi.namaPksi}" - SKPA: [${skpaCodes.join(', ')}] - Matches ${userDepartment}: ${matches}`);
+          return matches;
+        });
+        console.log('Filtered count:', transformedData.length);
+      }
+      
       setPksiData(transformedData);
-      setTotalElements(response.total_elements);
+      setTotalElements(isAdminOrPengembang ? response.total_elements : transformedData.length);
     } catch (error) {
       console.error('Failed to fetch PKSI data:', error);
       setPksiData([]);
@@ -257,31 +284,12 @@ function PksiList() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, page, rowsPerPage, orderBy, order, selectedStatus]);
+  }, [keyword, page, rowsPerPage, orderBy, order, selectedStatus, userDepartment, userRoles, isAdminOrPengembang]);
 
   // Fetch data on mount and when dependencies change
   useEffect(() => {
     fetchPksiData();
   }, [fetchPksiData]);
-
-  // Fetch SKPA lookup data
-  useEffect(() => {
-    const fetchLookupData = async () => {
-      try {
-        const skpaResponse = await getAllSkpa();
-        
-        // Create lookup map
-        const skpaLookup = new Map<string, string>();
-        (skpaResponse.data || []).forEach((skpa) => {
-          skpaLookup.set(skpa.id, skpa.kode_skpa);
-        });
-        setSkpaMap(skpaLookup);
-      } catch (error) {
-        console.error('Failed to fetch lookup data:', error);
-      }
-    };
-    fetchLookupData();
-  }, []);
 
   // Fetch users with Admin and Pengembang roles for PIC and Anggota Tim
   useEffect(() => {
@@ -300,14 +308,13 @@ function PksiList() {
     fetchEligibleUsers();
   }, []);
 
-  // Helper function to resolve SKPA GUIDs to codes array for Chip display
-  const resolveSkpaCodes = useCallback((picSatkerBA: string): string[] => {
-    if (!picSatkerBA || picSatkerBA === '-') return [];
+  // Helper function to parse SKPA codes from pic_satker_names (comma-separated string from backend)
+  const resolveSkpaCodes = useCallback((picSatkerNames: string): string[] => {
+    if (!picSatkerNames || picSatkerNames === '-') return [];
     
-    // Split by comma and resolve each GUID
-    const guids = picSatkerBA.split(',').map(g => g.trim());
-    return guids.map(guid => skpaMap.get(guid) || '').filter(Boolean);
-  }, [skpaMap]);
+    // Backend now sends comma-separated kode_skpa values directly (e.g., "DIMB, DLIK")
+    return picSatkerNames.split(',').map(s => s.trim()).filter(Boolean);
+  }, []);
 
   const handleStatusMenuOpen = (event: React.MouseEvent<HTMLElement>, pksiId: string) => {
     setAnchorEl(event.currentTarget);
@@ -527,10 +534,15 @@ function PksiList() {
     return Array.from(aplikasiSet).sort();
   }, [pksiData]);
 
-  // Generate SKPA options from skpaMap
+  // Generate SKPA options from pksiData (pic_satker_names is now comma-separated codes)
   const skpaOptions = useMemo(() => {
-    return Array.from(skpaMap.values()).sort();
-  }, [skpaMap]);
+    const skpaSet = new Set<string>();
+    pksiData.forEach(item => {
+      const codes = resolveSkpaCodes(item.picSatkerBA);
+      codes.forEach(code => skpaSet.add(code));
+    });
+    return Array.from(skpaSet).sort();
+  }, [pksiData, resolveSkpaCodes]);
 
   // Count active filters
   const activeFilterCount = useMemo(() => {
