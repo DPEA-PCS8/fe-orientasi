@@ -54,7 +54,8 @@ interface PksiData {
   id: string;
   namaPksi: string;
   namaAplikasi: string;
-  picSatkerBA: string;
+  picSatkerBA: string; // Display value: kode_skpa names (e.g., "DIMB, DLIK")
+  picSatkerUuids: string; // Original UUIDs for bidang lookup
   bidang: string;
   pic: string;
   picUuid: string;
@@ -114,7 +115,8 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     id: apiData.id,
     namaPksi: apiData.nama_pksi,
     namaAplikasi: apiData.nama_aplikasi || '-',
-    picSatkerBA: apiData.pic_satker_names || apiData.pic_satker_ba || '-',
+    picSatkerBA: apiData.pic_satker_names || apiData.pic_satker_ba || '-', // Display kode_skpa names
+    picSatkerUuids: apiData.pic_satker_ba || '', // Original UUIDs for bidang lookup
     bidang: '', // Will be resolved from SKPA lookup
     pic: apiData.pic_approval_name || apiData.pic_approval || apiData.pengelola_aplikasi || '-',
     picUuid: apiData.pic_approval || '',
@@ -378,14 +380,15 @@ function PksiDisetujui() {
     return picSatkerNames.split(',').map(s => s.trim()).filter(Boolean);
   }, []);
 
-  // Helper function to resolve Bidang abbreviations from SKPA GUIDs
-  const resolveBidangNames = useCallback((picSatkerBA: string): string[] => {
-    if (!picSatkerBA || picSatkerBA === '-') return [];
+  // Helper function to resolve Bidang abbreviations from SKPA UUIDs
+  const resolveBidangNames = useCallback((picSatkerUuids: string): string[] => {
+    if (!picSatkerUuids || picSatkerUuids === '-') return [];
     
-    const guids = picSatkerBA.split(',').map(g => g.trim());
+    // picSatkerUuids contains comma-separated UUIDs
+    const uuids = picSatkerUuids.split(',').map(g => g.trim()).filter(Boolean);
     const bidangNames = new Set<string>();
-    guids.forEach(guid => {
-      const skpa = skpaFullMap.get(guid);
+    uuids.forEach(uuid => {
+      const skpa = skpaFullMap.get(uuid);
       if (skpa?.bidang?.kode_bidang) {
         bidangNames.add(skpa.bidang.kode_bidang);
       }
@@ -1266,8 +1269,8 @@ function PksiDisetujui() {
                   {/* Bidang Column */}
                   <TableCell sx={{ py: 2 }}>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {resolveBidangNames(item.picSatkerBA).length > 0 ? (
-                        resolveBidangNames(item.picSatkerBA).map((bidang, idx) => (
+                      {resolveBidangNames(item.picSatkerUuids).length > 0 ? (
+                        resolveBidangNames(item.picSatkerUuids).map((bidang, idx) => (
                           <Chip
                             key={idx}
                             label={bidang}
@@ -1631,8 +1634,8 @@ function PksiDisetujui() {
                     Bidang
                   </Typography>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {resolveBidangNames(selectedPksiForEdit.picSatkerBA).length > 0 ? (
-                      resolveBidangNames(selectedPksiForEdit.picSatkerBA).map((bidang, idx) => (
+                    {resolveBidangNames(selectedPksiForEdit.picSatkerUuids).length > 0 ? (
+                      resolveBidangNames(selectedPksiForEdit.picSatkerUuids).map((bidang, idx) => (
                         <Chip
                           key={idx}
                           label={bidang}
