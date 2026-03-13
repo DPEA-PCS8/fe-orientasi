@@ -165,6 +165,15 @@ function PksiDisetujui() {
   const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Get user info for department-based filtering
+  const userInfoStorage = localStorage.getItem('user_info') || sessionStorage.getItem('user_info');
+  const userInfo = useMemo(() => userInfoStorage ? JSON.parse(userInfoStorage) : null, [userInfoStorage]);
+  const userDepartment = useMemo(() => userInfo?.department || '', [userInfo]);
+  const userRoles: string[] = useMemo(() => userInfo?.roles || [], [userInfo]);
+  const isAdminOrPengembang = useMemo(() => userRoles.some((role: string) => 
+    role.toLowerCase() === 'admin' || role.toLowerCase() === 'pengembang'
+  ), [userRoles]);
+
   // SKPA full lookup data (for resolving Bidang info)
   const [skpaFullMap, setSkpaFullMap] = useState<Map<string, SkpaData>>(new Map());
 
@@ -305,20 +314,30 @@ function PksiDisetujui() {
       });
 
       // DEBUG: Log response and user department
-      const userInfoStorage = localStorage.getItem('user_info') || sessionStorage.getItem('user_info');
-      const parsedUserInfo = userInfoStorage ? JSON.parse(userInfoStorage) : null;
-      console.log('=== DEBUG PKSI RESPONSE ===');
-      console.log('User Department:', parsedUserInfo?.department);
-      console.log('User Roles:', parsedUserInfo?.roles);
-      console.log('Full User Info:', parsedUserInfo);
+      console.log('=== DEBUG PKSI DISETUJUI ===');
+      console.log('User Department:', userDepartment);
+      console.log('User Roles:', userRoles);
+      console.log('Is Admin/Pengembang:', isAdminOrPengembang);
       console.log('PKSI Response:', response);
-      console.log('PKSI Content:', response.content);
       console.log('Total Elements:', response.total_elements);
       console.log('===========================');
 
-      const transformedData = response.content.map(transformApiData);
+      let transformedData = response.content.map(transformApiData);
+      
+      // Filter by user department if not Admin/Pengembang
+      if (!isAdminOrPengembang && userDepartment) {
+        console.log('Filtering by department:', userDepartment);
+        transformedData = transformedData.filter(pksi => {
+          const skpaCodes = pksi.picSatkerBA.split(',').map(s => s.trim().toUpperCase());
+          const matches = skpaCodes.includes(userDepartment.toUpperCase());
+          console.log(`PKSI "${pksi.namaPksi}" - SKPA: [${skpaCodes.join(', ')}] - Matches ${userDepartment}: ${matches}`);
+          return matches;
+        });
+        console.log('Filtered count:', transformedData.length);
+      }
+      
       setPksiData(transformedData);
-      setTotalElements(response.total_elements);
+      setTotalElements(isAdminOrPengembang ? response.total_elements : transformedData.length);
     } catch (error) {
       console.error('Failed to fetch PKSI data:', error);
       setPksiData([]);
@@ -326,7 +345,7 @@ function PksiDisetujui() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, page, rowsPerPage, orderBy, order]);
+  }, [keyword, page, rowsPerPage, orderBy, order, userDepartment, userRoles, isAdminOrPengembang]);
 
   // Fetch data on mount and when dependencies change
   useEffect(() => {
