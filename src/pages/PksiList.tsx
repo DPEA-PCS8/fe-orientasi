@@ -108,7 +108,7 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     id: apiData.id,
     namaPksi: apiData.nama_pksi,
     namaAplikasi: apiData.nama_aplikasi || '-',
-    picSatkerBA: apiData.pic_satker_ba || '-',
+    picSatkerBA: apiData.pic_satker_names || apiData.pic_satker_ba || '-',
     jangkaWaktu: calculateJangkaWaktu(apiData),
     tanggalPengajuan: apiData.tanggal_pengajuan || apiData.created_at || '',
     linkDocsT01: '', // Will be populated when document upload is implemented

@@ -65,6 +65,7 @@ export interface PksiDocumentData {
   tujuan_pengajuan?: string;
   kapan_diselesaikan?: string;
   pic_satker?: string;
+  pic_satker_names?: string;
 }
 
 export interface PksiSearchResponse {
@@ -172,10 +173,29 @@ export async function searchPksiDocuments(params: {
   if (params.sortBy) queryParams.append('sortBy', params.sortBy);
   if (params.sortDir) queryParams.append('sortDir', params.sortDir);
 
+  console.log('[PKSI API] searchPksiDocuments - Request params:', params);
+  console.log('[PKSI API] searchPksiDocuments - URL:', `${BASE_URL}/pksi/search?${queryParams.toString()}`);
+
   const response = await apiRequest<PksiSearchResponse>(
     `${BASE_URL}/pksi/search?${queryParams.toString()}`,
     'GET'
   );
+
+  console.log('[PKSI API] searchPksiDocuments - Response:', response.data);
+  console.log('[PKSI API] searchPksiDocuments - Total elements:', response.data?.total_elements);
+  console.log('[PKSI API] searchPksiDocuments - Content count:', response.data?.content?.length);
+  if (response.data?.content) {
+    response.data.content.forEach((pksi, idx) => {
+      console.log(`[PKSI API] PKSI[${idx}]:`, {
+        id: pksi.id,
+        nama_pksi: pksi.nama_pksi,
+        nama_aplikasi: pksi.nama_aplikasi,
+        pic_satker: pksi.pic_satker,
+        status: pksi.status
+      });
+    });
+  }
+
   return response.data;
 }
 
