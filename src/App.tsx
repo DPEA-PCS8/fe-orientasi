@@ -23,6 +23,8 @@ import AplikasiDetailPage from './pages/AplikasiDetailPage';
 import AplikasiFormPage from './pages/AplikasiFormPage';
 import AuditLogPage from './pages/AuditLogPage';
 import HistorisAplikasiPage from './pages/HistorisAplikasiPage';
+import Fs2List from './pages/Fs2List';
+import Fs2Disetujui from './pages/Fs2Disetujui';
 
 function App() {
   return (
@@ -216,6 +218,27 @@ function App() {
             <ProtectedRoute requireMenuPermission='HISTORIS_APLIKASI'>
               <Layout>
                 <HistorisAplikasiPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        {/* FS2 Routes */}
+        <Route
+          path="/fs2-list"
+          element={
+            <ProtectedRoute requireMenuPermission='FS2_ALL'>
+              <Layout>
+                <Fs2List />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/fs2-disetujui"
+          element={
+            <ProtectedRoute requireMenuPermission='FS2_APPROVED'>
+              <Layout>
+                <Fs2Disetujui />
               </Layout>
             </ProtectedRoute>
           }
