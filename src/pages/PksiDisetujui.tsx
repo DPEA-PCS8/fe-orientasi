@@ -41,6 +41,7 @@ import {
   CloudUpload as CloudUploadIcon,
   InsertDriveFile as FileIcon,
   Delete as DeleteIcon,
+  PushPin as PushPinIcon,
 } from '@mui/icons-material';
 import { searchPksiDocuments, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
@@ -248,6 +249,54 @@ function PksiDisetujui() {
   const [selectedInhouseOutsource, setSelectedInhouseOutsource] = useState<string>('');
   const [selectedBidang, setSelectedBidang] = useState<Set<string>>(new Set());
   const [selectedPic, setSelectedPic] = useState<Set<string>>(new Set());
+
+  // Sticky columns configuration
+  const [stickyColumnsAnchorEl, setStickyColumnsAnchorEl] = useState<null | HTMLElement>(null);
+  const [stickyColumns, setStickyColumns] = useState<Set<string>>(new Set(['no', 'namaAplikasi', 'namaPksi']));
+  
+  // Column definitions for sticky configuration
+  const COLUMN_OPTIONS = [
+    { id: 'no', label: 'No', width: 50 },
+    { id: 'namaAplikasi', label: 'Nama Aplikasi', width: 160 },
+    { id: 'namaPksi', label: 'Nama PKSI', width: 180 },
+    { id: 'skpa', label: 'SKPA', width: 100 },
+    { id: 'bidang', label: 'Bidang', width: 120 },
+    { id: 'inisiatifRbsi', label: 'Inisiatif RBSI', width: 160 },
+    { id: 'pic', label: 'PIC', width: 140 },
+  ];
+
+  // Calculate sticky left positions based on selected columns
+  const getStickyLeft = useCallback((columnId: string): number | undefined => {
+    if (!stickyColumns.has(columnId)) return undefined;
+    
+    const orderedSticky = COLUMN_OPTIONS.filter(col => stickyColumns.has(col.id));
+    const colIndex = orderedSticky.findIndex(col => col.id === columnId);
+    if (colIndex === -1) return undefined;
+    
+    let left = 0;
+    for (let i = 0; i < colIndex; i++) {
+      left += orderedSticky[i].width;
+    }
+    return left;
+  }, [stickyColumns]);
+
+  const isLastStickyColumn = useCallback((columnId: string): boolean => {
+    if (!stickyColumns.has(columnId)) return false;
+    const orderedSticky = COLUMN_OPTIONS.filter(col => stickyColumns.has(col.id));
+    return orderedSticky[orderedSticky.length - 1]?.id === columnId;
+  }, [stickyColumns]);
+
+  const handleStickyColumnToggle = (columnId: string) => {
+    setStickyColumns(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(columnId)) {
+        newSet.delete(columnId);
+      } else {
+        newSet.add(columnId);
+      }
+      return newSet;
+    });
+  };
 
   // View modal state
   const [openViewModal, setOpenViewModal] = useState(false);
@@ -893,10 +942,106 @@ function PksiDisetujui() {
                 />
               )}
             </Button>
+            
+            {/* Sticky Columns Settings Button */}
+            <Tooltip title="Atur Kolom Sticky">
+              <Button
+                variant="text"
+                startIcon={<PushPinIcon sx={{ fontSize: 18 }} />}
+                onClick={(e) => setStickyColumnsAnchorEl(e.currentTarget)}
+                sx={{
+                  color: stickyColumns.size > 0 ? '#2563EB' : '#86868b',
+                  fontWeight: 500,
+                  '&:hover': {
+                    bgcolor: 'rgba(0, 0, 0, 0.04)',
+                  },
+                }}
+              >
+                Pin
+                {stickyColumns.size > 0 && (
+                  <Chip
+                    label={stickyColumns.size}
+                    size="small"
+                    sx={{ ml: 1, bgcolor: '#2563EB', color: 'white', height: 20, fontSize: '0.7rem' }}
+                  />
+                )}
+              </Button>
+            </Tooltip>
           </Box>
 
           {/* Status Badge - Removed */}
         </Box>
+
+        {/* Sticky Columns Popover */}
+        <Popover
+          open={Boolean(stickyColumnsAnchorEl)}
+          anchorEl={stickyColumnsAnchorEl}
+          onClose={() => setStickyColumnsAnchorEl(null)}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'left',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'left',
+          }}
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+              border: '1px solid rgba(0, 0, 0, 0.06)',
+              p: 2,
+              minWidth: 280,
+            },
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+              Kolom Sticky
+            </Typography>
+            <IconButton size="small" onClick={() => setStickyColumnsAnchorEl(null)}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
+          <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mb: 2 }}>
+            Pilih kolom yang akan tetap terlihat saat scroll horizontal
+          </Typography>
+          <FormGroup>
+            {COLUMN_OPTIONS.map((col) => (
+              <FormControlLabel
+                key={col.id}
+                control={
+                  <Checkbox
+                    checked={stickyColumns.has(col.id)}
+                    onChange={() => handleStickyColumnToggle(col.id)}
+                    size="small"
+                    sx={{
+                      '&.Mui-checked': { color: '#2563EB' },
+                    }}
+                  />
+                }
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2">{col.label}</Typography>
+                    {stickyColumns.has(col.id) && (
+                      <PushPinIcon sx={{ fontSize: 14, color: '#2563EB' }} />
+                    )}
+                  </Box>
+                }
+                sx={{ mb: 0.5 }}
+              />
+            ))}
+          </FormGroup>
+          <Button
+            fullWidth
+            variant="text"
+            size="small"
+            onClick={() => setStickyColumns(new Set())}
+            sx={{ mt: 1, color: '#86868b' }}
+          >
+            Reset Semua
+          </Button>
+        </Popover>
 
         {/* Filter Popover - Apple Liquid Glass Style */}
         <Popover
@@ -1482,13 +1627,13 @@ function PksiDisetujui() {
               <TableRow sx={{ 
                 bgcolor: '#f5f5f7',
               }}>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', textAlign: 'center', fontSize: '0.8rem', minWidth: 50 }}>No</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160 }}>Nama Aplikasi</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 180 }}>Nama PKSI</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100 }}>SKPA</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120 }}>Bidang</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160 }}>Inisiatif RBSI</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 140 }}>PIC</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', textAlign: 'center', fontSize: '0.8rem', minWidth: 50, ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>No</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Nama Aplikasi</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 180, ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Nama PKSI</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>SKPA</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Bidang</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160, ...(stickyColumns.has('inisiatifRbsi') && { position: 'sticky', left: getStickyLeft('inisiatifRbsi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('inisiatifRbsi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Inisiatif RBSI</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 140, ...(stickyColumns.has('pic') && { position: 'sticky', left: getStickyLeft('pic'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('pic') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>PIC</TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160 }}>Anggota Tim</TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 80 }}>IKU</TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 130 }}>Inhouse/Outsource</TableCell>
@@ -1571,24 +1716,24 @@ function PksiDisetujui() {
                   }}
                 >
                   {/* No */}
-                  <TableCell sx={{ color: '#86868b', py: 1, px: 1, textAlign: 'center', fontWeight: 500, fontSize: '0.8rem' }}>
+                  <TableCell sx={{ color: '#86868b', py: 1, px: 2, textAlign: 'center', fontWeight: 500, fontSize: '0.8rem', minWidth: 50, ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     {page * rowsPerPage + index + 1}
                   </TableCell>
                   {/* Nama Aplikasi */}
                   {/* Nama Aplikasi */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                  <TableCell sx={{ py: 1, px: 2, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 160, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.namaAplikasi}
                     </Typography>
                   </TableCell>
                   {/* Nama PKSI */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                  <TableCell sx={{ py: 1, px: 2, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 180, ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     <Typography variant="body2" sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.8rem', lineHeight: 1.4 }}>
                       {item.namaPksi}
                     </Typography>
                   </TableCell>
                   {/* SKPA */}
-                  <TableCell sx={{ py: 1, px: 1 }}>
+                  <TableCell sx={{ py: 1, px: 1, minWidth: 100, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.3 }}>
                       {resolveSkpaCodes(item.picSatkerBA).length > 0 ? (
                         resolveSkpaCodes(item.picSatkerBA).map((code, idx) => {
@@ -1616,7 +1761,7 @@ function PksiDisetujui() {
                     </Box>
                   </TableCell>
                   {/* Bidang */}
-                  <TableCell sx={{ py: 1, px: 1 }}>
+                  <TableCell sx={{ py: 1, px: 1, minWidth: 120, ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.3 }}>
                       {resolveBidangNames(item.picSatkerUuids).length > 0 ? (
                         resolveBidangNames(item.picSatkerUuids).map((bidang, idx) => (
@@ -1641,13 +1786,13 @@ function PksiDisetujui() {
                     </Box>
                   </TableCell>
                   {/* Inisiatif RBSI */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 160, ...(stickyColumns.has('inisiatifRbsi') && { position: 'sticky', left: getStickyLeft('inisiatifRbsi'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('inisiatifRbsi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.inisiatifRbsi}
                     </Typography>
                   </TableCell>
                   {/* PIC */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 140, ...(stickyColumns.has('pic') && { position: 'sticky', left: getStickyLeft('pic'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('pic') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.pic}
                     </Typography>
