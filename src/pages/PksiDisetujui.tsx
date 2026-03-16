@@ -36,14 +36,10 @@ import {
   TuneRounded,
   Close as CloseIcon,
   CheckCircleRounded,
-  CloudUpload as CloudUploadIcon,
-  InsertDriveFile as FileIcon,
-  Delete as DeleteIcon,
   Visibility as VisibilityIcon,
   Edit as EditIcon,
 } from '@mui/icons-material';
 import { searchPksiDocuments, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
-import { uploadPksiFiles, getPksiFiles, deletePksiFile, type PksiFileData } from '../api/fileApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getUsersByRole, type UserSimple } from '../api/userApi';
 import { ViewPksiModal } from '../components/modals';
@@ -242,14 +238,6 @@ function PksiDisetujui() {
   const [selectedAplikasi, setSelectedAplikasi] = useState<string>('');
   const [selectedSkpa, setSelectedSkpa] = useState<Set<string>>(new Set());
 
-  // Upload modal state
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [selectedPksiForUpload, setSelectedPksiForUpload] = useState<PksiData | null>(null);
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [existingFiles, setExistingFiles] = useState<PksiFileData[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
-
   // View modal state
   const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedPksiIdForView, setSelectedPksiIdForView] = useState<string | null>(null);
@@ -265,6 +253,28 @@ function PksiDisetujui() {
     iku: 'ya',
     inhouseOutsource: 'inhouse',
     progress: 'Penyusunan Usreq',
+    // New fields
+    programRbsi: '',
+    inisiatifRbsi: '',
+    anggaranTotal: '',
+    anggaranTahunIni: '',
+    anggaranTahunDepan: '',
+    targetUsreq: '',
+    targetSit: '',
+    targetUat: '',
+    targetGoLive: '',
+    statusT01T02: '',
+    berkasT01T02: '',
+    statusT11: '',
+    berkasT11: '',
+    statusCd: '',
+    nomorCd: '',
+    kontrakTanggalMulai: '',
+    kontrakTanggalSelesai: '',
+    kontrakNilai: '',
+    kontrakJumlahTermin: '',
+    kontrakDetailPembayaran: '',
+    baDeploy: '',
   });
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
@@ -313,6 +323,28 @@ function PksiDisetujui() {
       iku: pksi.iku !== '-' ? pksi.iku : 'ya',
       inhouseOutsource: pksi.inhouseOutsource !== '-' ? pksi.inhouseOutsource : 'inhouse',
       progress: pksi.progress || 'Penyusunan Usreq',
+      // New fields
+      programRbsi: pksi.programRbsi !== '-' ? pksi.programRbsi : '',
+      inisiatifRbsi: pksi.inisiatifRbsi !== '-' ? pksi.inisiatifRbsi : '',
+      anggaranTotal: pksi.anggaranTotal !== '-' ? pksi.anggaranTotal : '',
+      anggaranTahunIni: pksi.anggaranTahunIni !== '-' ? pksi.anggaranTahunIni : '',
+      anggaranTahunDepan: pksi.anggaranTahunDepan !== '-' ? pksi.anggaranTahunDepan : '',
+      targetUsreq: pksi.targetUsreq !== '-' ? pksi.targetUsreq : '',
+      targetSit: pksi.targetSit !== '-' ? pksi.targetSit : '',
+      targetUat: pksi.targetUat !== '-' ? pksi.targetUat : '',
+      targetGoLive: pksi.targetGoLive !== '-' ? pksi.targetGoLive : '',
+      statusT01T02: pksi.statusT01T02 !== '-' ? pksi.statusT01T02 : '',
+      berkasT01T02: pksi.berkasT01T02 !== '-' ? pksi.berkasT01T02 : '',
+      statusT11: pksi.statusT11 !== '-' ? pksi.statusT11 : '',
+      berkasT11: pksi.berkasT11 !== '-' ? pksi.berkasT11 : '',
+      statusCd: pksi.statusCd !== '-' ? pksi.statusCd : '',
+      nomorCd: pksi.nomorCd !== '-' ? pksi.nomorCd : '',
+      kontrakTanggalMulai: pksi.kontrakTanggalMulai !== '-' ? pksi.kontrakTanggalMulai : '',
+      kontrakTanggalSelesai: pksi.kontrakTanggalSelesai !== '-' ? pksi.kontrakTanggalSelesai : '',
+      kontrakNilai: pksi.kontrakNilai !== '-' ? pksi.kontrakNilai : '',
+      kontrakJumlahTermin: pksi.kontrakJumlahTermin !== '-' ? pksi.kontrakJumlahTermin : '',
+      kontrakDetailPembayaran: pksi.kontrakDetailPembayaran !== '-' ? pksi.kontrakDetailPembayaran : '',
+      baDeploy: pksi.baDeploy !== '-' ? pksi.baDeploy : '',
     });
     setOpenEditDialog(true);
   };
@@ -330,6 +362,28 @@ function PksiDisetujui() {
         anggota_tim: editForm.anggotaTim.join(', '),
         anggota_tim_names: editForm.anggotaTimNames.join(', '),
         progress: editForm.progress,
+        // New fields
+        program_rbsi: editForm.programRbsi || undefined,
+        inisiatif_rbsi: editForm.inisiatifRbsi || undefined,
+        anggaran_total: editForm.anggaranTotal || undefined,
+        anggaran_tahun_ini: editForm.anggaranTahunIni || undefined,
+        anggaran_tahun_depan: editForm.anggaranTahunDepan || undefined,
+        target_usreq: editForm.targetUsreq || undefined,
+        target_sit: editForm.targetSit || undefined,
+        target_uat: editForm.targetUat || undefined,
+        target_go_live: editForm.targetGoLive || undefined,
+        status_t01_t02: editForm.statusT01T02 || undefined,
+        berkas_t01_t02: editForm.berkasT01T02 || undefined,
+        status_t11: editForm.statusT11 || undefined,
+        berkas_t11: editForm.berkasT11 || undefined,
+        status_cd: editForm.statusCd || undefined,
+        nomor_cd: editForm.nomorCd || undefined,
+        kontrak_tanggal_mulai: editForm.kontrakTanggalMulai || undefined,
+        kontrak_tanggal_selesai: editForm.kontrakTanggalSelesai || undefined,
+        kontrak_nilai: editForm.kontrakNilai || undefined,
+        kontrak_jumlah_termin: editForm.kontrakJumlahTermin || undefined,
+        kontrak_detail_pembayaran: editForm.kontrakDetailPembayaran || undefined,
+        ba_deploy: editForm.baDeploy || undefined,
       });
       
       // Refresh data
@@ -555,73 +609,6 @@ function PksiDisetujui() {
     setPage(0);
   };
 
-  // Upload modal handlers
-  const handleUploadClick = async (pksi: PksiData) => {
-    setSelectedPksiForUpload(pksi);
-    setUploadModalOpen(true);
-    setUploadedFiles([]);
-    
-    // Fetch existing files for this PKSI
-    setIsLoadingFiles(true);
-    try {
-      const files = await getPksiFiles(pksi.id);
-      setExistingFiles(files);
-    } catch (error) {
-      console.error('Failed to fetch existing files:', error);
-      setExistingFiles([]);
-    } finally {
-      setIsLoadingFiles(false);
-    }
-  };
-
-  const handleUploadModalClose = () => {
-    setUploadModalOpen(false);
-    setSelectedPksiForUpload(null);
-    setUploadedFiles([]);
-    setExistingFiles([]);
-  };
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files) {
-      setUploadedFiles(prev => [...prev, ...Array.from(files)]);
-    }
-  };
-
-  const handleRemoveFile = (index: number) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleDeleteExistingFile = async (fileId: string) => {
-    try {
-      await deletePksiFile(fileId);
-      setExistingFiles(prev => prev.filter(f => f.id !== fileId));
-    } catch (error) {
-      console.error('Failed to delete file:', error);
-    }
-  };
-
-  const handleUploadSubmit = async () => {
-    if (!selectedPksiForUpload || uploadedFiles.length === 0) return;
-    
-    setIsUploading(true);
-    try {
-      const uploadedResult = await uploadPksiFiles(selectedPksiForUpload.id, uploadedFiles);
-      setExistingFiles(prev => [...prev, ...uploadedResult]);
-      setUploadedFiles([]);
-    } catch (error) {
-      console.error('Failed to upload files:', error);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
   return (
     <Box sx={{ 
       p: 3.5,
@@ -640,11 +627,11 @@ function PksiDisetujui() {
               letterSpacing: '-0.02em',
             }}
           >
-            PKSI Disetujui
+            Monitoring PKSI
           </Typography>
         </Box>
         <Typography variant="body1" sx={{ color: '#86868b', ml: 0.5 }}>
-          Daftar PKSI yang telah disetujui ({totalElements} item)
+          Monitoring dan tracking PKSI ({totalElements} item)
         </Typography>
       </Box>
 
@@ -725,19 +712,7 @@ function PksiDisetujui() {
             </Button>
           </Box>
 
-          {/* Status Badge */}
-          <Chip
-            icon={<CheckCircleRounded sx={{ fontSize: 16 }} />}
-            label="Disetujui"
-            sx={{
-              bgcolor: '#31A24C20',
-              color: '#31A24C',
-              fontWeight: 600,
-              '& .MuiChip-icon': {
-                color: '#31A24C',
-              },
-            }}
-          />
+          {/* Status Badge - Removed */}
         </Box>
 
         {/* Filter Popover */}
@@ -1013,6 +988,12 @@ function PksiDisetujui() {
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Bidang</TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Program RBSI</TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Inisiatif RBSI</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>PIC</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Anggota Tim</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>IKU</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>In/Out</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Jangka Waktu</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Progres</TableCell>
                 {/* Anggaran - grouped */}
                 <TableCell colSpan={3} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, bgcolor: 'rgba(37, 99, 235, 0.08)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Anggaran</TableCell>
                 {/* Timeline - grouped */}
@@ -1026,12 +1007,6 @@ function PksiDisetujui() {
                 {/* Kontrak - grouped */}
                 <TableCell colSpan={5} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, bgcolor: 'rgba(8, 145, 178, 0.08)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Kontrak</TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>BA Deploy</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>PIC</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Anggota Tim</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>IKU</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>In/Out</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Jangka Waktu</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Progres</TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap' }}>Aksi</TableCell>
               </TableRow>
               {/* Second row - Sub-headers */}
@@ -1173,6 +1148,74 @@ function PksiDisetujui() {
                       {item.inisiatifRbsi}
                     </Typography>
                   </TableCell>
+                  {/* PIC */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.pic}
+                    </Typography>
+                  </TableCell>
+                  {/* Anggota Tim */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 150 }}>
+                      {item.anggotaTim}
+                    </Typography>
+                  </TableCell>
+                  {/* IKU */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.iku}
+                    </Typography>
+                  </TableCell>
+                  {/* In/Out */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.inhouseOutsource}
+                    </Typography>
+                  </TableCell>
+                  {/* Jangka Waktu */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
+                    <Chip
+                      label={item.jangkaWaktu === 'Single Year' ? 'Single Year' : 'Multiyears'}
+                      size="small"
+                      sx={{
+                        bgcolor: item.jangkaWaktu === 'Single Year' ? 'rgba(139, 92, 246, 0.1)' : 'rgba(37, 99, 235, 0.1)',
+                        color: item.jangkaWaktu === 'Single Year' ? '#8B5CF6' : '#2563EB',
+                        fontWeight: 600,
+                        fontSize: '0.7rem',
+                        height: 22,
+                        borderRadius: '4px',
+                      }}
+                    />
+                  </TableCell>
+                  {/* Progres */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
+                    <Chip
+                      label={item.progress}
+                      size="small"
+                      sx={{
+                        bgcolor: (() => {
+                          const progressIndex = PROGRESS_OPTIONS.indexOf(item.progress as typeof PROGRESS_OPTIONS[number]);
+                          if (progressIndex === -1) return 'rgba(107, 114, 128, 0.1)';
+                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return 'rgba(49, 162, 76, 0.15)';
+                          if (progressIndex >= 6) return 'rgba(37, 99, 235, 0.12)';
+                          if (progressIndex >= 3) return 'rgba(139, 92, 246, 0.12)';
+                          return 'rgba(217, 119, 6, 0.12)';
+                        })(),
+                        color: (() => {
+                          const progressIndex = PROGRESS_OPTIONS.indexOf(item.progress as typeof PROGRESS_OPTIONS[number]);
+                          if (progressIndex === -1) return '#4B5563';
+                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return '#31A24C';
+                          if (progressIndex >= 6) return '#2563EB';
+                          if (progressIndex >= 3) return '#8B5CF6';
+                          return '#D97706';
+                        })(),
+                        fontWeight: 600,
+                        fontSize: '0.7rem',
+                        height: 22,
+                        borderRadius: '4px',
+                      }}
+                    />
+                  </TableCell>
                   {/* Anggaran - Total */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(37, 99, 235, 0.02)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
@@ -1194,25 +1237,25 @@ function PksiDisetujui() {
                   {/* Timeline - Target Usreq */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.02)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.targetUsreq !== '-' ? new Date(item.targetUsreq).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                      {item.targetUsreq !== '-' && item.targetUsreq ? new Date(item.targetUsreq).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                     </Typography>
                   </TableCell>
                   {/* Timeline - Target SIT */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.02)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.targetSit !== '-' ? new Date(item.targetSit).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                      {item.targetSit !== '-' && item.targetSit ? new Date(item.targetSit).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                     </Typography>
                   </TableCell>
                   {/* Timeline - Target UAT/PDKK */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.02)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.targetUat !== '-' ? new Date(item.targetUat).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                      {item.targetUat !== '-' && item.targetUat ? new Date(item.targetUat).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                     </Typography>
                   </TableCell>
                   {/* Timeline - Target Go Live */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.02)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.targetGoLive !== '-' ? new Date(item.targetGoLive).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                      {item.targetGoLive !== '-' && item.targetGoLive ? new Date(item.targetGoLive).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                     </Typography>
                   </TableCell>
                   {/* Rencana PKSI - Status T01/T02 */}
@@ -1287,74 +1330,6 @@ function PksiDisetujui() {
                       {item.baDeploy}
                     </Typography>
                   </TableCell>
-                  {/* PIC */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.pic}
-                    </Typography>
-                  </TableCell>
-                  {/* Anggota Tim */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 150 }}>
-                      {item.anggotaTim}
-                    </Typography>
-                  </TableCell>
-                  {/* IKU */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.iku}
-                    </Typography>
-                  </TableCell>
-                  {/* In/Out */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.inhouseOutsource}
-                    </Typography>
-                  </TableCell>
-                  {/* Jangka Waktu */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Chip
-                      label={item.jangkaWaktu === 'Single Year' ? 'Single Year' : 'Multiyears'}
-                      size="small"
-                      sx={{
-                        bgcolor: item.jangkaWaktu === 'Single Year' ? 'rgba(139, 92, 246, 0.1)' : 'rgba(37, 99, 235, 0.1)',
-                        color: item.jangkaWaktu === 'Single Year' ? '#8B5CF6' : '#2563EB',
-                        fontWeight: 600,
-                        fontSize: '0.7rem',
-                        height: 22,
-                        borderRadius: '4px',
-                      }}
-                    />
-                  </TableCell>
-                  {/* Progres */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Chip
-                      label={item.progress}
-                      size="small"
-                      sx={{
-                        bgcolor: (() => {
-                          const progressIndex = PROGRESS_OPTIONS.indexOf(item.progress as typeof PROGRESS_OPTIONS[number]);
-                          if (progressIndex === -1) return 'rgba(107, 114, 128, 0.1)';
-                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return 'rgba(49, 162, 76, 0.15)';
-                          if (progressIndex >= 6) return 'rgba(37, 99, 235, 0.12)';
-                          if (progressIndex >= 3) return 'rgba(139, 92, 246, 0.12)';
-                          return 'rgba(217, 119, 6, 0.12)';
-                        })(),
-                        color: (() => {
-                          const progressIndex = PROGRESS_OPTIONS.indexOf(item.progress as typeof PROGRESS_OPTIONS[number]);
-                          if (progressIndex === -1) return '#4B5563';
-                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return '#31A24C';
-                          if (progressIndex >= 6) return '#2563EB';
-                          if (progressIndex >= 3) return '#8B5CF6';
-                          return '#D97706';
-                        })(),
-                        fontWeight: 600,
-                        fontSize: '0.7rem',
-                        height: 22,
-                        borderRadius: '4px',
-                      }}
-                    />
-                  </TableCell>
                   {/* Aksi */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -1382,19 +1357,6 @@ function PksiDisetujui() {
                           }}
                         >
                           <EditIcon sx={{ fontSize: 16 }} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Upload Dokumen T.1.1">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleUploadClick(item)}
-                          sx={{
-                            color: '#2563EB',
-                            bgcolor: 'rgba(37, 99, 235, 0.08)',
-                            '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.15)' },
-                          }}
-                        >
-                          <CloudUploadIcon sx={{ fontSize: 16 }} />
                         </IconButton>
                       </Tooltip>
                     </Box>
@@ -1439,7 +1401,7 @@ function PksiDisetujui() {
       <Dialog
         open={openEditDialog}
         onClose={handleEditCancel}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
         PaperProps={{
           sx: {
@@ -1450,6 +1412,7 @@ function PksiDisetujui() {
             WebkitBackdropFilter: 'blur(40px) saturate(180%)',
             border: '1px solid rgba(255, 255, 255, 0.6)',
             boxShadow: '0 24px 80px rgba(0, 0, 0, 0.12), 0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+            maxHeight: '90vh',
           },
         }}
       >
@@ -1484,7 +1447,7 @@ function PksiDisetujui() {
               color: '#1d1d1f',
               letterSpacing: '-0.02em',
             }}>
-              Edit PKSI Disetujui
+              Edit PKSI
             </Typography>
             {selectedPksiForEdit && (
               <Typography sx={{ 
@@ -1909,6 +1872,511 @@ function PksiDisetujui() {
               ))}
             </Select>
           </FormControl>
+
+          {/* Divider - RBSI Section */}
+          <Box sx={{ mt: 3, mb: 2 }}>
+            <Typography sx={{ 
+              fontWeight: 600, 
+              color: '#1d1d1f', 
+              fontSize: '0.85rem',
+              letterSpacing: '-0.01em',
+            }}>
+              Informasi RBSI
+            </Typography>
+          </Box>
+
+          {/* Program RBSI & Inisiatif RBSI - Side by Side */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              fullWidth
+              label="Program RBSI"
+              value={editForm.programRbsi}
+              onChange={(e) => setEditForm({ ...editForm, programRbsi: e.target.value })}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.08)' },
+                  '&:hover fieldset': { borderColor: 'rgba(217, 119, 6, 0.3)' },
+                  '&.Mui-focused fieldset': { borderColor: '#D97706' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#D97706' },
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Inisiatif RBSI"
+              value={editForm.inisiatifRbsi}
+              onChange={(e) => setEditForm({ ...editForm, inisiatifRbsi: e.target.value })}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.08)' },
+                  '&:hover fieldset': { borderColor: 'rgba(217, 119, 6, 0.3)' },
+                  '&.Mui-focused fieldset': { borderColor: '#D97706' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#D97706' },
+              }}
+            />
+          </Box>
+
+          {/* Divider - Anggaran Section */}
+          <Box sx={{ mt: 3, mb: 2 }}>
+            <Typography sx={{ 
+              fontWeight: 600, 
+              color: '#2563EB', 
+              fontSize: '0.85rem',
+              letterSpacing: '-0.01em',
+            }}>
+              Anggaran
+            </Typography>
+          </Box>
+
+          {/* Anggaran Fields - 3 columns */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              fullWidth
+              label="Total Anggaran"
+              value={editForm.anggaranTotal}
+              onChange={(e) => setEditForm({ ...editForm, anggaranTotal: e.target.value })}
+              placeholder="Rp 0"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(37, 99, 235, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(37, 99, 235, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(37, 99, 235, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#2563EB' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#2563EB' },
+              }}
+            />
+            <TextField
+              fullWidth
+              label={`Anggaran ${new Date().getFullYear()}`}
+              value={editForm.anggaranTahunIni}
+              onChange={(e) => setEditForm({ ...editForm, anggaranTahunIni: e.target.value })}
+              placeholder="Rp 0"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(37, 99, 235, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(37, 99, 235, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(37, 99, 235, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#2563EB' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#2563EB' },
+              }}
+            />
+            <TextField
+              fullWidth
+              label={`Anggaran ${new Date().getFullYear() + 1}`}
+              value={editForm.anggaranTahunDepan}
+              onChange={(e) => setEditForm({ ...editForm, anggaranTahunDepan: e.target.value })}
+              placeholder="Rp 0"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(37, 99, 235, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(37, 99, 235, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(37, 99, 235, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#2563EB' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#2563EB' },
+              }}
+            />
+          </Box>
+
+          {/* Divider - Timeline Section */}
+          <Box sx={{ mt: 3, mb: 2 }}>
+            <Typography sx={{ 
+              fontWeight: 600, 
+              color: '#8B5CF6', 
+              fontSize: '0.85rem',
+              letterSpacing: '-0.01em',
+            }}>
+              Timeline
+            </Typography>
+          </Box>
+
+          {/* Timeline Fields - 2 rows */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              fullWidth
+              label="Target Usreq"
+              type="date"
+              value={editForm.targetUsreq}
+              onChange={(e) => setEditForm({ ...editForm, targetUsreq: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(139, 92, 246, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(139, 92, 246, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(139, 92, 246, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#8B5CF6' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#8B5CF6' },
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Target SIT"
+              type="date"
+              value={editForm.targetSit}
+              onChange={(e) => setEditForm({ ...editForm, targetSit: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(139, 92, 246, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(139, 92, 246, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(139, 92, 246, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#8B5CF6' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#8B5CF6' },
+              }}
+            />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              fullWidth
+              label="Target UAT/PDKK"
+              type="date"
+              value={editForm.targetUat}
+              onChange={(e) => setEditForm({ ...editForm, targetUat: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(139, 92, 246, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(139, 92, 246, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(139, 92, 246, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#8B5CF6' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#8B5CF6' },
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Target Go Live"
+              type="date"
+              value={editForm.targetGoLive}
+              onChange={(e) => setEditForm({ ...editForm, targetGoLive: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(139, 92, 246, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(139, 92, 246, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(139, 92, 246, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#8B5CF6' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#8B5CF6' },
+              }}
+            />
+          </Box>
+
+          {/* Divider - Rencana PKSI (T01/T02) Section */}
+          <Box sx={{ mt: 3, mb: 2 }}>
+            <Typography sx={{ 
+              fontWeight: 600, 
+              color: '#D97706', 
+              fontSize: '0.85rem',
+              letterSpacing: '-0.01em',
+            }}>
+              Rencana PKSI (T01/T02)
+            </Typography>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <FormControl fullWidth>
+              <InputLabel id="edit-status-t01t02-label" sx={{ '&.Mui-focused': { color: '#D97706' } }}>
+                Status
+              </InputLabel>
+              <Select
+                labelId="edit-status-t01t02-label"
+                value={editForm.statusT01T02}
+                label="Status"
+                onChange={(e) => setEditForm({ ...editForm, statusT01T02: e.target.value })}
+                sx={{
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(217, 119, 6, 0.02)',
+                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(217, 119, 6, 0.15)' },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(217, 119, 6, 0.4)' },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#D97706' },
+                }}
+              >
+                <MenuItem value="">-</MenuItem>
+                <MenuItem value="Belum Dibuat">Belum Dibuat</MenuItem>
+                <MenuItem value="Draft">Draft</MenuItem>
+                <MenuItem value="Disetujui">Disetujui</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              fullWidth
+              label="Berkas Terbaru"
+              value={editForm.berkasT01T02}
+              onChange={(e) => setEditForm({ ...editForm, berkasT01T02: e.target.value })}
+              placeholder="Link berkas atau nama file"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(217, 119, 6, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(217, 119, 6, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(217, 119, 6, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#D97706' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#D97706' },
+              }}
+            />
+          </Box>
+
+          {/* Divider - Spesifikasi Kebutuhan (T11) Section */}
+          <Box sx={{ mt: 3, mb: 2 }}>
+            <Typography sx={{ 
+              fontWeight: 600, 
+              color: '#059669', 
+              fontSize: '0.85rem',
+              letterSpacing: '-0.01em',
+            }}>
+              Spesifikasi Kebutuhan (T11)
+            </Typography>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <FormControl fullWidth>
+              <InputLabel id="edit-status-t11-label" sx={{ '&.Mui-focused': { color: '#059669' } }}>
+                Status
+              </InputLabel>
+              <Select
+                labelId="edit-status-t11-label"
+                value={editForm.statusT11}
+                label="Status"
+                onChange={(e) => setEditForm({ ...editForm, statusT11: e.target.value })}
+                sx={{
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(5, 150, 105, 0.02)',
+                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(5, 150, 105, 0.15)' },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(5, 150, 105, 0.4)' },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#059669' },
+                }}
+              >
+                <MenuItem value="">-</MenuItem>
+                <MenuItem value="Belum Dibuat">Belum Dibuat</MenuItem>
+                <MenuItem value="Draft">Draft</MenuItem>
+                <MenuItem value="Disetujui">Disetujui</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              fullWidth
+              label="Berkas Terbaru"
+              value={editForm.berkasT11}
+              onChange={(e) => setEditForm({ ...editForm, berkasT11: e.target.value })}
+              placeholder="Link berkas atau nama file"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(5, 150, 105, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(5, 150, 105, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(5, 150, 105, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#059669' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#059669' },
+              }}
+            />
+          </Box>
+
+          {/* Divider - CD Prinsip Section */}
+          <Box sx={{ mt: 3, mb: 2 }}>
+            <Typography sx={{ 
+              fontWeight: 600, 
+              color: '#DC2626', 
+              fontSize: '0.85rem',
+              letterSpacing: '-0.01em',
+            }}>
+              CD Prinsip
+            </Typography>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <FormControl fullWidth>
+              <InputLabel id="edit-status-cd-label" sx={{ '&.Mui-focused': { color: '#DC2626' } }}>
+                Status
+              </InputLabel>
+              <Select
+                labelId="edit-status-cd-label"
+                value={editForm.statusCd}
+                label="Status"
+                onChange={(e) => setEditForm({ ...editForm, statusCd: e.target.value })}
+                sx={{
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(220, 38, 38, 0.02)',
+                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(220, 38, 38, 0.15)' },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(220, 38, 38, 0.4)' },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#DC2626' },
+                }}
+              >
+                <MenuItem value="">-</MenuItem>
+                <MenuItem value="Belum Diajukan">Belum Diajukan</MenuItem>
+                <MenuItem value="Dalam Proses">Dalam Proses</MenuItem>
+                <MenuItem value="Disetujui">Disetujui</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              fullWidth
+              label="Nomor CD"
+              value={editForm.nomorCd}
+              onChange={(e) => setEditForm({ ...editForm, nomorCd: e.target.value })}
+              placeholder="Nomor CD Prinsip"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(220, 38, 38, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(220, 38, 38, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(220, 38, 38, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#DC2626' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#DC2626' },
+              }}
+            />
+          </Box>
+
+          {/* Divider - Kontrak Section */}
+          <Box sx={{ mt: 3, mb: 2 }}>
+            <Typography sx={{ 
+              fontWeight: 600, 
+              color: '#0891B2', 
+              fontSize: '0.85rem',
+              letterSpacing: '-0.01em',
+            }}>
+              Kontrak
+            </Typography>
+          </Box>
+
+          {/* Kontrak Fields - 2 rows */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              fullWidth
+              label="Tanggal Mulai"
+              type="date"
+              value={editForm.kontrakTanggalMulai}
+              onChange={(e) => setEditForm({ ...editForm, kontrakTanggalMulai: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(8, 145, 178, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(8, 145, 178, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(8, 145, 178, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#0891B2' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#0891B2' },
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Tanggal Selesai"
+              type="date"
+              value={editForm.kontrakTanggalSelesai}
+              onChange={(e) => setEditForm({ ...editForm, kontrakTanggalSelesai: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(8, 145, 178, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(8, 145, 178, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(8, 145, 178, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#0891B2' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#0891B2' },
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Nilai Kontrak"
+              value={editForm.kontrakNilai}
+              onChange={(e) => setEditForm({ ...editForm, kontrakNilai: e.target.value })}
+              placeholder="Rp 0"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(8, 145, 178, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(8, 145, 178, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(8, 145, 178, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#0891B2' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#0891B2' },
+              }}
+            />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              fullWidth
+              label="Jumlah Termin"
+              value={editForm.kontrakJumlahTermin}
+              onChange={(e) => setEditForm({ ...editForm, kontrakJumlahTermin: e.target.value })}
+              placeholder="0"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(8, 145, 178, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(8, 145, 178, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(8, 145, 178, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#0891B2' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#0891B2' },
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Detail Pembayaran"
+              value={editForm.kontrakDetailPembayaran}
+              onChange={(e) => setEditForm({ ...editForm, kontrakDetailPembayaran: e.target.value })}
+              placeholder="Detail pembayaran termin"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(8, 145, 178, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(8, 145, 178, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(8, 145, 178, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#0891B2' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#0891B2' },
+              }}
+            />
+          </Box>
+
+          {/* Divider - BA Deploy Section */}
+          <Box sx={{ mt: 3, mb: 2 }}>
+            <Typography sx={{ 
+              fontWeight: 600, 
+              color: '#1d1d1f', 
+              fontSize: '0.85rem',
+              letterSpacing: '-0.01em',
+            }}>
+              BA Deploy
+            </Typography>
+          </Box>
+
+          <TextField
+            fullWidth
+            label="BA Deploy"
+            value={editForm.baDeploy}
+            onChange={(e) => setEditForm({ ...editForm, baDeploy: e.target.value })}
+            placeholder="Link atau nama dokumen BA Deploy"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '14px',
+                backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.08)' },
+                '&:hover fieldset': { borderColor: 'rgba(217, 119, 6, 0.3)' },
+                '&.Mui-focused fieldset': { borderColor: '#D97706' },
+              },
+              '& .MuiInputLabel-root.Mui-focused': { color: '#D97706' },
+            }}
+          />
         </DialogContent>
         <DialogActions sx={{ 
           px: 3, 
@@ -1965,327 +2433,6 @@ function PksiDisetujui() {
             }}
           >
             {isSubmittingEdit ? 'Menyimpan...' : 'Simpan Perubahan'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Upload Modal */}
-      <Dialog
-        open={uploadModalOpen}
-        onClose={handleUploadModalClose}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: '16px',
-            overflow: 'hidden',
-          },
-        }}
-      >
-        <DialogTitle sx={{ 
-          fontWeight: 600, 
-          color: '#1d1d1f',
-          borderBottom: '1px solid rgba(0,0,0,0.08)',
-          bgcolor: '#fafafa',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.5,
-          py: 2,
-          px: 3,
-        }}>
-          <Box sx={{
-            width: 40,
-            height: 40,
-            borderRadius: '10px',
-            bgcolor: 'rgba(37, 99, 235, 0.1)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            <CloudUploadIcon sx={{ color: '#2563EB', fontSize: 22 }} />
-          </Box>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem', color: '#1d1d1f' }}>
-              Upload Dokumen T.1.1
-            </Typography>
-            {selectedPksiForUpload && (
-              <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 0.25 }}>
-                {selectedPksiForUpload.namaPksi}
-              </Typography>
-            )}
-          </Box>
-        </DialogTitle>
-        <DialogContent sx={{ p: 3 }}>
-          {/* Upload Area */}
-          <Box
-            sx={{
-              border: '2px dashed rgba(37, 99, 235, 0.25)',
-              borderRadius: '12px',
-              p: 3,
-              textAlign: 'center',
-              bgcolor: 'rgba(37, 99, 235, 0.02)',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              '&:hover': {
-                borderColor: '#2563EB',
-                bgcolor: 'rgba(37, 99, 235, 0.06)',
-                transform: 'translateY(-1px)',
-              },
-            }}
-            component="label"
-          >
-            <input
-              type="file"
-              multiple
-              hidden
-              onChange={handleFileSelect}
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-            />
-            <Box sx={{
-              width: 56,
-              height: 56,
-              borderRadius: '50%',
-              bgcolor: 'rgba(37, 99, 235, 0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              mx: 'auto',
-              mb: 1.5,
-            }}>
-              <CloudUploadIcon sx={{ fontSize: 28, color: '#2563EB' }} />
-            </Box>
-            <Typography variant="body1" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 0.5 }}>
-              Klik untuk memilih file
-            </Typography>
-            <Typography variant="caption" sx={{ color: '#86868b' }}>
-              Format: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX
-            </Typography>
-          </Box>
-
-          {/* Existing Files */}
-          {isLoadingFiles ? (
-            <Box sx={{ textAlign: 'center', py: 3 }}>
-              <CircularProgress size={24} sx={{ color: '#31A24C' }} />
-            </Box>
-          ) : existingFiles.length > 0 && (
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="body2" sx={{ 
-                fontWeight: 600, 
-                color: '#1d1d1f', 
-                mb: 1.5,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-              }}>
-                <CheckCircleRounded sx={{ color: '#31A24C', fontSize: 18 }} />
-                File Terupload ({existingFiles.length})
-              </Typography>
-              <Box sx={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: 1,
-                maxHeight: 150,
-                overflowY: 'auto',
-                pr: 0.5,
-              }}>
-                {existingFiles.map((file) => (
-                  <Box
-                    key={file.id}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.5,
-                      p: 1.5,
-                      bgcolor: 'rgba(49, 162, 76, 0.06)',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(49, 162, 76, 0.15)',
-                    }}
-                  >
-                    <Box sx={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '8px',
-                      bgcolor: 'rgba(49, 162, 76, 0.12)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>
-                      <FileIcon sx={{ color: '#31A24C', fontSize: 18 }} />
-                    </Box>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          fontWeight: 500, 
-                          color: '#1d1d1f',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          fontSize: '0.85rem',
-                        }}
-                      >
-                        {file.original_name}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontSize: '0.75rem' }}>
-                        {formatFileSize(file.file_size)}
-                      </Typography>
-                    </Box>
-                    <Tooltip title="Hapus file">
-                      <IconButton 
-                        size="small" 
-                        onClick={() => handleDeleteExistingFile(file.id)}
-                        sx={{ 
-                          color: '#DC2626',
-                          bgcolor: 'rgba(220, 38, 38, 0.08)',
-                          width: 32,
-                          height: 32,
-                          '&:hover': {
-                            bgcolor: 'rgba(220, 38, 38, 0.15)',
-                          },
-                        }}
-                      >
-                        <DeleteIcon sx={{ fontSize: 16 }} />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                ))}
-              </Box>
-            </Box>
-          )}
-
-          {/* Selected Files (new uploads) */}
-          {uploadedFiles.length > 0 && (
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="body2" sx={{ 
-                fontWeight: 600, 
-                color: '#1d1d1f', 
-                mb: 1.5,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-              }}>
-                <FileIcon sx={{ color: '#2563EB', fontSize: 18 }} />
-                File Dipilih ({uploadedFiles.length})
-              </Typography>
-              <Box sx={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: 1,
-                maxHeight: 150,
-                overflowY: 'auto',
-                pr: 0.5,
-              }}>
-                {uploadedFiles.map((file, index) => (
-                  <Box
-                    key={index}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.5,
-                      p: 1.5,
-                      bgcolor: 'rgba(37, 99, 235, 0.04)',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(37, 99, 235, 0.15)',
-                    }}
-                  >
-                    <Box sx={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '8px',
-                      bgcolor: 'rgba(37, 99, 235, 0.1)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>
-                      <FileIcon sx={{ color: '#2563EB', fontSize: 18 }} />
-                    </Box>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          fontWeight: 500, 
-                          color: '#1d1d1f',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          fontSize: '0.85rem',
-                        }}
-                      >
-                        {file.name}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontSize: '0.75rem' }}>
-                        {formatFileSize(file.size)}
-                      </Typography>
-                    </Box>
-                    <Tooltip title="Hapus dari daftar">
-                      <IconButton 
-                        size="small" 
-                        onClick={() => handleRemoveFile(index)}
-                        sx={{ 
-                          color: '#DC2626',
-                          bgcolor: 'rgba(220, 38, 38, 0.08)',
-                          width: 32,
-                          height: 32,
-                          '&:hover': {
-                            bgcolor: 'rgba(220, 38, 38, 0.15)',
-                          },
-                        }}
-                      >
-                        <CloseIcon sx={{ fontSize: 16 }} />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                ))}
-              </Box>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ 
-          px: 3, 
-          py: 2, 
-          borderTop: '1px solid rgba(0,0,0,0.08)',
-          bgcolor: '#fafafa',
-          gap: 1.5,
-        }}>
-          <Button
-            onClick={handleUploadModalClose}
-            sx={{
-              color: '#64748B',
-              fontWeight: 500,
-              px: 2.5,
-              borderRadius: '8px',
-              '&:hover': {
-                bgcolor: 'rgba(0, 0, 0, 0.05)',
-              },
-            }}
-          >
-            Tutup
-          </Button>
-          <Button
-            onClick={handleUploadSubmit}
-            disabled={uploadedFiles.length === 0 || isUploading}
-            variant="contained"
-            startIcon={isUploading ? <CircularProgress size={16} color="inherit" /> : <CloudUploadIcon />}
-            sx={{
-              bgcolor: '#2563EB',
-              fontWeight: 500,
-              px: 2.5,
-              borderRadius: '8px',
-              textTransform: 'none',
-              boxShadow: 'none',
-              '&:hover': {
-                bgcolor: '#1D4ED8',
-                boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
-              },
-              '&:disabled': {
-                bgcolor: 'rgba(37, 99, 235, 0.4)',
-                color: 'rgba(255, 255, 255, 0.8)',
-              },
-            }}
-          >
-            {isUploading ? 'Mengupload...' : 'Upload File'}
           </Button>
         </DialogActions>
       </Dialog>

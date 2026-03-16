@@ -191,7 +191,7 @@ const Sidebar = () => {
           menuCode: 'PKSI',
           subItems: [
             { label: 'Semua PKSI', icon: <ListAltRounded />, href: '/pksi-list', menuCode: 'PKSI_ALL' },
-            { label: 'PKSI Disetujui', icon: <CheckCircleRounded />, href: '/pksi-disetujui', menuCode: 'PKSI_APPROVED' },
+            { label: 'Monitoring PKSI', icon: <MonitorHeartRounded />, href: '/pksi-disetujui', menuCode: 'PKSI_APPROVED' },
           ],
         },
         {
