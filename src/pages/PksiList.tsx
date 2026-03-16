@@ -40,6 +40,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Visibility as VisibilityIcon,
+  PushPin as PushPinIcon,
 } from '@mui/icons-material';
 import {
   Dialog,
@@ -52,6 +53,7 @@ import { AddPksiModal, EditPksiModal, ViewPksiModal } from '../components/modals
 import { usePermissions } from '../hooks/usePermissions';
 import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, type PksiDocumentData } from '../api/pksiApi';
 import { getUsersByRole, type UserSimple } from '../api/userApi';
+import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
 
 // Interface untuk data PKSI (transformed from API)
 interface PksiData {
@@ -165,6 +167,7 @@ const getSkpaColor = (skpaCode: string): { bg: string; text: string } => {
 };
 
 function PksiList() {
+  const { isCollapsed } = useSidebar();
   const [keyword, setKeyword] = useState('');
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
@@ -201,6 +204,52 @@ function PksiList() {
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [selectedAplikasi, setSelectedAplikasi] = useState<string>('');
   const [selectedSkpa, setSelectedSkpa] = useState<Set<string>>(new Set());
+
+  // Sticky columns configuration
+  const [stickyColumnsAnchorEl, setStickyColumnsAnchorEl] = useState<null | HTMLElement>(null);
+  const [stickyColumns, setStickyColumns] = useState<Set<string>>(new Set(['no', 'namaAplikasi', 'namaPksi']));
+  
+  // Column definitions for sticky configuration
+  const COLUMN_OPTIONS = [
+    { id: 'no', label: 'No', width: 50 },
+    { id: 'namaAplikasi', label: 'Nama Aplikasi', width: 150 },
+    { id: 'namaPksi', label: 'Nama PKSI', width: 200 },
+    { id: 'skpa', label: 'SKPA', width: 150 },
+    { id: 'jangkaWaktu', label: 'Jangka Waktu', width: 120 },
+  ];
+
+  // Calculate sticky left positions based on selected columns
+  const getStickyLeft = useCallback((columnId: string): number | undefined => {
+    if (!stickyColumns.has(columnId)) return undefined;
+    
+    const orderedSticky = COLUMN_OPTIONS.filter(col => stickyColumns.has(col.id));
+    const colIndex = orderedSticky.findIndex(col => col.id === columnId);
+    if (colIndex === -1) return undefined;
+    
+    let left = 0;
+    for (let i = 0; i < colIndex; i++) {
+      left += orderedSticky[i].width;
+    }
+    return left;
+  }, [stickyColumns]);
+
+  const isLastStickyColumn = useCallback((columnId: string): boolean => {
+    if (!stickyColumns.has(columnId)) return false;
+    const orderedSticky = COLUMN_OPTIONS.filter(col => stickyColumns.has(col.id));
+    return orderedSticky[orderedSticky.length - 1]?.id === columnId;
+  }, [stickyColumns]);
+
+  const handleStickyColumnToggle = (columnId: string) => {
+    setStickyColumns(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(columnId)) {
+        newSet.delete(columnId);
+      } else {
+        newSet.add(columnId);
+      }
+      return newSet;
+    });
+  };
 
   // Users with Pengembang role for PIC and Anggota Tim dropdowns
   const [pengembangUsers, setPengembangUsers] = useState<UserSimple[]>([]);
@@ -612,6 +661,7 @@ function PksiList() {
       p: 3.5,
       background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
       minHeight: '100vh',
+      overflowX: 'hidden',
     }}>
       {/* Header */}
       <Box sx={{ mb: 3 }}>
@@ -635,10 +685,16 @@ function PksiList() {
       <Paper
         elevation={0}
         sx={{
-          width: '100%',
+          width: isCollapsed 
+            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)` 
+            : '80vw',
+          maxWidth: isCollapsed 
+            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)` 
+            : '80vw',
           borderRadius: 2,
           border: '1px solid rgba(0, 0, 0, 0.08)',
           overflow: 'hidden',
+          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         {/* Toolbar */}
@@ -706,6 +762,31 @@ function PksiList() {
                 />
               )}
             </Button>
+            
+            {/* Sticky Columns Settings Button */}
+            <Tooltip title="Atur Kolom Sticky">
+              <Button
+                variant="text"
+                startIcon={<PushPinIcon sx={{ fontSize: 18 }} />}
+                onClick={(e) => setStickyColumnsAnchorEl(e.currentTarget)}
+                sx={{
+                  color: stickyColumns.size > 0 ? '#2563EB' : '#86868b',
+                  fontWeight: 500,
+                  '&:hover': {
+                    bgcolor: 'rgba(0, 0, 0, 0.04)',
+                  },
+                }}
+              >
+                Pin
+                {stickyColumns.size > 0 && (
+                  <Chip
+                    label={stickyColumns.size}
+                    size="small"
+                    sx={{ ml: 1, bgcolor: '#2563EB', color: 'white', height: 20, fontSize: '0.7rem' }}
+                  />
+                )}
+              </Button>
+            </Tooltip>
           </Box>
           {pksiPermissions.canCreate && (
             <Button
@@ -725,6 +806,77 @@ function PksiList() {
             </Button>
           )}
         </Box>
+
+        {/* Sticky Columns Popover */}
+        <Popover
+          open={Boolean(stickyColumnsAnchorEl)}
+          anchorEl={stickyColumnsAnchorEl}
+          onClose={() => setStickyColumnsAnchorEl(null)}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'left',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'left',
+          }}
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+              border: '1px solid rgba(0, 0, 0, 0.06)',
+              p: 2,
+              minWidth: 280,
+            },
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+              Kolom Sticky
+            </Typography>
+            <IconButton size="small" onClick={() => setStickyColumnsAnchorEl(null)}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
+          <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mb: 2 }}>
+            Pilih kolom yang akan tetap terlihat saat scroll horizontal
+          </Typography>
+          <FormGroup>
+            {COLUMN_OPTIONS.map((col) => (
+              <FormControlLabel
+                key={col.id}
+                control={
+                  <Checkbox
+                    checked={stickyColumns.has(col.id)}
+                    onChange={() => handleStickyColumnToggle(col.id)}
+                    size="small"
+                    sx={{
+                      '&.Mui-checked': { color: '#2563EB' },
+                    }}
+                  />
+                }
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2">{col.label}</Typography>
+                    {stickyColumns.has(col.id) && (
+                      <PushPinIcon sx={{ fontSize: 14, color: '#2563EB' }} />
+                    )}
+                  </Box>
+                }
+                sx={{ mb: 0.5 }}
+              />
+            ))}
+          </FormGroup>
+          <Button
+            fullWidth
+            variant="text"
+            size="small"
+            onClick={() => setStickyColumns(new Set())}
+            sx={{ mt: 1, color: '#86868b' }}
+          >
+            Reset Semua
+          </Button>
+        </Popover>
 
         {/* Filter Popover */}
         <Popover
@@ -1073,8 +1225,26 @@ function PksiList() {
         />
 
         {/* Table */}
-        <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
-          <Table sx={{ minWidth: 1200 }}>
+        <TableContainer sx={{ 
+          width: '100%', 
+          overflowX: 'auto',
+          '&::-webkit-scrollbar': {
+            height: 8,
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'rgba(0, 0, 0, 0.03)',
+            borderRadius: 4,
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'rgba(255, 255, 255, 0.8)',
+            borderRadius: 4,
+            border: '1px solid rgba(0, 0, 0, 0.1)',
+            '&:hover': {
+              background: 'rgba(255, 255, 255, 1)',
+            },
+          },
+        }}>
+          <Table sx={{ minWidth: 1400 }}>
             <TableHead>
               <TableRow sx={{ bgcolor: '#f5f5f7' }}>
                 <TableCell 
@@ -1085,6 +1255,8 @@ function PksiList() {
                     width: 50,
                     minWidth: 50,
                     textAlign: 'center',
+                    ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                    ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                   }}
                 >
                   No
@@ -1096,6 +1268,8 @@ function PksiList() {
                     color: '#1d1d1f', 
                     py: 2,
                     minWidth: 150,
+                    ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                    ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                   }}
                 >
                   <TableSortLabel
@@ -1113,6 +1287,8 @@ function PksiList() {
                     color: '#1d1d1f', 
                     py: 2,
                     minWidth: 200,
+                    ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                    ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                   }}
                 >
                   <TableSortLabel
@@ -1130,6 +1306,8 @@ function PksiList() {
                     color: '#1d1d1f', 
                     py: 2,
                     minWidth: 150,
+                    ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                    ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                   }}
                 >
                   <TableSortLabel
@@ -1147,6 +1325,8 @@ function PksiList() {
                     color: '#1d1d1f', 
                     py: 2,
                     minWidth: 120,
+                    ...(stickyColumns.has('jangkaWaktu') && { position: 'sticky', left: getStickyLeft('jangkaWaktu'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                    ...(isLastStickyColumn('jangkaWaktu') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                   }}
                 >
                   <TableSortLabel
@@ -1250,11 +1430,21 @@ function PksiList() {
                       textAlign: 'center',
                       fontWeight: 500,
                       fontSize: '0.85rem',
+                      minWidth: 50,
+                      ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 1, bgcolor: '#fff' }),
+                      ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                     }}
                   >
                     {page * rowsPerPage + index + 1}
                   </TableCell>
-                  <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                  <TableCell sx={{ 
+                    py: 2, 
+                    whiteSpace: 'normal', 
+                    wordWrap: 'break-word',
+                    minWidth: 150,
+                    ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 1, bgcolor: '#fff' }),
+                    ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+                  }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
@@ -1265,7 +1455,14 @@ function PksiList() {
                       {item.namaAplikasi}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                  <TableCell sx={{ 
+                    py: 2, 
+                    whiteSpace: 'normal', 
+                    wordWrap: 'break-word',
+                    minWidth: 200,
+                    ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 1, bgcolor: '#fff' }),
+                    ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+                  }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
@@ -1277,7 +1474,12 @@ function PksiList() {
                       {item.namaPksi}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2 }}>
+                  <TableCell sx={{ 
+                    py: 2,
+                    minWidth: 150,
+                    ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 1, bgcolor: '#fff' }),
+                    ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+                  }}>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                       {resolveSkpaCodes(item.picSatkerBA).length > 0 ? (
                         resolveSkpaCodes(item.picSatkerBA).map((code, idx) => {
@@ -1303,7 +1505,12 @@ function PksiList() {
                       )}
                     </Box>
                   </TableCell>
-                  <TableCell sx={{ py: 2 }}>
+                  <TableCell sx={{ 
+                    py: 2,
+                    minWidth: 120,
+                    ...(stickyColumns.has('jangkaWaktu') && { position: 'sticky', left: getStickyLeft('jangkaWaktu'), zIndex: 1, bgcolor: '#fff' }),
+                    ...(isLastStickyColumn('jangkaWaktu') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+                  }}>
                     <Chip
                       label={item.jangkaWaktu === 'Single Year' ? 'Single Year' : 'Multiyears'}
                       size="small"

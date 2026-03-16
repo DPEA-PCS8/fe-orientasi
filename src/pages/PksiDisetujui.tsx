@@ -41,12 +41,14 @@ import {
   CloudUpload as CloudUploadIcon,
   InsertDriveFile as FileIcon,
   Delete as DeleteIcon,
+  PushPin as PushPinIcon,
 } from '@mui/icons-material';
 import { searchPksiDocuments, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getUsersByRole, type UserSimple } from '../api/userApi';
 import { getUserRoles } from '../api/authApi';
 import { ViewPksiModal } from '../components/modals';
+import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
 
 // Interface untuk data PKSI (transformed from API)
 interface PksiData {
@@ -216,6 +218,7 @@ const getSkpaColor = (skpaCode: string): { bg: string; text: string } => {
 };
 
 function PksiDisetujui() {
+  const { isCollapsed } = useSidebar();
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -246,6 +249,54 @@ function PksiDisetujui() {
   const [selectedInhouseOutsource, setSelectedInhouseOutsource] = useState<string>('');
   const [selectedBidang, setSelectedBidang] = useState<Set<string>>(new Set());
   const [selectedPic, setSelectedPic] = useState<Set<string>>(new Set());
+
+  // Sticky columns configuration
+  const [stickyColumnsAnchorEl, setStickyColumnsAnchorEl] = useState<null | HTMLElement>(null);
+  const [stickyColumns, setStickyColumns] = useState<Set<string>>(new Set(['no', 'namaAplikasi', 'namaPksi']));
+  
+  // Column definitions for sticky configuration
+  const COLUMN_OPTIONS = [
+    { id: 'no', label: 'No', width: 50 },
+    { id: 'namaAplikasi', label: 'Nama Aplikasi', width: 160 },
+    { id: 'namaPksi', label: 'Nama PKSI', width: 180 },
+    { id: 'skpa', label: 'SKPA', width: 100 },
+    { id: 'bidang', label: 'Bidang', width: 120 },
+    { id: 'inisiatifRbsi', label: 'Inisiatif RBSI', width: 160 },
+    { id: 'pic', label: 'PIC', width: 140 },
+  ];
+
+  // Calculate sticky left positions based on selected columns
+  const getStickyLeft = useCallback((columnId: string): number | undefined => {
+    if (!stickyColumns.has(columnId)) return undefined;
+    
+    const orderedSticky = COLUMN_OPTIONS.filter(col => stickyColumns.has(col.id));
+    const colIndex = orderedSticky.findIndex(col => col.id === columnId);
+    if (colIndex === -1) return undefined;
+    
+    let left = 0;
+    for (let i = 0; i < colIndex; i++) {
+      left += orderedSticky[i].width;
+    }
+    return left;
+  }, [stickyColumns]);
+
+  const isLastStickyColumn = useCallback((columnId: string): boolean => {
+    if (!stickyColumns.has(columnId)) return false;
+    const orderedSticky = COLUMN_OPTIONS.filter(col => stickyColumns.has(col.id));
+    return orderedSticky[orderedSticky.length - 1]?.id === columnId;
+  }, [stickyColumns]);
+
+  const handleStickyColumnToggle = (columnId: string) => {
+    setStickyColumns(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(columnId)) {
+        newSet.delete(columnId);
+      } else {
+        newSet.add(columnId);
+      }
+      return newSet;
+    });
+  };
 
   // View modal state
   const [openViewModal, setOpenViewModal] = useState(false);
@@ -809,8 +860,12 @@ function PksiDisetujui() {
       <Paper
         elevation={0}
         sx={{
-          width: '100%',
-          maxWidth: '100%',
+          width: isCollapsed 
+            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)` 
+            : '80vw',
+          maxWidth: isCollapsed 
+            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)` 
+            : '80vw',
           borderRadius: '16px',
           border: '1px solid rgba(255, 255, 255, 0.5)',
           overflow: 'hidden',
@@ -818,6 +873,7 @@ function PksiDisetujui() {
           backdropFilter: 'blur(40px) saturate(180%)',
           WebkitBackdropFilter: 'blur(40px) saturate(180%)',
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         {/* Toolbar */}
@@ -886,10 +942,106 @@ function PksiDisetujui() {
                 />
               )}
             </Button>
+            
+            {/* Sticky Columns Settings Button */}
+            <Tooltip title="Atur Kolom Sticky">
+              <Button
+                variant="text"
+                startIcon={<PushPinIcon sx={{ fontSize: 18 }} />}
+                onClick={(e) => setStickyColumnsAnchorEl(e.currentTarget)}
+                sx={{
+                  color: stickyColumns.size > 0 ? '#2563EB' : '#86868b',
+                  fontWeight: 500,
+                  '&:hover': {
+                    bgcolor: 'rgba(0, 0, 0, 0.04)',
+                  },
+                }}
+              >
+                Pin
+                {stickyColumns.size > 0 && (
+                  <Chip
+                    label={stickyColumns.size}
+                    size="small"
+                    sx={{ ml: 1, bgcolor: '#2563EB', color: 'white', height: 20, fontSize: '0.7rem' }}
+                  />
+                )}
+              </Button>
+            </Tooltip>
           </Box>
 
           {/* Status Badge - Removed */}
         </Box>
+
+        {/* Sticky Columns Popover */}
+        <Popover
+          open={Boolean(stickyColumnsAnchorEl)}
+          anchorEl={stickyColumnsAnchorEl}
+          onClose={() => setStickyColumnsAnchorEl(null)}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'left',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'left',
+          }}
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+              border: '1px solid rgba(0, 0, 0, 0.06)',
+              p: 2,
+              minWidth: 280,
+            },
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+              Kolom Sticky
+            </Typography>
+            <IconButton size="small" onClick={() => setStickyColumnsAnchorEl(null)}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
+          <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mb: 2 }}>
+            Pilih kolom yang akan tetap terlihat saat scroll horizontal
+          </Typography>
+          <FormGroup>
+            {COLUMN_OPTIONS.map((col) => (
+              <FormControlLabel
+                key={col.id}
+                control={
+                  <Checkbox
+                    checked={stickyColumns.has(col.id)}
+                    onChange={() => handleStickyColumnToggle(col.id)}
+                    size="small"
+                    sx={{
+                      '&.Mui-checked': { color: '#2563EB' },
+                    }}
+                  />
+                }
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2">{col.label}</Typography>
+                    {stickyColumns.has(col.id) && (
+                      <PushPinIcon sx={{ fontSize: 14, color: '#2563EB' }} />
+                    )}
+                  </Box>
+                }
+                sx={{ mb: 0.5 }}
+              />
+            ))}
+          </FormGroup>
+          <Button
+            fullWidth
+            variant="text"
+            size="small"
+            onClick={() => setStickyColumns(new Set())}
+            sx={{ mt: 1, color: '#86868b' }}
+          >
+            Reset Semua
+          </Button>
+        </Popover>
 
         {/* Filter Popover - Apple Liquid Glass Style */}
         <Popover
@@ -1452,74 +1604,82 @@ function PksiDisetujui() {
         {/* Table */}
         <TableContainer sx={{ 
           width: '100%',
-          maxWidth: '100%',
           overflowX: 'auto',
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
           '&::-webkit-scrollbar': {
-            display: 'none',
+            height: 8,
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'rgba(0, 0, 0, 0.03)',
+            borderRadius: 4,
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'rgba(255, 255, 255, 0.8)',
+            borderRadius: 4,
+            border: '1px solid rgba(0, 0, 0, 0.1)',
+            '&:hover': {
+              background: 'rgba(255, 255, 255, 1)',
+            },
           },
         }}>
-          <Table sx={{ maxWidth: 3000, width: 'max-content', tableLayout: 'auto' }}>
+          <Table sx={{ tableLayout: 'auto', minWidth: 3200 }}>
             <TableHead>
               {/* First row - Grouped headers */}
               <TableRow sx={{ 
-                background: 'linear-gradient(180deg, rgba(245, 247, 250, 0.95) 0%, rgba(235, 240, 245, 0.9) 100%)',
-                backdropFilter: 'blur(20px)',
+                bgcolor: '#f5f5f7',
               }}>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', textAlign: 'center', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>No</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Nama Aplikasi</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Nama PKSI</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>SKPA</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Bidang</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Inisiatif RBSI</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>PIC</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Anggota Tim</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>IKU</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Inhouse/Outsource</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Jangka Waktu</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Progres</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', textAlign: 'center', fontSize: '0.8rem', minWidth: 50, ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>No</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Nama Aplikasi</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 180, ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Nama PKSI</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>SKPA</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Bidang</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160, ...(stickyColumns.has('inisiatifRbsi') && { position: 'sticky', left: getStickyLeft('inisiatifRbsi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('inisiatifRbsi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Inisiatif RBSI</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 140, ...(stickyColumns.has('pic') && { position: 'sticky', left: getStickyLeft('pic'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('pic') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>PIC</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160 }}>Anggota Tim</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 80 }}>IKU</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 130 }}>Inhouse/Outsource</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120 }}>Jangka Waktu</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100 }}>Progres</TableCell>
                 {/* Anggaran - grouped */}
-                <TableCell colSpan={3} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)', borderRadius: 0 }}>Anggaran</TableCell>
+                <TableCell colSpan={3} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem' }}>Anggaran</TableCell>
                 {/* Timeline - grouped */}
-                <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Timeline</TableCell>
+                <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem' }}>Timeline</TableCell>
                 {/* Rencana PKSI - grouped */}
-                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(217, 119, 6, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Rencana PKSI (T01/T02)</TableCell>
+                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem' }}>Rencana PKSI (T01/T02)</TableCell>
                 {/* Spesifikasi Kebutuhan - grouped */}
-                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(52, 211, 153, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Spesifikasi Kebutuhan (T11)</TableCell>
+                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem' }}>Spesifikasi Kebutuhan (T11)</TableCell>
                 {/* CD Prinsip - grouped (only Nomor CD) */}
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'linear-gradient(135deg, rgba(248, 113, 113, 0.15) 0%, rgba(220, 38, 38, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>No. CD Prinsip</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120 }}>No. CD Prinsip</TableCell>
                 {/* Kontrak - grouped */}
-                <TableCell colSpan={5} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.15) 0%, rgba(8, 145, 178, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Kontrak</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>BA Deploy</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'transparent' }}>Aksi</TableCell>
+                <TableCell colSpan={5} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem' }}>Kontrak</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100 }}>BA Deploy</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100 }}>Aksi</TableCell>
               </TableRow>
               {/* Second row - Sub-headers */}
               <TableRow sx={{ 
-                background: 'linear-gradient(180deg, rgba(250, 251, 252, 0.95) 0%, rgba(245, 247, 250, 0.9) 100%)',
+                bgcolor: '#f5f5f7',
               }}>
                 {/* Anggaran sub-headers */}
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.06)' }}>Total</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.06)' }}>Tahun {new Date().getFullYear()}</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Tahun {new Date().getFullYear() + 1}</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Total</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Tahun {new Date().getFullYear()}</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Tahun {new Date().getFullYear() + 1}</TableCell>
                 {/* Timeline sub-headers */}
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.06)' }}>Target Usreq</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.06)' }}>Target SIT</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.06)' }}>Target UAT/PDKK</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Target Go Live</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 110 }}>Target Usreq</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100 }}>Target SIT</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Target UAT/PDKK</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 110 }}>Target Go Live</TableCell>
                 {/* Rencana PKSI sub-headers */}
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.06)' }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Berkas Terbaru</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100 }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Berkas Terbaru</TableCell>
                 {/* Spesifikasi Kebutuhan sub-headers */}
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.06)' }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Berkas Terbaru</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100 }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Berkas Terbaru</TableCell>
 
                 {/* Kontrak sub-headers */}
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)' }}>Tgl Mulai</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)' }}>Tgl Selesai</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)' }}>Nilai</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)' }}>Jml Termin</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Detail Pembayaran</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100 }}>Tgl Mulai</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100 }}>Tgl Selesai</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Nilai</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100 }}>Jml Termin</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 140 }}>Detail Pembayaran</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -1556,24 +1716,24 @@ function PksiDisetujui() {
                   }}
                 >
                   {/* No */}
-                  <TableCell sx={{ color: '#86868b', py: 1, px: 1, textAlign: 'center', fontWeight: 500, fontSize: '0.8rem' }}>
+                  <TableCell sx={{ color: '#86868b', py: 1, px: 2, textAlign: 'center', fontWeight: 500, fontSize: '0.8rem', minWidth: 50, ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     {page * rowsPerPage + index + 1}
                   </TableCell>
                   {/* Nama Aplikasi */}
                   {/* Nama Aplikasi */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                  <TableCell sx={{ py: 1, px: 2, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 160, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.namaAplikasi}
                     </Typography>
                   </TableCell>
                   {/* Nama PKSI */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                  <TableCell sx={{ py: 1, px: 2, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 180, ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     <Typography variant="body2" sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.8rem', lineHeight: 1.4 }}>
                       {item.namaPksi}
                     </Typography>
                   </TableCell>
                   {/* SKPA */}
-                  <TableCell sx={{ py: 1, px: 1 }}>
+                  <TableCell sx={{ py: 1, px: 1, minWidth: 100, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.3 }}>
                       {resolveSkpaCodes(item.picSatkerBA).length > 0 ? (
                         resolveSkpaCodes(item.picSatkerBA).map((code, idx) => {
@@ -1601,7 +1761,7 @@ function PksiDisetujui() {
                     </Box>
                   </TableCell>
                   {/* Bidang */}
-                  <TableCell sx={{ py: 1, px: 1 }}>
+                  <TableCell sx={{ py: 1, px: 1, minWidth: 120, ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.3 }}>
                       {resolveBidangNames(item.picSatkerUuids).length > 0 ? (
                         resolveBidangNames(item.picSatkerUuids).map((bidang, idx) => (
@@ -1626,13 +1786,13 @@ function PksiDisetujui() {
                     </Box>
                   </TableCell>
                   {/* Inisiatif RBSI */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 160, ...(stickyColumns.has('inisiatifRbsi') && { position: 'sticky', left: getStickyLeft('inisiatifRbsi'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('inisiatifRbsi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.inisiatifRbsi}
                     </Typography>
                   </TableCell>
                   {/* PIC */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 140, ...(stickyColumns.has('pic') && { position: 'sticky', left: getStickyLeft('pic'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('pic') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.pic}
                     </Typography>
