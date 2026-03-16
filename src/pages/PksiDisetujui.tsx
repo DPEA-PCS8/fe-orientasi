@@ -9,7 +9,6 @@ import {
   TableHead,
   TableRow,
   TablePagination,
-  TableSortLabel,
   InputAdornment,
   Typography,
   Paper,
@@ -67,6 +66,35 @@ interface PksiData {
   tanggalPengajuan: string;
   linkDocsT01: string;
   progress: string;
+  // New fields
+  programRbsi: string;
+  inisiatifRbsi: string;
+  // Anggaran
+  anggaranTotal: string;
+  anggaranTahunIni: string;
+  anggaranTahunDepan: string;
+  // Timeline
+  targetUsreq: string;
+  targetSit: string;
+  targetUat: string;
+  targetGoLive: string;
+  // Rencana PKSI (T01/T02)
+  statusT01T02: string;
+  berkasT01T02: string;
+  // Spesifikasi Kebutuhan (T11)
+  statusT11: string;
+  berkasT11: string;
+  // CD Prinsip
+  statusCd: string;
+  nomorCd: string;
+  // Kontrak
+  kontrakTanggalMulai: string;
+  kontrakTanggalSelesai: string;
+  kontrakNilai: string;
+  kontrakJumlahTermin: string;
+  kontrakDetailPembayaran: string;
+  // BA Deploy
+  baDeploy: string;
 }
 
 // Progress options for PKSI Disetujui
@@ -82,7 +110,6 @@ const PROGRESS_OPTIONS = [
   'Selesai',
 ] as const;
 
-type Order = 'asc' | 'desc';
 const calculateJangkaWaktu = (apiData: PksiDocumentData): string => {
   const startDates = [apiData.tahap1_awal, apiData.tahap5_awal, apiData.tahap7_awal]
     .filter(Boolean)
@@ -111,6 +138,8 @@ const calculateJangkaWaktu = (apiData: PksiDocumentData): string => {
 
 // Transform API data to UI format
 const transformApiData = (apiData: PksiDocumentData): PksiData => {
+  const jangkaWaktu = calculateJangkaWaktu(apiData);
+  
   return {
     id: apiData.id,
     namaPksi: apiData.nama_pksi,
@@ -124,10 +153,39 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     anggotaTimUuids: apiData.anggota_tim || '',
     iku: apiData.iku || '-',
     inhouseOutsource: apiData.inhouse_outsource || '-',
-    jangkaWaktu: calculateJangkaWaktu(apiData),
+    jangkaWaktu: jangkaWaktu,
     tanggalPengajuan: apiData.tanggal_pengajuan || apiData.created_at || '',
     linkDocsT01: '', // Not available in API response
     progress: apiData.progress || 'Penyusunan Usreq',
+    // New fields - placeholder values until backend is ready
+    programRbsi: apiData.program_inisiatif_rbsi?.split(' - ')[0] || '-',
+    inisiatifRbsi: apiData.program_inisiatif_rbsi?.split(' - ')[1] || '-',
+    // Anggaran - placeholder
+    anggaranTotal: '-',
+    anggaranTahunIni: `-`, // Will show current year
+    anggaranTahunDepan: jangkaWaktu.includes('Multiyears') ? `-` : '-', // Only show if multiyears
+    // Timeline - use existing tahap data
+    targetUsreq: apiData.tahap1_akhir || '-',
+    targetSit: apiData.tahap5_akhir || '-',
+    targetUat: '-', // Not available yet
+    targetGoLive: apiData.tahap7_akhir || '-',
+    // Rencana PKSI (T01/T02) - placeholder
+    statusT01T02: '-',
+    berkasT01T02: '-',
+    // Spesifikasi Kebutuhan (T11) - placeholder
+    statusT11: '-',
+    berkasT11: '-',
+    // CD Prinsip - placeholder
+    statusCd: '-',
+    nomorCd: '-',
+    // Kontrak - placeholder
+    kontrakTanggalMulai: '-',
+    kontrakTanggalSelesai: '-',
+    kontrakNilai: '-',
+    kontrakJumlahTermin: '-',
+    kontrakDetailPembayaran: '-',
+    // BA Deploy - placeholder
+    baDeploy: '-',
   };
 };
 
@@ -161,8 +219,6 @@ function PksiDisetujui() {
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [orderBy, setOrderBy] = useState<keyof PksiData>('namaPksi');
-  const [order, setOrder] = useState<Order>('asc');
   const [pksiData, setPksiData] = useState<PksiData[]>([]);
   const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -292,16 +348,6 @@ function PksiDisetujui() {
     setSelectedPksiForEdit(null);
   };
 
-  // Map sortBy from UI field to API field
-  const mapSortField = (field: keyof PksiData): string => {
-    const fieldMap: Record<string, string> = {
-      namaPksi: 'namaPksi',
-      tanggalPengajuan: 'tanggalPengajuan',
-      status: 'status',
-    };
-    return fieldMap[field] || 'namaPksi';
-  };
-
   // Fetch PKSI data from API - only approved
   const fetchPksiData = useCallback(async () => {
     setIsLoading(true);
@@ -311,8 +357,8 @@ function PksiDisetujui() {
         status: 'DISETUJUI',
         page: page,
         size: rowsPerPage,
-        sortBy: mapSortField(orderBy),
-        sortDir: order,
+        sortBy: 'nama_pksi',
+        sortDir: 'asc',
       });
 
       // DEBUG: Log response and user department
@@ -347,7 +393,7 @@ function PksiDisetujui() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, page, rowsPerPage, orderBy, order, userDepartment, userRoles, isAdminOrPengembang]);
+  }, [keyword, page, rowsPerPage, userDepartment, userRoles, isAdminOrPengembang]);
 
   // Fetch data on mount and when dependencies change
   useEffect(() => {
@@ -499,12 +545,6 @@ function PksiDisetujui() {
   }, [pksiData, selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa, resolveSkpaCodes]);
 
   const paginatedPksi = filteredPksi;
-
-  const handleSort = (property: keyof PksiData) => {
-    const isAsc = orderBy === property && order === 'asc';
-    setOrder(isAsc ? 'desc' : 'asc');
-    setOrderBy(property);
-  };
 
   const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
@@ -964,234 +1004,68 @@ function PksiDisetujui() {
         <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
           <Table sx={{ tableLayout: 'auto' }}>
             <TableHead>
+              {/* First row - Grouped headers */}
               <TableRow sx={{ bgcolor: '#f5f5f7' }}>
-                <TableCell 
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                    textAlign: 'center',
-                  }}
-                >
-                  No
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'namaAplikasi' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'namaAplikasi'}
-                    direction={orderBy === 'namaAplikasi' ? order : 'asc'}
-                    onClick={() => handleSort('namaAplikasi')}
-                  >
-                    Nama Aplikasi
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'namaPksi' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'namaPksi'}
-                    direction={orderBy === 'namaPksi' ? order : 'asc'}
-                    onClick={() => handleSort('namaPksi')}
-                  >
-                    Nama PKSI
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'picSatkerBA' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'picSatkerBA'}
-                    direction={orderBy === 'picSatkerBA' ? order : 'asc'}
-                    onClick={() => handleSort('picSatkerBA')}
-                  >
-                    SKPA
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'bidang' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'bidang'}
-                    direction={orderBy === 'bidang' ? order : 'asc'}
-                    onClick={() => handleSort('bidang')}
-                  >
-                    Bidang
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'pic' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'pic'}
-                    direction={orderBy === 'pic' ? order : 'asc'}
-                    onClick={() => handleSort('pic')}
-                  >
-                    PIC
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'anggotaTim' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'anggotaTim'}
-                    direction={orderBy === 'anggotaTim' ? order : 'asc'}
-                    onClick={() => handleSort('anggotaTim')}
-                  >
-                    Anggota Tim
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'iku' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'iku'}
-                    direction={orderBy === 'iku' ? order : 'asc'}
-                    onClick={() => handleSort('iku')}
-                  >
-                    IKU
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'inhouseOutsource' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'inhouseOutsource'}
-                    direction={orderBy === 'inhouseOutsource' ? order : 'asc'}
-                    onClick={() => handleSort('inhouseOutsource')}
-                  >
-                    Inhouse/Outsource
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'jangkaWaktu' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'jangkaWaktu'}
-                    direction={orderBy === 'jangkaWaktu' ? order : 'asc'}
-                    onClick={() => handleSort('jangkaWaktu')}
-                  >
-                    Jangka Waktu
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'tanggalPengajuan' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'tanggalPengajuan'}
-                    direction={orderBy === 'tanggalPengajuan' ? order : 'asc'}
-                    onClick={() => handleSort('tanggalPengajuan')}
-                  >
-                    Tanggal Pengajuan
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'progress' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'progress'}
-                    direction={orderBy === 'progress' ? order : 'asc'}
-                    onClick={() => handleSort('progress')}
-                  >
-                    Progres
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  Aksi
-                </TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', textAlign: 'center', borderRight: '1px solid rgba(0,0,0,0.08)' }}>No</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Nama Aplikasi</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Nama PKSI</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>SKPA</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Bidang</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Program RBSI</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Inisiatif RBSI</TableCell>
+                {/* Anggaran - grouped */}
+                <TableCell colSpan={3} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, bgcolor: 'rgba(37, 99, 235, 0.08)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Anggaran</TableCell>
+                {/* Timeline - grouped */}
+                <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, bgcolor: 'rgba(139, 92, 246, 0.08)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Timeline</TableCell>
+                {/* Rencana PKSI - grouped */}
+                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, bgcolor: 'rgba(217, 119, 6, 0.08)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Rencana PKSI (T01/T02)</TableCell>
+                {/* Spesifikasi Kebutuhan - grouped */}
+                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, bgcolor: 'rgba(5, 150, 105, 0.08)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Spesifikasi Kebutuhan (T11)</TableCell>
+                {/* CD Prinsip - grouped */}
+                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, bgcolor: 'rgba(220, 38, 38, 0.08)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>CD Prinsip</TableCell>
+                {/* Kontrak - grouped */}
+                <TableCell colSpan={5} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, bgcolor: 'rgba(8, 145, 178, 0.08)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Kontrak</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>BA Deploy</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>PIC</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Anggota Tim</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>IKU</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>In/Out</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Jangka Waktu</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Progres</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap' }}>Aksi</TableCell>
+              </TableRow>
+              {/* Second row - Sub-headers */}
+              <TableRow sx={{ bgcolor: '#f9f9fb' }}>
+                {/* Anggaran sub-headers */}
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Total</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Tahun {new Date().getFullYear()}</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(37, 99, 235, 0.04)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Tahun {new Date().getFullYear() + 1}</TableCell>
+                {/* Timeline sub-headers */}
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.04)' }}>Target Usreq</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.04)' }}>Target SIT</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.04)' }}>Target UAT/PDKK</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.04)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Target Go Live</TableCell>
+                {/* Rencana PKSI sub-headers */}
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(217, 119, 6, 0.04)' }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(217, 119, 6, 0.04)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Berkas Terbaru</TableCell>
+                {/* Spesifikasi Kebutuhan sub-headers */}
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(5, 150, 105, 0.04)' }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(5, 150, 105, 0.04)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Berkas Terbaru</TableCell>
+                {/* CD Prinsip sub-headers */}
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(220, 38, 38, 0.04)' }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(220, 38, 38, 0.04)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Nomor CD</TableCell>
+                {/* Kontrak sub-headers */}
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.04)' }}>Tgl Mulai</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.04)' }}>Tgl Selesai</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.04)' }}>Nilai</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.04)' }}>Jml Termin</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.04)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Detail Pembayaran</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={13} sx={{ textAlign: 'center', py: 6 }}>
+                  <TableCell colSpan={32} sx={{ textAlign: 'center', py: 6 }}>
                     <CircularProgress size={40} sx={{ color: '#31A24C' }} />
                     <Typography variant="body2" sx={{ mt: 2, color: '#86868b' }}>
                       Memuat data...
@@ -1200,7 +1074,7 @@ function PksiDisetujui() {
                 </TableRow>
               ) : paginatedPksi.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={13} sx={{ textAlign: 'center', py: 6 }}>
+                  <TableCell colSpan={32} sx={{ textAlign: 'center', py: 6 }}>
                     <Typography variant="body2" sx={{ color: '#86868b' }}>
                       Tidak ada data PKSI disetujui ditemukan
                     </Typography>
@@ -1218,42 +1092,23 @@ function PksiDisetujui() {
                     },
                   }}
                 >
-                  <TableCell 
-                    sx={{ 
-                      color: '#86868b', 
-                      py: 1,
-                      px: 1,
-                      textAlign: 'center',
-                      fontWeight: 500,
-                      fontSize: '0.8rem',
-                    }}
-                  >
+                  {/* No */}
+                  <TableCell sx={{ color: '#86868b', py: 1, px: 1, textAlign: 'center', fontWeight: 500, fontSize: '0.8rem' }}>
                     {page * rowsPerPage + index + 1}
                   </TableCell>
+                  {/* Nama Aplikasi */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: '#1d1d1f',
-                        fontSize: '0.8rem',
-                      }}
-                    >
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.namaAplikasi}
                     </Typography>
                   </TableCell>
+                  {/* Nama PKSI */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        fontWeight: 500,
-                        color: '#1d1d1f',
-                        fontSize: '0.8rem',
-                        lineHeight: 1.4,
-                      }}
-                    >
+                    <Typography variant="body2" sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.8rem', lineHeight: 1.4 }}>
                       {item.namaPksi}
                     </Typography>
                   </TableCell>
+                  {/* SKPA */}
                   <TableCell sx={{ py: 1, px: 1 }}>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.3 }}>
                       {resolveSkpaCodes(item.picSatkerBA).length > 0 ? (
@@ -1281,7 +1136,7 @@ function PksiDisetujui() {
                       )}
                     </Box>
                   </TableCell>
-                  {/* Bidang Column */}
+                  {/* Bidang */}
                   <TableCell sx={{ py: 1, px: 1 }}>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.3 }}>
                       {resolveBidangNames(item.picSatkerUuids).length > 0 ? (
@@ -1306,65 +1161,163 @@ function PksiDisetujui() {
                       )}
                     </Box>
                   </TableCell>
-                  {/* PIC Column */}
+                  {/* Program RBSI */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.programRbsi}
+                    </Typography>
+                  </TableCell>
+                  {/* Inisiatif RBSI */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.inisiatifRbsi}
+                    </Typography>
+                  </TableCell>
+                  {/* Anggaran - Total */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(37, 99, 235, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.anggaranTotal}
+                    </Typography>
+                  </TableCell>
+                  {/* Anggaran - Tahun Ini */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(37, 99, 235, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.anggaranTahunIni}
+                    </Typography>
+                  </TableCell>
+                  {/* Anggaran - Tahun Depan */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(37, 99, 235, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.jangkaWaktu.includes('Multiyears') ? item.anggaranTahunDepan : '-'}
+                    </Typography>
+                  </TableCell>
+                  {/* Timeline - Target Usreq */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.targetUsreq !== '-' ? new Date(item.targetUsreq).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                    </Typography>
+                  </TableCell>
+                  {/* Timeline - Target SIT */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.targetSit !== '-' ? new Date(item.targetSit).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                    </Typography>
+                  </TableCell>
+                  {/* Timeline - Target UAT/PDKK */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.targetUat !== '-' ? new Date(item.targetUat).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                    </Typography>
+                  </TableCell>
+                  {/* Timeline - Target Go Live */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.targetGoLive !== '-' ? new Date(item.targetGoLive).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                    </Typography>
+                  </TableCell>
+                  {/* Rencana PKSI - Status T01/T02 */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(217, 119, 6, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.statusT01T02}
+                    </Typography>
+                  </TableCell>
+                  {/* Rencana PKSI - Berkas Terbaru T01/T02 */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(217, 119, 6, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.berkasT01T02}
+                    </Typography>
+                  </TableCell>
+                  {/* Spesifikasi Kebutuhan - Status T11 */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(5, 150, 105, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.statusT11}
+                    </Typography>
+                  </TableCell>
+                  {/* Spesifikasi Kebutuhan - Berkas Terbaru T11 */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(5, 150, 105, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.berkasT11}
+                    </Typography>
+                  </TableCell>
+                  {/* CD Prinsip - Status */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(220, 38, 38, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.statusCd}
+                    </Typography>
+                  </TableCell>
+                  {/* CD Prinsip - Nomor CD */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(220, 38, 38, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.nomorCd}
+                    </Typography>
+                  </TableCell>
+                  {/* Kontrak - Tgl Mulai */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.kontrakTanggalMulai}
+                    </Typography>
+                  </TableCell>
+                  {/* Kontrak - Tgl Selesai */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.kontrakTanggalSelesai}
+                    </Typography>
+                  </TableCell>
+                  {/* Kontrak - Nilai */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.kontrakNilai}
+                    </Typography>
+                  </TableCell>
+                  {/* Kontrak - Jml Termin */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.kontrakJumlahTermin}
+                    </Typography>
+                  </TableCell>
+                  {/* Kontrak - Detail Pembayaran */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.02)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.kontrakDetailPembayaran}
+                    </Typography>
+                  </TableCell>
+                  {/* BA Deploy */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.baDeploy}
+                    </Typography>
+                  </TableCell>
+                  {/* PIC */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: '#1d1d1f',
-                        fontSize: '0.8rem',
-                      }}
-                    >
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.pic}
                     </Typography>
                   </TableCell>
-                  {/* Anggota Tim Column */}
+                  {/* Anggota Tim */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: '#1d1d1f',
-                        fontSize: '0.8rem',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        maxWidth: 150,
-                      }}
-                    >
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 150 }}>
                       {item.anggotaTim}
                     </Typography>
                   </TableCell>
-                  {/* IKU Column */}
+                  {/* IKU */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: '#1d1d1f',
-                        fontSize: '0.8rem',
-                      }}
-                    >
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.iku}
                     </Typography>
                   </TableCell>
-                  {/* Inhouse/Outsource Column */}
+                  {/* In/Out */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: '#1d1d1f',
-                        fontSize: '0.8rem',
-                      }}
-                    >
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.inhouseOutsource}
                     </Typography>
                   </TableCell>
+                  {/* Jangka Waktu */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
                     <Chip
                       label={item.jangkaWaktu === 'Single Year' ? 'Single Year' : 'Multiyears'}
                       size="small"
                       sx={{
-                        bgcolor: item.jangkaWaktu === 'Single Year' 
-                          ? 'rgba(139, 92, 246, 0.1)' 
-                          : 'rgba(37, 99, 235, 0.1)',
+                        bgcolor: item.jangkaWaktu === 'Single Year' ? 'rgba(139, 92, 246, 0.1)' : 'rgba(37, 99, 235, 0.1)',
                         color: item.jangkaWaktu === 'Single Year' ? '#8B5CF6' : '#2563EB',
                         fontWeight: 600,
                         fontSize: '0.7rem',
@@ -1373,21 +1326,7 @@ function PksiDisetujui() {
                       }}
                     />
                   </TableCell>
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: '#1d1d1f',
-                        fontSize: '0.8rem',
-                      }}
-                    >
-                      {new Date(item.tanggalPengajuan).toLocaleDateString('id-ID', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    </Typography>
-                  </TableCell>
+                  {/* Progres */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
                     <Chip
                       label={item.progress}
@@ -1396,18 +1335,18 @@ function PksiDisetujui() {
                         bgcolor: (() => {
                           const progressIndex = PROGRESS_OPTIONS.indexOf(item.progress as typeof PROGRESS_OPTIONS[number]);
                           if (progressIndex === -1) return 'rgba(107, 114, 128, 0.1)';
-                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return 'rgba(49, 162, 76, 0.15)'; // Selesai
-                          if (progressIndex >= 6) return 'rgba(37, 99, 235, 0.12)'; // UAT, Deployment
-                          if (progressIndex >= 3) return 'rgba(139, 92, 246, 0.12)'; // Coding, Unit Test, SIT
-                          return 'rgba(217, 119, 6, 0.12)'; // Penyusunan Usreq, Pengadaan, Desain
+                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return 'rgba(49, 162, 76, 0.15)';
+                          if (progressIndex >= 6) return 'rgba(37, 99, 235, 0.12)';
+                          if (progressIndex >= 3) return 'rgba(139, 92, 246, 0.12)';
+                          return 'rgba(217, 119, 6, 0.12)';
                         })(),
                         color: (() => {
                           const progressIndex = PROGRESS_OPTIONS.indexOf(item.progress as typeof PROGRESS_OPTIONS[number]);
                           if (progressIndex === -1) return '#4B5563';
-                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return '#31A24C'; // Selesai
-                          if (progressIndex >= 6) return '#2563EB'; // UAT, Deployment
-                          if (progressIndex >= 3) return '#8B5CF6'; // Coding, Unit Test, SIT
-                          return '#D97706'; // Penyusunan Usreq, Pengadaan, Desain
+                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return '#31A24C';
+                          if (progressIndex >= 6) return '#2563EB';
+                          if (progressIndex >= 3) return '#8B5CF6';
+                          return '#D97706';
                         })(),
                         fontWeight: 600,
                         fontSize: '0.7rem',
@@ -1416,6 +1355,7 @@ function PksiDisetujui() {
                       }}
                     />
                   </TableCell>
+                  {/* Aksi */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
                       <Tooltip title="Lihat Detail PKSI">
@@ -1425,9 +1365,7 @@ function PksiDisetujui() {
                           sx={{
                             color: '#059669',
                             bgcolor: 'rgba(5, 150, 105, 0.08)',
-                            '&:hover': {
-                              bgcolor: 'rgba(5, 150, 105, 0.15)',
-                            },
+                            '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.15)' },
                           }}
                         >
                           <VisibilityIcon sx={{ fontSize: 16 }} />
@@ -1440,9 +1378,7 @@ function PksiDisetujui() {
                           sx={{
                             color: '#D97706',
                             bgcolor: 'rgba(217, 119, 6, 0.08)',
-                            '&:hover': {
-                              bgcolor: 'rgba(217, 119, 6, 0.15)',
-                            },
+                            '&:hover': { bgcolor: 'rgba(217, 119, 6, 0.15)' },
                           }}
                         >
                           <EditIcon sx={{ fontSize: 16 }} />
@@ -1455,9 +1391,7 @@ function PksiDisetujui() {
                           sx={{
                             color: '#2563EB',
                             bgcolor: 'rgba(37, 99, 235, 0.08)',
-                            '&:hover': {
-                              bgcolor: 'rgba(37, 99, 235, 0.15)',
-                            },
+                            '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.15)' },
                           }}
                         >
                           <CloudUploadIcon sx={{ fontSize: 16 }} />
