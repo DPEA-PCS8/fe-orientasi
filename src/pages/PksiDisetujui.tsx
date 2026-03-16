@@ -962,16 +962,16 @@ function PksiDisetujui() {
 
         {/* Table */}
         <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
-          <Table sx={{ minWidth: 1800 }}>
+          <Table sx={{ tableLayout: 'auto' }}>
             <TableHead>
               <TableRow sx={{ bgcolor: '#f5f5f7' }}>
                 <TableCell 
                   sx={{ 
                     fontWeight: 600, 
                     color: '#1d1d1f', 
-                    py: 2,
-                    width: 50,
-                    minWidth: 50,
+                    py: 1.5,
+                    px: 1,
+                    whiteSpace: 'nowrap',
                     textAlign: 'center',
                   }}
                 >
@@ -982,8 +982,9 @@ function PksiDisetujui() {
                   sx={{ 
                     fontWeight: 600, 
                     color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 150,
+                    py: 1.5,
+                    px: 1,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   <TableSortLabel
@@ -999,8 +1000,9 @@ function PksiDisetujui() {
                   sx={{ 
                     fontWeight: 600, 
                     color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 200,
+                    py: 1.5,
+                    px: 1,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   <TableSortLabel
@@ -1016,8 +1018,9 @@ function PksiDisetujui() {
                   sx={{ 
                     fontWeight: 600, 
                     color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 150,
+                    py: 1.5,
+                    px: 1,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   <TableSortLabel
@@ -1033,8 +1036,9 @@ function PksiDisetujui() {
                   sx={{ 
                     fontWeight: 600, 
                     color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 150,
+                    py: 1.5,
+                    px: 1,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   <TableSortLabel
@@ -1050,8 +1054,9 @@ function PksiDisetujui() {
                   sx={{ 
                     fontWeight: 600, 
                     color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 150,
+                    py: 1.5,
+                    px: 1,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   <TableSortLabel
@@ -1067,8 +1072,9 @@ function PksiDisetujui() {
                   sx={{ 
                     fontWeight: 600, 
                     color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 180,
+                    py: 1.5,
+                    px: 1,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   <TableSortLabel
@@ -1084,8 +1090,9 @@ function PksiDisetujui() {
                   sx={{ 
                     fontWeight: 600, 
                     color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 150,
+                    py: 1.5,
+                    px: 1,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   <TableSortLabel
@@ -1101,8 +1108,9 @@ function PksiDisetujui() {
                   sx={{ 
                     fontWeight: 600, 
                     color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 140,
+                    py: 1.5,
+                    px: 1,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   <TableSortLabel
@@ -1118,8 +1126,9 @@ function PksiDisetujui() {
                   sx={{ 
                     fontWeight: 600, 
                     color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 120,
+                    py: 1.5,
+                    px: 1,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   <TableSortLabel
@@ -1135,8 +1144,9 @@ function PksiDisetujui() {
                   sx={{ 
                     fontWeight: 600, 
                     color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 150,
+                    py: 1.5,
+                    px: 1,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   <TableSortLabel
@@ -1152,8 +1162,9 @@ function PksiDisetujui() {
                   sx={{ 
                     fontWeight: 600, 
                     color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 160,
+                    py: 1.5,
+                    px: 1,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   <TableSortLabel
@@ -1168,8 +1179,9 @@ function PksiDisetujui() {
                   sx={{ 
                     fontWeight: 600, 
                     color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 100,
+                    py: 1.5,
+                    px: 1,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   Aksi
@@ -1209,39 +1221,41 @@ function PksiDisetujui() {
                   <TableCell 
                     sx={{ 
                       color: '#86868b', 
-                      py: 2,
+                      py: 1,
+                      px: 1,
                       textAlign: 'center',
                       fontWeight: 500,
-                      fontSize: '0.85rem',
+                      fontSize: '0.8rem',
                     }}
                   >
                     {page * rowsPerPage + index + 1}
                   </TableCell>
-                  <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
                         color: '#1d1d1f',
-                        fontSize: '0.85rem',
+                        fontSize: '0.8rem',
                       }}
                     >
                       {item.namaAplikasi}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
                         fontWeight: 500,
                         color: '#1d1d1f',
-                        lineHeight: 1.5,
+                        fontSize: '0.8rem',
+                        lineHeight: 1.4,
                       }}
                     >
                       {item.namaPksi}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2 }}>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  <TableCell sx={{ py: 1, px: 1 }}>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.3 }}>
                       {resolveSkpaCodes(item.picSatkerBA).length > 0 ? (
                         resolveSkpaCodes(item.picSatkerBA).map((code, idx) => {
                           const chipColor = getSkpaColor(code);
@@ -1254,21 +1268,22 @@ function PksiDisetujui() {
                                 bgcolor: chipColor.bg,
                                 color: chipColor.text,
                                 fontWeight: 600,
-                                fontSize: '0.7rem',
-                                height: 24,
-                                borderRadius: '6px',
+                                fontSize: '0.65rem',
+                                height: 20,
+                                borderRadius: '4px',
+                                '& .MuiChip-label': { px: 0.8 },
                               }}
                             />
                           );
                         })
                       ) : (
-                        <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.85rem' }}>-</Typography>
+                        <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
                       )}
                     </Box>
                   </TableCell>
                   {/* Bidang Column */}
-                  <TableCell sx={{ py: 2 }}>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  <TableCell sx={{ py: 1, px: 1 }}>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.3 }}>
                       {resolveBidangNames(item.picSatkerUuids).length > 0 ? (
                         resolveBidangNames(item.picSatkerUuids).map((bidang, idx) => (
                           <Chip
@@ -1279,76 +1294,70 @@ function PksiDisetujui() {
                               bgcolor: 'rgba(107, 114, 128, 0.1)',
                               color: '#4B5563',
                               fontWeight: 500,
-                              fontSize: '0.7rem',
-                              height: 24,
-                              borderRadius: '6px',
+                              fontSize: '0.65rem',
+                              height: 20,
+                              borderRadius: '4px',
+                              '& .MuiChip-label': { px: 0.8 },
                             }}
                           />
                         ))
                       ) : (
-                        <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.85rem' }}>-</Typography>
+                        <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
                       )}
                     </Box>
                   </TableCell>
                   {/* PIC Column */}
-                  <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
                         color: '#1d1d1f',
-                        fontSize: '0.85rem',
+                        fontSize: '0.8rem',
                       }}
                     >
                       {item.pic}
                     </Typography>
                   </TableCell>
                   {/* Anggota Tim Column */}
-                  <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word', maxWidth: 200 }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
                         color: '#1d1d1f',
-                        fontSize: '0.85rem',
+                        fontSize: '0.8rem',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
+                        maxWidth: 150,
                       }}
                     >
                       {item.anggotaTim}
                     </Typography>
                   </TableCell>
                   {/* IKU Column */}
-                  <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word', maxWidth: 180 }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
                         color: '#1d1d1f',
-                        fontSize: '0.85rem',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
+                        fontSize: '0.8rem',
                       }}
                     >
                       {item.iku}
                     </Typography>
                   </TableCell>
                   {/* Inhouse/Outsource Column */}
-                  <TableCell sx={{ py: 2 }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
                         color: '#1d1d1f',
-                        fontSize: '0.85rem',
+                        fontSize: '0.8rem',
                       }}
                     >
                       {item.inhouseOutsource}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2 }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
                     <Chip
                       label={item.jangkaWaktu === 'Single Year' ? 'Single Year' : 'Multiyears'}
                       size="small"
@@ -1358,18 +1367,18 @@ function PksiDisetujui() {
                           : 'rgba(37, 99, 235, 0.1)',
                         color: item.jangkaWaktu === 'Single Year' ? '#8B5CF6' : '#2563EB',
                         fontWeight: 600,
-                        fontSize: '0.75rem',
-                        height: 26,
-                        borderRadius: '6px',
+                        fontSize: '0.7rem',
+                        height: 22,
+                        borderRadius: '4px',
                       }}
                     />
                   </TableCell>
-                  <TableCell sx={{ py: 2 }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
                         color: '#1d1d1f',
-                        fontSize: '0.85rem',
+                        fontSize: '0.8rem',
                       }}
                     >
                       {new Date(item.tanggalPengajuan).toLocaleDateString('id-ID', {
@@ -1379,7 +1388,7 @@ function PksiDisetujui() {
                       })}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2 }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
                     <Chip
                       label={item.progress}
                       size="small"
@@ -1402,12 +1411,12 @@ function PksiDisetujui() {
                         })(),
                         fontWeight: 600,
                         fontSize: '0.7rem',
-                        height: 26,
-                        borderRadius: '8px',
+                        height: 22,
+                        borderRadius: '4px',
                       }}
                     />
                   </TableCell>
-                  <TableCell sx={{ py: 2 }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
                       <Tooltip title="Lihat Detail PKSI">
                         <IconButton
