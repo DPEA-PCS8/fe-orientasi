@@ -195,16 +195,6 @@ const Sidebar = () => {
           ],
         },
         {
-          label: 'Aplikasi',
-          icon: <AppsRounded />,
-          href: '/aplikasi',
-          menuCode: 'APLIKASI',
-          subItems: [
-            { label: 'Daftar Aplikasi', icon: <AppsRounded />, href: '/aplikasi', menuCode: 'APLIKASI' },
-            { label: 'Historis Aplikasi', icon: <HistoryRounded />, href: '/historis-aplikasi', menuCode: 'HISTORIS_APLIKASI' },
-          ],
-        },
-        {
           label: 'FS2',
           icon: <DescriptionRounded />,
           href: '/fs2-list',
@@ -212,6 +202,16 @@ const Sidebar = () => {
           subItems: [
             { label: 'Semua F.S.2', icon: <ListAltRounded />, href: '/fs2-list', menuCode: 'FS2_ALL' },
             { label: 'F.S.2 Disetujui', icon: <CheckCircleRounded />, href: '/fs2-disetujui', menuCode: 'FS2_APPROVED' },
+          ],
+        },
+        {
+          label: 'Aplikasi',
+          icon: <AppsRounded />,
+          href: '/aplikasi',
+          menuCode: 'APLIKASI',
+          subItems: [
+            { label: 'Daftar Aplikasi', icon: <AppsRounded />, href: '/aplikasi', menuCode: 'APLIKASI' },
+            { label: 'Historis Aplikasi', icon: <HistoryRounded />, href: '/historis-aplikasi', menuCode: 'HISTORIS_APLIKASI' },
           ],
         },
         {
