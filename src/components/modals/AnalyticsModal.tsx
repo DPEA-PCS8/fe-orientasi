@@ -21,6 +21,10 @@ import {
   InputLabel,
   Chip,
   Tooltip,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 import {
@@ -28,9 +32,10 @@ import {
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon,
   Analytics as AnalyticsIcon,
+  AssignmentRounded,
 } from '@mui/icons-material';
 import { getAnalytics } from '../../api/rbsiApi';
-import type { RbsiAnalyticsResponse, KepEvaluation } from '../../api/rbsiApi';
+import type { RbsiAnalyticsResponse, KepEvaluation, InitiativeDetail } from '../../api/rbsiApi';
 
 interface KepData {
   id: string;
@@ -58,6 +63,12 @@ const AnalyticsModal = ({
   const [error, setError] = useState('');
   const [selectedTahun1, setSelectedTahun1] = useState<number>(0);
   const [selectedTahun2, setSelectedTahun2] = useState<number>(0);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [detailData, setDetailData] = useState<{
+    type: 'added' | 'removed';
+    year: number;
+    initiatives: InitiativeDetail[];
+  } | null>(null);
 
   // Parse periode to get year range (e.g., "2023-2027")
   const yearRange = useMemo(() => {
@@ -119,21 +130,38 @@ const AnalyticsModal = ({
     const yearChange = evaluation.changes.changes_by_year[year];
     if (!yearChange) return null;
 
-    const { added, removed, summary } = yearChange;
+    const { added, removed, summary, added_initiatives, removed_initiatives } = yearChange;
     
+    const handleShowDetail = (type: 'added' | 'removed', initiatives: InitiativeDetail[]) => {
+      setDetailData({ type, year, initiatives });
+      setDetailDialogOpen(true);
+    };
+
     return (
-      <Tooltip title={summary} arrow>
+      <Tooltip title={`${summary} - Klik untuk detail`} arrow>
         <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, justifyContent: 'center' }}>
           {added > 0 && (
             <Chip 
               size="small" 
               label={`+${added}`}
               icon={<TrendingUpIcon sx={{ fontSize: 12 }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (added_initiatives && added_initiatives.length > 0) {
+                  handleShowDetail('added', added_initiatives);
+                }
+              }}
               sx={{ 
                 height: 18, 
                 fontSize: 10, 
                 bgcolor: 'rgba(76, 175, 80, 0.15)', 
                 color: '#2E7D32',
+                cursor: added_initiatives && added_initiatives.length > 0 ? 'pointer' : 'default',
+                transition: 'all 0.2s',
+                '&:hover': added_initiatives && added_initiatives.length > 0 ? {
+                  bgcolor: 'rgba(76, 175, 80, 0.25)',
+                  transform: 'scale(1.05)',
+                } : {},
                 '& .MuiChip-icon': { fontSize: 12, color: '#2E7D32' },
                 '& .MuiChip-label': { px: 0.5 },
               }} 
@@ -144,11 +172,23 @@ const AnalyticsModal = ({
               size="small" 
               label={`-${removed}`}
               icon={<TrendingDownIcon sx={{ fontSize: 12 }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (removed_initiatives && removed_initiatives.length > 0) {
+                  handleShowDetail('removed', removed_initiatives);
+                }
+              }}
               sx={{ 
                 height: 18, 
                 fontSize: 10, 
                 bgcolor: 'rgba(244, 67, 54, 0.15)', 
                 color: '#C62828',
+                cursor: removed_initiatives && removed_initiatives.length > 0 ? 'pointer' : 'default',
+                transition: 'all 0.2s',
+                '&:hover': removed_initiatives && removed_initiatives.length > 0 ? {
+                  bgcolor: 'rgba(244, 67, 54, 0.25)',
+                  transform: 'scale(1.05)',
+                } : {},
                 '& .MuiChip-icon': { fontSize: 12, color: '#C62828' },
                 '& .MuiChip-label': { px: 0.5 },
               }} 
@@ -387,6 +427,103 @@ const AnalyticsModal = ({
           </Alert>
         )}
       </DialogContent>
+
+      {/* Detail Dialog - Show list of initiatives */}
+      <Dialog
+        open={detailDialogOpen}
+        onClose={() => setDetailDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            maxHeight: '70vh',
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: '1px solid #e5e5e7',
+            pb: 2,
+            bgcolor: detailData?.type === 'added' ? 'rgba(76, 175, 80, 0.05)' : 'rgba(244, 67, 54, 0.05)',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {detailData?.type === 'added' ? (
+              <TrendingUpIcon sx={{ color: '#2E7D32' }} />
+            ) : (
+              <TrendingDownIcon sx={{ color: '#C62828' }} />
+            )}
+            <Typography variant="h6" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+              {detailData?.type === 'added' ? 'Inisiatif Ditambahkan' : 'Inisiatif Dihapus'} - Tahun {detailData?.year}
+            </Typography>
+          </Box>
+          <IconButton onClick={() => setDetailDialogOpen(false)} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ pt: 2, pb: 2 }}>
+          {detailData && detailData.initiatives.length > 0 ? (
+            <List sx={{ py: 0 }}>
+              {detailData.initiatives.map((initiative, index) => (
+                <Box key={initiative.group_id}>
+                  <ListItem
+                    sx={{
+                      py: 1.5,
+                      px: 2,
+                      borderRadius: '8px',
+                      '&:hover': {
+                        bgcolor: detailData.type === 'added' ? 'rgba(76, 175, 80, 0.04)' : 'rgba(244, 67, 54, 0.04)',
+                      },
+                    }}
+                  >
+                    <AssignmentRounded 
+                      sx={{ 
+                        mr: 2, 
+                        color: detailData.type === 'added' ? '#2E7D32' : '#C62828',
+                        fontSize: 20,
+                      }} 
+                    />
+                    <ListItemText
+                      primary={
+                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, flexWrap: 'wrap' }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                            {initiative.nomor_program} - {initiative.nomor_inisiatif}
+                          </Typography>
+                          <Chip 
+                            label={initiative.nomor_program} 
+                            size="small" 
+                            sx={{ 
+                              height: 18, 
+                              fontSize: '0.65rem',
+                              bgcolor: 'rgba(123, 31, 162, 0.08)',
+                              color: '#7B1FA2',
+                            }} 
+                          />
+                        </Box>
+                      }
+                      secondary={
+                        <Typography variant="body2" sx={{ color: '#666', mt: 0.5 }}>
+                          {initiative.nama_inisiatif}
+                        </Typography>
+                      }
+                    />
+                  </ListItem>
+                  {index < detailData.initiatives.length - 1 && <Divider sx={{ my: 0.5 }} />}
+                </Box>
+              ))}
+            </List>
+          ) : (
+            <Alert severity="info" sx={{ borderRadius: '8px' }}>
+              Tidak ada detail inisiatif yang tersedia.
+            </Alert>
+          )}
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };
