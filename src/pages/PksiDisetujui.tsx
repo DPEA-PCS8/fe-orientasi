@@ -45,6 +45,7 @@ import {
 import { searchPksiDocuments, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getUsersByRole, type UserSimple } from '../api/userApi';
+import { getUserRoles } from '../api/authApi';
 import { ViewPksiModal } from '../components/modals';
 
 // Interface untuk data PKSI (transformed from API)
@@ -240,6 +241,11 @@ function PksiDisetujui() {
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [selectedAplikasi, setSelectedAplikasi] = useState<string>('');
   const [selectedSkpa, setSelectedSkpa] = useState<Set<string>>(new Set());
+  const [selectedProgress, setSelectedProgress] = useState<Set<string>>(new Set());
+  const [selectedIku, setSelectedIku] = useState<string>('');
+  const [selectedInhouseOutsource, setSelectedInhouseOutsource] = useState<string>('');
+  const [selectedBidang, setSelectedBidang] = useState<Set<string>>(new Set());
+  const [selectedPic, setSelectedPic] = useState<Set<string>>(new Set());
 
   // View modal state
   const [openViewModal, setOpenViewModal] = useState(false);
@@ -521,11 +527,26 @@ function PksiDisetujui() {
     setSelectedJangkaWaktu(newSet);
   };
 
+  const handleProgressChange = (progress: string) => {
+    const newSet = new Set(selectedProgress);
+    if (newSet.has(progress)) {
+      newSet.delete(progress);
+    } else {
+      newSet.add(progress);
+    }
+    setSelectedProgress(newSet);
+  };
+
   const handleResetFilter = () => {
     setSelectedJangkaWaktu(new Set());
     setSelectedYear('');
     setSelectedAplikasi('');
     setSelectedSkpa(new Set());
+    setSelectedProgress(new Set());
+    setSelectedIku('');
+    setSelectedInhouseOutsource('');
+    setSelectedBidang(new Set());
+    setSelectedPic(new Set());
   };
 
   // Generate year options from data
@@ -561,6 +582,36 @@ function PksiDisetujui() {
     return Array.from(skpaSet).sort();
   }, [pksiData, resolveSkpaCodes]);
 
+  // Generate Bidang options from pksiData
+  const bidangOptions = useMemo(() => {
+    const bidangSet = new Set<string>();
+    pksiData.forEach(item => {
+      const bidangs = resolveBidangNames(item.picSatkerBA);
+      bidangs.forEach(bidang => bidangSet.add(bidang));
+    });
+    return Array.from(bidangSet).sort();
+  }, [pksiData, resolveBidangNames]);
+
+  // Generate PIC options from pksiData
+  const picOptions = useMemo(() => {
+    const picSet = new Set<string>();
+    pksiData.forEach(item => {
+      if (item.pic && item.pic !== '-') {
+        picSet.add(item.pic);
+      }
+    });
+    return Array.from(picSet).sort();
+  }, [pksiData]);
+
+  // Progress options - static list
+  const progressOptions = [
+    'Penyusunan Usreq',
+    'SIT',
+    'UAT',
+    'Proses Go Live',
+    'Selesai',
+  ];
+
   // Count active filters
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -568,8 +619,13 @@ function PksiDisetujui() {
     if (selectedYear) count++;
     if (selectedAplikasi) count++;
     if (selectedSkpa.size > 0) count++;
+    if (selectedProgress.size > 0) count++;
+    if (selectedIku) count++;
+    if (selectedInhouseOutsource) count++;
+    if (selectedBidang.size > 0) count++;
+    if (selectedPic.size > 0) count++;
     return count;
-  }, [selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa]);
+  }, [selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa, selectedProgress, selectedIku, selectedInhouseOutsource, selectedBidang, selectedPic]);
 
   // Filter locally based on all filter criteria
   const filteredPksi = useMemo(() => {
@@ -601,9 +657,44 @@ function PksiDisetujui() {
         return itemSkpaCodes.some(code => selectedSkpa.has(code));
       });
     }
+
+    if (selectedProgress.size > 0) {
+      result = result.filter(item => {
+        const progress = item.progress || '';
+        return selectedProgress.has(progress);
+      });
+    }
+
+    if (selectedIku) {
+      result = result.filter(item => {
+        const iku = item.iku === 'ya' ? 'ya' : 'tidak';
+        return iku === selectedIku;
+      });
+    }
+
+    if (selectedInhouseOutsource) {
+      result = result.filter(item => {
+        const inhouseOutsource = item.inhouseOutsource?.toLowerCase() || '';
+        return inhouseOutsource === selectedInhouseOutsource.toLowerCase();
+      });
+    }
+
+    if (selectedBidang.size > 0) {
+      result = result.filter(item => {
+        const itemBidangs = resolveBidangNames(item.picSatkerBA);
+        return itemBidangs.some(bidang => selectedBidang.has(bidang));
+      });
+    }
+
+    if (selectedPic.size > 0) {
+      result = result.filter(item => {
+        const pic = item.pic || '';
+        return selectedPic.has(pic);
+      });
+    }
     
     return result;
-  }, [pksiData, selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa, resolveSkpaCodes]);
+  }, [pksiData, selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa, selectedProgress, selectedIku, selectedInhouseOutsource, selectedBidang, selectedPic, resolveSkpaCodes, resolveBidangNames]);
 
   const paginatedPksi = filteredPksi;
 
@@ -685,12 +776,17 @@ function PksiDisetujui() {
 
   return (
     <Box sx={{ 
-      p: 3.5,
+      px: 2,
+      py: 3,
       background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
       minHeight: '100vh',
+      width: '100%',
+      maxWidth: '100%',
+      overflowX: 'hidden',
+      boxSizing: 'border-box',
     }}>
       {/* Header */}
-      <Box sx={{ mb: 3 }}>
+      <Box sx={{ mb: 3, px: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
           <CheckCircleRounded sx={{ color: '#31A24C', fontSize: 32 }} />
           <Typography 
@@ -714,7 +810,8 @@ function PksiDisetujui() {
         elevation={0}
         sx={{
           width: '100%',
-          borderRadius: '24px',
+          maxWidth: '100%',
+          borderRadius: '16px',
           border: '1px solid rgba(255, 255, 255, 0.5)',
           overflow: 'hidden',
           background: 'rgba(255, 255, 255, 0.7)',
@@ -1032,6 +1129,219 @@ function PksiDisetujui() {
 
             <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
 
+            {/* Progress Filter */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+                Progres
+              </Typography>
+              <FormGroup>
+                {progressOptions.map((progress) => (
+                  <FormControlLabel
+                    key={progress}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={selectedProgress.has(progress)}
+                        onChange={() => handleProgressChange(progress)}
+                        sx={{
+                          '&.Mui-checked': {
+                            color: '#31A24C',
+                          },
+                        }}
+                      />
+                    }
+                    label={<Typography variant="body2" sx={{ fontWeight: 500 }}>{progress}</Typography>}
+                  />
+                ))}
+              </FormGroup>
+            </Box>
+
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
+            {/* IKU Filter */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+                IKU
+              </Typography>
+              <FormControl fullWidth size="small">
+                <Select
+                  value={selectedIku}
+                  displayEmpty
+                  onChange={(e) => setSelectedIku(e.target.value)}
+                  sx={{
+                    borderRadius: '8px',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#e5e5e7',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                    },
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>Semua</em>
+                  </MenuItem>
+                  <MenuItem value="ya">Ya</MenuItem>
+                  <MenuItem value="tidak">Tidak</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
+            {/* Inhouse/Outsource Filter */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+                Inhouse/Outsource
+              </Typography>
+              <FormControl fullWidth size="small">
+                <Select
+                  value={selectedInhouseOutsource}
+                  displayEmpty
+                  onChange={(e) => setSelectedInhouseOutsource(e.target.value)}
+                  sx={{
+                    borderRadius: '8px',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#e5e5e7',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                    },
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>Semua</em>
+                  </MenuItem>
+                  <MenuItem value="inhouse">Inhouse</MenuItem>
+                  <MenuItem value="outsource">Outsource</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
+            {/* Bidang Filter */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+                Bidang
+              </Typography>
+              <Autocomplete
+                multiple
+                size="small"
+                options={bidangOptions}
+                value={Array.from(selectedBidang)}
+                onChange={(_, newValue) => setSelectedBidang(new Set(newValue))}
+                disableCloseOnSelect
+                renderOption={(props, option, { selected }) => {
+                  const { key, ...restProps } = props;
+                  return (
+                    <li key={key} {...restProps}>
+                      <Checkbox
+                        size="small"
+                        checked={selected}
+                        sx={{ mr: 1, '&.Mui-checked': { color: '#31A24C' } }}
+                      />
+                      {option}
+                    </li>
+                  );
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder={selectedBidang.size === 0 ? 'Pilih Bidang' : ''}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '8px',
+                        '& fieldset': { borderColor: '#e5e5e7' },
+                        '&:hover fieldset': { borderColor: '#31A24C' },
+                        '&.Mui-focused fieldset': { borderColor: '#31A24C' },
+                      },
+                    }}
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return (
+                      <Chip
+                        key={key}
+                        label={option}
+                        size="small"
+                        {...tagProps}
+                        sx={{ bgcolor: '#31A24C', color: 'white', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } }}
+                      />
+                    );
+                  })
+                }
+              />
+            </Box>
+
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
+            {/* PIC Filter */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+                PIC
+              </Typography>
+              <Autocomplete
+                multiple
+                size="small"
+                options={picOptions}
+                value={Array.from(selectedPic)}
+                onChange={(_, newValue) => setSelectedPic(new Set(newValue))}
+                disableCloseOnSelect
+                renderOption={(props, option, { selected }) => {
+                  const { key, ...restProps } = props;
+                  return (
+                    <li key={key} {...restProps}>
+                      <Checkbox
+                        size="small"
+                        checked={selected}
+                        sx={{ mr: 1, '&.Mui-checked': { color: '#31A24C' } }}
+                      />
+                      {option}
+                    </li>
+                  );
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder={selectedPic.size === 0 ? 'Pilih PIC' : ''}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '8px',
+                        '& fieldset': { borderColor: '#e5e5e7' },
+                        '&:hover fieldset': { borderColor: '#31A24C' },
+                        '&.Mui-focused fieldset': { borderColor: '#31A24C' },
+                      },
+                    }}
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return (
+                      <Chip
+                        key={key}
+                        label={option}
+                        size="small"
+                        {...tagProps}
+                        sx={{ bgcolor: '#31A24C', color: 'white', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } }}
+                      />
+                    );
+                  })
+                }
+              />
+            </Box>
+
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
             {/* Reset Button */}
             <Button
               fullWidth
@@ -1056,25 +1366,16 @@ function PksiDisetujui() {
 
         {/* Table */}
         <TableContainer sx={{ 
-          width: '100%', 
+          width: '100%',
+          maxWidth: '100%',
           overflowX: 'auto',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
           '&::-webkit-scrollbar': {
-            height: 8,
-            width: 8,
-          },
-          '&::-webkit-scrollbar-track': {
-            background: 'rgba(0, 0, 0, 0.02)',
-            borderRadius: 4,
-          },
-          '&::-webkit-scrollbar-thumb': {
-            background: 'rgba(0, 0, 0, 0.15)',
-            borderRadius: 4,
-            '&:hover': {
-              background: 'rgba(0, 0, 0, 0.25)',
-            },
+            display: 'none',
           },
         }}>
-          <Table sx={{ tableLayout: 'auto' }}>
+          <Table sx={{ maxWidth: 3000, width: 'max-content', tableLayout: 'auto' }}>
             <TableHead>
               {/* First row - Grouped headers */}
               <TableRow sx={{ 
@@ -1240,7 +1541,7 @@ function PksiDisetujui() {
                     </Box>
                   </TableCell>
                   {/* Inisiatif RBSI */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.inisiatifRbsi}
                     </Typography>
@@ -1252,19 +1553,19 @@ function PksiDisetujui() {
                     </Typography>
                   </TableCell>
                   {/* Anggota Tim */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 150 }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.anggotaTim}
                     </Typography>
                   </TableCell>
                   {/* IKU */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.iku}
                     </Typography>
                   </TableCell>
                   {/* In/Out */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.inhouseOutsource}
                     </Typography>
@@ -1471,32 +1772,9 @@ function PksiDisetujui() {
                   </TableCell>
                   {/* BA Deploy */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
-                    {item.baDeploy && item.baDeploy !== '-' ? (
-                      <Button
-                        size="small"
-                        startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
-                        onClick={() => alert(`View document: ${item.baDeploy}`)}
-                        sx={{
-                          textTransform: 'none',
-                          fontSize: '0.75rem',
-                          fontWeight: 500,
-                          color: '#2563EB',
-                          borderRadius: '8px',
-                          px: 1.5,
-                          py: 0.5,
-                          background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(59, 130, 246, 0.08) 100%)',
-                          border: '1px solid rgba(37, 99, 235, 0.2)',
-                          '&:hover': {
-                            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(59, 130, 246, 0.12) 100%)',
-                            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)',
-                          },
-                        }}
-                      >
-                        View
-                      </Button>
-                    ) : (
-                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
-                    )}
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.baDeploy || '-'}
+                    </Typography>
                   </TableCell>
                   {/* Aksi */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
@@ -1522,27 +1800,29 @@ function PksiDisetujui() {
                           <VisibilityIcon sx={{ fontSize: 16 }} />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Edit PKSI">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleEditClick(item)}
-                          sx={{
-                            color: '#D97706',
-                            background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.1) 100%)',
-                            backdropFilter: 'blur(10px)',
-                            border: '1px solid rgba(255, 255, 255, 0.3)',
-                            borderRadius: '10px',
-                            transition: 'all 0.2s ease',
-                            '&:hover': { 
-                              background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(245, 158, 11, 0.2) 100%)',
-                              transform: 'scale(1.05)',
-                              boxShadow: '0 4px 12px rgba(217, 119, 6, 0.2)',
-                            },
-                          }}
-                        >
-                          <EditIcon sx={{ fontSize: 16 }} />
-                        </IconButton>
-                      </Tooltip>
+                      {!getUserRoles().includes('SKPA') && (
+                        <Tooltip title="Edit PKSI">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEditClick(item)}
+                            sx={{
+                              color: '#D97706',
+                              background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.1) 100%)',
+                              backdropFilter: 'blur(10px)',
+                              border: '1px solid rgba(255, 255, 255, 0.3)',
+                              borderRadius: '10px',
+                              transition: 'all 0.2s ease',
+                              '&:hover': { 
+                                background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(245, 158, 11, 0.2) 100%)',
+                                transform: 'scale(1.05)',
+                                boxShadow: '0 4px 12px rgba(217, 119, 6, 0.2)',
+                              },
+                            }}
+                          >
+                            <EditIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </Box>
                   </TableCell>
                 </TableRow>
@@ -1579,6 +1859,7 @@ function PksiDisetujui() {
           setSelectedPksiIdForView(null);
         }}
         pksiId={selectedPksiIdForView}
+        showMonitoringSection={true}
       />
 
       {/* Edit Approval Dialog - Apple Liquid Glass Style */}
