@@ -52,6 +52,7 @@ import { AddPksiModal, EditPksiModal, ViewPksiModal } from '../components/modals
 import { usePermissions } from '../hooks/usePermissions';
 import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, type PksiDocumentData } from '../api/pksiApi';
 import { getUsersByRole, type UserSimple } from '../api/userApi';
+import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
 
 // Interface untuk data PKSI (transformed from API)
 interface PksiData {
@@ -165,6 +166,7 @@ const getSkpaColor = (skpaCode: string): { bg: string; text: string } => {
 };
 
 function PksiList() {
+  const { isCollapsed } = useSidebar();
   const [keyword, setKeyword] = useState('');
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
@@ -612,6 +614,7 @@ function PksiList() {
       p: 3.5,
       background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
       minHeight: '100vh',
+      overflowX: 'hidden',
     }}>
       {/* Header */}
       <Box sx={{ mb: 3 }}>
@@ -635,10 +638,16 @@ function PksiList() {
       <Paper
         elevation={0}
         sx={{
-          width: '100%',
+          width: isCollapsed 
+            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)` 
+            : '80vw',
+          maxWidth: isCollapsed 
+            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)` 
+            : '80vw',
           borderRadius: 2,
           border: '1px solid rgba(0, 0, 0, 0.08)',
           overflow: 'hidden',
+          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         {/* Toolbar */}
@@ -1073,8 +1082,26 @@ function PksiList() {
         />
 
         {/* Table */}
-        <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
-          <Table sx={{ minWidth: 1200 }}>
+        <TableContainer sx={{ 
+          width: '100%', 
+          overflowX: 'auto',
+          '&::-webkit-scrollbar': {
+            height: 8,
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'rgba(0, 0, 0, 0.03)',
+            borderRadius: 4,
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'rgba(255, 255, 255, 0.8)',
+            borderRadius: 4,
+            border: '1px solid rgba(0, 0, 0, 0.1)',
+            '&:hover': {
+              background: 'rgba(255, 255, 255, 1)',
+            },
+          },
+        }}>
+          <Table sx={{ minWidth: 1400 }}>
             <TableHead>
               <TableRow sx={{ bgcolor: '#f5f5f7' }}>
                 <TableCell 

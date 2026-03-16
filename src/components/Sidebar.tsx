@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import {
   Drawer,
@@ -40,9 +40,7 @@ import {
 import { isAdmin, getUserRoles } from '../api/authApi';
 import { getMyPermissions } from '../api/rolePermissionApi';
 import type { MenuPermissionItem } from '../types/rbac.types';
-
-const DRAWER_WIDTH = 240;
-const DRAWER_WIDTH_COLLAPSED = 64;
+import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
 
 interface MenuItem {
   label: string;
@@ -68,7 +66,7 @@ interface MenuSection {
 
 const Sidebar = () => {
   const location = useLocation();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { isCollapsed, setIsCollapsed } = useSidebar();
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ 
     PKSI: true, 
     'Manajemen RBSI': true,

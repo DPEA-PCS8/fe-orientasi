@@ -47,6 +47,7 @@ import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getUsersByRole, type UserSimple } from '../api/userApi';
 import { getUserRoles } from '../api/authApi';
 import { ViewPksiModal } from '../components/modals';
+import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
 
 // Interface untuk data PKSI (transformed from API)
 interface PksiData {
@@ -216,6 +217,7 @@ const getSkpaColor = (skpaCode: string): { bg: string; text: string } => {
 };
 
 function PksiDisetujui() {
+  const { isCollapsed } = useSidebar();
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -809,8 +811,12 @@ function PksiDisetujui() {
       <Paper
         elevation={0}
         sx={{
-          width: '100%',
-          maxWidth: '100%',
+          width: isCollapsed 
+            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)` 
+            : '80vw',
+          maxWidth: isCollapsed 
+            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)` 
+            : '80vw',
           borderRadius: '16px',
           border: '1px solid rgba(255, 255, 255, 0.5)',
           overflow: 'hidden',
@@ -818,6 +824,7 @@ function PksiDisetujui() {
           backdropFilter: 'blur(40px) saturate(180%)',
           WebkitBackdropFilter: 'blur(40px) saturate(180%)',
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         {/* Toolbar */}
@@ -1452,74 +1459,82 @@ function PksiDisetujui() {
         {/* Table */}
         <TableContainer sx={{ 
           width: '100%',
-          maxWidth: '100%',
           overflowX: 'auto',
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
           '&::-webkit-scrollbar': {
-            display: 'none',
+            height: 8,
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'rgba(0, 0, 0, 0.03)',
+            borderRadius: 4,
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'rgba(255, 255, 255, 0.8)',
+            borderRadius: 4,
+            border: '1px solid rgba(0, 0, 0, 0.1)',
+            '&:hover': {
+              background: 'rgba(255, 255, 255, 1)',
+            },
           },
         }}>
-          <Table sx={{ maxWidth: 3000, width: 'max-content', tableLayout: 'auto' }}>
+          <Table sx={{ tableLayout: 'auto', minWidth: 3200 }}>
             <TableHead>
               {/* First row - Grouped headers */}
               <TableRow sx={{ 
-                background: 'linear-gradient(180deg, rgba(245, 247, 250, 0.95) 0%, rgba(235, 240, 245, 0.9) 100%)',
-                backdropFilter: 'blur(20px)',
+                bgcolor: '#f5f5f7',
               }}>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', textAlign: 'center', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>No</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Nama Aplikasi</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Nama PKSI</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>SKPA</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Bidang</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Inisiatif RBSI</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>PIC</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Anggota Tim</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>IKU</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Inhouse/Outsource</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Jangka Waktu</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Progres</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', textAlign: 'center', fontSize: '0.8rem', minWidth: 50 }}>No</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160 }}>Nama Aplikasi</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 180 }}>Nama PKSI</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100 }}>SKPA</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120 }}>Bidang</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160 }}>Inisiatif RBSI</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 140 }}>PIC</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160 }}>Anggota Tim</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 80 }}>IKU</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 130 }}>Inhouse/Outsource</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120 }}>Jangka Waktu</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100 }}>Progres</TableCell>
                 {/* Anggaran - grouped */}
-                <TableCell colSpan={3} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)', borderRadius: 0 }}>Anggaran</TableCell>
+                <TableCell colSpan={3} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem' }}>Anggaran</TableCell>
                 {/* Timeline - grouped */}
-                <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Timeline</TableCell>
+                <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem' }}>Timeline</TableCell>
                 {/* Rencana PKSI - grouped */}
-                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(217, 119, 6, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Rencana PKSI (T01/T02)</TableCell>
+                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem' }}>Rencana PKSI (T01/T02)</TableCell>
                 {/* Spesifikasi Kebutuhan - grouped */}
-                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(52, 211, 153, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Spesifikasi Kebutuhan (T11)</TableCell>
+                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem' }}>Spesifikasi Kebutuhan (T11)</TableCell>
                 {/* CD Prinsip - grouped (only Nomor CD) */}
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'linear-gradient(135deg, rgba(248, 113, 113, 0.15) 0%, rgba(220, 38, 38, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>No. CD Prinsip</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120 }}>No. CD Prinsip</TableCell>
                 {/* Kontrak - grouped */}
-                <TableCell colSpan={5} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.15) 0%, rgba(8, 145, 178, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Kontrak</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>BA Deploy</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'transparent' }}>Aksi</TableCell>
+                <TableCell colSpan={5} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem' }}>Kontrak</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100 }}>BA Deploy</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100 }}>Aksi</TableCell>
               </TableRow>
               {/* Second row - Sub-headers */}
               <TableRow sx={{ 
-                background: 'linear-gradient(180deg, rgba(250, 251, 252, 0.95) 0%, rgba(245, 247, 250, 0.9) 100%)',
+                bgcolor: '#f5f5f7',
               }}>
                 {/* Anggaran sub-headers */}
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.06)' }}>Total</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.06)' }}>Tahun {new Date().getFullYear()}</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Tahun {new Date().getFullYear() + 1}</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Total</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Tahun {new Date().getFullYear()}</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Tahun {new Date().getFullYear() + 1}</TableCell>
                 {/* Timeline sub-headers */}
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.06)' }}>Target Usreq</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.06)' }}>Target SIT</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.06)' }}>Target UAT/PDKK</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Target Go Live</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 110 }}>Target Usreq</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100 }}>Target SIT</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Target UAT/PDKK</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 110 }}>Target Go Live</TableCell>
                 {/* Rencana PKSI sub-headers */}
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.06)' }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Berkas Terbaru</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100 }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Berkas Terbaru</TableCell>
                 {/* Spesifikasi Kebutuhan sub-headers */}
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.06)' }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Berkas Terbaru</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100 }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Berkas Terbaru</TableCell>
 
                 {/* Kontrak sub-headers */}
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)' }}>Tgl Mulai</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)' }}>Tgl Selesai</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)' }}>Nilai</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)' }}>Jml Termin</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Detail Pembayaran</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100 }}>Tgl Mulai</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100 }}>Tgl Selesai</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Nilai</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100 }}>Jml Termin</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 140 }}>Detail Pembayaran</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
