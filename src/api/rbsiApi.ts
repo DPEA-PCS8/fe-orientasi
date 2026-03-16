@@ -470,6 +470,15 @@ export interface YearChange {
   added: number;
   removed: number;
   summary: string;
+  added_initiatives?: InitiativeDetail[];
+  removed_initiatives?: InitiativeDetail[];
+}
+
+export interface InitiativeDetail {
+  group_id: string;
+  nomor_inisiatif: string;
+  nama_inisiatif: string;
+  nomor_program: string;
 }
 
 export interface ProgressChanges {
