@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import theme from './styles/theme';
+import { SidebarProvider } from './context/SidebarContext';
 import { LoginPage } from './pages';
 import Layout from './components/Layout';
 import AddPksi from './pages/AddPksi';
@@ -30,6 +31,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+      <SidebarProvider>
       <BrowserRouter>
         <Routes>
           <Route 
@@ -256,6 +258,7 @@ function App() {
         />
       </Routes>
       </BrowserRouter>
+      </SidebarProvider>
     </ThemeProvider>
   );
 }
