@@ -72,6 +72,8 @@ const Sidebar = () => {
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ 
     PKSI: true, 
     'Manajemen RBSI': true,
+    FS2: true,
+    Aplikasi: true,
     'Master Data': true,
     'User & Roles': true,
   });
@@ -210,7 +212,7 @@ const Sidebar = () => {
           href: '/aplikasi',
           menuCode: 'APLIKASI',
           subItems: [
-            { label: 'Daftar Aplikasi', icon: <AppsRounded />, href: '/aplikasi', menuCode: 'APLIKASI' },
+            { label: 'Daftar Aplikasi', icon: <AppsRounded />, href: '/aplikasi', menuCode: 'DAFTAR_APLIKASI' },
             { label: 'Historis Aplikasi', icon: <HistoryRounded />, href: '/historis-aplikasi', menuCode: 'HISTORIS_APLIKASI' },
           ],
         },
