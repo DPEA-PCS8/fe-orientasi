@@ -61,6 +61,28 @@ export interface PksiDocumentData {
   anggota_tim?: string;
   anggota_tim_names?: string;
   progress?: string;
+  // New approval fields
+  program_rbsi?: string;
+  inisiatif_rbsi?: string;
+  anggaran_total?: string;
+  anggaran_tahun_ini?: string;
+  anggaran_tahun_depan?: string;
+  target_usreq?: string;
+  target_sit?: string;
+  target_uat?: string;
+  target_go_live?: string;
+  status_t01_t02?: string;
+  berkas_t01_t02?: string;
+  status_t11?: string;
+  berkas_t11?: string;
+  status_cd?: string;
+  nomor_cd?: string;
+  kontrak_tanggal_mulai?: string;
+  kontrak_tanggal_selesai?: string;
+  kontrak_nilai?: string;
+  kontrak_jumlah_termin?: string;
+  kontrak_detail_pembayaran?: string;
+  ba_deploy?: string;
   // Legacy
   tujuan_pengajuan?: string;
   kapan_diselesaikan?: string;

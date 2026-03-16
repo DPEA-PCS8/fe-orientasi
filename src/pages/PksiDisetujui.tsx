@@ -38,6 +38,9 @@ import {
   CheckCircleRounded,
   Visibility as VisibilityIcon,
   Edit as EditIcon,
+  CloudUpload as CloudUploadIcon,
+  InsertDriveFile as FileIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { searchPksiDocuments, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
@@ -153,35 +156,35 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     tanggalPengajuan: apiData.tanggal_pengajuan || apiData.created_at || '',
     linkDocsT01: '', // Not available in API response
     progress: apiData.progress || 'Penyusunan Usreq',
-    // New fields - placeholder values until backend is ready
-    programRbsi: apiData.program_inisiatif_rbsi?.split(' - ')[0] || '-',
-    inisiatifRbsi: apiData.program_inisiatif_rbsi?.split(' - ')[1] || '-',
-    // Anggaran - placeholder
-    anggaranTotal: '-',
-    anggaranTahunIni: `-`, // Will show current year
-    anggaranTahunDepan: jangkaWaktu.includes('Multiyears') ? `-` : '-', // Only show if multiyears
-    // Timeline - use existing tahap data
-    targetUsreq: apiData.tahap1_akhir || '-',
-    targetSit: apiData.tahap5_akhir || '-',
-    targetUat: '-', // Not available yet
-    targetGoLive: apiData.tahap7_akhir || '-',
-    // Rencana PKSI (T01/T02) - placeholder
-    statusT01T02: '-',
-    berkasT01T02: '-',
-    // Spesifikasi Kebutuhan (T11) - placeholder
-    statusT11: '-',
-    berkasT11: '-',
-    // CD Prinsip - placeholder
-    statusCd: '-',
-    nomorCd: '-',
-    // Kontrak - placeholder
-    kontrakTanggalMulai: '-',
-    kontrakTanggalSelesai: '-',
-    kontrakNilai: '-',
-    kontrakJumlahTermin: '-',
-    kontrakDetailPembayaran: '-',
-    // BA Deploy - placeholder
-    baDeploy: '-',
+    // New fields - read from backend or fallback to program_inisiatif_rbsi split
+    programRbsi: apiData.program_rbsi || apiData.program_inisiatif_rbsi?.split(' - ')[0] || '-',
+    inisiatifRbsi: apiData.inisiatif_rbsi || apiData.program_inisiatif_rbsi?.split(' - ')[1] || '-',
+    // Anggaran - with dummy data
+    anggaranTotal: apiData.anggaran_total || 'Rp 2.500.000.000',
+    anggaranTahunIni: apiData.anggaran_tahun_ini || `Rp 1.500.000.000 (${new Date().getFullYear()})`,
+    anggaranTahunDepan: apiData.anggaran_tahun_depan || (jangkaWaktu.includes('Multiyears') ? `Rp 1.000.000.000 (${new Date().getFullYear() + 1})` : '-'),
+    // Timeline - use existing tahap data or new fields with dummy
+    targetUsreq: apiData.target_usreq || apiData.tahap1_akhir || '2026-06-30',
+    targetSit: apiData.target_sit || apiData.tahap5_akhir || '2026-09-30',
+    targetUat: apiData.target_uat || '2026-11-15',
+    targetGoLive: apiData.target_go_live || apiData.tahap7_akhir || '2026-12-31',
+    // Rencana PKSI (T01/T02) - with dummy data
+    statusT01T02: apiData.status_t01_t02 || 'Diterima',
+    berkasT01T02: apiData.berkas_t01_t02 || 'T01_T02_Rencana_PKSI_v2.pdf',
+    // Spesifikasi Kebutuhan (T11) - with dummy data
+    statusT11: apiData.status_t11 || 'Diterima',
+    berkasT11: apiData.berkas_t11 || 'T11_Spesifikasi_Kebutuhan_v1.pdf',
+    // CD Prinsip - with dummy data
+    statusCd: apiData.status_cd || 'Diterima',
+    nomorCd: apiData.nomor_cd || `CD-${Math.floor(Math.random() * 900 + 100)}/PCS8/${new Date().getFullYear()}`,
+    // Kontrak - with dummy data
+    kontrakTanggalMulai: apiData.kontrak_tanggal_mulai || '2026-07-01',
+    kontrakTanggalSelesai: apiData.kontrak_tanggal_selesai || '2026-12-31',
+    kontrakNilai: apiData.kontrak_nilai || 'Rp 2.250.000.000',
+    kontrakJumlahTermin: apiData.kontrak_jumlah_termin || '3 Termin',
+    kontrakDetailPembayaran: apiData.kontrak_detail_pembayaran || '40% - 40% - 20%',
+    // BA Deploy - with dummy data
+    baDeploy: apiData.ba_deploy || `BA-DEPLOY-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 999)).padStart(3, '0')}`,
   };
 };
 
@@ -278,6 +281,12 @@ function PksiDisetujui() {
   });
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
+  // File upload state for T01 and T11
+  const [filesT01, setFilesT01] = useState<File[]>([]);
+  const [filesT11, setFilesT11] = useState<File[]>([]);
+  const [isDraggingT01, setIsDraggingT01] = useState(false);
+  const [isDraggingT11, setIsDraggingT11] = useState(false);
+
   // Eligible users for PIC/Anggota Tim (Admin + Pengembang)
   const [eligibleUsers, setEligibleUsers] = useState<UserSimple[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
@@ -362,9 +371,7 @@ function PksiDisetujui() {
         anggota_tim: editForm.anggotaTim.join(', '),
         anggota_tim_names: editForm.anggotaTimNames.join(', '),
         progress: editForm.progress,
-        // New fields
-        program_rbsi: editForm.programRbsi || undefined,
-        inisiatif_rbsi: editForm.inisiatifRbsi || undefined,
+        // New fields (removed program_rbsi, inisiatif_rbsi is read-only)
         anggaran_total: editForm.anggaranTotal || undefined,
         anggaran_tahun_ini: editForm.anggaranTahunIni || undefined,
         anggaran_tahun_depan: editForm.anggaranTahunDepan || undefined,
@@ -609,6 +616,73 @@ function PksiDisetujui() {
     setPage(0);
   };
 
+  // File handling functions for T01
+  const handleFileSelectT01 = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const newFiles = [...filesT01, ...Array.from(files)];
+      setFilesT01(newFiles);
+      // Auto-update status based on files
+      setEditForm(prev => ({ ...prev, statusT01T02: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
+    }
+  };
+
+  const handleDropT01 = (event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    setIsDraggingT01(false);
+    const files = event.dataTransfer.files;
+    if (files) {
+      const newFiles = [...filesT01, ...Array.from(files)];
+      setFilesT01(newFiles);
+      // Auto-update status based on files
+      setEditForm(prev => ({ ...prev, statusT01T02: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
+    }
+  };
+
+  const handleRemoveFileT01 = (index: number) => {
+    const newFiles = filesT01.filter((_, i) => i !== index);
+    setFilesT01(newFiles);
+    // Auto-update status based on remaining files
+    setEditForm(prev => ({ ...prev, statusT01T02: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
+  };
+
+  // File handling functions for T11
+  const handleFileSelectT11 = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const newFiles = [...filesT11, ...Array.from(files)];
+      setFilesT11(newFiles);
+      // Auto-update status based on files
+      setEditForm(prev => ({ ...prev, statusT11: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
+    }
+  };
+
+  const handleDropT11 = (event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    setIsDraggingT11(false);
+    const files = event.dataTransfer.files;
+    if (files) {
+      const newFiles = [...filesT11, ...Array.from(files)];
+      setFilesT11(newFiles);
+      // Auto-update status based on files
+      setEditForm(prev => ({ ...prev, statusT11: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
+    }
+  };
+
+  const handleRemoveFileT11 = (index: number) => {
+    const newFiles = filesT11.filter((_, i) => i !== index);
+    setFilesT11(newFiles);
+    // Auto-update status based on remaining files
+    setEditForm(prev => ({ ...prev, statusT11: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
+  };
+
+  // Format file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   return (
     <Box sx={{ 
       p: 3.5,
@@ -640,9 +714,13 @@ function PksiDisetujui() {
         elevation={0}
         sx={{
           width: '100%',
-          borderRadius: 2,
-          border: '1px solid rgba(0, 0, 0, 0.08)',
+          borderRadius: '24px',
+          border: '1px solid rgba(255, 255, 255, 0.5)',
           overflow: 'hidden',
+          background: 'rgba(255, 255, 255, 0.7)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
         }}
       >
         {/* Toolbar */}
@@ -652,7 +730,8 @@ function PksiDisetujui() {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.3)',
+            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.6) 100%)',
           }}
         >
           {/* Search & Filter */}
@@ -976,71 +1055,91 @@ function PksiDisetujui() {
         </Popover>
 
         {/* Table */}
-        <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
+        <TableContainer sx={{ 
+          width: '100%', 
+          overflowX: 'auto',
+          '&::-webkit-scrollbar': {
+            height: 8,
+            width: 8,
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'rgba(0, 0, 0, 0.02)',
+            borderRadius: 4,
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'rgba(0, 0, 0, 0.15)',
+            borderRadius: 4,
+            '&:hover': {
+              background: 'rgba(0, 0, 0, 0.25)',
+            },
+          },
+        }}>
           <Table sx={{ tableLayout: 'auto' }}>
             <TableHead>
               {/* First row - Grouped headers */}
-              <TableRow sx={{ bgcolor: '#f5f5f7' }}>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', textAlign: 'center', borderRight: '1px solid rgba(0,0,0,0.08)' }}>No</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Nama Aplikasi</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Nama PKSI</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>SKPA</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Bidang</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Program RBSI</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Inisiatif RBSI</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>PIC</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Anggota Tim</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>IKU</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>In/Out</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Jangka Waktu</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Progres</TableCell>
+              <TableRow sx={{ 
+                background: 'linear-gradient(180deg, rgba(245, 247, 250, 0.95) 0%, rgba(235, 240, 245, 0.9) 100%)',
+                backdropFilter: 'blur(20px)',
+              }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', textAlign: 'center', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>No</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Nama Aplikasi</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Nama PKSI</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>SKPA</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Bidang</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Inisiatif RBSI</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>PIC</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Anggota Tim</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>IKU</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Inhouse/Outsource</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Jangka Waktu</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Progres</TableCell>
                 {/* Anggaran - grouped */}
-                <TableCell colSpan={3} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, bgcolor: 'rgba(37, 99, 235, 0.08)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Anggaran</TableCell>
+                <TableCell colSpan={3} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)', borderRadius: 0 }}>Anggaran</TableCell>
                 {/* Timeline - grouped */}
-                <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, bgcolor: 'rgba(139, 92, 246, 0.08)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Timeline</TableCell>
+                <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Timeline</TableCell>
                 {/* Rencana PKSI - grouped */}
-                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, bgcolor: 'rgba(217, 119, 6, 0.08)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Rencana PKSI (T01/T02)</TableCell>
+                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(217, 119, 6, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Rencana PKSI (T01/T02)</TableCell>
                 {/* Spesifikasi Kebutuhan - grouped */}
-                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, bgcolor: 'rgba(5, 150, 105, 0.08)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Spesifikasi Kebutuhan (T11)</TableCell>
-                {/* CD Prinsip - grouped */}
-                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, bgcolor: 'rgba(220, 38, 38, 0.08)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>CD Prinsip</TableCell>
+                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(52, 211, 153, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Spesifikasi Kebutuhan (T11)</TableCell>
+                {/* CD Prinsip - grouped (only Nomor CD) */}
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'linear-gradient(135deg, rgba(248, 113, 113, 0.15) 0%, rgba(220, 38, 38, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>No. CD Prinsip</TableCell>
                 {/* Kontrak - grouped */}
-                <TableCell colSpan={5} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, bgcolor: 'rgba(8, 145, 178, 0.08)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Kontrak</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap', borderRight: '1px solid rgba(0,0,0,0.08)' }}>BA Deploy</TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1, px: 1, whiteSpace: 'nowrap' }}>Aksi</TableCell>
+                <TableCell colSpan={5} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.15) 0%, rgba(8, 145, 178, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Kontrak</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>BA Deploy</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'transparent' }}>Aksi</TableCell>
               </TableRow>
               {/* Second row - Sub-headers */}
-              <TableRow sx={{ bgcolor: '#f9f9fb' }}>
+              <TableRow sx={{ 
+                background: 'linear-gradient(180deg, rgba(250, 251, 252, 0.95) 0%, rgba(245, 247, 250, 0.9) 100%)',
+              }}>
                 {/* Anggaran sub-headers */}
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Total</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Tahun {new Date().getFullYear()}</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(37, 99, 235, 0.04)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Tahun {new Date().getFullYear() + 1}</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.06)' }}>Total</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.06)' }}>Tahun {new Date().getFullYear()}</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Tahun {new Date().getFullYear() + 1}</TableCell>
                 {/* Timeline sub-headers */}
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.04)' }}>Target Usreq</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.04)' }}>Target SIT</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.04)' }}>Target UAT/PDKK</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.04)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Target Go Live</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.06)' }}>Target Usreq</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.06)' }}>Target SIT</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.06)' }}>Target UAT/PDKK</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Target Go Live</TableCell>
                 {/* Rencana PKSI sub-headers */}
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(217, 119, 6, 0.04)' }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(217, 119, 6, 0.04)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Berkas Terbaru</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.06)' }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Berkas Terbaru</TableCell>
                 {/* Spesifikasi Kebutuhan sub-headers */}
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(5, 150, 105, 0.04)' }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(5, 150, 105, 0.04)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Berkas Terbaru</TableCell>
-                {/* CD Prinsip sub-headers */}
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(220, 38, 38, 0.04)' }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(220, 38, 38, 0.04)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Nomor CD</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.06)' }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Berkas Terbaru</TableCell>
+
                 {/* Kontrak sub-headers */}
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.04)' }}>Tgl Mulai</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.04)' }}>Tgl Selesai</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.04)' }}>Nilai</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.04)' }}>Jml Termin</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#4B5563', py: 0.75, px: 1, fontSize: '0.75rem', whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.04)', borderRight: '1px solid rgba(0,0,0,0.08)' }}>Detail Pembayaran</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)' }}>Tgl Mulai</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)' }}>Tgl Selesai</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)' }}>Nilai</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)' }}>Jml Termin</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Detail Pembayaran</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={32} sx={{ textAlign: 'center', py: 6 }}>
+                  <TableCell colSpan={30} sx={{ textAlign: 'center', py: 6 }}>
                     <CircularProgress size={40} sx={{ color: '#31A24C' }} />
                     <Typography variant="body2" sx={{ mt: 2, color: '#86868b' }}>
                       Memuat data...
@@ -1049,7 +1148,7 @@ function PksiDisetujui() {
                 </TableRow>
               ) : paginatedPksi.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={32} sx={{ textAlign: 'center', py: 6 }}>
+                  <TableCell colSpan={30} sx={{ textAlign: 'center', py: 6 }}>
                     <Typography variant="body2" sx={{ color: '#86868b' }}>
                       Tidak ada data PKSI disetujui ditemukan
                     </Typography>
@@ -1059,11 +1158,14 @@ function PksiDisetujui() {
                 <TableRow 
                   key={item.id}
                   sx={{
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
-                      bgcolor: 'rgba(49, 162, 76, 0.02)',
+                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 250, 245, 0.8) 100%)',
+                      boxShadow: '0 4px 20px rgba(49, 162, 76, 0.08)',
+                      transform: 'scale(1.001)',
                     },
                     '&:not(:last-child)': {
-                      borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+                      borderBottom: '1px solid rgba(0, 0, 0, 0.04)',
                     },
                   }}
                 >
@@ -1071,6 +1173,7 @@ function PksiDisetujui() {
                   <TableCell sx={{ color: '#86868b', py: 1, px: 1, textAlign: 'center', fontWeight: 500, fontSize: '0.8rem' }}>
                     {page * rowsPerPage + index + 1}
                   </TableCell>
+                  {/* Nama Aplikasi */}
                   {/* Nama Aplikasi */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
@@ -1136,12 +1239,6 @@ function PksiDisetujui() {
                       )}
                     </Box>
                   </TableCell>
-                  {/* Program RBSI */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.programRbsi}
-                    </Typography>
-                  </TableCell>
                   {/* Inisiatif RBSI */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
@@ -1173,174 +1270,253 @@ function PksiDisetujui() {
                     </Typography>
                   </TableCell>
                   {/* Jangka Waktu */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
                     <Chip
                       label={item.jangkaWaktu === 'Single Year' ? 'Single Year' : 'Multiyears'}
                       size="small"
                       sx={{
-                        bgcolor: item.jangkaWaktu === 'Single Year' ? 'rgba(139, 92, 246, 0.1)' : 'rgba(37, 99, 235, 0.1)',
-                        color: item.jangkaWaktu === 'Single Year' ? '#8B5CF6' : '#2563EB',
+                        background: item.jangkaWaktu === 'Single Year' 
+                          ? 'linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)'
+                          : 'linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(37, 99, 235, 0.15) 100%)',
+                        color: item.jangkaWaktu === 'Single Year' ? '#7C3AED' : '#1D4ED8',
                         fontWeight: 600,
                         fontSize: '0.7rem',
-                        height: 22,
-                        borderRadius: '4px',
+                        height: 24,
+                        borderRadius: '12px',
+                        border: '1px solid rgba(255, 255, 255, 0.5)',
+                        backdropFilter: 'blur(10px)',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                       }}
                     />
                   </TableCell>
                   {/* Progres */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
                     <Chip
                       label={item.progress}
                       size="small"
                       sx={{
-                        bgcolor: (() => {
+                        background: (() => {
                           const progressIndex = PROGRESS_OPTIONS.indexOf(item.progress as typeof PROGRESS_OPTIONS[number]);
-                          if (progressIndex === -1) return 'rgba(107, 114, 128, 0.1)';
-                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return 'rgba(49, 162, 76, 0.15)';
-                          if (progressIndex >= 6) return 'rgba(37, 99, 235, 0.12)';
-                          if (progressIndex >= 3) return 'rgba(139, 92, 246, 0.12)';
-                          return 'rgba(217, 119, 6, 0.12)';
+                          if (progressIndex === -1) return 'linear-gradient(135deg, rgba(156, 163, 175, 0.2) 0%, rgba(107, 114, 128, 0.15) 100%)';
+                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return 'linear-gradient(135deg, rgba(74, 222, 128, 0.25) 0%, rgba(34, 197, 94, 0.2) 100%)';
+                          if (progressIndex >= 6) return 'linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(59, 130, 246, 0.15) 100%)';
+                          if (progressIndex >= 3) return 'linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)';
+                          return 'linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(245, 158, 11, 0.15) 100%)';
                         })(),
                         color: (() => {
                           const progressIndex = PROGRESS_OPTIONS.indexOf(item.progress as typeof PROGRESS_OPTIONS[number]);
                           if (progressIndex === -1) return '#4B5563';
-                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return '#31A24C';
-                          if (progressIndex >= 6) return '#2563EB';
-                          if (progressIndex >= 3) return '#8B5CF6';
-                          return '#D97706';
+                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return '#15803D';
+                          if (progressIndex >= 6) return '#1D4ED8';
+                          if (progressIndex >= 3) return '#7C3AED';
+                          return '#B45309';
                         })(),
                         fontWeight: 600,
                         fontSize: '0.7rem',
-                        height: 22,
-                        borderRadius: '4px',
+                        height: 24,
+                        borderRadius: '12px',
+                        border: '1px solid rgba(255, 255, 255, 0.5)',
+                        backdropFilter: 'blur(10px)',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                       }}
                     />
                   </TableCell>
                   {/* Anggaran - Total */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(37, 99, 235, 0.02)' }}>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.04)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.anggaranTotal}
                     </Typography>
                   </TableCell>
                   {/* Anggaran - Tahun Ini */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(37, 99, 235, 0.02)' }}>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.04)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.anggaranTahunIni}
                     </Typography>
                   </TableCell>
                   {/* Anggaran - Tahun Depan */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(37, 99, 235, 0.02)' }}>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.04)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.jangkaWaktu.includes('Multiyears') ? item.anggaranTahunDepan : '-'}
                     </Typography>
                   </TableCell>
                   {/* Timeline - Target Usreq */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.02)' }}>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.targetUsreq !== '-' && item.targetUsreq ? new Date(item.targetUsreq).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                     </Typography>
                   </TableCell>
                   {/* Timeline - Target SIT */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.02)' }}>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.targetSit !== '-' && item.targetSit ? new Date(item.targetSit).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                     </Typography>
                   </TableCell>
                   {/* Timeline - Target UAT/PDKK */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.02)' }}>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.targetUat !== '-' && item.targetUat ? new Date(item.targetUat).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                     </Typography>
                   </TableCell>
                   {/* Timeline - Target Go Live */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(139, 92, 246, 0.02)' }}>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.targetGoLive !== '-' && item.targetGoLive ? new Date(item.targetGoLive).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                     </Typography>
                   </TableCell>
                   {/* Rencana PKSI - Status T01/T02 */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(217, 119, 6, 0.02)' }}>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.04)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.statusT01T02}
                     </Typography>
                   </TableCell>
                   {/* Rencana PKSI - Berkas Terbaru T01/T02 */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(217, 119, 6, 0.02)' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.berkasT01T02}
-                    </Typography>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.04)' }}>
+                    {item.berkasT01T02 && item.berkasT01T02 !== '-' ? (
+                      <Button
+                        size="small"
+                        startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                        onClick={() => alert(`View document: ${item.berkasT01T02}`)}
+                        sx={{
+                          textTransform: 'none',
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                          color: '#D97706',
+                          borderRadius: '8px',
+                          px: 1.5,
+                          py: 0.5,
+                          background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.1) 0%, rgba(251, 191, 36, 0.08) 100%)',
+                          border: '1px solid rgba(217, 119, 6, 0.2)',
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.15) 0%, rgba(251, 191, 36, 0.12) 100%)',
+                            boxShadow: '0 2px 8px rgba(217, 119, 6, 0.15)',
+                          },
+                        }}
+                      >
+                        View
+                      </Button>
+                    ) : (
+                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
+                    )}
                   </TableCell>
                   {/* Spesifikasi Kebutuhan - Status T11 */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(5, 150, 105, 0.02)' }}>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.04)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.statusT11}
                     </Typography>
                   </TableCell>
                   {/* Spesifikasi Kebutuhan - Berkas Terbaru T11 */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(5, 150, 105, 0.02)' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.berkasT11}
-                    </Typography>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.04)' }}>
+                    {item.berkasT11 && item.berkasT11 !== '-' ? (
+                      <Button
+                        size="small"
+                        startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                        onClick={() => alert(`View document: ${item.berkasT11}`)}
+                        sx={{
+                          textTransform: 'none',
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                          color: '#059669',
+                          borderRadius: '8px',
+                          px: 1.5,
+                          py: 0.5,
+                          background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, rgba(52, 211, 153, 0.08) 100%)',
+                          border: '1px solid rgba(5, 150, 105, 0.2)',
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.15) 0%, rgba(52, 211, 153, 0.12) 100%)',
+                            boxShadow: '0 2px 8px rgba(5, 150, 105, 0.15)',
+                          },
+                        }}
+                      >
+                        View
+                      </Button>
+                    ) : (
+                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
+                    )}
                   </TableCell>
-                  {/* CD Prinsip - Status */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(220, 38, 38, 0.02)' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.statusCd}
-                    </Typography>
-                  </TableCell>
-                  {/* CD Prinsip - Nomor CD */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(220, 38, 38, 0.02)' }}>
+                  {/* CD Prinsip - Nomor CD (only) */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(220, 38, 38, 0.04)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.nomorCd}
                     </Typography>
                   </TableCell>
                   {/* Kontrak - Tgl Mulai */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.02)' }}>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.04)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.kontrakTanggalMulai}
                     </Typography>
                   </TableCell>
                   {/* Kontrak - Tgl Selesai */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.02)' }}>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.04)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.kontrakTanggalSelesai}
                     </Typography>
                   </TableCell>
                   {/* Kontrak - Nilai */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.02)' }}>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.04)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.kontrakNilai}
                     </Typography>
                   </TableCell>
                   {/* Kontrak - Jml Termin */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.02)' }}>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.04)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.kontrakJumlahTermin}
                     </Typography>
                   </TableCell>
                   {/* Kontrak - Detail Pembayaran */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap', bgcolor: 'rgba(8, 145, 178, 0.02)' }}>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.04)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.kontrakDetailPembayaran}
                     </Typography>
                   </TableCell>
                   {/* BA Deploy */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.baDeploy}
-                    </Typography>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
+                    {item.baDeploy && item.baDeploy !== '-' ? (
+                      <Button
+                        size="small"
+                        startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                        onClick={() => alert(`View document: ${item.baDeploy}`)}
+                        sx={{
+                          textTransform: 'none',
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                          color: '#2563EB',
+                          borderRadius: '8px',
+                          px: 1.5,
+                          py: 0.5,
+                          background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(59, 130, 246, 0.08) 100%)',
+                          border: '1px solid rgba(37, 99, 235, 0.2)',
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(59, 130, 246, 0.12) 100%)',
+                            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)',
+                          },
+                        }}
+                      >
+                        View
+                      </Button>
+                    ) : (
+                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
+                    )}
                   </TableCell>
                   {/* Aksi */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
+                    <Box sx={{ display: 'flex', gap: 0.75 }}>
                       <Tooltip title="Lihat Detail PKSI">
                         <IconButton
                           size="small"
                           onClick={() => handleViewClick(item.id)}
                           sx={{
                             color: '#059669',
-                            bgcolor: 'rgba(5, 150, 105, 0.08)',
-                            '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.15)' },
+                            background: 'linear-gradient(135deg, rgba(52, 211, 153, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%)',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(255, 255, 255, 0.3)',
+                            borderRadius: '10px',
+                            transition: 'all 0.2s ease',
+                            '&:hover': { 
+                              background: 'linear-gradient(135deg, rgba(52, 211, 153, 0.25) 0%, rgba(16, 185, 129, 0.2) 100%)',
+                              transform: 'scale(1.05)',
+                              boxShadow: '0 4px 12px rgba(5, 150, 105, 0.2)',
+                            },
                           }}
                         >
                           <VisibilityIcon sx={{ fontSize: 16 }} />
@@ -1352,8 +1528,16 @@ function PksiDisetujui() {
                           onClick={() => handleEditClick(item)}
                           sx={{
                             color: '#D97706',
-                            bgcolor: 'rgba(217, 119, 6, 0.08)',
-                            '&:hover': { bgcolor: 'rgba(217, 119, 6, 0.15)' },
+                            background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.1) 100%)',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(255, 255, 255, 0.3)',
+                            borderRadius: '10px',
+                            transition: 'all 0.2s ease',
+                            '&:hover': { 
+                              background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(245, 158, 11, 0.2) 100%)',
+                              transform: 'scale(1.05)',
+                              boxShadow: '0 4px 12px rgba(217, 119, 6, 0.2)',
+                            },
                           }}
                         >
                           <EditIcon sx={{ fontSize: 16 }} />
@@ -1590,6 +1774,60 @@ function PksiDisetujui() {
               </Box>
             </Box>
           )}
+
+          {/* Informasi RBSI - Highlighted Section */}
+          <Box sx={{
+            mb: 3,
+            p: 2.5,
+            borderRadius: '16px',
+            background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.08) 0%, rgba(251, 191, 36, 0.05) 100%)',
+            backdropFilter: 'blur(10px)',
+            border: '1.5px solid rgba(217, 119, 6, 0.2)',
+            boxShadow: '0 4px 16px rgba(217, 119, 6, 0.08)',
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+              <Box sx={{
+                width: 32,
+                height: 32,
+                borderRadius: '10px',
+                background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%)',
+                border: '1px solid rgba(217, 119, 6, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Typography sx={{ fontSize: '1.1rem' }}>📋</Typography>
+              </Box>
+              <Typography sx={{
+                fontWeight: 600,
+                color: '#D97706',
+                fontSize: '0.9rem',
+                letterSpacing: '-0.01em',
+              }}>
+                Informasi RBSI
+              </Typography>
+            </Box>
+            <Box>
+              <Typography sx={{
+                fontSize: '0.7rem',
+                color: '#92400E',
+                mb: 0.5,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                fontWeight: 600,
+              }}>
+                Inisiatif RBSI
+              </Typography>
+              <Typography sx={{
+                fontWeight: 600,
+                color: '#1d1d1f',
+                fontSize: '0.95rem',
+                lineHeight: 1.5,
+              }}>
+                {editForm.inisiatifRbsi || '-'}
+              </Typography>
+            </Box>
+          </Box>
 
           <Typography sx={{ 
             fontWeight: 600, 
@@ -1873,54 +2111,6 @@ function PksiDisetujui() {
             </Select>
           </FormControl>
 
-          {/* Divider - RBSI Section */}
-          <Box sx={{ mt: 3, mb: 2 }}>
-            <Typography sx={{ 
-              fontWeight: 600, 
-              color: '#1d1d1f', 
-              fontSize: '0.85rem',
-              letterSpacing: '-0.01em',
-            }}>
-              Informasi RBSI
-            </Typography>
-          </Box>
-
-          {/* Program RBSI & Inisiatif RBSI - Side by Side */}
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-            <TextField
-              fullWidth
-              label="Program RBSI"
-              value={editForm.programRbsi}
-              onChange={(e) => setEditForm({ ...editForm, programRbsi: e.target.value })}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '14px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                  '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.08)' },
-                  '&:hover fieldset': { borderColor: 'rgba(217, 119, 6, 0.3)' },
-                  '&.Mui-focused fieldset': { borderColor: '#D97706' },
-                },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#D97706' },
-              }}
-            />
-            <TextField
-              fullWidth
-              label="Inisiatif RBSI"
-              value={editForm.inisiatifRbsi}
-              onChange={(e) => setEditForm({ ...editForm, inisiatifRbsi: e.target.value })}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '14px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                  '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.08)' },
-                  '&:hover fieldset': { borderColor: 'rgba(217, 119, 6, 0.3)' },
-                  '&.Mui-focused fieldset': { borderColor: '#D97706' },
-                },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#D97706' },
-              }}
-            />
-          </Box>
-
           {/* Divider - Anggaran Section */}
           <Box sx={{ mt: 3, mb: 2 }}>
             <Typography sx={{ 
@@ -2079,7 +2269,7 @@ function PksiDisetujui() {
           </Box>
 
           {/* Divider - Rencana PKSI (T01/T02) Section */}
-          <Box sx={{ mt: 3, mb: 2 }}>
+          <Box sx={{ mt: 3, mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography sx={{ 
               fontWeight: 600, 
               color: '#D97706', 
@@ -2088,53 +2278,159 @@ function PksiDisetujui() {
             }}>
               Rencana PKSI (T01/T02)
             </Typography>
+            {/* Auto Status Badge */}
+            <Box sx={{
+              px: 1.5,
+              py: 0.5,
+              borderRadius: '8px',
+              background: filesT01.length > 0 
+                ? 'linear-gradient(145deg, rgba(5, 150, 105, 0.15) 0%, rgba(5, 150, 105, 0.08) 100%)'
+                : 'linear-gradient(145deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.08) 100%)',
+              border: filesT01.length > 0 ? '1px solid rgba(5, 150, 105, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.7rem', 
+                fontWeight: 600, 
+                color: filesT01.length > 0 ? '#059669' : '#EF4444',
+              }}>
+                {filesT01.length > 0 ? '✓ Diterima' : '○ Belum Diterima'}
+              </Typography>
+            </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-            <FormControl fullWidth>
-              <InputLabel id="edit-status-t01t02-label" sx={{ '&.Mui-focused': { color: '#D97706' } }}>
-                Status
-              </InputLabel>
-              <Select
-                labelId="edit-status-t01t02-label"
-                value={editForm.statusT01T02}
-                label="Status"
-                onChange={(e) => setEditForm({ ...editForm, statusT01T02: e.target.value })}
-                sx={{
-                  borderRadius: '14px',
-                  backgroundColor: 'rgba(217, 119, 6, 0.02)',
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(217, 119, 6, 0.15)' },
-                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(217, 119, 6, 0.4)' },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#D97706' },
-                }}
-              >
-                <MenuItem value="">-</MenuItem>
-                <MenuItem value="Belum Dibuat">Belum Dibuat</MenuItem>
-                <MenuItem value="Draft">Draft</MenuItem>
-                <MenuItem value="Disetujui">Disetujui</MenuItem>
-              </Select>
-            </FormControl>
-            <TextField
-              fullWidth
-              label="Berkas Terbaru"
-              value={editForm.berkasT01T02}
-              onChange={(e) => setEditForm({ ...editForm, berkasT01T02: e.target.value })}
-              placeholder="Link berkas atau nama file"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '14px',
-                  backgroundColor: 'rgba(217, 119, 6, 0.02)',
-                  '& fieldset': { borderColor: 'rgba(217, 119, 6, 0.15)' },
-                  '&:hover fieldset': { borderColor: 'rgba(217, 119, 6, 0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#D97706' },
-                },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#D97706' },
-              }}
+          {/* T01/T02 File Dropzone */}
+          <label
+            htmlFor="t01-file-input"
+            onDragOver={(e) => { e.preventDefault(); setIsDraggingT01(true); }}
+            onDragLeave={() => setIsDraggingT01(false)}
+            onDrop={handleDropT01}
+            style={{
+              display: 'block',
+              border: isDraggingT01 ? '2px solid #D97706' : '2px dashed rgba(217, 119, 6, 0.3)',
+              borderRadius: '16px',
+              padding: '24px',
+              marginBottom: '16px',
+              textAlign: 'center',
+              background: isDraggingT01 
+                ? 'linear-gradient(145deg, rgba(217, 119, 6, 0.1) 0%, rgba(217, 119, 6, 0.05) 100%)'
+                : 'linear-gradient(145deg, rgba(217, 119, 6, 0.04) 0%, rgba(217, 119, 6, 0.02) 100%)',
+              cursor: 'pointer',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              backdropFilter: 'blur(10px)',
+            }}
+          >
+            <input
+              id="t01-file-input"
+              type="file"
+              multiple
+              hidden
+              onChange={handleFileSelectT01}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
             />
-          </Box>
+            <Box sx={{
+              width: 52,
+              height: 52,
+              borderRadius: '50%',
+              background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mx: 'auto',
+              mb: 1.5,
+              border: '1px solid rgba(217, 119, 6, 0.2)',
+            }}>
+              <CloudUploadIcon sx={{ fontSize: 26, color: '#D97706' }} />
+            </Box>
+            <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', mb: 0.5 }}>
+              Drop dokumen T01/T02 di sini
+            </Typography>
+            <Typography sx={{ color: '#86868b', fontSize: '0.75rem' }}>
+              atau klik untuk memilih file (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX)
+            </Typography>
+          </label>
+
+          {/* T01/T02 Files List */}
+          {filesT01.length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <Typography sx={{ 
+                fontWeight: 600, 
+                color: '#1d1d1f', 
+                fontSize: '0.8rem',
+                mb: 1.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}>
+                <FileIcon sx={{ color: '#D97706', fontSize: 18 }} />
+                File Terpilih ({filesT01.length})
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {filesT01.map((file, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      p: 1.5,
+                      background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.06) 0%, rgba(217, 119, 6, 0.02) 100%)',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(217, 119, 6, 0.15)',
+                    }}
+                  >
+                    <Box sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '10px',
+                      background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.12) 0%, rgba(217, 119, 6, 0.06) 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                      <FileIcon sx={{ color: '#D97706', fontSize: 18 }} />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ 
+                        fontWeight: 500, 
+                        color: '#1d1d1f',
+                        fontSize: '0.85rem',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {file.name}
+                      </Typography>
+                      <Typography sx={{ color: '#86868b', fontSize: '0.7rem' }}>
+                        {formatFileSize(file.size)}
+                      </Typography>
+                    </Box>
+                    <Tooltip title="Hapus file">
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handleRemoveFileT01(index)}
+                        sx={{ 
+                          color: '#DC2626',
+                          background: 'linear-gradient(145deg, rgba(220, 38, 38, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)',
+                          width: 32,
+                          height: 32,
+                          borderRadius: '10px',
+                          '&:hover': {
+                            background: 'linear-gradient(145deg, rgba(220, 38, 38, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%)',
+                          },
+                        }}
+                      >
+                        <DeleteIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
 
           {/* Divider - Spesifikasi Kebutuhan (T11) Section */}
-          <Box sx={{ mt: 3, mb: 2 }}>
+          <Box sx={{ mt: 3, mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography sx={{ 
               fontWeight: 600, 
               color: '#059669', 
@@ -2143,50 +2439,156 @@ function PksiDisetujui() {
             }}>
               Spesifikasi Kebutuhan (T11)
             </Typography>
+            {/* Auto Status Badge */}
+            <Box sx={{
+              px: 1.5,
+              py: 0.5,
+              borderRadius: '8px',
+              background: filesT11.length > 0 
+                ? 'linear-gradient(145deg, rgba(5, 150, 105, 0.15) 0%, rgba(5, 150, 105, 0.08) 100%)'
+                : 'linear-gradient(145deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.08) 100%)',
+              border: filesT11.length > 0 ? '1px solid rgba(5, 150, 105, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.7rem', 
+                fontWeight: 600, 
+                color: filesT11.length > 0 ? '#059669' : '#EF4444',
+              }}>
+                {filesT11.length > 0 ? '✓ Diterima' : '○ Belum Diterima'}
+              </Typography>
+            </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-            <FormControl fullWidth>
-              <InputLabel id="edit-status-t11-label" sx={{ '&.Mui-focused': { color: '#059669' } }}>
-                Status
-              </InputLabel>
-              <Select
-                labelId="edit-status-t11-label"
-                value={editForm.statusT11}
-                label="Status"
-                onChange={(e) => setEditForm({ ...editForm, statusT11: e.target.value })}
-                sx={{
-                  borderRadius: '14px',
-                  backgroundColor: 'rgba(5, 150, 105, 0.02)',
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(5, 150, 105, 0.15)' },
-                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(5, 150, 105, 0.4)' },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#059669' },
-                }}
-              >
-                <MenuItem value="">-</MenuItem>
-                <MenuItem value="Belum Dibuat">Belum Dibuat</MenuItem>
-                <MenuItem value="Draft">Draft</MenuItem>
-                <MenuItem value="Disetujui">Disetujui</MenuItem>
-              </Select>
-            </FormControl>
-            <TextField
-              fullWidth
-              label="Berkas Terbaru"
-              value={editForm.berkasT11}
-              onChange={(e) => setEditForm({ ...editForm, berkasT11: e.target.value })}
-              placeholder="Link berkas atau nama file"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '14px',
-                  backgroundColor: 'rgba(5, 150, 105, 0.02)',
-                  '& fieldset': { borderColor: 'rgba(5, 150, 105, 0.15)' },
-                  '&:hover fieldset': { borderColor: 'rgba(5, 150, 105, 0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#059669' },
-                },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#059669' },
-              }}
+          {/* T11 File Dropzone */}
+          <label
+            htmlFor="t11-file-input"
+            onDragOver={(e) => { e.preventDefault(); setIsDraggingT11(true); }}
+            onDragLeave={() => setIsDraggingT11(false)}
+            onDrop={handleDropT11}
+            style={{
+              display: 'block',
+              border: isDraggingT11 ? '2px solid #059669' : '2px dashed rgba(5, 150, 105, 0.3)',
+              borderRadius: '16px',
+              padding: '24px',
+              marginBottom: '16px',
+              textAlign: 'center',
+              background: isDraggingT11 
+                ? 'linear-gradient(145deg, rgba(5, 150, 105, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)'
+                : 'linear-gradient(145deg, rgba(5, 150, 105, 0.04) 0%, rgba(5, 150, 105, 0.02) 100%)',
+              cursor: 'pointer',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              backdropFilter: 'blur(10px)',
+            }}
+          >
+            <input
+              id="t11-file-input"
+              type="file"
+              multiple
+              hidden
+              onChange={handleFileSelectT11}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
             />
-          </Box>
+            <Box sx={{
+              width: 52,
+              height: 52,
+              borderRadius: '50%',
+              background: 'linear-gradient(145deg, rgba(5, 150, 105, 0.15) 0%, rgba(5, 150, 105, 0.08) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mx: 'auto',
+              mb: 1.5,
+              border: '1px solid rgba(5, 150, 105, 0.2)',
+            }}>
+              <CloudUploadIcon sx={{ fontSize: 26, color: '#059669' }} />
+            </Box>
+            <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', mb: 0.5 }}>
+              Drop dokumen T11 di sini
+            </Typography>
+            <Typography sx={{ color: '#86868b', fontSize: '0.75rem' }}>
+              atau klik untuk memilih file (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX)
+            </Typography>
+          </label>
+
+          {/* T11 Files List */}
+          {filesT11.length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <Typography sx={{ 
+                fontWeight: 600, 
+                color: '#1d1d1f', 
+                fontSize: '0.8rem',
+                mb: 1.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}>
+                <FileIcon sx={{ color: '#059669', fontSize: 18 }} />
+                File Terpilih ({filesT11.length})
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {filesT11.map((file, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      p: 1.5,
+                      background: 'linear-gradient(145deg, rgba(5, 150, 105, 0.06) 0%, rgba(5, 150, 105, 0.02) 100%)',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(5, 150, 105, 0.15)',
+                    }}
+                  >
+                    <Box sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '10px',
+                      background: 'linear-gradient(145deg, rgba(5, 150, 105, 0.12) 0%, rgba(5, 150, 105, 0.06) 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                      <FileIcon sx={{ color: '#059669', fontSize: 18 }} />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ 
+                        fontWeight: 500, 
+                        color: '#1d1d1f',
+                        fontSize: '0.85rem',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {file.name}
+                      </Typography>
+                      <Typography sx={{ color: '#86868b', fontSize: '0.7rem' }}>
+                        {formatFileSize(file.size)}
+                      </Typography>
+                    </Box>
+                    <Tooltip title="Hapus file">
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handleRemoveFileT11(index)}
+                        sx={{ 
+                          color: '#DC2626',
+                          background: 'linear-gradient(145deg, rgba(220, 38, 38, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)',
+                          width: 32,
+                          height: 32,
+                          borderRadius: '10px',
+                          '&:hover': {
+                            background: 'linear-gradient(145deg, rgba(220, 38, 38, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%)',
+                          },
+                        }}
+                      >
+                        <DeleteIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
 
           {/* Divider - CD Prinsip Section */}
           <Box sx={{ mt: 3, mb: 2 }}>
@@ -2200,48 +2602,24 @@ function PksiDisetujui() {
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-            <FormControl fullWidth>
-              <InputLabel id="edit-status-cd-label" sx={{ '&.Mui-focused': { color: '#DC2626' } }}>
-                Status
-              </InputLabel>
-              <Select
-                labelId="edit-status-cd-label"
-                value={editForm.statusCd}
-                label="Status"
-                onChange={(e) => setEditForm({ ...editForm, statusCd: e.target.value })}
-                sx={{
-                  borderRadius: '14px',
-                  backgroundColor: 'rgba(220, 38, 38, 0.02)',
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(220, 38, 38, 0.15)' },
-                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(220, 38, 38, 0.4)' },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#DC2626' },
-                }}
-              >
-                <MenuItem value="">-</MenuItem>
-                <MenuItem value="Belum Diajukan">Belum Diajukan</MenuItem>
-                <MenuItem value="Dalam Proses">Dalam Proses</MenuItem>
-                <MenuItem value="Disetujui">Disetujui</MenuItem>
-              </Select>
-            </FormControl>
-            <TextField
-              fullWidth
-              label="Nomor CD"
-              value={editForm.nomorCd}
-              onChange={(e) => setEditForm({ ...editForm, nomorCd: e.target.value })}
-              placeholder="Nomor CD Prinsip"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '14px',
-                  backgroundColor: 'rgba(220, 38, 38, 0.02)',
-                  '& fieldset': { borderColor: 'rgba(220, 38, 38, 0.15)' },
-                  '&:hover fieldset': { borderColor: 'rgba(220, 38, 38, 0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#DC2626' },
-                },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#DC2626' },
-              }}
-            />
-          </Box>
+          <TextField
+            fullWidth
+            label="Nomor CD Prinsip"
+            value={editForm.nomorCd}
+            onChange={(e) => setEditForm({ ...editForm, nomorCd: e.target.value })}
+            placeholder="Contoh: CD-001/PCS8/2026"
+            sx={{
+              mb: 2,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '14px',
+                backgroundColor: 'rgba(220, 38, 38, 0.02)',
+                '& fieldset': { borderColor: 'rgba(220, 38, 38, 0.15)' },
+                '&:hover fieldset': { borderColor: 'rgba(220, 38, 38, 0.4)' },
+                '&.Mui-focused fieldset': { borderColor: '#DC2626' },
+              },
+              '& .MuiInputLabel-root.Mui-focused': { color: '#DC2626' },
+            }}
+          />
 
           {/* Divider - Kontrak Section */}
           <Box sx={{ mt: 3, mb: 2 }}>
