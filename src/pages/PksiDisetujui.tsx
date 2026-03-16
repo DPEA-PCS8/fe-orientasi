@@ -891,7 +891,7 @@ function PksiDisetujui() {
           {/* Status Badge - Removed */}
         </Box>
 
-        {/* Filter Popover */}
+        {/* Filter Popover - Apple Liquid Glass Style */}
         <Popover
           open={Boolean(filterAnchorEl)}
           anchorEl={filterAnchorEl}
@@ -906,55 +906,90 @@ function PksiDisetujui() {
           }}
           PaperProps={{
             sx: {
-              mt: 1,
-              borderRadius: '16px',
-              boxShadow: '0 20px 40px rgba(49, 162, 76, 0.1)',
+              mt: 1.5,
+              borderRadius: '24px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 12px 24px -8px rgba(49, 162, 76, 0.1)',
               overflow: 'hidden',
-              border: '1px solid #e8f5e9',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              background: 'rgba(255, 255, 255, 0.85)',
+              backdropFilter: 'blur(40px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+              width: 520,
             },
           }}
         >
-          {/* Header */}
+          {/* Header - Liquid Glass */}
           <Box sx={{
-            background: '#31A24C',
+            background: 'linear-gradient(135deg, rgba(49, 162, 76, 0.95) 0%, rgba(34, 139, 60, 0.9) 100%)',
+            backdropFilter: 'blur(20px)',
             p: 2.5,
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
           }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <Box sx={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                bgcolor: 'white',
+                width: 40,
+                height: 40,
+                borderRadius: '12px',
+                bgcolor: 'rgba(255, 255, 255, 0.25)',
+                backdropFilter: 'blur(10px)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
               }}>
-                <TuneRounded sx={{ fontSize: 16, color: '#31A24C' }} />
+                <TuneRounded sx={{ fontSize: 20, color: 'white' }} />
               </Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'white' }}>
-                Filter
-              </Typography>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'white', letterSpacing: '-0.02em' }}>
+                  Filter Data
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.7rem' }}>
+                  {activeFilterCount > 0 ? `${activeFilterCount} filter aktif` : 'Pilih kriteria filter'}
+                </Typography>
+              </Box>
             </Box>
             <IconButton 
               size="small" 
               onClick={handleFilterClose}
               sx={{ 
-                color: 'white', 
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } 
+                color: 'white',
+                bgcolor: 'rgba(255, 255, 255, 0.15)',
+                backdropFilter: 'blur(10px)',
+                '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.25)' },
+                transition: 'all 0.2s ease',
               }}
             >
               <CloseIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Box>
           
-          <Box sx={{ p: 3, minWidth: 320, maxHeight: 400, overflowY: 'auto', bgcolor: 'white' }}>
-
-            {/* Nama Aplikasi Filter */}
+          <Box sx={{ 
+            p: 3, 
+            maxHeight: 520, 
+            overflowY: 'auto',
+            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 252, 250, 0.98) 100%)',
+            '&::-webkit-scrollbar': {
+              width: 6,
+            },
+            '&::-webkit-scrollbar-track': {
+              background: 'rgba(0, 0, 0, 0.02)',
+              borderRadius: 3,
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: 'rgba(49, 162, 76, 0.3)',
+              borderRadius: 3,
+              '&:hover': {
+                background: 'rgba(49, 162, 76, 0.5)',
+              },
+            },
+          }}>
+            {/* Row 1: Nama Aplikasi (full width) */}
             <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#31A24C' }} />
                 Nama Aplikasi
               </Typography>
               <FormControl fullWidth size="small">
@@ -965,15 +1000,17 @@ function PksiDisetujui() {
                   label="Pilih Aplikasi"
                   onChange={(e) => setSelectedAplikasi(e.target.value)}
                   sx={{
-                    borderRadius: '8px',
+                    borderRadius: '12px',
+                    bgcolor: 'rgba(255, 255, 255, 0.9)',
                     '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#e5e5e7',
+                      borderColor: 'rgba(0, 0, 0, 0.1)',
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
                       borderColor: '#31A24C',
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
                       borderColor: '#31A24C',
+                      borderWidth: 2,
                     },
                   }}
                 >
@@ -989,378 +1026,426 @@ function PksiDisetujui() {
               </FormControl>
             </Box>
 
-            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+            {/* Row 2: SKPA & Bidang */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2.5 }}>
+              {/* SKPA Filter */}
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#0891B2' }} />
+                  SKPA
+                </Typography>
+                <Autocomplete
+                  multiple
+                  size="small"
+                  options={skpaOptions}
+                  value={Array.from(selectedSkpa)}
+                  onChange={(_, newValue) => setSelectedSkpa(new Set(newValue))}
+                  disableCloseOnSelect
+                  renderOption={(props, option, { selected }) => {
+                    const { key, ...restProps } = props;
+                    return (
+                      <li key={key} {...restProps}>
+                        <Checkbox
+                          size="small"
+                          checked={selected}
+                          sx={{ mr: 1, '&.Mui-checked': { color: '#0891B2' } }}
+                        />
+                        {option}
+                      </li>
+                    );
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={selectedSkpa.size === 0 ? 'Pilih SKPA' : ''}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '12px',
+                          bgcolor: 'rgba(255, 255, 255, 0.9)',
+                          '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.1)' },
+                          '&:hover fieldset': { borderColor: '#0891B2' },
+                          '&.Mui-focused fieldset': { borderColor: '#0891B2', borderWidth: 2 },
+                        },
+                      }}
+                    />
+                  )}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return (
+                        <Chip
+                          key={key}
+                          label={option}
+                          size="small"
+                          {...tagProps}
+                          sx={{ 
+                            bgcolor: '#0891B2', 
+                            color: 'white', 
+                            fontWeight: 500,
+                            '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } 
+                          }}
+                        />
+                      );
+                    })
+                  }
+                />
+              </Box>
 
-            {/* SKPA Filter */}
-            <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
-                SKPA
-              </Typography>
-              <Autocomplete
-                multiple
-                size="small"
-                options={skpaOptions}
-                value={Array.from(selectedSkpa)}
-                onChange={(_, newValue) => setSelectedSkpa(new Set(newValue))}
-                disableCloseOnSelect
-                renderOption={(props, option, { selected }) => {
-                  const { key, ...restProps } = props;
-                  return (
-                    <li key={key} {...restProps}>
-                      <Checkbox
-                        size="small"
-                        checked={selected}
-                        sx={{ mr: 1, '&.Mui-checked': { color: '#31A24C' } }}
-                      />
-                      {option}
-                    </li>
-                  );
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    placeholder={selectedSkpa.size === 0 ? 'Pilih SKPA' : ''}
+              {/* Bidang Filter */}
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#7C3AED' }} />
+                  Bidang
+                </Typography>
+                <Autocomplete
+                  multiple
+                  size="small"
+                  options={bidangOptions}
+                  value={Array.from(selectedBidang)}
+                  onChange={(_, newValue) => setSelectedBidang(new Set(newValue))}
+                  disableCloseOnSelect
+                  renderOption={(props, option, { selected }) => {
+                    const { key, ...restProps } = props;
+                    return (
+                      <li key={key} {...restProps}>
+                        <Checkbox
+                          size="small"
+                          checked={selected}
+                          sx={{ mr: 1, '&.Mui-checked': { color: '#7C3AED' } }}
+                        />
+                        {option}
+                      </li>
+                    );
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={selectedBidang.size === 0 ? 'Pilih Bidang' : ''}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '12px',
+                          bgcolor: 'rgba(255, 255, 255, 0.9)',
+                          '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.1)' },
+                          '&:hover fieldset': { borderColor: '#7C3AED' },
+                          '&.Mui-focused fieldset': { borderColor: '#7C3AED', borderWidth: 2 },
+                        },
+                      }}
+                    />
+                  )}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return (
+                        <Chip
+                          key={key}
+                          label={option}
+                          size="small"
+                          {...tagProps}
+                          sx={{ 
+                            bgcolor: '#7C3AED', 
+                            color: 'white', 
+                            fontWeight: 500,
+                            '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } 
+                          }}
+                        />
+                      );
+                    })
+                  }
+                />
+              </Box>
+            </Box>
+
+            {/* Row 3: Tahun & PIC */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2.5 }}>
+              {/* Year Filter */}
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#D97706' }} />
+                  Periode Tahun
+                </Typography>
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={selectedYear}
+                    displayEmpty
+                    onChange={(e) => setSelectedYear(e.target.value)}
                     sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: '8px',
-                        '& fieldset': { borderColor: '#e5e5e7' },
-                        '&:hover fieldset': { borderColor: '#31A24C' },
-                        '&.Mui-focused fieldset': { borderColor: '#31A24C' },
+                      borderRadius: '12px',
+                      bgcolor: 'rgba(255, 255, 255, 0.9)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#D97706',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#D97706',
+                        borderWidth: 2,
                       },
                     }}
-                  />
-                )}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => {
-                    const { key, ...tagProps } = getTagProps({ index });
-                    return (
-                      <Chip
-                        key={key}
-                        label={option}
-                        size="small"
-                        {...tagProps}
-                        sx={{ bgcolor: '#31A24C', color: 'white', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } }}
-                      />
-                    );
-                  })
-                }
-              />
-            </Box>
-
-            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
-
-            {/* Year Filter */}
-            <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
-                Periode Tahun
-              </Typography>
-              <FormControl fullWidth size="small">
-                <InputLabel id="year-filter-label-disetujui">Pilih Tahun</InputLabel>
-                <Select
-                  labelId="year-filter-label-disetujui"
-                  value={selectedYear}
-                  label="Pilih Tahun"
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  sx={{
-                    borderRadius: '8px',
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#e5e5e7',
-                    },
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#31A24C',
-                    },
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#31A24C',
-                    },
-                  }}
-                >
-                  <MenuItem value="">
-                    <em>Semua Tahun</em>
-                  </MenuItem>
-                  {yearOptions.map((year) => (
-                    <MenuItem key={year} value={year}>
-                      {year}
+                  >
+                    <MenuItem value="">
+                      <em>Semua Tahun</em>
                     </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Box>
+                    {yearOptions.map((year) => (
+                      <MenuItem key={year} value={year}>
+                        {year}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
 
-            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
-
-            {/* Jangka Waktu Filter */}
-            <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
-                Jangka Waktu
-              </Typography>
-              <FormGroup>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={selectedJangkaWaktu.has('Single Year')}
-                      onChange={() => handleJangkaWaktuChange('Single Year')}
+              {/* PIC Filter */}
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#DC2626' }} />
+                  PIC
+                </Typography>
+                <Autocomplete
+                  multiple
+                  size="small"
+                  options={picOptions}
+                  value={Array.from(selectedPic)}
+                  onChange={(_, newValue) => setSelectedPic(new Set(newValue))}
+                  disableCloseOnSelect
+                  renderOption={(props, option, { selected }) => {
+                    const { key, ...restProps } = props;
+                    return (
+                      <li key={key} {...restProps}>
+                        <Checkbox
+                          size="small"
+                          checked={selected}
+                          sx={{ mr: 1, '&.Mui-checked': { color: '#DC2626' } }}
+                        />
+                        {option}
+                      </li>
+                    );
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={selectedPic.size === 0 ? 'Pilih PIC' : ''}
                       sx={{
-                        '&.Mui-checked': {
-                          color: '#31A24C',
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '12px',
+                          bgcolor: 'rgba(255, 255, 255, 0.9)',
+                          '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.1)' },
+                          '&:hover fieldset': { borderColor: '#DC2626' },
+                          '&.Mui-focused fieldset': { borderColor: '#DC2626', borderWidth: 2 },
                         },
                       }}
                     />
+                  )}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return (
+                        <Chip
+                          key={key}
+                          label={option}
+                          size="small"
+                          {...tagProps}
+                          sx={{ 
+                            bgcolor: '#DC2626', 
+                            color: 'white', 
+                            fontWeight: 500,
+                            '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } 
+                          }}
+                        />
+                      );
+                    })
                   }
-                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Single Year</Typography>}
                 />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={selectedJangkaWaktu.has('Multiyears')}
-                      onChange={() => handleJangkaWaktuChange('Multiyears')}
-                      sx={{
-                        '&.Mui-checked': {
-                          color: '#31A24C',
-                        },
-                      }}
-                    />
-                  }
-                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Multiyears</Typography>}
-                />
-              </FormGroup>
+              </Box>
             </Box>
 
-            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
-
-            {/* Progress Filter */}
-            <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
-                Progres
-              </Typography>
-              <FormGroup>
-                {progressOptions.map((progress) => (
+            {/* Row 4: Quick Filter Cards */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2, mb: 2.5 }}>
+              {/* Jangka Waktu Filter */}
+              <Box sx={{ 
+                p: 2, 
+                borderRadius: '14px', 
+                bgcolor: 'rgba(139, 92, 246, 0.06)', 
+                border: '1px solid rgba(139, 92, 246, 0.15)',
+              }}>
+                <Typography variant="caption" sx={{ fontWeight: 600, color: '#7C3AED', mb: 1, display: 'block', letterSpacing: '0.02em' }}>
+                  Jangka Waktu
+                </Typography>
+                <FormGroup sx={{ gap: 0.5 }}>
                   <FormControlLabel
-                    key={progress}
                     control={
                       <Checkbox
                         size="small"
-                        checked={selectedProgress.has(progress)}
-                        onChange={() => handleProgressChange(progress)}
-                        sx={{
-                          '&.Mui-checked': {
-                            color: '#31A24C',
-                          },
-                        }}
+                        checked={selectedJangkaWaktu.has('Single Year')}
+                        onChange={() => handleJangkaWaktuChange('Single Year')}
+                        sx={{ py: 0.3, '&.Mui-checked': { color: '#7C3AED' } }}
                       />
                     }
-                    label={<Typography variant="body2" sx={{ fontWeight: 500 }}>{progress}</Typography>}
+                    label={<Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>Single Year</Typography>}
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={selectedJangkaWaktu.has('Multiyears')}
+                        onChange={() => handleJangkaWaktuChange('Multiyears')}
+                        sx={{ py: 0.3, '&.Mui-checked': { color: '#7C3AED' } }}
+                      />
+                    }
+                    label={<Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>Multiyears</Typography>}
+                  />
+                </FormGroup>
+              </Box>
+
+              {/* IKU Filter */}
+              <Box sx={{ 
+                p: 2, 
+                borderRadius: '14px', 
+                bgcolor: 'rgba(59, 130, 246, 0.06)', 
+                border: '1px solid rgba(59, 130, 246, 0.15)',
+              }}>
+                <Typography variant="caption" sx={{ fontWeight: 600, color: '#2563EB', mb: 1, display: 'block', letterSpacing: '0.02em' }}>
+                  IKU
+                </Typography>
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={selectedIku}
+                    displayEmpty
+                    onChange={(e) => setSelectedIku(e.target.value)}
+                    sx={{
+                      borderRadius: '10px',
+                      bgcolor: 'white',
+                      fontSize: '0.85rem',
+                      '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(59, 130, 246, 0.2)' },
+                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#2563EB' },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#2563EB', borderWidth: 2 },
+                    }}
+                  >
+                    <MenuItem value=""><em>Semua</em></MenuItem>
+                    <MenuItem value="ya">Ya</MenuItem>
+                    <MenuItem value="tidak">Tidak</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+
+              {/* Inhouse/Outsource Filter */}
+              <Box sx={{ 
+                p: 2, 
+                borderRadius: '14px', 
+                bgcolor: 'rgba(5, 150, 105, 0.06)', 
+                border: '1px solid rgba(5, 150, 105, 0.15)',
+              }}>
+                <Typography variant="caption" sx={{ fontWeight: 600, color: '#059669', mb: 1, display: 'block', letterSpacing: '0.02em' }}>
+                  Inhouse/Outsource
+                </Typography>
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={selectedInhouseOutsource}
+                    displayEmpty
+                    onChange={(e) => setSelectedInhouseOutsource(e.target.value)}
+                    sx={{
+                      borderRadius: '10px',
+                      bgcolor: 'white',
+                      fontSize: '0.85rem',
+                      '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(5, 150, 105, 0.2)' },
+                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#059669' },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#059669', borderWidth: 2 },
+                    }}
+                  >
+                    <MenuItem value=""><em>Semua</em></MenuItem>
+                    <MenuItem value="inhouse">Inhouse</MenuItem>
+                    <MenuItem value="outsource">Outsource</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+            </Box>
+
+            {/* Row 5: Progress Filter */}
+            <Box sx={{ 
+              p: 2, 
+              borderRadius: '14px', 
+              bgcolor: 'rgba(251, 191, 36, 0.06)', 
+              border: '1px solid rgba(251, 191, 36, 0.2)',
+              mb: 3,
+            }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: '#D97706', mb: 1.5, display: 'block', letterSpacing: '0.02em' }}>
+                Progres
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {progressOptions.map((progress) => (
+                  <Chip
+                    key={progress}
+                    label={progress}
+                    size="small"
+                    onClick={() => handleProgressChange(progress)}
+                    sx={{
+                      bgcolor: selectedProgress.has(progress) 
+                        ? '#F59E0B' 
+                        : 'white',
+                      color: selectedProgress.has(progress) ? 'white' : '#374151',
+                      fontWeight: 500,
+                      fontSize: '0.75rem',
+                      border: selectedProgress.has(progress) 
+                        ? '1px solid #F59E0B' 
+                        : '1px solid rgba(0, 0, 0, 0.12)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      '&:hover': {
+                        bgcolor: selectedProgress.has(progress) 
+                          ? '#D97706' 
+                          : 'rgba(251, 191, 36, 0.12)',
+                        borderColor: '#F59E0B',
+                      },
+                    }}
                   />
                 ))}
-              </FormGroup>
+              </Box>
             </Box>
 
-            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
-
-            {/* IKU Filter */}
-            <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
-                IKU
-              </Typography>
-              <FormControl fullWidth size="small">
-                <Select
-                  value={selectedIku}
-                  displayEmpty
-                  onChange={(e) => setSelectedIku(e.target.value)}
-                  sx={{
-                    borderRadius: '8px',
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#e5e5e7',
-                    },
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#31A24C',
-                    },
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#31A24C',
-                    },
-                  }}
-                >
-                  <MenuItem value="">
-                    <em>Semua</em>
-                  </MenuItem>
-                  <MenuItem value="ya">Ya</MenuItem>
-                  <MenuItem value="tidak">Tidak</MenuItem>
-                </Select>
-              </FormControl>
-            </Box>
-
-            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
-
-            {/* Inhouse/Outsource Filter */}
-            <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
-                Inhouse/Outsource
-              </Typography>
-              <FormControl fullWidth size="small">
-                <Select
-                  value={selectedInhouseOutsource}
-                  displayEmpty
-                  onChange={(e) => setSelectedInhouseOutsource(e.target.value)}
-                  sx={{
-                    borderRadius: '8px',
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#e5e5e7',
-                    },
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#31A24C',
-                    },
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#31A24C',
-                    },
-                  }}
-                >
-                  <MenuItem value="">
-                    <em>Semua</em>
-                  </MenuItem>
-                  <MenuItem value="inhouse">Inhouse</MenuItem>
-                  <MenuItem value="outsource">Outsource</MenuItem>
-                </Select>
-              </FormControl>
-            </Box>
-
-            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
-
-            {/* Bidang Filter */}
-            <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
-                Bidang
-              </Typography>
-              <Autocomplete
-                multiple
-                size="small"
-                options={bidangOptions}
-                value={Array.from(selectedBidang)}
-                onChange={(_, newValue) => setSelectedBidang(new Set(newValue))}
-                disableCloseOnSelect
-                renderOption={(props, option, { selected }) => {
-                  const { key, ...restProps } = props;
-                  return (
-                    <li key={key} {...restProps}>
-                      <Checkbox
-                        size="small"
-                        checked={selected}
-                        sx={{ mr: 1, '&.Mui-checked': { color: '#31A24C' } }}
-                      />
-                      {option}
-                    </li>
-                  );
+            {/* Action Buttons */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={handleResetFilter}
+                startIcon={<CloseIcon sx={{ fontSize: 18 }} />}
+                sx={{
+                  py: 1.5,
+                  borderRadius: '12px',
+                  color: '#6B7280',
+                  borderColor: 'rgba(0, 0, 0, 0.12)',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  bgcolor: 'white',
+                  '&:hover': {
+                    bgcolor: 'rgba(0, 0, 0, 0.04)',
+                    borderColor: 'rgba(0, 0, 0, 0.2)',
+                  },
                 }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    placeholder={selectedBidang.size === 0 ? 'Pilih Bidang' : ''}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: '8px',
-                        '& fieldset': { borderColor: '#e5e5e7' },
-                        '&:hover fieldset': { borderColor: '#31A24C' },
-                        '&.Mui-focused fieldset': { borderColor: '#31A24C' },
-                      },
-                    }}
-                  />
-                )}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => {
-                    const { key, ...tagProps } = getTagProps({ index });
-                    return (
-                      <Chip
-                        key={key}
-                        label={option}
-                        size="small"
-                        {...tagProps}
-                        sx={{ bgcolor: '#31A24C', color: 'white', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } }}
-                      />
-                    );
-                  })
-                }
-              />
-            </Box>
-
-            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
-
-            {/* PIC Filter */}
-            <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
-                PIC
-              </Typography>
-              <Autocomplete
-                multiple
-                size="small"
-                options={picOptions}
-                value={Array.from(selectedPic)}
-                onChange={(_, newValue) => setSelectedPic(new Set(newValue))}
-                disableCloseOnSelect
-                renderOption={(props, option, { selected }) => {
-                  const { key, ...restProps } = props;
-                  return (
-                    <li key={key} {...restProps}>
-                      <Checkbox
-                        size="small"
-                        checked={selected}
-                        sx={{ mr: 1, '&.Mui-checked': { color: '#31A24C' } }}
-                      />
-                      {option}
-                    </li>
-                  );
+              >
+                Reset
+              </Button>
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={handleFilterClose}
+                sx={{
+                  py: 1.5,
+                  borderRadius: '12px',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  background: 'linear-gradient(135deg, #31A24C 0%, #228B3B 100%)',
+                  boxShadow: '0 4px 12px rgba(49, 162, 76, 0.25)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #2A8F42 0%, #1E7A34 100%)',
+                    boxShadow: '0 6px 16px rgba(49, 162, 76, 0.35)',
+                  },
+                  transition: 'all 0.2s ease',
                 }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    placeholder={selectedPic.size === 0 ? 'Pilih PIC' : ''}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: '8px',
-                        '& fieldset': { borderColor: '#e5e5e7' },
-                        '&:hover fieldset': { borderColor: '#31A24C' },
-                        '&.Mui-focused fieldset': { borderColor: '#31A24C' },
-                      },
-                    }}
-                  />
-                )}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => {
-                    const { key, ...tagProps } = getTagProps({ index });
-                    return (
-                      <Chip
-                        key={key}
-                        label={option}
-                        size="small"
-                        {...tagProps}
-                        sx={{ bgcolor: '#31A24C', color: 'white', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } }}
-                      />
-                    );
-                  })
-                }
-              />
+              >
+                Terapkan Filter
+              </Button>
             </Box>
-
-            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
-
-            {/* Reset Button */}
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={handleResetFilter}
-              sx={{
-                py: 1,
-                borderRadius: '8px',
-                color: '#31A24C',
-                borderColor: '#31A24C',
-                fontWeight: 600,
-                '&:hover': {
-                  bgcolor: '#e8f5e9',
-                  borderColor: '#31A24C',
-                },
-              }}
-            >
-              Reset Filter
-            </Button>
           </Box>
         </Popover>
 
