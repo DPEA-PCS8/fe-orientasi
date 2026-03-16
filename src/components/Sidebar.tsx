@@ -72,8 +72,6 @@ const Sidebar = () => {
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ 
     PKSI: true, 
     'Manajemen RBSI': true,
-    FS2: true,
-    Aplikasi: true,
     'Master Data': true,
     'User & Roles': true,
   });
@@ -193,7 +191,7 @@ const Sidebar = () => {
           menuCode: 'PKSI',
           subItems: [
             { label: 'Semua PKSI', icon: <ListAltRounded />, href: '/pksi-list', menuCode: 'PKSI_ALL' },
-            { label: 'PKSI Disetujui', icon: <CheckCircleRounded />, href: '/pksi-disetujui', menuCode: 'PKSI_APPROVED' },
+            { label: 'Monitoring PKSI', icon: <MonitorHeartRounded />, href: '/pksi-disetujui', menuCode: 'PKSI_APPROVED' },
           ],
         },
         {
@@ -212,7 +210,7 @@ const Sidebar = () => {
           href: '/aplikasi',
           menuCode: 'APLIKASI',
           subItems: [
-            { label: 'Daftar Aplikasi', icon: <AppsRounded />, href: '/aplikasi', menuCode: 'DAFTAR_APLIKASI' },
+            { label: 'Daftar Aplikasi', icon: <AppsRounded />, href: '/aplikasi', menuCode: 'APLIKASI' },
             { label: 'Historis Aplikasi', icon: <HistoryRounded />, href: '/historis-aplikasi', menuCode: 'HISTORIS_APLIKASI' },
           ],
         },

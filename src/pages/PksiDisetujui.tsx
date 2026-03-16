@@ -9,7 +9,6 @@ import {
   TableHead,
   TableRow,
   TablePagination,
-  TableSortLabel,
   InputAdornment,
   Typography,
   Paper,
@@ -37,16 +36,16 @@ import {
   TuneRounded,
   Close as CloseIcon,
   CheckCircleRounded,
+  Visibility as VisibilityIcon,
+  Edit as EditIcon,
   CloudUpload as CloudUploadIcon,
   InsertDriveFile as FileIcon,
   Delete as DeleteIcon,
-  Visibility as VisibilityIcon,
-  Edit as EditIcon,
 } from '@mui/icons-material';
 import { searchPksiDocuments, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
-import { uploadPksiFiles, getPksiFiles, deletePksiFile, type PksiFileData } from '../api/fileApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getUsersByRole, type UserSimple } from '../api/userApi';
+import { getUserRoles } from '../api/authApi';
 import { ViewPksiModal } from '../components/modals';
 
 // Interface untuk data PKSI (transformed from API)
@@ -67,6 +66,35 @@ interface PksiData {
   tanggalPengajuan: string;
   linkDocsT01: string;
   progress: string;
+  // New fields
+  programRbsi: string;
+  inisiatifRbsi: string;
+  // Anggaran
+  anggaranTotal: string;
+  anggaranTahunIni: string;
+  anggaranTahunDepan: string;
+  // Timeline
+  targetUsreq: string;
+  targetSit: string;
+  targetUat: string;
+  targetGoLive: string;
+  // Rencana PKSI (T01/T02)
+  statusT01T02: string;
+  berkasT01T02: string;
+  // Spesifikasi Kebutuhan (T11)
+  statusT11: string;
+  berkasT11: string;
+  // CD Prinsip
+  statusCd: string;
+  nomorCd: string;
+  // Kontrak
+  kontrakTanggalMulai: string;
+  kontrakTanggalSelesai: string;
+  kontrakNilai: string;
+  kontrakJumlahTermin: string;
+  kontrakDetailPembayaran: string;
+  // BA Deploy
+  baDeploy: string;
 }
 
 // Progress options for PKSI Disetujui
@@ -82,7 +110,6 @@ const PROGRESS_OPTIONS = [
   'Selesai',
 ] as const;
 
-type Order = 'asc' | 'desc';
 const calculateJangkaWaktu = (apiData: PksiDocumentData): string => {
   const startDates = [apiData.tahap1_awal, apiData.tahap5_awal, apiData.tahap7_awal]
     .filter(Boolean)
@@ -111,6 +138,8 @@ const calculateJangkaWaktu = (apiData: PksiDocumentData): string => {
 
 // Transform API data to UI format
 const transformApiData = (apiData: PksiDocumentData): PksiData => {
+  const jangkaWaktu = calculateJangkaWaktu(apiData);
+  
   return {
     id: apiData.id,
     namaPksi: apiData.nama_pksi,
@@ -124,10 +153,39 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     anggotaTimUuids: apiData.anggota_tim || '',
     iku: apiData.iku || '-',
     inhouseOutsource: apiData.inhouse_outsource || '-',
-    jangkaWaktu: calculateJangkaWaktu(apiData),
+    jangkaWaktu: jangkaWaktu,
     tanggalPengajuan: apiData.tanggal_pengajuan || apiData.created_at || '',
     linkDocsT01: '', // Not available in API response
     progress: apiData.progress || 'Penyusunan Usreq',
+    // New fields - read from backend or fallback to program_inisiatif_rbsi split
+    programRbsi: apiData.program_rbsi || apiData.program_inisiatif_rbsi?.split(' - ')[0] || '-',
+    inisiatifRbsi: apiData.inisiatif_rbsi || apiData.program_inisiatif_rbsi?.split(' - ')[1] || '-',
+    // Anggaran - with dummy data
+    anggaranTotal: apiData.anggaran_total || 'Rp 2.500.000.000',
+    anggaranTahunIni: apiData.anggaran_tahun_ini || `Rp 1.500.000.000 (${new Date().getFullYear()})`,
+    anggaranTahunDepan: apiData.anggaran_tahun_depan || (jangkaWaktu.includes('Multiyears') ? `Rp 1.000.000.000 (${new Date().getFullYear() + 1})` : '-'),
+    // Timeline - use existing tahap data or new fields with dummy
+    targetUsreq: apiData.target_usreq || apiData.tahap1_akhir || '2026-06-30',
+    targetSit: apiData.target_sit || apiData.tahap5_akhir || '2026-09-30',
+    targetUat: apiData.target_uat || '2026-11-15',
+    targetGoLive: apiData.target_go_live || apiData.tahap7_akhir || '2026-12-31',
+    // Rencana PKSI (T01/T02) - with dummy data
+    statusT01T02: apiData.status_t01_t02 || 'Diterima',
+    berkasT01T02: apiData.berkas_t01_t02 || 'T01_T02_Rencana_PKSI_v2.pdf',
+    // Spesifikasi Kebutuhan (T11) - with dummy data
+    statusT11: apiData.status_t11 || 'Diterima',
+    berkasT11: apiData.berkas_t11 || 'T11_Spesifikasi_Kebutuhan_v1.pdf',
+    // CD Prinsip - with dummy data
+    statusCd: apiData.status_cd || 'Diterima',
+    nomorCd: apiData.nomor_cd || `CD-${Math.floor(Math.random() * 900 + 100)}/PCS8/${new Date().getFullYear()}`,
+    // Kontrak - with dummy data
+    kontrakTanggalMulai: apiData.kontrak_tanggal_mulai || '2026-07-01',
+    kontrakTanggalSelesai: apiData.kontrak_tanggal_selesai || '2026-12-31',
+    kontrakNilai: apiData.kontrak_nilai || 'Rp 2.250.000.000',
+    kontrakJumlahTermin: apiData.kontrak_jumlah_termin || '3 Termin',
+    kontrakDetailPembayaran: apiData.kontrak_detail_pembayaran || '40% - 40% - 20%',
+    // BA Deploy - with dummy data
+    baDeploy: apiData.ba_deploy || `BA-DEPLOY-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 999)).padStart(3, '0')}`,
   };
 };
 
@@ -161,8 +219,6 @@ function PksiDisetujui() {
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [orderBy, setOrderBy] = useState<keyof PksiData>('namaPksi');
-  const [order, setOrder] = useState<Order>('asc');
   const [pksiData, setPksiData] = useState<PksiData[]>([]);
   const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -185,14 +241,11 @@ function PksiDisetujui() {
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [selectedAplikasi, setSelectedAplikasi] = useState<string>('');
   const [selectedSkpa, setSelectedSkpa] = useState<Set<string>>(new Set());
-
-  // Upload modal state
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [selectedPksiForUpload, setSelectedPksiForUpload] = useState<PksiData | null>(null);
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [existingFiles, setExistingFiles] = useState<PksiFileData[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [selectedProgress, setSelectedProgress] = useState<Set<string>>(new Set());
+  const [selectedIku, setSelectedIku] = useState<string>('');
+  const [selectedInhouseOutsource, setSelectedInhouseOutsource] = useState<string>('');
+  const [selectedBidang, setSelectedBidang] = useState<Set<string>>(new Set());
+  const [selectedPic, setSelectedPic] = useState<Set<string>>(new Set());
 
   // View modal state
   const [openViewModal, setOpenViewModal] = useState(false);
@@ -209,8 +262,36 @@ function PksiDisetujui() {
     iku: 'ya',
     inhouseOutsource: 'inhouse',
     progress: 'Penyusunan Usreq',
+    // New fields
+    programRbsi: '',
+    inisiatifRbsi: '',
+    anggaranTotal: '',
+    anggaranTahunIni: '',
+    anggaranTahunDepan: '',
+    targetUsreq: '',
+    targetSit: '',
+    targetUat: '',
+    targetGoLive: '',
+    statusT01T02: '',
+    berkasT01T02: '',
+    statusT11: '',
+    berkasT11: '',
+    statusCd: '',
+    nomorCd: '',
+    kontrakTanggalMulai: '',
+    kontrakTanggalSelesai: '',
+    kontrakNilai: '',
+    kontrakJumlahTermin: '',
+    kontrakDetailPembayaran: '',
+    baDeploy: '',
   });
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+
+  // File upload state for T01 and T11
+  const [filesT01, setFilesT01] = useState<File[]>([]);
+  const [filesT11, setFilesT11] = useState<File[]>([]);
+  const [isDraggingT01, setIsDraggingT01] = useState(false);
+  const [isDraggingT11, setIsDraggingT11] = useState(false);
 
   // Eligible users for PIC/Anggota Tim (Admin + Pengembang)
   const [eligibleUsers, setEligibleUsers] = useState<UserSimple[]>([]);
@@ -257,6 +338,28 @@ function PksiDisetujui() {
       iku: pksi.iku !== '-' ? pksi.iku : 'ya',
       inhouseOutsource: pksi.inhouseOutsource !== '-' ? pksi.inhouseOutsource : 'inhouse',
       progress: pksi.progress || 'Penyusunan Usreq',
+      // New fields
+      programRbsi: pksi.programRbsi !== '-' ? pksi.programRbsi : '',
+      inisiatifRbsi: pksi.inisiatifRbsi !== '-' ? pksi.inisiatifRbsi : '',
+      anggaranTotal: pksi.anggaranTotal !== '-' ? pksi.anggaranTotal : '',
+      anggaranTahunIni: pksi.anggaranTahunIni !== '-' ? pksi.anggaranTahunIni : '',
+      anggaranTahunDepan: pksi.anggaranTahunDepan !== '-' ? pksi.anggaranTahunDepan : '',
+      targetUsreq: pksi.targetUsreq !== '-' ? pksi.targetUsreq : '',
+      targetSit: pksi.targetSit !== '-' ? pksi.targetSit : '',
+      targetUat: pksi.targetUat !== '-' ? pksi.targetUat : '',
+      targetGoLive: pksi.targetGoLive !== '-' ? pksi.targetGoLive : '',
+      statusT01T02: pksi.statusT01T02 !== '-' ? pksi.statusT01T02 : '',
+      berkasT01T02: pksi.berkasT01T02 !== '-' ? pksi.berkasT01T02 : '',
+      statusT11: pksi.statusT11 !== '-' ? pksi.statusT11 : '',
+      berkasT11: pksi.berkasT11 !== '-' ? pksi.berkasT11 : '',
+      statusCd: pksi.statusCd !== '-' ? pksi.statusCd : '',
+      nomorCd: pksi.nomorCd !== '-' ? pksi.nomorCd : '',
+      kontrakTanggalMulai: pksi.kontrakTanggalMulai !== '-' ? pksi.kontrakTanggalMulai : '',
+      kontrakTanggalSelesai: pksi.kontrakTanggalSelesai !== '-' ? pksi.kontrakTanggalSelesai : '',
+      kontrakNilai: pksi.kontrakNilai !== '-' ? pksi.kontrakNilai : '',
+      kontrakJumlahTermin: pksi.kontrakJumlahTermin !== '-' ? pksi.kontrakJumlahTermin : '',
+      kontrakDetailPembayaran: pksi.kontrakDetailPembayaran !== '-' ? pksi.kontrakDetailPembayaran : '',
+      baDeploy: pksi.baDeploy !== '-' ? pksi.baDeploy : '',
     });
     setOpenEditDialog(true);
   };
@@ -274,6 +377,26 @@ function PksiDisetujui() {
         anggota_tim: editForm.anggotaTim.join(', '),
         anggota_tim_names: editForm.anggotaTimNames.join(', '),
         progress: editForm.progress,
+        // New fields (removed program_rbsi, inisiatif_rbsi is read-only)
+        anggaran_total: editForm.anggaranTotal || undefined,
+        anggaran_tahun_ini: editForm.anggaranTahunIni || undefined,
+        anggaran_tahun_depan: editForm.anggaranTahunDepan || undefined,
+        target_usreq: editForm.targetUsreq || undefined,
+        target_sit: editForm.targetSit || undefined,
+        target_uat: editForm.targetUat || undefined,
+        target_go_live: editForm.targetGoLive || undefined,
+        status_t01_t02: editForm.statusT01T02 || undefined,
+        berkas_t01_t02: editForm.berkasT01T02 || undefined,
+        status_t11: editForm.statusT11 || undefined,
+        berkas_t11: editForm.berkasT11 || undefined,
+        status_cd: editForm.statusCd || undefined,
+        nomor_cd: editForm.nomorCd || undefined,
+        kontrak_tanggal_mulai: editForm.kontrakTanggalMulai || undefined,
+        kontrak_tanggal_selesai: editForm.kontrakTanggalSelesai || undefined,
+        kontrak_nilai: editForm.kontrakNilai || undefined,
+        kontrak_jumlah_termin: editForm.kontrakJumlahTermin || undefined,
+        kontrak_detail_pembayaran: editForm.kontrakDetailPembayaran || undefined,
+        ba_deploy: editForm.baDeploy || undefined,
       });
       
       // Refresh data
@@ -292,16 +415,6 @@ function PksiDisetujui() {
     setSelectedPksiForEdit(null);
   };
 
-  // Map sortBy from UI field to API field
-  const mapSortField = (field: keyof PksiData): string => {
-    const fieldMap: Record<string, string> = {
-      namaPksi: 'namaPksi',
-      tanggalPengajuan: 'tanggalPengajuan',
-      status: 'status',
-    };
-    return fieldMap[field] || 'namaPksi';
-  };
-
   // Fetch PKSI data from API - only approved
   const fetchPksiData = useCallback(async () => {
     setIsLoading(true);
@@ -311,8 +424,8 @@ function PksiDisetujui() {
         status: 'DISETUJUI',
         page: page,
         size: rowsPerPage,
-        sortBy: mapSortField(orderBy),
-        sortDir: order,
+        sortBy: 'nama_pksi',
+        sortDir: 'asc',
       });
 
       // DEBUG: Log response and user department
@@ -347,7 +460,7 @@ function PksiDisetujui() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, page, rowsPerPage, orderBy, order, userDepartment, userRoles, isAdminOrPengembang]);
+  }, [keyword, page, rowsPerPage, userDepartment, userRoles, isAdminOrPengembang]);
 
   // Fetch data on mount and when dependencies change
   useEffect(() => {
@@ -414,11 +527,26 @@ function PksiDisetujui() {
     setSelectedJangkaWaktu(newSet);
   };
 
+  const handleProgressChange = (progress: string) => {
+    const newSet = new Set(selectedProgress);
+    if (newSet.has(progress)) {
+      newSet.delete(progress);
+    } else {
+      newSet.add(progress);
+    }
+    setSelectedProgress(newSet);
+  };
+
   const handleResetFilter = () => {
     setSelectedJangkaWaktu(new Set());
     setSelectedYear('');
     setSelectedAplikasi('');
     setSelectedSkpa(new Set());
+    setSelectedProgress(new Set());
+    setSelectedIku('');
+    setSelectedInhouseOutsource('');
+    setSelectedBidang(new Set());
+    setSelectedPic(new Set());
   };
 
   // Generate year options from data
@@ -454,6 +582,36 @@ function PksiDisetujui() {
     return Array.from(skpaSet).sort();
   }, [pksiData, resolveSkpaCodes]);
 
+  // Generate Bidang options from pksiData
+  const bidangOptions = useMemo(() => {
+    const bidangSet = new Set<string>();
+    pksiData.forEach(item => {
+      const bidangs = resolveBidangNames(item.picSatkerBA);
+      bidangs.forEach(bidang => bidangSet.add(bidang));
+    });
+    return Array.from(bidangSet).sort();
+  }, [pksiData, resolveBidangNames]);
+
+  // Generate PIC options from pksiData
+  const picOptions = useMemo(() => {
+    const picSet = new Set<string>();
+    pksiData.forEach(item => {
+      if (item.pic && item.pic !== '-') {
+        picSet.add(item.pic);
+      }
+    });
+    return Array.from(picSet).sort();
+  }, [pksiData]);
+
+  // Progress options - static list
+  const progressOptions = [
+    'Penyusunan Usreq',
+    'SIT',
+    'UAT',
+    'Proses Go Live',
+    'Selesai',
+  ];
+
   // Count active filters
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -461,8 +619,13 @@ function PksiDisetujui() {
     if (selectedYear) count++;
     if (selectedAplikasi) count++;
     if (selectedSkpa.size > 0) count++;
+    if (selectedProgress.size > 0) count++;
+    if (selectedIku) count++;
+    if (selectedInhouseOutsource) count++;
+    if (selectedBidang.size > 0) count++;
+    if (selectedPic.size > 0) count++;
     return count;
-  }, [selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa]);
+  }, [selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa, selectedProgress, selectedIku, selectedInhouseOutsource, selectedBidang, selectedPic]);
 
   // Filter locally based on all filter criteria
   const filteredPksi = useMemo(() => {
@@ -494,17 +657,46 @@ function PksiDisetujui() {
         return itemSkpaCodes.some(code => selectedSkpa.has(code));
       });
     }
+
+    if (selectedProgress.size > 0) {
+      result = result.filter(item => {
+        const progress = item.progress || '';
+        return selectedProgress.has(progress);
+      });
+    }
+
+    if (selectedIku) {
+      result = result.filter(item => {
+        const iku = item.iku === 'ya' ? 'ya' : 'tidak';
+        return iku === selectedIku;
+      });
+    }
+
+    if (selectedInhouseOutsource) {
+      result = result.filter(item => {
+        const inhouseOutsource = item.inhouseOutsource?.toLowerCase() || '';
+        return inhouseOutsource === selectedInhouseOutsource.toLowerCase();
+      });
+    }
+
+    if (selectedBidang.size > 0) {
+      result = result.filter(item => {
+        const itemBidangs = resolveBidangNames(item.picSatkerBA);
+        return itemBidangs.some(bidang => selectedBidang.has(bidang));
+      });
+    }
+
+    if (selectedPic.size > 0) {
+      result = result.filter(item => {
+        const pic = item.pic || '';
+        return selectedPic.has(pic);
+      });
+    }
     
     return result;
-  }, [pksiData, selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa, resolveSkpaCodes]);
+  }, [pksiData, selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa, selectedProgress, selectedIku, selectedInhouseOutsource, selectedBidang, selectedPic, resolveSkpaCodes, resolveBidangNames]);
 
   const paginatedPksi = filteredPksi;
-
-  const handleSort = (property: keyof PksiData) => {
-    const isAsc = orderBy === property && order === 'asc';
-    setOrder(isAsc ? 'desc' : 'asc');
-    setOrderBy(property);
-  };
 
   const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
@@ -515,67 +707,67 @@ function PksiDisetujui() {
     setPage(0);
   };
 
-  // Upload modal handlers
-  const handleUploadClick = async (pksi: PksiData) => {
-    setSelectedPksiForUpload(pksi);
-    setUploadModalOpen(true);
-    setUploadedFiles([]);
-    
-    // Fetch existing files for this PKSI
-    setIsLoadingFiles(true);
-    try {
-      const files = await getPksiFiles(pksi.id);
-      setExistingFiles(files);
-    } catch (error) {
-      console.error('Failed to fetch existing files:', error);
-      setExistingFiles([]);
-    } finally {
-      setIsLoadingFiles(false);
-    }
-  };
-
-  const handleUploadModalClose = () => {
-    setUploadModalOpen(false);
-    setSelectedPksiForUpload(null);
-    setUploadedFiles([]);
-    setExistingFiles([]);
-  };
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // File handling functions for T01
+  const handleFileSelectT01 = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files) {
-      setUploadedFiles(prev => [...prev, ...Array.from(files)]);
+      const newFiles = [...filesT01, ...Array.from(files)];
+      setFilesT01(newFiles);
+      // Auto-update status based on files
+      setEditForm(prev => ({ ...prev, statusT01T02: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
     }
   };
 
-  const handleRemoveFile = (index: number) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleDeleteExistingFile = async (fileId: string) => {
-    try {
-      await deletePksiFile(fileId);
-      setExistingFiles(prev => prev.filter(f => f.id !== fileId));
-    } catch (error) {
-      console.error('Failed to delete file:', error);
+  const handleDropT01 = (event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    setIsDraggingT01(false);
+    const files = event.dataTransfer.files;
+    if (files) {
+      const newFiles = [...filesT01, ...Array.from(files)];
+      setFilesT01(newFiles);
+      // Auto-update status based on files
+      setEditForm(prev => ({ ...prev, statusT01T02: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
     }
   };
 
-  const handleUploadSubmit = async () => {
-    if (!selectedPksiForUpload || uploadedFiles.length === 0) return;
-    
-    setIsUploading(true);
-    try {
-      const uploadedResult = await uploadPksiFiles(selectedPksiForUpload.id, uploadedFiles);
-      setExistingFiles(prev => [...prev, ...uploadedResult]);
-      setUploadedFiles([]);
-    } catch (error) {
-      console.error('Failed to upload files:', error);
-    } finally {
-      setIsUploading(false);
+  const handleRemoveFileT01 = (index: number) => {
+    const newFiles = filesT01.filter((_, i) => i !== index);
+    setFilesT01(newFiles);
+    // Auto-update status based on remaining files
+    setEditForm(prev => ({ ...prev, statusT01T02: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
+  };
+
+  // File handling functions for T11
+  const handleFileSelectT11 = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const newFiles = [...filesT11, ...Array.from(files)];
+      setFilesT11(newFiles);
+      // Auto-update status based on files
+      setEditForm(prev => ({ ...prev, statusT11: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
     }
   };
 
+  const handleDropT11 = (event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    setIsDraggingT11(false);
+    const files = event.dataTransfer.files;
+    if (files) {
+      const newFiles = [...filesT11, ...Array.from(files)];
+      setFilesT11(newFiles);
+      // Auto-update status based on files
+      setEditForm(prev => ({ ...prev, statusT11: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
+    }
+  };
+
+  const handleRemoveFileT11 = (index: number) => {
+    const newFiles = filesT11.filter((_, i) => i !== index);
+    setFilesT11(newFiles);
+    // Auto-update status based on remaining files
+    setEditForm(prev => ({ ...prev, statusT11: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
+  };
+
+  // Format file size
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -584,12 +776,17 @@ function PksiDisetujui() {
 
   return (
     <Box sx={{ 
-      p: 3.5,
+      px: 2,
+      py: 3,
       background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
       minHeight: '100vh',
+      width: '100%',
+      maxWidth: '100%',
+      overflowX: 'hidden',
+      boxSizing: 'border-box',
     }}>
       {/* Header */}
-      <Box sx={{ mb: 3 }}>
+      <Box sx={{ mb: 3, px: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
           <CheckCircleRounded sx={{ color: '#31A24C', fontSize: 32 }} />
           <Typography 
@@ -600,11 +797,11 @@ function PksiDisetujui() {
               letterSpacing: '-0.02em',
             }}
           >
-            PKSI Disetujui
+            Monitoring PKSI
           </Typography>
         </Box>
         <Typography variant="body1" sx={{ color: '#86868b', ml: 0.5 }}>
-          Daftar PKSI yang telah disetujui ({totalElements} item)
+          Monitoring dan tracking PKSI ({totalElements} item)
         </Typography>
       </Box>
 
@@ -613,9 +810,14 @@ function PksiDisetujui() {
         elevation={0}
         sx={{
           width: '100%',
-          borderRadius: 2,
-          border: '1px solid rgba(0, 0, 0, 0.08)',
+          maxWidth: '100%',
+          borderRadius: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.5)',
           overflow: 'hidden',
+          background: 'rgba(255, 255, 255, 0.7)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
         }}
       >
         {/* Toolbar */}
@@ -625,7 +827,8 @@ function PksiDisetujui() {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.3)',
+            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.6) 100%)',
           }}
         >
           {/* Search & Filter */}
@@ -685,19 +888,7 @@ function PksiDisetujui() {
             </Button>
           </Box>
 
-          {/* Status Badge */}
-          <Chip
-            icon={<CheckCircleRounded sx={{ fontSize: 16 }} />}
-            label="Disetujui"
-            sx={{
-              bgcolor: '#31A24C20',
-              color: '#31A24C',
-              fontWeight: 600,
-              '& .MuiChip-icon': {
-                color: '#31A24C',
-              },
-            }}
-          />
+          {/* Status Badge - Removed */}
         </Box>
 
         {/* Filter Popover */}
@@ -938,6 +1129,219 @@ function PksiDisetujui() {
 
             <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
 
+            {/* Progress Filter */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+                Progres
+              </Typography>
+              <FormGroup>
+                {progressOptions.map((progress) => (
+                  <FormControlLabel
+                    key={progress}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={selectedProgress.has(progress)}
+                        onChange={() => handleProgressChange(progress)}
+                        sx={{
+                          '&.Mui-checked': {
+                            color: '#31A24C',
+                          },
+                        }}
+                      />
+                    }
+                    label={<Typography variant="body2" sx={{ fontWeight: 500 }}>{progress}</Typography>}
+                  />
+                ))}
+              </FormGroup>
+            </Box>
+
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
+            {/* IKU Filter */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+                IKU
+              </Typography>
+              <FormControl fullWidth size="small">
+                <Select
+                  value={selectedIku}
+                  displayEmpty
+                  onChange={(e) => setSelectedIku(e.target.value)}
+                  sx={{
+                    borderRadius: '8px',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#e5e5e7',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                    },
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>Semua</em>
+                  </MenuItem>
+                  <MenuItem value="ya">Ya</MenuItem>
+                  <MenuItem value="tidak">Tidak</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
+            {/* Inhouse/Outsource Filter */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+                Inhouse/Outsource
+              </Typography>
+              <FormControl fullWidth size="small">
+                <Select
+                  value={selectedInhouseOutsource}
+                  displayEmpty
+                  onChange={(e) => setSelectedInhouseOutsource(e.target.value)}
+                  sx={{
+                    borderRadius: '8px',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#e5e5e7',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                    },
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>Semua</em>
+                  </MenuItem>
+                  <MenuItem value="inhouse">Inhouse</MenuItem>
+                  <MenuItem value="outsource">Outsource</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
+            {/* Bidang Filter */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+                Bidang
+              </Typography>
+              <Autocomplete
+                multiple
+                size="small"
+                options={bidangOptions}
+                value={Array.from(selectedBidang)}
+                onChange={(_, newValue) => setSelectedBidang(new Set(newValue))}
+                disableCloseOnSelect
+                renderOption={(props, option, { selected }) => {
+                  const { key, ...restProps } = props;
+                  return (
+                    <li key={key} {...restProps}>
+                      <Checkbox
+                        size="small"
+                        checked={selected}
+                        sx={{ mr: 1, '&.Mui-checked': { color: '#31A24C' } }}
+                      />
+                      {option}
+                    </li>
+                  );
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder={selectedBidang.size === 0 ? 'Pilih Bidang' : ''}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '8px',
+                        '& fieldset': { borderColor: '#e5e5e7' },
+                        '&:hover fieldset': { borderColor: '#31A24C' },
+                        '&.Mui-focused fieldset': { borderColor: '#31A24C' },
+                      },
+                    }}
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return (
+                      <Chip
+                        key={key}
+                        label={option}
+                        size="small"
+                        {...tagProps}
+                        sx={{ bgcolor: '#31A24C', color: 'white', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } }}
+                      />
+                    );
+                  })
+                }
+              />
+            </Box>
+
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
+            {/* PIC Filter */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+                PIC
+              </Typography>
+              <Autocomplete
+                multiple
+                size="small"
+                options={picOptions}
+                value={Array.from(selectedPic)}
+                onChange={(_, newValue) => setSelectedPic(new Set(newValue))}
+                disableCloseOnSelect
+                renderOption={(props, option, { selected }) => {
+                  const { key, ...restProps } = props;
+                  return (
+                    <li key={key} {...restProps}>
+                      <Checkbox
+                        size="small"
+                        checked={selected}
+                        sx={{ mr: 1, '&.Mui-checked': { color: '#31A24C' } }}
+                      />
+                      {option}
+                    </li>
+                  );
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder={selectedPic.size === 0 ? 'Pilih PIC' : ''}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '8px',
+                        '& fieldset': { borderColor: '#e5e5e7' },
+                        '&:hover fieldset': { borderColor: '#31A24C' },
+                        '&.Mui-focused fieldset': { borderColor: '#31A24C' },
+                      },
+                    }}
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return (
+                      <Chip
+                        key={key}
+                        label={option}
+                        size="small"
+                        {...tagProps}
+                        sx={{ bgcolor: '#31A24C', color: 'white', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } }}
+                      />
+                    );
+                  })
+                }
+              />
+            </Box>
+
+            <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
             {/* Reset Button */}
             <Button
               fullWidth
@@ -961,237 +1365,82 @@ function PksiDisetujui() {
         </Popover>
 
         {/* Table */}
-        <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
-          <Table sx={{ tableLayout: 'auto' }}>
+        <TableContainer sx={{ 
+          width: '100%',
+          maxWidth: '100%',
+          overflowX: 'auto',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          '&::-webkit-scrollbar': {
+            display: 'none',
+          },
+        }}>
+          <Table sx={{ maxWidth: 3000, width: 'max-content', tableLayout: 'auto' }}>
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f5f5f7' }}>
-                <TableCell 
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                    textAlign: 'center',
-                  }}
-                >
-                  No
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'namaAplikasi' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'namaAplikasi'}
-                    direction={orderBy === 'namaAplikasi' ? order : 'asc'}
-                    onClick={() => handleSort('namaAplikasi')}
-                  >
-                    Nama Aplikasi
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'namaPksi' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'namaPksi'}
-                    direction={orderBy === 'namaPksi' ? order : 'asc'}
-                    onClick={() => handleSort('namaPksi')}
-                  >
-                    Nama PKSI
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'picSatkerBA' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'picSatkerBA'}
-                    direction={orderBy === 'picSatkerBA' ? order : 'asc'}
-                    onClick={() => handleSort('picSatkerBA')}
-                  >
-                    SKPA
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'bidang' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'bidang'}
-                    direction={orderBy === 'bidang' ? order : 'asc'}
-                    onClick={() => handleSort('bidang')}
-                  >
-                    Bidang
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'pic' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'pic'}
-                    direction={orderBy === 'pic' ? order : 'asc'}
-                    onClick={() => handleSort('pic')}
-                  >
-                    PIC
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'anggotaTim' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'anggotaTim'}
-                    direction={orderBy === 'anggotaTim' ? order : 'asc'}
-                    onClick={() => handleSort('anggotaTim')}
-                  >
-                    Anggota Tim
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'iku' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'iku'}
-                    direction={orderBy === 'iku' ? order : 'asc'}
-                    onClick={() => handleSort('iku')}
-                  >
-                    IKU
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'inhouseOutsource' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'inhouseOutsource'}
-                    direction={orderBy === 'inhouseOutsource' ? order : 'asc'}
-                    onClick={() => handleSort('inhouseOutsource')}
-                  >
-                    Inhouse/Outsource
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'jangkaWaktu' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'jangkaWaktu'}
-                    direction={orderBy === 'jangkaWaktu' ? order : 'asc'}
-                    onClick={() => handleSort('jangkaWaktu')}
-                  >
-                    Jangka Waktu
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'tanggalPengajuan' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'tanggalPengajuan'}
-                    direction={orderBy === 'tanggalPengajuan' ? order : 'asc'}
-                    onClick={() => handleSort('tanggalPengajuan')}
-                  >
-                    Tanggal Pengajuan
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'progress' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'progress'}
-                    direction={orderBy === 'progress' ? order : 'asc'}
-                    onClick={() => handleSort('progress')}
-                  >
-                    Progres
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell 
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 1.5,
-                    px: 1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  Aksi
-                </TableCell>
+              {/* First row - Grouped headers */}
+              <TableRow sx={{ 
+                background: 'linear-gradient(180deg, rgba(245, 247, 250, 0.95) 0%, rgba(235, 240, 245, 0.9) 100%)',
+                backdropFilter: 'blur(20px)',
+              }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', textAlign: 'center', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>No</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Nama Aplikasi</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Nama PKSI</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>SKPA</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Bidang</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Inisiatif RBSI</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>PIC</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Anggota Tim</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>IKU</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Inhouse/Outsource</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Jangka Waktu</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>Progres</TableCell>
+                {/* Anggaran - grouped */}
+                <TableCell colSpan={3} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)', borderRadius: 0 }}>Anggaran</TableCell>
+                {/* Timeline - grouped */}
+                <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Timeline</TableCell>
+                {/* Rencana PKSI - grouped */}
+                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(217, 119, 6, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Rencana PKSI (T01/T02)</TableCell>
+                {/* Spesifikasi Kebutuhan - grouped */}
+                <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(52, 211, 153, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Spesifikasi Kebutuhan (T11)</TableCell>
+                {/* CD Prinsip - grouped (only Nomor CD) */}
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'linear-gradient(135deg, rgba(248, 113, 113, 0.15) 0%, rgba(220, 38, 38, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>No. CD Prinsip</TableCell>
+                {/* Kontrak - grouped */}
+                <TableCell colSpan={5} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.15) 0%, rgba(8, 145, 178, 0.1) 100%)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Kontrak</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', borderRight: '1px solid rgba(255, 255, 255, 0.5)', background: 'transparent' }}>BA Deploy</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'transparent' }}>Aksi</TableCell>
+              </TableRow>
+              {/* Second row - Sub-headers */}
+              <TableRow sx={{ 
+                background: 'linear-gradient(180deg, rgba(250, 251, 252, 0.95) 0%, rgba(245, 247, 250, 0.9) 100%)',
+              }}>
+                {/* Anggaran sub-headers */}
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.06)' }}>Total</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.06)' }}>Tahun {new Date().getFullYear()}</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Tahun {new Date().getFullYear() + 1}</TableCell>
+                {/* Timeline sub-headers */}
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.06)' }}>Target Usreq</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.06)' }}>Target SIT</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.06)' }}>Target UAT/PDKK</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Target Go Live</TableCell>
+                {/* Rencana PKSI sub-headers */}
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.06)' }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Berkas Terbaru</TableCell>
+                {/* Spesifikasi Kebutuhan sub-headers */}
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.06)' }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Berkas Terbaru</TableCell>
+
+                {/* Kontrak sub-headers */}
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)' }}>Tgl Mulai</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)' }}>Tgl Selesai</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)' }}>Nilai</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)' }}>Jml Termin</TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 1.5, fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.06)', borderRight: '1px solid rgba(255, 255, 255, 0.5)' }}>Detail Pembayaran</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={13} sx={{ textAlign: 'center', py: 6 }}>
+                  <TableCell colSpan={30} sx={{ textAlign: 'center', py: 6 }}>
                     <CircularProgress size={40} sx={{ color: '#31A24C' }} />
                     <Typography variant="body2" sx={{ mt: 2, color: '#86868b' }}>
                       Memuat data...
@@ -1200,7 +1449,7 @@ function PksiDisetujui() {
                 </TableRow>
               ) : paginatedPksi.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={13} sx={{ textAlign: 'center', py: 6 }}>
+                  <TableCell colSpan={30} sx={{ textAlign: 'center', py: 6 }}>
                     <Typography variant="body2" sx={{ color: '#86868b' }}>
                       Tidak ada data PKSI disetujui ditemukan
                     </Typography>
@@ -1210,50 +1459,35 @@ function PksiDisetujui() {
                 <TableRow 
                   key={item.id}
                   sx={{
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
-                      bgcolor: 'rgba(49, 162, 76, 0.02)',
+                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 250, 245, 0.8) 100%)',
+                      boxShadow: '0 4px 20px rgba(49, 162, 76, 0.08)',
+                      transform: 'scale(1.001)',
                     },
                     '&:not(:last-child)': {
-                      borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+                      borderBottom: '1px solid rgba(0, 0, 0, 0.04)',
                     },
                   }}
                 >
-                  <TableCell 
-                    sx={{ 
-                      color: '#86868b', 
-                      py: 1,
-                      px: 1,
-                      textAlign: 'center',
-                      fontWeight: 500,
-                      fontSize: '0.8rem',
-                    }}
-                  >
+                  {/* No */}
+                  <TableCell sx={{ color: '#86868b', py: 1, px: 1, textAlign: 'center', fontWeight: 500, fontSize: '0.8rem' }}>
                     {page * rowsPerPage + index + 1}
                   </TableCell>
+                  {/* Nama Aplikasi */}
+                  {/* Nama Aplikasi */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: '#1d1d1f',
-                        fontSize: '0.8rem',
-                      }}
-                    >
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.namaAplikasi}
                     </Typography>
                   </TableCell>
+                  {/* Nama PKSI */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        fontWeight: 500,
-                        color: '#1d1d1f',
-                        fontSize: '0.8rem',
-                        lineHeight: 1.4,
-                      }}
-                    >
+                    <Typography variant="body2" sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.8rem', lineHeight: 1.4 }}>
                       {item.namaPksi}
                     </Typography>
                   </TableCell>
+                  {/* SKPA */}
                   <TableCell sx={{ py: 1, px: 1 }}>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.3 }}>
                       {resolveSkpaCodes(item.picSatkerBA).length > 0 ? (
@@ -1281,7 +1515,7 @@ function PksiDisetujui() {
                       )}
                     </Box>
                   </TableCell>
-                  {/* Bidang Column */}
+                  {/* Bidang */}
                   <TableCell sx={{ py: 1, px: 1 }}>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.3 }}>
                       {resolveBidangNames(item.picSatkerUuids).length > 0 ? (
@@ -1306,163 +1540,289 @@ function PksiDisetujui() {
                       )}
                     </Box>
                   </TableCell>
-                  {/* PIC Column */}
+                  {/* Inisiatif RBSI */}
                   <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: '#1d1d1f',
-                        fontSize: '0.8rem',
-                      }}
-                    >
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.inisiatifRbsi}
+                    </Typography>
+                  </TableCell>
+                  {/* PIC */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.pic}
                     </Typography>
                   </TableCell>
-                  {/* Anggota Tim Column */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: '#1d1d1f',
-                        fontSize: '0.8rem',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        maxWidth: 150,
-                      }}
-                    >
+                  {/* Anggota Tim */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.anggotaTim}
                     </Typography>
                   </TableCell>
-                  {/* IKU Column */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: '#1d1d1f',
-                        fontSize: '0.8rem',
-                      }}
-                    >
+                  {/* IKU */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.iku}
                     </Typography>
                   </TableCell>
-                  {/* Inhouse/Outsource Column */}
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: '#1d1d1f',
-                        fontSize: '0.8rem',
-                      }}
-                    >
+                  {/* In/Out */}
+                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                       {item.inhouseOutsource}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
+                  {/* Jangka Waktu */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
                     <Chip
                       label={item.jangkaWaktu === 'Single Year' ? 'Single Year' : 'Multiyears'}
                       size="small"
                       sx={{
-                        bgcolor: item.jangkaWaktu === 'Single Year' 
-                          ? 'rgba(139, 92, 246, 0.1)' 
-                          : 'rgba(37, 99, 235, 0.1)',
-                        color: item.jangkaWaktu === 'Single Year' ? '#8B5CF6' : '#2563EB',
+                        background: item.jangkaWaktu === 'Single Year' 
+                          ? 'linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)'
+                          : 'linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(37, 99, 235, 0.15) 100%)',
+                        color: item.jangkaWaktu === 'Single Year' ? '#7C3AED' : '#1D4ED8',
                         fontWeight: 600,
                         fontSize: '0.7rem',
-                        height: 22,
-                        borderRadius: '4px',
+                        height: 24,
+                        borderRadius: '12px',
+                        border: '1px solid rgba(255, 255, 255, 0.5)',
+                        backdropFilter: 'blur(10px)',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                       }}
                     />
                   </TableCell>
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: '#1d1d1f',
-                        fontSize: '0.8rem',
-                      }}
-                    >
-                      {new Date(item.tanggalPengajuan).toLocaleDateString('id-ID', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
+                  {/* Progres */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
                     <Chip
                       label={item.progress}
                       size="small"
                       sx={{
-                        bgcolor: (() => {
+                        background: (() => {
                           const progressIndex = PROGRESS_OPTIONS.indexOf(item.progress as typeof PROGRESS_OPTIONS[number]);
-                          if (progressIndex === -1) return 'rgba(107, 114, 128, 0.1)';
-                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return 'rgba(49, 162, 76, 0.15)'; // Selesai
-                          if (progressIndex >= 6) return 'rgba(37, 99, 235, 0.12)'; // UAT, Deployment
-                          if (progressIndex >= 3) return 'rgba(139, 92, 246, 0.12)'; // Coding, Unit Test, SIT
-                          return 'rgba(217, 119, 6, 0.12)'; // Penyusunan Usreq, Pengadaan, Desain
+                          if (progressIndex === -1) return 'linear-gradient(135deg, rgba(156, 163, 175, 0.2) 0%, rgba(107, 114, 128, 0.15) 100%)';
+                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return 'linear-gradient(135deg, rgba(74, 222, 128, 0.25) 0%, rgba(34, 197, 94, 0.2) 100%)';
+                          if (progressIndex >= 6) return 'linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(59, 130, 246, 0.15) 100%)';
+                          if (progressIndex >= 3) return 'linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)';
+                          return 'linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(245, 158, 11, 0.15) 100%)';
                         })(),
                         color: (() => {
                           const progressIndex = PROGRESS_OPTIONS.indexOf(item.progress as typeof PROGRESS_OPTIONS[number]);
                           if (progressIndex === -1) return '#4B5563';
-                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return '#31A24C'; // Selesai
-                          if (progressIndex >= 6) return '#2563EB'; // UAT, Deployment
-                          if (progressIndex >= 3) return '#8B5CF6'; // Coding, Unit Test, SIT
-                          return '#D97706'; // Penyusunan Usreq, Pengadaan, Desain
+                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return '#15803D';
+                          if (progressIndex >= 6) return '#1D4ED8';
+                          if (progressIndex >= 3) return '#7C3AED';
+                          return '#B45309';
                         })(),
                         fontWeight: 600,
                         fontSize: '0.7rem',
-                        height: 22,
-                        borderRadius: '4px',
+                        height: 24,
+                        borderRadius: '12px',
+                        border: '1px solid rgba(255, 255, 255, 0.5)',
+                        backdropFilter: 'blur(10px)',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                       }}
                     />
                   </TableCell>
-                  <TableCell sx={{ py: 1, px: 1, whiteSpace: 'nowrap' }}>
-                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                  {/* Anggaran - Total */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.04)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.anggaranTotal}
+                    </Typography>
+                  </TableCell>
+                  {/* Anggaran - Tahun Ini */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.04)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.anggaranTahunIni}
+                    </Typography>
+                  </TableCell>
+                  {/* Anggaran - Tahun Depan */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.04)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.jangkaWaktu.includes('Multiyears') ? item.anggaranTahunDepan : '-'}
+                    </Typography>
+                  </TableCell>
+                  {/* Timeline - Target Usreq */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.targetUsreq !== '-' && item.targetUsreq ? new Date(item.targetUsreq).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                    </Typography>
+                  </TableCell>
+                  {/* Timeline - Target SIT */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.targetSit !== '-' && item.targetSit ? new Date(item.targetSit).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                    </Typography>
+                  </TableCell>
+                  {/* Timeline - Target UAT/PDKK */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.targetUat !== '-' && item.targetUat ? new Date(item.targetUat).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                    </Typography>
+                  </TableCell>
+                  {/* Timeline - Target Go Live */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.targetGoLive !== '-' && item.targetGoLive ? new Date(item.targetGoLive).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                    </Typography>
+                  </TableCell>
+                  {/* Rencana PKSI - Status T01/T02 */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.04)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.statusT01T02}
+                    </Typography>
+                  </TableCell>
+                  {/* Rencana PKSI - Berkas Terbaru T01/T02 */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.04)' }}>
+                    {item.berkasT01T02 && item.berkasT01T02 !== '-' ? (
+                      <Button
+                        size="small"
+                        startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                        onClick={() => alert(`View document: ${item.berkasT01T02}`)}
+                        sx={{
+                          textTransform: 'none',
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                          color: '#D97706',
+                          borderRadius: '8px',
+                          px: 1.5,
+                          py: 0.5,
+                          background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.1) 0%, rgba(251, 191, 36, 0.08) 100%)',
+                          border: '1px solid rgba(217, 119, 6, 0.2)',
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.15) 0%, rgba(251, 191, 36, 0.12) 100%)',
+                            boxShadow: '0 2px 8px rgba(217, 119, 6, 0.15)',
+                          },
+                        }}
+                      >
+                        View
+                      </Button>
+                    ) : (
+                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
+                    )}
+                  </TableCell>
+                  {/* Spesifikasi Kebutuhan - Status T11 */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.04)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.statusT11}
+                    </Typography>
+                  </TableCell>
+                  {/* Spesifikasi Kebutuhan - Berkas Terbaru T11 */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.04)' }}>
+                    {item.berkasT11 && item.berkasT11 !== '-' ? (
+                      <Button
+                        size="small"
+                        startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                        onClick={() => alert(`View document: ${item.berkasT11}`)}
+                        sx={{
+                          textTransform: 'none',
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                          color: '#059669',
+                          borderRadius: '8px',
+                          px: 1.5,
+                          py: 0.5,
+                          background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, rgba(52, 211, 153, 0.08) 100%)',
+                          border: '1px solid rgba(5, 150, 105, 0.2)',
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.15) 0%, rgba(52, 211, 153, 0.12) 100%)',
+                            boxShadow: '0 2px 8px rgba(5, 150, 105, 0.15)',
+                          },
+                        }}
+                      >
+                        View
+                      </Button>
+                    ) : (
+                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
+                    )}
+                  </TableCell>
+                  {/* CD Prinsip - Nomor CD (only) */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(220, 38, 38, 0.04)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.nomorCd}
+                    </Typography>
+                  </TableCell>
+                  {/* Kontrak - Tgl Mulai */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.04)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.kontrakTanggalMulai}
+                    </Typography>
+                  </TableCell>
+                  {/* Kontrak - Tgl Selesai */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.04)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.kontrakTanggalSelesai}
+                    </Typography>
+                  </TableCell>
+                  {/* Kontrak - Nilai */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.04)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.kontrakNilai}
+                    </Typography>
+                  </TableCell>
+                  {/* Kontrak - Jml Termin */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.04)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.kontrakJumlahTermin}
+                    </Typography>
+                  </TableCell>
+                  {/* Kontrak - Detail Pembayaran */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.04)' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.kontrakDetailPembayaran}
+                    </Typography>
+                  </TableCell>
+                  {/* BA Deploy */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.baDeploy || '-'}
+                    </Typography>
+                  </TableCell>
+                  {/* Aksi */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
+                    <Box sx={{ display: 'flex', gap: 0.75 }}>
                       <Tooltip title="Lihat Detail PKSI">
                         <IconButton
                           size="small"
                           onClick={() => handleViewClick(item.id)}
                           sx={{
                             color: '#059669',
-                            bgcolor: 'rgba(5, 150, 105, 0.08)',
-                            '&:hover': {
-                              bgcolor: 'rgba(5, 150, 105, 0.15)',
+                            background: 'linear-gradient(135deg, rgba(52, 211, 153, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%)',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(255, 255, 255, 0.3)',
+                            borderRadius: '10px',
+                            transition: 'all 0.2s ease',
+                            '&:hover': { 
+                              background: 'linear-gradient(135deg, rgba(52, 211, 153, 0.25) 0%, rgba(16, 185, 129, 0.2) 100%)',
+                              transform: 'scale(1.05)',
+                              boxShadow: '0 4px 12px rgba(5, 150, 105, 0.2)',
                             },
                           }}
                         >
                           <VisibilityIcon sx={{ fontSize: 16 }} />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Edit PKSI">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleEditClick(item)}
-                          sx={{
-                            color: '#D97706',
-                            bgcolor: 'rgba(217, 119, 6, 0.08)',
-                            '&:hover': {
-                              bgcolor: 'rgba(217, 119, 6, 0.15)',
-                            },
-                          }}
-                        >
-                          <EditIcon sx={{ fontSize: 16 }} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Upload Dokumen T.1.1">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleUploadClick(item)}
-                          sx={{
-                            color: '#2563EB',
-                            bgcolor: 'rgba(37, 99, 235, 0.08)',
-                            '&:hover': {
-                              bgcolor: 'rgba(37, 99, 235, 0.15)',
-                            },
-                          }}
-                        >
-                          <CloudUploadIcon sx={{ fontSize: 16 }} />
-                        </IconButton>
-                      </Tooltip>
+                      {!getUserRoles().includes('SKPA') && (
+                        <Tooltip title="Edit PKSI">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEditClick(item)}
+                            sx={{
+                              color: '#D97706',
+                              background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.1) 100%)',
+                              backdropFilter: 'blur(10px)',
+                              border: '1px solid rgba(255, 255, 255, 0.3)',
+                              borderRadius: '10px',
+                              transition: 'all 0.2s ease',
+                              '&:hover': { 
+                                background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(245, 158, 11, 0.2) 100%)',
+                                transform: 'scale(1.05)',
+                                boxShadow: '0 4px 12px rgba(217, 119, 6, 0.2)',
+                              },
+                            }}
+                          >
+                            <EditIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </Box>
                   </TableCell>
                 </TableRow>
@@ -1499,13 +1859,14 @@ function PksiDisetujui() {
           setSelectedPksiIdForView(null);
         }}
         pksiId={selectedPksiIdForView}
+        showMonitoringSection={true}
       />
 
       {/* Edit Approval Dialog - Apple Liquid Glass Style */}
       <Dialog
         open={openEditDialog}
         onClose={handleEditCancel}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
         PaperProps={{
           sx: {
@@ -1516,6 +1877,7 @@ function PksiDisetujui() {
             WebkitBackdropFilter: 'blur(40px) saturate(180%)',
             border: '1px solid rgba(255, 255, 255, 0.6)',
             boxShadow: '0 24px 80px rgba(0, 0, 0, 0.12), 0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+            maxHeight: '90vh',
           },
         }}
       >
@@ -1550,7 +1912,7 @@ function PksiDisetujui() {
               color: '#1d1d1f',
               letterSpacing: '-0.02em',
             }}>
-              Edit PKSI Disetujui
+              Edit PKSI
             </Typography>
             {selectedPksiForEdit && (
               <Typography sx={{ 
@@ -1693,6 +2055,60 @@ function PksiDisetujui() {
               </Box>
             </Box>
           )}
+
+          {/* Informasi RBSI - Highlighted Section */}
+          <Box sx={{
+            mb: 3,
+            p: 2.5,
+            borderRadius: '16px',
+            background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.08) 0%, rgba(251, 191, 36, 0.05) 100%)',
+            backdropFilter: 'blur(10px)',
+            border: '1.5px solid rgba(217, 119, 6, 0.2)',
+            boxShadow: '0 4px 16px rgba(217, 119, 6, 0.08)',
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+              <Box sx={{
+                width: 32,
+                height: 32,
+                borderRadius: '10px',
+                background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%)',
+                border: '1px solid rgba(217, 119, 6, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Typography sx={{ fontSize: '1.1rem' }}>📋</Typography>
+              </Box>
+              <Typography sx={{
+                fontWeight: 600,
+                color: '#D97706',
+                fontSize: '0.9rem',
+                letterSpacing: '-0.01em',
+              }}>
+                Informasi RBSI
+              </Typography>
+            </Box>
+            <Box>
+              <Typography sx={{
+                fontSize: '0.7rem',
+                color: '#92400E',
+                mb: 0.5,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                fontWeight: 600,
+              }}>
+                Inisiatif RBSI
+              </Typography>
+              <Typography sx={{
+                fontWeight: 600,
+                color: '#1d1d1f',
+                fontSize: '0.95rem',
+                lineHeight: 1.5,
+              }}>
+                {editForm.inisiatifRbsi || '-'}
+              </Typography>
+            </Box>
+          </Box>
 
           <Typography sx={{ 
             fontWeight: 600, 
@@ -1975,6 +2391,651 @@ function PksiDisetujui() {
               ))}
             </Select>
           </FormControl>
+
+          {/* Divider - Anggaran Section */}
+          <Box sx={{ mt: 3, mb: 2 }}>
+            <Typography sx={{ 
+              fontWeight: 600, 
+              color: '#2563EB', 
+              fontSize: '0.85rem',
+              letterSpacing: '-0.01em',
+            }}>
+              Anggaran
+            </Typography>
+          </Box>
+
+          {/* Anggaran Fields - 3 columns */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              fullWidth
+              label="Total Anggaran"
+              value={editForm.anggaranTotal}
+              onChange={(e) => setEditForm({ ...editForm, anggaranTotal: e.target.value })}
+              placeholder="Rp 0"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(37, 99, 235, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(37, 99, 235, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(37, 99, 235, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#2563EB' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#2563EB' },
+              }}
+            />
+            <TextField
+              fullWidth
+              label={`Anggaran ${new Date().getFullYear()}`}
+              value={editForm.anggaranTahunIni}
+              onChange={(e) => setEditForm({ ...editForm, anggaranTahunIni: e.target.value })}
+              placeholder="Rp 0"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(37, 99, 235, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(37, 99, 235, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(37, 99, 235, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#2563EB' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#2563EB' },
+              }}
+            />
+            <TextField
+              fullWidth
+              label={`Anggaran ${new Date().getFullYear() + 1}`}
+              value={editForm.anggaranTahunDepan}
+              onChange={(e) => setEditForm({ ...editForm, anggaranTahunDepan: e.target.value })}
+              placeholder="Rp 0"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(37, 99, 235, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(37, 99, 235, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(37, 99, 235, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#2563EB' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#2563EB' },
+              }}
+            />
+          </Box>
+
+          {/* Divider - Timeline Section */}
+          <Box sx={{ mt: 3, mb: 2 }}>
+            <Typography sx={{ 
+              fontWeight: 600, 
+              color: '#8B5CF6', 
+              fontSize: '0.85rem',
+              letterSpacing: '-0.01em',
+            }}>
+              Timeline
+            </Typography>
+          </Box>
+
+          {/* Timeline Fields - 2 rows */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              fullWidth
+              label="Target Usreq"
+              type="date"
+              value={editForm.targetUsreq}
+              onChange={(e) => setEditForm({ ...editForm, targetUsreq: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(139, 92, 246, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(139, 92, 246, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(139, 92, 246, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#8B5CF6' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#8B5CF6' },
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Target SIT"
+              type="date"
+              value={editForm.targetSit}
+              onChange={(e) => setEditForm({ ...editForm, targetSit: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(139, 92, 246, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(139, 92, 246, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(139, 92, 246, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#8B5CF6' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#8B5CF6' },
+              }}
+            />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              fullWidth
+              label="Target UAT/PDKK"
+              type="date"
+              value={editForm.targetUat}
+              onChange={(e) => setEditForm({ ...editForm, targetUat: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(139, 92, 246, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(139, 92, 246, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(139, 92, 246, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#8B5CF6' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#8B5CF6' },
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Target Go Live"
+              type="date"
+              value={editForm.targetGoLive}
+              onChange={(e) => setEditForm({ ...editForm, targetGoLive: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(139, 92, 246, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(139, 92, 246, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(139, 92, 246, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#8B5CF6' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#8B5CF6' },
+              }}
+            />
+          </Box>
+
+          {/* Divider - Rencana PKSI (T01/T02) Section */}
+          <Box sx={{ mt: 3, mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography sx={{ 
+              fontWeight: 600, 
+              color: '#D97706', 
+              fontSize: '0.85rem',
+              letterSpacing: '-0.01em',
+            }}>
+              Rencana PKSI (T01/T02)
+            </Typography>
+            {/* Auto Status Badge */}
+            <Box sx={{
+              px: 1.5,
+              py: 0.5,
+              borderRadius: '8px',
+              background: filesT01.length > 0 
+                ? 'linear-gradient(145deg, rgba(5, 150, 105, 0.15) 0%, rgba(5, 150, 105, 0.08) 100%)'
+                : 'linear-gradient(145deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.08) 100%)',
+              border: filesT01.length > 0 ? '1px solid rgba(5, 150, 105, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.7rem', 
+                fontWeight: 600, 
+                color: filesT01.length > 0 ? '#059669' : '#EF4444',
+              }}>
+                {filesT01.length > 0 ? '✓ Diterima' : '○ Belum Diterima'}
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* T01/T02 File Dropzone */}
+          <label
+            htmlFor="t01-file-input"
+            onDragOver={(e) => { e.preventDefault(); setIsDraggingT01(true); }}
+            onDragLeave={() => setIsDraggingT01(false)}
+            onDrop={handleDropT01}
+            style={{
+              display: 'block',
+              border: isDraggingT01 ? '2px solid #D97706' : '2px dashed rgba(217, 119, 6, 0.3)',
+              borderRadius: '16px',
+              padding: '24px',
+              marginBottom: '16px',
+              textAlign: 'center',
+              background: isDraggingT01 
+                ? 'linear-gradient(145deg, rgba(217, 119, 6, 0.1) 0%, rgba(217, 119, 6, 0.05) 100%)'
+                : 'linear-gradient(145deg, rgba(217, 119, 6, 0.04) 0%, rgba(217, 119, 6, 0.02) 100%)',
+              cursor: 'pointer',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              backdropFilter: 'blur(10px)',
+            }}
+          >
+            <input
+              id="t01-file-input"
+              type="file"
+              multiple
+              hidden
+              onChange={handleFileSelectT01}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+            />
+            <Box sx={{
+              width: 52,
+              height: 52,
+              borderRadius: '50%',
+              background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mx: 'auto',
+              mb: 1.5,
+              border: '1px solid rgba(217, 119, 6, 0.2)',
+            }}>
+              <CloudUploadIcon sx={{ fontSize: 26, color: '#D97706' }} />
+            </Box>
+            <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', mb: 0.5 }}>
+              Drop dokumen T01/T02 di sini
+            </Typography>
+            <Typography sx={{ color: '#86868b', fontSize: '0.75rem' }}>
+              atau klik untuk memilih file (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX)
+            </Typography>
+          </label>
+
+          {/* T01/T02 Files List */}
+          {filesT01.length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <Typography sx={{ 
+                fontWeight: 600, 
+                color: '#1d1d1f', 
+                fontSize: '0.8rem',
+                mb: 1.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}>
+                <FileIcon sx={{ color: '#D97706', fontSize: 18 }} />
+                File Terpilih ({filesT01.length})
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {filesT01.map((file, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      p: 1.5,
+                      background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.06) 0%, rgba(217, 119, 6, 0.02) 100%)',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(217, 119, 6, 0.15)',
+                    }}
+                  >
+                    <Box sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '10px',
+                      background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.12) 0%, rgba(217, 119, 6, 0.06) 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                      <FileIcon sx={{ color: '#D97706', fontSize: 18 }} />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ 
+                        fontWeight: 500, 
+                        color: '#1d1d1f',
+                        fontSize: '0.85rem',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {file.name}
+                      </Typography>
+                      <Typography sx={{ color: '#86868b', fontSize: '0.7rem' }}>
+                        {formatFileSize(file.size)}
+                      </Typography>
+                    </Box>
+                    <Tooltip title="Hapus file">
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handleRemoveFileT01(index)}
+                        sx={{ 
+                          color: '#DC2626',
+                          background: 'linear-gradient(145deg, rgba(220, 38, 38, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)',
+                          width: 32,
+                          height: 32,
+                          borderRadius: '10px',
+                          '&:hover': {
+                            background: 'linear-gradient(145deg, rgba(220, 38, 38, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%)',
+                          },
+                        }}
+                      >
+                        <DeleteIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
+
+          {/* Divider - Spesifikasi Kebutuhan (T11) Section */}
+          <Box sx={{ mt: 3, mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography sx={{ 
+              fontWeight: 600, 
+              color: '#059669', 
+              fontSize: '0.85rem',
+              letterSpacing: '-0.01em',
+            }}>
+              Spesifikasi Kebutuhan (T11)
+            </Typography>
+            {/* Auto Status Badge */}
+            <Box sx={{
+              px: 1.5,
+              py: 0.5,
+              borderRadius: '8px',
+              background: filesT11.length > 0 
+                ? 'linear-gradient(145deg, rgba(5, 150, 105, 0.15) 0%, rgba(5, 150, 105, 0.08) 100%)'
+                : 'linear-gradient(145deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.08) 100%)',
+              border: filesT11.length > 0 ? '1px solid rgba(5, 150, 105, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+            }}>
+              <Typography sx={{ 
+                fontSize: '0.7rem', 
+                fontWeight: 600, 
+                color: filesT11.length > 0 ? '#059669' : '#EF4444',
+              }}>
+                {filesT11.length > 0 ? '✓ Diterima' : '○ Belum Diterima'}
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* T11 File Dropzone */}
+          <label
+            htmlFor="t11-file-input"
+            onDragOver={(e) => { e.preventDefault(); setIsDraggingT11(true); }}
+            onDragLeave={() => setIsDraggingT11(false)}
+            onDrop={handleDropT11}
+            style={{
+              display: 'block',
+              border: isDraggingT11 ? '2px solid #059669' : '2px dashed rgba(5, 150, 105, 0.3)',
+              borderRadius: '16px',
+              padding: '24px',
+              marginBottom: '16px',
+              textAlign: 'center',
+              background: isDraggingT11 
+                ? 'linear-gradient(145deg, rgba(5, 150, 105, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)'
+                : 'linear-gradient(145deg, rgba(5, 150, 105, 0.04) 0%, rgba(5, 150, 105, 0.02) 100%)',
+              cursor: 'pointer',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              backdropFilter: 'blur(10px)',
+            }}
+          >
+            <input
+              id="t11-file-input"
+              type="file"
+              multiple
+              hidden
+              onChange={handleFileSelectT11}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+            />
+            <Box sx={{
+              width: 52,
+              height: 52,
+              borderRadius: '50%',
+              background: 'linear-gradient(145deg, rgba(5, 150, 105, 0.15) 0%, rgba(5, 150, 105, 0.08) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mx: 'auto',
+              mb: 1.5,
+              border: '1px solid rgba(5, 150, 105, 0.2)',
+            }}>
+              <CloudUploadIcon sx={{ fontSize: 26, color: '#059669' }} />
+            </Box>
+            <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', mb: 0.5 }}>
+              Drop dokumen T11 di sini
+            </Typography>
+            <Typography sx={{ color: '#86868b', fontSize: '0.75rem' }}>
+              atau klik untuk memilih file (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX)
+            </Typography>
+          </label>
+
+          {/* T11 Files List */}
+          {filesT11.length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <Typography sx={{ 
+                fontWeight: 600, 
+                color: '#1d1d1f', 
+                fontSize: '0.8rem',
+                mb: 1.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}>
+                <FileIcon sx={{ color: '#059669', fontSize: 18 }} />
+                File Terpilih ({filesT11.length})
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {filesT11.map((file, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      p: 1.5,
+                      background: 'linear-gradient(145deg, rgba(5, 150, 105, 0.06) 0%, rgba(5, 150, 105, 0.02) 100%)',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(5, 150, 105, 0.15)',
+                    }}
+                  >
+                    <Box sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '10px',
+                      background: 'linear-gradient(145deg, rgba(5, 150, 105, 0.12) 0%, rgba(5, 150, 105, 0.06) 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                      <FileIcon sx={{ color: '#059669', fontSize: 18 }} />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ 
+                        fontWeight: 500, 
+                        color: '#1d1d1f',
+                        fontSize: '0.85rem',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {file.name}
+                      </Typography>
+                      <Typography sx={{ color: '#86868b', fontSize: '0.7rem' }}>
+                        {formatFileSize(file.size)}
+                      </Typography>
+                    </Box>
+                    <Tooltip title="Hapus file">
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handleRemoveFileT11(index)}
+                        sx={{ 
+                          color: '#DC2626',
+                          background: 'linear-gradient(145deg, rgba(220, 38, 38, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)',
+                          width: 32,
+                          height: 32,
+                          borderRadius: '10px',
+                          '&:hover': {
+                            background: 'linear-gradient(145deg, rgba(220, 38, 38, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%)',
+                          },
+                        }}
+                      >
+                        <DeleteIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
+
+          {/* Divider - CD Prinsip Section */}
+          <Box sx={{ mt: 3, mb: 2 }}>
+            <Typography sx={{ 
+              fontWeight: 600, 
+              color: '#DC2626', 
+              fontSize: '0.85rem',
+              letterSpacing: '-0.01em',
+            }}>
+              CD Prinsip
+            </Typography>
+          </Box>
+
+          <TextField
+            fullWidth
+            label="Nomor CD Prinsip"
+            value={editForm.nomorCd}
+            onChange={(e) => setEditForm({ ...editForm, nomorCd: e.target.value })}
+            placeholder="Contoh: CD-001/PCS8/2026"
+            sx={{
+              mb: 2,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '14px',
+                backgroundColor: 'rgba(220, 38, 38, 0.02)',
+                '& fieldset': { borderColor: 'rgba(220, 38, 38, 0.15)' },
+                '&:hover fieldset': { borderColor: 'rgba(220, 38, 38, 0.4)' },
+                '&.Mui-focused fieldset': { borderColor: '#DC2626' },
+              },
+              '& .MuiInputLabel-root.Mui-focused': { color: '#DC2626' },
+            }}
+          />
+
+          {/* Divider - Kontrak Section */}
+          <Box sx={{ mt: 3, mb: 2 }}>
+            <Typography sx={{ 
+              fontWeight: 600, 
+              color: '#0891B2', 
+              fontSize: '0.85rem',
+              letterSpacing: '-0.01em',
+            }}>
+              Kontrak
+            </Typography>
+          </Box>
+
+          {/* Kontrak Fields - 2 rows */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              fullWidth
+              label="Tanggal Mulai"
+              type="date"
+              value={editForm.kontrakTanggalMulai}
+              onChange={(e) => setEditForm({ ...editForm, kontrakTanggalMulai: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(8, 145, 178, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(8, 145, 178, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(8, 145, 178, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#0891B2' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#0891B2' },
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Tanggal Selesai"
+              type="date"
+              value={editForm.kontrakTanggalSelesai}
+              onChange={(e) => setEditForm({ ...editForm, kontrakTanggalSelesai: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(8, 145, 178, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(8, 145, 178, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(8, 145, 178, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#0891B2' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#0891B2' },
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Nilai Kontrak"
+              value={editForm.kontrakNilai}
+              onChange={(e) => setEditForm({ ...editForm, kontrakNilai: e.target.value })}
+              placeholder="Rp 0"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(8, 145, 178, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(8, 145, 178, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(8, 145, 178, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#0891B2' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#0891B2' },
+              }}
+            />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              fullWidth
+              label="Jumlah Termin"
+              value={editForm.kontrakJumlahTermin}
+              onChange={(e) => setEditForm({ ...editForm, kontrakJumlahTermin: e.target.value })}
+              placeholder="0"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(8, 145, 178, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(8, 145, 178, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(8, 145, 178, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#0891B2' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#0891B2' },
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Detail Pembayaran"
+              value={editForm.kontrakDetailPembayaran}
+              onChange={(e) => setEditForm({ ...editForm, kontrakDetailPembayaran: e.target.value })}
+              placeholder="Detail pembayaran termin"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(8, 145, 178, 0.02)',
+                  '& fieldset': { borderColor: 'rgba(8, 145, 178, 0.15)' },
+                  '&:hover fieldset': { borderColor: 'rgba(8, 145, 178, 0.4)' },
+                  '&.Mui-focused fieldset': { borderColor: '#0891B2' },
+                },
+                '& .MuiInputLabel-root.Mui-focused': { color: '#0891B2' },
+              }}
+            />
+          </Box>
+
+          {/* Divider - BA Deploy Section */}
+          <Box sx={{ mt: 3, mb: 2 }}>
+            <Typography sx={{ 
+              fontWeight: 600, 
+              color: '#1d1d1f', 
+              fontSize: '0.85rem',
+              letterSpacing: '-0.01em',
+            }}>
+              BA Deploy
+            </Typography>
+          </Box>
+
+          <TextField
+            fullWidth
+            label="BA Deploy"
+            value={editForm.baDeploy}
+            onChange={(e) => setEditForm({ ...editForm, baDeploy: e.target.value })}
+            placeholder="Link atau nama dokumen BA Deploy"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '14px',
+                backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.08)' },
+                '&:hover fieldset': { borderColor: 'rgba(217, 119, 6, 0.3)' },
+                '&.Mui-focused fieldset': { borderColor: '#D97706' },
+              },
+              '& .MuiInputLabel-root.Mui-focused': { color: '#D97706' },
+            }}
+          />
         </DialogContent>
         <DialogActions sx={{ 
           px: 3, 
@@ -2031,327 +3092,6 @@ function PksiDisetujui() {
             }}
           >
             {isSubmittingEdit ? 'Menyimpan...' : 'Simpan Perubahan'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Upload Modal */}
-      <Dialog
-        open={uploadModalOpen}
-        onClose={handleUploadModalClose}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: '16px',
-            overflow: 'hidden',
-          },
-        }}
-      >
-        <DialogTitle sx={{ 
-          fontWeight: 600, 
-          color: '#1d1d1f',
-          borderBottom: '1px solid rgba(0,0,0,0.08)',
-          bgcolor: '#fafafa',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.5,
-          py: 2,
-          px: 3,
-        }}>
-          <Box sx={{
-            width: 40,
-            height: 40,
-            borderRadius: '10px',
-            bgcolor: 'rgba(37, 99, 235, 0.1)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            <CloudUploadIcon sx={{ color: '#2563EB', fontSize: 22 }} />
-          </Box>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem', color: '#1d1d1f' }}>
-              Upload Dokumen T.1.1
-            </Typography>
-            {selectedPksiForUpload && (
-              <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 0.25 }}>
-                {selectedPksiForUpload.namaPksi}
-              </Typography>
-            )}
-          </Box>
-        </DialogTitle>
-        <DialogContent sx={{ p: 3 }}>
-          {/* Upload Area */}
-          <Box
-            sx={{
-              border: '2px dashed rgba(37, 99, 235, 0.25)',
-              borderRadius: '12px',
-              p: 3,
-              textAlign: 'center',
-              bgcolor: 'rgba(37, 99, 235, 0.02)',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              '&:hover': {
-                borderColor: '#2563EB',
-                bgcolor: 'rgba(37, 99, 235, 0.06)',
-                transform: 'translateY(-1px)',
-              },
-            }}
-            component="label"
-          >
-            <input
-              type="file"
-              multiple
-              hidden
-              onChange={handleFileSelect}
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-            />
-            <Box sx={{
-              width: 56,
-              height: 56,
-              borderRadius: '50%',
-              bgcolor: 'rgba(37, 99, 235, 0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              mx: 'auto',
-              mb: 1.5,
-            }}>
-              <CloudUploadIcon sx={{ fontSize: 28, color: '#2563EB' }} />
-            </Box>
-            <Typography variant="body1" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 0.5 }}>
-              Klik untuk memilih file
-            </Typography>
-            <Typography variant="caption" sx={{ color: '#86868b' }}>
-              Format: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX
-            </Typography>
-          </Box>
-
-          {/* Existing Files */}
-          {isLoadingFiles ? (
-            <Box sx={{ textAlign: 'center', py: 3 }}>
-              <CircularProgress size={24} sx={{ color: '#31A24C' }} />
-            </Box>
-          ) : existingFiles.length > 0 && (
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="body2" sx={{ 
-                fontWeight: 600, 
-                color: '#1d1d1f', 
-                mb: 1.5,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-              }}>
-                <CheckCircleRounded sx={{ color: '#31A24C', fontSize: 18 }} />
-                File Terupload ({existingFiles.length})
-              </Typography>
-              <Box sx={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: 1,
-                maxHeight: 150,
-                overflowY: 'auto',
-                pr: 0.5,
-              }}>
-                {existingFiles.map((file) => (
-                  <Box
-                    key={file.id}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.5,
-                      p: 1.5,
-                      bgcolor: 'rgba(49, 162, 76, 0.06)',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(49, 162, 76, 0.15)',
-                    }}
-                  >
-                    <Box sx={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '8px',
-                      bgcolor: 'rgba(49, 162, 76, 0.12)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>
-                      <FileIcon sx={{ color: '#31A24C', fontSize: 18 }} />
-                    </Box>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          fontWeight: 500, 
-                          color: '#1d1d1f',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          fontSize: '0.85rem',
-                        }}
-                      >
-                        {file.original_name}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontSize: '0.75rem' }}>
-                        {formatFileSize(file.file_size)}
-                      </Typography>
-                    </Box>
-                    <Tooltip title="Hapus file">
-                      <IconButton 
-                        size="small" 
-                        onClick={() => handleDeleteExistingFile(file.id)}
-                        sx={{ 
-                          color: '#DC2626',
-                          bgcolor: 'rgba(220, 38, 38, 0.08)',
-                          width: 32,
-                          height: 32,
-                          '&:hover': {
-                            bgcolor: 'rgba(220, 38, 38, 0.15)',
-                          },
-                        }}
-                      >
-                        <DeleteIcon sx={{ fontSize: 16 }} />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                ))}
-              </Box>
-            </Box>
-          )}
-
-          {/* Selected Files (new uploads) */}
-          {uploadedFiles.length > 0 && (
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="body2" sx={{ 
-                fontWeight: 600, 
-                color: '#1d1d1f', 
-                mb: 1.5,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-              }}>
-                <FileIcon sx={{ color: '#2563EB', fontSize: 18 }} />
-                File Dipilih ({uploadedFiles.length})
-              </Typography>
-              <Box sx={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: 1,
-                maxHeight: 150,
-                overflowY: 'auto',
-                pr: 0.5,
-              }}>
-                {uploadedFiles.map((file, index) => (
-                  <Box
-                    key={index}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.5,
-                      p: 1.5,
-                      bgcolor: 'rgba(37, 99, 235, 0.04)',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(37, 99, 235, 0.15)',
-                    }}
-                  >
-                    <Box sx={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '8px',
-                      bgcolor: 'rgba(37, 99, 235, 0.1)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>
-                      <FileIcon sx={{ color: '#2563EB', fontSize: 18 }} />
-                    </Box>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          fontWeight: 500, 
-                          color: '#1d1d1f',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          fontSize: '0.85rem',
-                        }}
-                      >
-                        {file.name}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontSize: '0.75rem' }}>
-                        {formatFileSize(file.size)}
-                      </Typography>
-                    </Box>
-                    <Tooltip title="Hapus dari daftar">
-                      <IconButton 
-                        size="small" 
-                        onClick={() => handleRemoveFile(index)}
-                        sx={{ 
-                          color: '#DC2626',
-                          bgcolor: 'rgba(220, 38, 38, 0.08)',
-                          width: 32,
-                          height: 32,
-                          '&:hover': {
-                            bgcolor: 'rgba(220, 38, 38, 0.15)',
-                          },
-                        }}
-                      >
-                        <CloseIcon sx={{ fontSize: 16 }} />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                ))}
-              </Box>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ 
-          px: 3, 
-          py: 2, 
-          borderTop: '1px solid rgba(0,0,0,0.08)',
-          bgcolor: '#fafafa',
-          gap: 1.5,
-        }}>
-          <Button
-            onClick={handleUploadModalClose}
-            sx={{
-              color: '#64748B',
-              fontWeight: 500,
-              px: 2.5,
-              borderRadius: '8px',
-              '&:hover': {
-                bgcolor: 'rgba(0, 0, 0, 0.05)',
-              },
-            }}
-          >
-            Tutup
-          </Button>
-          <Button
-            onClick={handleUploadSubmit}
-            disabled={uploadedFiles.length === 0 || isUploading}
-            variant="contained"
-            startIcon={isUploading ? <CircularProgress size={16} color="inherit" /> : <CloudUploadIcon />}
-            sx={{
-              bgcolor: '#2563EB',
-              fontWeight: 500,
-              px: 2.5,
-              borderRadius: '8px',
-              textTransform: 'none',
-              boxShadow: 'none',
-              '&:hover': {
-                bgcolor: '#1D4ED8',
-                boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
-              },
-              '&:disabled': {
-                bgcolor: 'rgba(37, 99, 235, 0.4)',
-                color: 'rgba(255, 255, 255, 0.8)',
-              },
-            }}
-          >
-            {isUploading ? 'Mengupload...' : 'Upload File'}
           </Button>
         </DialogActions>
       </Dialog>
