@@ -29,6 +29,7 @@ import {
   CheckCircleRounded,
   ListAltRounded,
   PeopleRounded,
+  AssessmentRounded,
   MonitorHeartRounded,
   AccountTreeRounded,
   SecurityRounded,
@@ -189,7 +190,7 @@ const Sidebar = () => {
           menuCode: 'PKSI',
           subItems: [
             { label: 'Semua PKSI', icon: <ListAltRounded />, href: '/pksi-list', menuCode: 'PKSI_ALL' },
-            { label: 'Monitoring PKSI', icon: <MonitorHeartRounded />, href: '/pksi-disetujui', menuCode: 'PKSI_APPROVED' },
+            { label: 'Monitoring PKSI', icon: <AssessmentRounded />, href: '/pksi-disetujui', menuCode: 'PKSI_APPROVED' },
           ],
         },
         {

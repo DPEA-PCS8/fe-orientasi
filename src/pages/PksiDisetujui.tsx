@@ -35,13 +35,13 @@ import {
   Search as SearchIcon,
   TuneRounded,
   Close as CloseIcon,
-  CheckCircleRounded,
   Visibility as VisibilityIcon,
   Edit as EditIcon,
   CloudUpload as CloudUploadIcon,
   InsertDriveFile as FileIcon,
   Delete as DeleteIcon,
   PushPin as PushPinIcon,
+  AssessmentRounded,
 } from '@mui/icons-material';
 import { searchPksiDocuments, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
@@ -839,7 +839,7 @@ function PksiDisetujui() {
       {/* Header */}
       <Box sx={{ mb: 3, px: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-          <CheckCircleRounded sx={{ color: '#31A24C', fontSize: 32 }} />
+          <AssessmentRounded sx={{ fontSize: 32, color: '#DA251C' }} />
           <Typography 
             variant="h4" 
             sx={{ 
@@ -1609,15 +1609,15 @@ function PksiDisetujui() {
             height: 8,
           },
           '&::-webkit-scrollbar-track': {
-            background: 'rgba(0, 0, 0, 0.03)',
+            background: 'rgba(0, 0, 0, 0.02)',
             borderRadius: 4,
           },
           '&::-webkit-scrollbar-thumb': {
-            background: 'rgba(255, 255, 255, 0.8)',
+            background: 'rgba(0, 0, 0, 0.08)',
             borderRadius: 4,
-            border: '1px solid rgba(0, 0, 0, 0.1)',
+            border: '1px solid rgba(0, 0, 0, 0.06)',
             '&:hover': {
-              background: 'rgba(255, 255, 255, 1)',
+              background: 'rgba(0, 0, 0, 0.12)',
             },
           },
         }}>

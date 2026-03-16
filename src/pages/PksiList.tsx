@@ -41,6 +41,7 @@ import {
   Delete as DeleteIcon,
   Visibility as VisibilityIcon,
   PushPin as PushPinIcon,
+  ListAltRounded,
 } from '@mui/icons-material';
 import {
   Dialog,
@@ -665,17 +666,19 @@ function PksiList() {
     }}>
       {/* Header */}
       <Box sx={{ mb: 3 }}>
-        <Typography 
-          variant="h4" 
-          sx={{ 
-            fontWeight: 700, 
-            color: '#1d1d1f',
-            letterSpacing: '-0.02em',
-            mb: 0.5,
-          }}
-        >
-          Dashboard PKSI
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+          <ListAltRounded sx={{ fontSize: 32, color: '#DA251C' }} />
+          <Typography 
+            variant="h4" 
+            sx={{ 
+              fontWeight: 700, 
+              color: '#1d1d1f',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Dashboard PKSI
+          </Typography>
+        </Box>
         <Typography variant="body1" sx={{ color: '#86868b' }}>
           Kelola data pengajuan PKSI
         </Typography>
@@ -1232,15 +1235,15 @@ function PksiList() {
             height: 8,
           },
           '&::-webkit-scrollbar-track': {
-            background: 'rgba(0, 0, 0, 0.03)',
+            background: 'rgba(0, 0, 0, 0.02)',
             borderRadius: 4,
           },
           '&::-webkit-scrollbar-thumb': {
-            background: 'rgba(255, 255, 255, 0.8)',
+            background: 'rgba(0, 0, 0, 0.08)',
             borderRadius: 4,
-            border: '1px solid rgba(0, 0, 0, 0.1)',
+            border: '1px solid rgba(0, 0, 0, 0.06)',
             '&:hover': {
-              background: 'rgba(255, 255, 255, 1)',
+              background: 'rgba(0, 0, 0, 0.12)',
             },
           },
         }}>
