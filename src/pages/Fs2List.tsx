@@ -72,12 +72,18 @@ import {
 import { getAllAplikasi, type AplikasiData } from '../api/aplikasiApi';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
+import { 
+  uploadFs2TempFiles, 
+  moveFs2TempFilesToPermanent, 
+  deleteFs2TempFiles,
+  deleteFs2File,
+  type Fs2FileData 
+} from '../api/fs2FileApi';
 
 // Interface for transformed data
 interface Fs2Data {
   id: string;
   namaAplikasi: string;
-  namaFs2: string;
   bidang: string;
   skpa: string;
   tanggalPengajuan: string;
@@ -96,7 +102,6 @@ const transformApiData = (apiData: Fs2DocumentData): Fs2Data => {
   return {
     id: apiData.id,
     namaAplikasi: apiData.nama_aplikasi || '-',
-    namaFs2: apiData.nama_fs2,
     bidang: apiData.nama_bidang || '-',
     skpa: apiData.kode_skpa || apiData.nama_skpa || '-',
     tanggalPengajuan: apiData.tanggal_pengajuan || '',
@@ -195,7 +200,7 @@ function Fs2List() {
   const [selectedFs2ForView, setSelectedFs2ForView] = useState<Fs2DocumentData | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [orderBy, setOrderBy] = useState<keyof Fs2Data>('namaFs2');
+  const [orderBy, setOrderBy] = useState<keyof Fs2Data>('namaAplikasi');
   const [order, setOrder] = useState<Order>('asc');
   const [fs2Data, setFs2Data] = useState<Fs2Data[]>([]);
   const [rawData, setRawData] = useState<Fs2DocumentData[]>([]);
@@ -224,7 +229,6 @@ function Fs2List() {
 
   // Form state for Add/Edit modal
   const [formData, setFormData] = useState<Fs2DocumentRequest>({
-    nama_fs2: '',
     aplikasi_id: '',
     bidang_id: '',
     skpa_id: '',
@@ -261,6 +265,9 @@ function Fs2List() {
 
   // File upload state
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [uploadedFileData, setUploadedFileData] = useState<Fs2FileData[]>([]);
+  const [sessionId, setSessionId] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
 
   // Delete confirmation dialog
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
@@ -416,18 +423,49 @@ function Fs2List() {
   };
 
   // File upload handlers
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (files) {
-      const newFiles = Array.from(files);
-      setUploadedFiles((prev) => [...prev, ...newFiles]);
+    if (files && files.length > 0 && sessionId) {
+      // Only take the first file (single file upload)
+      const file = files[0];
+      
+      // Delete existing file if any
+      if (uploadedFileData.length > 0 && uploadedFileData[0]?.id) {
+        try {
+          await deleteFs2File(uploadedFileData[0].id);
+        } catch (error) {
+          console.error('Failed to delete existing file:', error);
+        }
+      }
+      
+      setIsUploading(true);
+      try {
+        // Upload to temp storage
+        const uploadedData = await uploadFs2TempFiles(sessionId, [file]);
+        setUploadedFiles([file]);
+        setUploadedFileData(uploadedData);
+      } catch (error) {
+        console.error('Failed to upload file:', error);
+        alert('Gagal mengupload file. Silakan coba lagi.');
+      } finally {
+        setIsUploading(false);
+      }
     }
     // Reset input value to allow uploading same file again
     event.target.value = '';
   };
 
-  const handleRemoveFile = (index: number) => {
+  const handleRemoveFile = async (index: number) => {
+    const fileToRemove = uploadedFileData[index];
+    if (fileToRemove?.id) {
+      try {
+        await deleteFs2File(fileToRemove.id);
+      } catch (error) {
+        console.error('Failed to delete file:', error);
+      }
+    }
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+    setUploadedFileData((prev) => prev.filter((_, i) => i !== index));
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -448,8 +486,12 @@ function Fs2List() {
 
   // Add modal handlers
   const handleOpenAddModal = () => {
+    // Generate a unique session ID for temp file uploads
+    const newSessionId = `fs2_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setSessionId(newSessionId);
+    setUploadedFiles([]);
+    setUploadedFileData([]);
     setFormData({
-      nama_fs2: '',
       aplikasi_id: '',
       bidang_id: '',
       skpa_id: '',
@@ -485,13 +527,29 @@ function Fs2List() {
     setOpenAddModal(true);
   };
 
-  const handleCloseAddModal = () => {
+  const handleCloseAddModal = async () => {
+    // Clean up temp files when canceling
+    if (sessionId && uploadedFileData.length > 0) {
+      try {
+        await deleteFs2TempFiles(sessionId);
+      } catch (error) {
+        console.error('Failed to delete temp files:', error);
+      }
+    }
+    setUploadedFiles([]);
+    setUploadedFileData([]);
     setOpenAddModal(false);
   };
 
   const handleAddFs2 = async () => {
     try {
-      await createFs2Document(formData);
+      const createdFs2 = await createFs2Document(formData);
+      
+      // Move temp files to permanent storage
+      if (sessionId && uploadedFileData.length > 0) {
+        await moveFs2TempFilesToPermanent(createdFs2.id, sessionId);
+      }
+      
       setOpenAddModal(false);
       fetchFs2Data();
     } catch (error) {
@@ -505,7 +563,6 @@ function Fs2List() {
     if (fs2) {
       setSelectedFs2ForEdit(fs2);
       setFormData({
-        nama_fs2: fs2.nama_fs2,
         aplikasi_id: fs2.aplikasi_id || '',
         bidang_id: fs2.bidang_id || '',
         skpa_id: fs2.skpa_id || '',
@@ -940,23 +997,6 @@ function Fs2List() {
                   Nama Aplikasi
                 </TableSortLabel>
               </TableCell>
-              <TableCell 
-                sortDirection={orderBy === 'namaFs2' ? order : false}
-                sx={{ 
-                  fontWeight: 600, 
-                  color: '#1d1d1f', 
-                  py: 2,
-                  minWidth: 200,
-                }}
-              >
-                <TableSortLabel
-                  active={orderBy === 'namaFs2'}
-                  direction={orderBy === 'namaFs2' ? order : 'asc'}
-                  onClick={() => handleRequestSort('namaFs2')}
-                >
-                  Nama F.S.2
-                </TableSortLabel>
-              </TableCell>
               <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2, minWidth: 120 }}>Bidang</TableCell>
               <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2, minWidth: 100 }}>SKPA</TableCell>
               <TableCell 
@@ -983,7 +1023,7 @@ function Fs2List() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} sx={{ textAlign: 'center', py: 6 }}>
+                <TableCell colSpan={7} sx={{ textAlign: 'center', py: 6 }}>
                   <CircularProgress size={40} sx={{ color: '#DA251C' }} />
                   <Typography variant="body2" sx={{ mt: 2, color: '#86868b' }}>
                     Memuat data...
@@ -992,7 +1032,7 @@ function Fs2List() {
               </TableRow>
             ) : fs2Data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} sx={{ textAlign: 'center', py: 6 }}>
+                <TableCell colSpan={7} sx={{ textAlign: 'center', py: 6 }}>
                   <Typography variant="body2" sx={{ color: '#86868b' }}>
                     Tidak ada data F.S.2 ditemukan
                   </Typography>
@@ -1033,18 +1073,6 @@ function Fs2List() {
                         }}
                       >
                         {row.namaAplikasi}
-                      </Typography>
-                    </TableCell>
-                    <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word' }}>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          fontWeight: 500,
-                          color: '#1d1d1f',
-                          lineHeight: 1.5,
-                        }}
-                      >
-                        {row.namaFs2}
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ py: 2 }}>
@@ -2024,33 +2052,45 @@ function Fs2List() {
                       borderRadius: 2,
                       p: 3,
                       textAlign: 'center',
-                      cursor: 'pointer',
+                      cursor: isUploading ? 'not-allowed' : 'pointer',
+                      opacity: isUploading ? 0.7 : 1,
                       transition: 'all 0.2s ease-in-out',
                       '&:hover': {
-                        borderColor: '#DA251C',
-                        bgcolor: 'rgba(218, 37, 28, 0.04)',
+                        borderColor: isUploading ? '#e5e5e7' : '#DA251C',
+                        bgcolor: isUploading ? 'transparent' : 'rgba(218, 37, 28, 0.04)',
                       },
                     }}
-                    onClick={() => document.getElementById('fs2-file-upload-input')?.click()}
+                    onClick={() => !isUploading && document.getElementById('fs2-file-upload-input')?.click()}
                   >
                     <input
                       id="fs2-file-upload-input"
                       type="file"
-                      multiple
                       hidden
                       onChange={handleFileUpload}
-                      accept=".pdf"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                      disabled={isUploading}
                     />
-                    <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
-                    <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
-                      Klik untuk upload file
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
-                      atau drag & drop file di sini
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
-                      Format yang didukung: PDF
-                    </Typography>
+                    {isUploading ? (
+                      <>
+                        <CircularProgress size={48} sx={{ color: '#DA251C', mb: 1 }} />
+                        <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                          Mengupload file...
+                        </Typography>
+                      </>
+                    ) : (
+                      <>
+                        <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
+                        <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                          Klik untuk upload file
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
+                          atau drag & drop file di sini
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
+                          Format yang didukung: PDF, Word, Excel, Gambar (max 20MB)
+                        </Typography>
+                      </>
+                    )}
                   </Box>
 
                   {uploadedFiles.length > 0 && (
@@ -2079,6 +2119,7 @@ function Fs2List() {
                               <IconButton
                                 edge="end"
                                 onClick={() => handleRemoveFile(index)}
+                                disabled={isUploading}
                                 sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
                               >
                                 <DeleteIcon />
@@ -2097,6 +2138,7 @@ function Fs2List() {
         <DialogActions sx={{ p: 2.5, pt: 1, borderTop: '1px solid rgba(0, 0, 0, 0.06)' }}>
           <Button 
             onClick={handleCloseAddModal}
+            disabled={isUploading}
             sx={{
               color: '#86868b',
               '&:hover': {
@@ -2109,6 +2151,7 @@ function Fs2List() {
           <Button 
             variant="contained" 
             onClick={handleAddFs2}
+            disabled={isUploading}
             sx={{
               background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
               fontWeight: 500,
@@ -2925,10 +2968,9 @@ function Fs2List() {
                     <input
                       id="fs2-edit-file-upload-input"
                       type="file"
-                      multiple
                       hidden
                       onChange={handleFileUpload}
-                      accept=".pdf"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
                     />
                     <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
                     <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
@@ -2938,7 +2980,7 @@ function Fs2List() {
                       atau drag & drop file di sini
                     </Typography>
                     <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
-                      Format yang didukung: PDF
+                      Format yang didukung: PDF, Word, Excel, Gambar (max 20MB)
                     </Typography>
                   </Box>
 
@@ -3079,10 +3121,6 @@ function Fs2List() {
               {/* Basic Information */}
               <Typography variant="subtitle1" fontWeight={600}>Informasi Dasar</Typography>
               <Grid container spacing={2}>
-                <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" color="text.secondary">Nama F.S.2</Typography>
-                  <Typography>{selectedFs2ForView.nama_fs2}</Typography>
-                </Grid>
                 <Grid size={{ xs: 6 }}>
                   <Typography variant="caption" color="text.secondary">Aplikasi</Typography>
                   <Typography>{selectedFs2ForView.nama_aplikasi || '-'}</Typography>
