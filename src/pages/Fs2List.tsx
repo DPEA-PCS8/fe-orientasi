@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   TextField,
@@ -38,6 +38,13 @@ import {
   AccordionSummary,
   AccordionDetails,
   Grid,
+  Stack,
+  styled,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemSecondaryAction,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -49,6 +56,8 @@ import {
   Delete as DeleteIcon,
   Visibility as VisibilityIcon,
   ExpandMore as ExpandMoreIcon,
+  CloudUpload as CloudUploadIcon,
+  InsertDriveFile as FileIcon,
 } from '@mui/icons-material';
 import { usePermissions } from '../hooks/usePermissions';
 import { 
@@ -63,12 +72,18 @@ import {
 import { getAllAplikasi, type AplikasiData } from '../api/aplikasiApi';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
+import { 
+  uploadFs2TempFiles, 
+  moveFs2TempFilesToPermanent, 
+  deleteFs2TempFiles,
+  deleteFs2File,
+  type Fs2FileData 
+} from '../api/fs2FileApi';
 
 // Interface for transformed data
 interface Fs2Data {
   id: string;
   namaAplikasi: string;
-  namaFs2: string;
   bidang: string;
   skpa: string;
   tanggalPengajuan: string;
@@ -87,7 +102,6 @@ const transformApiData = (apiData: Fs2DocumentData): Fs2Data => {
   return {
     id: apiData.id,
     namaAplikasi: apiData.nama_aplikasi || '-',
-    namaFs2: apiData.nama_fs2,
     bidang: apiData.nama_bidang || '-',
     skpa: apiData.kode_skpa || apiData.nama_skpa || '-',
     tanggalPengajuan: apiData.tanggal_pengajuan || '',
@@ -142,6 +156,41 @@ const getSkpaColor = (skpaCode: string): { bg: string; text: string } => {
   return SKPA_COLORS[index];
 };
 
+// Styled TextField with glass effect
+const GlassTextField = styled(TextField)({
+  '& .MuiOutlinedInput-root': {
+    borderRadius: '12px',
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    backdropFilter: 'blur(10px)',
+    transition: 'all 0.2s ease-in-out',
+    '& fieldset': {
+      borderColor: 'rgba(0, 0, 0, 0.08)',
+      transition: 'all 0.2s ease-in-out',
+    },
+    '&:hover fieldset': {
+      borderColor: 'rgba(0, 0, 0, 0.15)',
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: '#DA251C',
+      borderWidth: '1.5px',
+    },
+    '&.Mui-focused': {
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      boxShadow: '0 4px 20px rgba(218, 37, 28, 0.1)',
+    },
+  },
+  '& .MuiInputLabel-root': {
+    color: '#86868b',
+    fontWeight: 500,
+    '&.Mui-focused': {
+      color: '#DA251C',
+    },
+  },
+  '& .MuiOutlinedInput-input': {
+    color: '#1d1d1f',
+  },
+});
+
 function Fs2List() {
   const [keyword, setKeyword] = useState('');
   const [openAddModal, setOpenAddModal] = useState(false);
@@ -151,7 +200,7 @@ function Fs2List() {
   const [selectedFs2ForView, setSelectedFs2ForView] = useState<Fs2DocumentData | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [orderBy, setOrderBy] = useState<keyof Fs2Data>('namaFs2');
+  const [orderBy, setOrderBy] = useState<keyof Fs2Data>('namaAplikasi');
   const [order, setOrder] = useState<Order>('asc');
   const [fs2Data, setFs2Data] = useState<Fs2Data[]>([]);
   const [rawData, setRawData] = useState<Fs2DocumentData[]>([]);
@@ -163,6 +212,9 @@ function Fs2List() {
   // Permission check for FS2 menu
   const { getMenuPermissions } = usePermissions();
   const fs2Permissions = getMenuPermissions('FS2_ALL');
+
+  // Accordion expanded state for Add/Edit modal
+  const [expandedSection, setExpandedSection] = useState<string | false>('section0');
 
   // Filter state
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
@@ -177,7 +229,6 @@ function Fs2List() {
 
   // Form state for Add/Edit modal
   const [formData, setFormData] = useState<Fs2DocumentRequest>({
-    nama_fs2: '',
     aplikasi_id: '',
     bidang_id: '',
     skpa_id: '',
@@ -211,6 +262,12 @@ function Fs2List() {
     pernyataan_1: false,
     pernyataan_2: false,
   });
+
+  // File upload state
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [uploadedFileData, setUploadedFileData] = useState<Fs2FileData[]>([]);
+  const [sessionId, setSessionId] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
 
   // Delete confirmation dialog
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
@@ -360,6 +417,65 @@ function Fs2List() {
     setSelectedSkpaFilter('');
   };
 
+  // Accordion change handler for Add/Edit modal
+  const handleAccordionChange = (panel: string) => (_event: React.SyntheticEvent, isExpanded: boolean) => {
+    setExpandedSection(isExpanded ? panel : false);
+  };
+
+  // File upload handlers
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0 && sessionId) {
+      // Only take the first file (single file upload)
+      const file = files[0];
+      
+      // Delete existing file if any
+      if (uploadedFileData.length > 0 && uploadedFileData[0]?.id) {
+        try {
+          await deleteFs2File(uploadedFileData[0].id);
+        } catch (error) {
+          console.error('Failed to delete existing file:', error);
+        }
+      }
+      
+      setIsUploading(true);
+      try {
+        // Upload to temp storage
+        const uploadedData = await uploadFs2TempFiles(sessionId, [file]);
+        setUploadedFiles([file]);
+        setUploadedFileData(uploadedData);
+      } catch (error) {
+        console.error('Failed to upload file:', error);
+        alert('Gagal mengupload file. Silakan coba lagi.');
+      } finally {
+        setIsUploading(false);
+      }
+    }
+    // Reset input value to allow uploading same file again
+    event.target.value = '';
+  };
+
+  const handleRemoveFile = async (index: number) => {
+    const fileToRemove = uploadedFileData[index];
+    if (fileToRemove?.id) {
+      try {
+        await deleteFs2File(fileToRemove.id);
+      } catch (error) {
+        console.error('Failed to delete file:', error);
+      }
+    }
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+    setUploadedFileData((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (selectedStatus.size > 0) count++;
@@ -370,8 +486,12 @@ function Fs2List() {
 
   // Add modal handlers
   const handleOpenAddModal = () => {
+    // Generate a unique session ID for temp file uploads
+    const newSessionId = `fs2_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setSessionId(newSessionId);
+    setUploadedFiles([]);
+    setUploadedFileData([]);
     setFormData({
-      nama_fs2: '',
       aplikasi_id: '',
       bidang_id: '',
       skpa_id: '',
@@ -407,13 +527,29 @@ function Fs2List() {
     setOpenAddModal(true);
   };
 
-  const handleCloseAddModal = () => {
+  const handleCloseAddModal = async () => {
+    // Clean up temp files when canceling
+    if (sessionId && uploadedFileData.length > 0) {
+      try {
+        await deleteFs2TempFiles(sessionId);
+      } catch (error) {
+        console.error('Failed to delete temp files:', error);
+      }
+    }
+    setUploadedFiles([]);
+    setUploadedFileData([]);
     setOpenAddModal(false);
   };
 
   const handleAddFs2 = async () => {
     try {
-      await createFs2Document(formData);
+      const createdFs2 = await createFs2Document(formData);
+      
+      // Move temp files to permanent storage
+      if (sessionId && uploadedFileData.length > 0) {
+        await moveFs2TempFilesToPermanent(createdFs2.id, sessionId);
+      }
+      
       setOpenAddModal(false);
       fetchFs2Data();
     } catch (error) {
@@ -427,7 +563,6 @@ function Fs2List() {
     if (fs2) {
       setSelectedFs2ForEdit(fs2);
       setFormData({
-        nama_fs2: fs2.nama_fs2,
         aplikasi_id: fs2.aplikasi_id || '',
         bidang_id: fs2.bidang_id || '',
         skpa_id: fs2.skpa_id || '',
@@ -529,131 +664,331 @@ function Fs2List() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ 
+      p: 3.5,
+      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
+      minHeight: '100vh',
+    }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" fontWeight={600}>
-          Semua F.S.2
+      <Box sx={{ mb: 3 }}>
+        <Typography 
+          variant="h4" 
+          sx={{ 
+            fontWeight: 700, 
+            color: '#1d1d1f',
+            letterSpacing: '-0.02em',
+            mb: 0.5,
+          }}
+        >
+          Dashboard F.S.2
         </Typography>
-        {fs2Permissions.canCreate && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleOpenAddModal}
-            sx={{ borderRadius: 2 }}
-          >
-            Tambah F.S.2
-          </Button>
-        )}
+        <Typography variant="body1" sx={{ color: '#86868b' }}>
+          Kelola data pengajuan F.S.2
+        </Typography>
       </Box>
 
-      {/* Search and Filter */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <TextField
-          placeholder="Cari F.S.2..."
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          size="small"
-          sx={{ width: 300 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
+      {/* Main Card */}
+      <Paper
+        elevation={0}
+        sx={{
+          width: '100%',
+          borderRadius: 2,
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Toolbar */}
+        <Box
+          sx={{
+            p: 2.5,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
           }}
-        />
-        <Button
-          variant="outlined"
-          startIcon={<TuneRounded />}
-          onClick={handleFilterClick}
-          sx={{ borderRadius: 2 }}
         >
-          Filter {activeFiltersCount > 0 && `(${activeFiltersCount})`}
-        </Button>
-      </Box>
+          {/* Search & Filter */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <TextField
+              placeholder="Cari F.S.2..."
+              size="small"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              sx={{ 
+                width: 280,
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: '#f5f5f7',
+                  borderRadius: '10px',
+                  '& fieldset': {
+                    borderColor: 'transparent',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'transparent',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#DA251C',
+                    borderWidth: 2,
+                  },
+                },
+              }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ color: '#86868b', fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+            <Button
+              variant="text"
+              startIcon={<TuneRounded sx={{ fontSize: 18 }} />}
+              onClick={handleFilterClick}
+              sx={{
+                color: activeFiltersCount > 0 ? '#DA251C' : '#86868b',
+                fontWeight: 500,
+                '&:hover': {
+                  bgcolor: 'rgba(0, 0, 0, 0.04)',
+                },
+              }}
+            >
+              Filters
+              {activeFiltersCount > 0 && (
+                <Chip
+                  label={activeFiltersCount}
+                  size="small"
+                  sx={{ ml: 1, bgcolor: '#DA251C', color: 'white', height: 20, fontSize: '0.7rem' }}
+                />
+              )}
+            </Button>
+          </Box>
+          {fs2Permissions.canCreate && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleOpenAddModal}
+              sx={{
+                background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+                fontWeight: 500,
+                px: 2.5,
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
+                },
+              }}
+            >
+              Tambah F.S.2
+            </Button>
+          )}
+        </Box>
 
       {/* Filter Popover */}
       <Popover
         open={Boolean(filterAnchorEl)}
         anchorEl={filterAnchorEl}
         onClose={handleFilterClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+        PaperProps={{
+          sx: {
+            mt: 1,
+            borderRadius: '16px',
+            boxShadow: '0 20px 40px rgba(218, 37, 28, 0.1)',
+            overflow: 'hidden',
+            border: '1px solid #ffebeb',
+          },
+        }}
       >
-        <Box sx={{ p: 2, minWidth: 280 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="subtitle1" fontWeight={600}>Filter</Typography>
-            <IconButton size="small" onClick={handleFilterClose}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
+        {/* Header */}
+        <Box sx={{
+          background: '#DA251C',
+          p: 2.5,
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              bgcolor: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <TuneRounded sx={{ fontSize: 16, color: '#DA251C' }} />
+            </Box>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'white' }}>
+              Filter
+            </Typography>
+          </Box>
+          <IconButton 
+            size="small" 
+            onClick={handleFilterClose}
+            sx={{ 
+              color: 'white', 
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } 
+            }}
+          >
+            <CloseIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Box>
+        
+        <Box sx={{ p: 3, minWidth: 320, maxHeight: 450, overflowY: 'auto', bgcolor: 'white' }}>
+          {/* Status Filter */}
+          <Box sx={{ mb: 2.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+              Status
+            </Typography>
+            <FormGroup sx={{ '& .MuiFormControlLabel-root': { mb: 1.5, alignItems: 'flex-start' }, '& .MuiCheckbox-root': { pt: 0.5 } }}>
+              {['disetujui', 'tidak_disetujui', 'pending'].map((status) => (
+                <FormControlLabel
+                  key={status}
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={selectedStatus.has(status)}
+                      onChange={(e) => handleStatusFilterChange(status, e.target.checked)}
+                      sx={{
+                        '&.Mui-checked': {
+                          color: '#DA251C',
+                        },
+                      }}
+                    />
+                  }
+                  label={<Typography variant="body2" sx={{ fontWeight: 500 }}>{STATUS_LABELS[status as Fs2Data['status']]}</Typography>}
+                />
+              ))}
+            </FormGroup>
           </Box>
 
-          {/* Status Filter */}
-          <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>Status</Typography>
-          <FormGroup>
-            {['pending', 'disetujui', 'tidak_disetujui'].map((status) => (
-              <FormControlLabel
-                key={status}
-                control={
-                  <Checkbox
-                    checked={selectedStatus.has(status)}
-                    onChange={(e) => handleStatusFilterChange(status, e.target.checked)}
-                    size="small"
-                  />
-                }
-                label={STATUS_LABELS[status as Fs2Data['status']]}
-              />
-            ))}
-          </FormGroup>
+          <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
 
           {/* Bidang Filter */}
-          <FormControl fullWidth size="small" sx={{ mt: 2 }}>
-            <InputLabel>Bidang</InputLabel>
-            <Select
-              value={selectedBidangFilter}
-              label="Bidang"
-              onChange={(e) => setSelectedBidangFilter(e.target.value)}
-            >
-              <MenuItem value="">Semua</MenuItem>
-              {bidangList.map((bidang) => (
-                <MenuItem key={bidang.id} value={bidang.id}>{bidang.nama_bidang}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Box sx={{ mb: 2.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+              Bidang
+            </Typography>
+            <FormControl fullWidth size="small">
+              <InputLabel id="bidang-filter-label">Pilih Bidang</InputLabel>
+              <Select
+                labelId="bidang-filter-label"
+                value={selectedBidangFilter}
+                label="Pilih Bidang"
+                onChange={(e) => setSelectedBidangFilter(e.target.value)}
+                sx={{
+                  borderRadius: '8px',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#e5e5e7',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#DA251C',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#DA251C',
+                  },
+                }}
+              >
+                <MenuItem value=""><em>Semua Bidang</em></MenuItem>
+                {bidangList.map((bidang) => (
+                  <MenuItem key={bidang.id} value={bidang.id}>{bidang.nama_bidang}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+
+          <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
 
           {/* SKPA Filter */}
-          <FormControl fullWidth size="small" sx={{ mt: 2 }}>
-            <InputLabel>SKPA</InputLabel>
-            <Select
-              value={selectedSkpaFilter}
-              label="SKPA"
-              onChange={(e) => setSelectedSkpaFilter(e.target.value)}
-            >
-              <MenuItem value="">Semua</MenuItem>
-              {skpaList.map((skpa) => (
-                <MenuItem key={skpa.id} value={skpa.id}>{skpa.kode_skpa} - {skpa.nama_skpa}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Box sx={{ mb: 2.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+              SKPA
+            </Typography>
+            <FormControl fullWidth size="small">
+              <InputLabel id="skpa-filter-label">Pilih SKPA</InputLabel>
+              <Select
+                labelId="skpa-filter-label"
+                value={selectedSkpaFilter}
+                label="Pilih SKPA"
+                onChange={(e) => setSelectedSkpaFilter(e.target.value)}
+                sx={{
+                  borderRadius: '8px',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#e5e5e7',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#DA251C',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#DA251C',
+                  },
+                }}
+              >
+                <MenuItem value=""><em>Semua SKPA</em></MenuItem>
+                {skpaList.map((skpa) => (
+                  <MenuItem key={skpa.id} value={skpa.id}>{skpa.kode_skpa} - {skpa.nama_skpa}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
 
+          <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
+          {/* Reset Button */}
           <Button
             fullWidth
-            variant="text"
+            variant="outlined"
             onClick={clearFilters}
-            sx={{ mt: 2 }}
+            sx={{
+              py: 1,
+              borderRadius: '8px',
+              color: '#DA251C',
+              borderColor: '#DA251C',
+              fontWeight: 600,
+              '&:hover': {
+                bgcolor: '#fff5f5',
+                borderColor: '#DA251C',
+              },
+            }}
           >
-            Clear Filters
+            Reset Filter
           </Button>
         </Box>
       </Popover>
 
       {/* Table */}
-      <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
-        <Table>
+      <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
+        <Table sx={{ minWidth: 1000 }}>
           <TableHead>
-            <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-              <TableCell>No</TableCell>
-              <TableCell>
+            <TableRow sx={{ bgcolor: '#f5f5f7' }}>
+              <TableCell 
+                sx={{ 
+                  fontWeight: 600, 
+                  color: '#1d1d1f', 
+                  py: 2,
+                  width: 50,
+                  minWidth: 50,
+                  textAlign: 'center',
+                }}
+              >
+                No
+              </TableCell>
+              <TableCell 
+                sortDirection={orderBy === 'namaAplikasi' ? order : false}
+                sx={{ 
+                  fontWeight: 600, 
+                  color: '#1d1d1f', 
+                  py: 2,
+                  minWidth: 150,
+                }}
+              >
                 <TableSortLabel
                   active={orderBy === 'namaAplikasi'}
                   direction={orderBy === 'namaAplikasi' ? order : 'asc'}
@@ -662,18 +997,17 @@ function Fs2List() {
                   Nama Aplikasi
                 </TableSortLabel>
               </TableCell>
-              <TableCell>
-                <TableSortLabel
-                  active={orderBy === 'namaFs2'}
-                  direction={orderBy === 'namaFs2' ? order : 'asc'}
-                  onClick={() => handleRequestSort('namaFs2')}
-                >
-                  Nama F.S.2
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>Bidang</TableCell>
-              <TableCell>SKPA</TableCell>
-              <TableCell>
+              <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2, minWidth: 120 }}>Bidang</TableCell>
+              <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2, minWidth: 100 }}>SKPA</TableCell>
+              <TableCell 
+                sortDirection={orderBy === 'tanggalPengajuan' ? order : false}
+                sx={{ 
+                  fontWeight: 600, 
+                  color: '#1d1d1f', 
+                  py: 2,
+                  minWidth: 150,
+                }}
+              >
                 <TableSortLabel
                   active={orderBy === 'tanggalPengajuan'}
                   direction={orderBy === 'tanggalPengajuan' ? order : 'asc'}
@@ -682,80 +1016,177 @@ function Fs2List() {
                   Tanggal Pengajuan
                 </TableSortLabel>
               </TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell align="center">Aksi</TableCell>
+              <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2, minWidth: 130 }}>Status</TableCell>
+              <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2, minWidth: 120 }}>Aksi</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
-                  <CircularProgress size={32} />
+                <TableCell colSpan={7} sx={{ textAlign: 'center', py: 6 }}>
+                  <CircularProgress size={40} sx={{ color: '#DA251C' }} />
+                  <Typography variant="body2" sx={{ mt: 2, color: '#86868b' }}>
+                    Memuat data...
+                  </Typography>
                 </TableCell>
               </TableRow>
             ) : fs2Data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
-                  <Typography color="text.secondary">Tidak ada data F.S.2</Typography>
+                <TableCell colSpan={7} sx={{ textAlign: 'center', py: 6 }}>
+                  <Typography variant="body2" sx={{ color: '#86868b' }}>
+                    Tidak ada data F.S.2 ditemukan
+                  </Typography>
                 </TableCell>
               </TableRow>
             ) : (
               fs2Data.map((row, index) => {
                 const skpaColor = getSkpaColor(row.skpa);
                 return (
-                  <TableRow key={row.id} hover>
-                    <TableCell>{page * rowsPerPage + index + 1}</TableCell>
-                    <TableCell>{row.namaAplikasi}</TableCell>
-                    <TableCell>{row.namaFs2}</TableCell>
-                    <TableCell>{row.bidang}</TableCell>
-                    <TableCell>
+                  <TableRow 
+                    key={row.id}
+                    sx={{
+                      '&:hover': {
+                        bgcolor: 'rgba(218, 37, 28, 0.02)',
+                      },
+                      '&:not(:last-child)': {
+                        borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+                      },
+                    }}
+                  >
+                    <TableCell 
+                      sx={{ 
+                        color: '#86868b', 
+                        py: 2,
+                        textAlign: 'center',
+                        fontWeight: 500,
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      {page * rowsPerPage + index + 1}
+                    </TableCell>
+                    <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          color: '#1d1d1f',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        {row.namaAplikasi}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ py: 2 }}>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.85rem' }}>
+                        {row.bidang}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ py: 2 }}>
                       <Chip
                         label={row.skpa}
                         size="small"
                         sx={{
                           bgcolor: skpaColor.bg,
                           color: skpaColor.text,
-                          fontWeight: 500,
+                          fontWeight: 600,
+                          fontSize: '0.7rem',
+                          height: 24,
+                          borderRadius: '6px',
                         }}
                       />
                     </TableCell>
-                    <TableCell>{formatDate(row.tanggalPengajuan)}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={STATUS_LABELS[row.status]}
-                        size="small"
+                    <TableCell sx={{ py: 2 }}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          color: '#1d1d1f',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        {formatDate(row.tanggalPengajuan)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ py: 2 }}>
+                      <Box
                         onClick={fs2Permissions.canUpdate ? (e) => handleStatusMenuOpen(e, row.id) : undefined}
-                        deleteIcon={fs2Permissions.canUpdate ? <ArrowDownIcon /> : undefined}
-                        onDelete={fs2Permissions.canUpdate ? (e) => handleStatusMenuOpen(e as unknown as React.MouseEvent<HTMLElement>, row.id) : undefined}
                         sx={{
-                          bgcolor: getStatusColor(row.status),
-                          color: '#fff',
-                          fontWeight: 500,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                          px: 1.5,
+                          py: 0.5,
+                          bgcolor: `${getStatusColor(row.status)}15`,
+                          borderRadius: '6px',
                           cursor: fs2Permissions.canUpdate ? 'pointer' : 'default',
-                          '& .MuiChip-deleteIcon': {
-                            color: '#fff',
-                          },
+                          transition: 'all 0.2s',
+                          border: `1px solid ${getStatusColor(row.status)}30`,
+                          '&:hover': fs2Permissions.canUpdate ? {
+                            bgcolor: `${getStatusColor(row.status)}25`,
+                          } : {},
                         }}
-                      />
+                      >
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                            color: getStatusColor(row.status),
+                          }}
+                        >
+                          {STATUS_LABELS[row.status]}
+                        </Typography>
+                        {fs2Permissions.canUpdate && (
+                          <ArrowDownIcon sx={{ fontSize: 14, color: getStatusColor(row.status) }} />
+                        )}
+                      </Box>
                     </TableCell>
-                    <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
-                        <Tooltip title="Lihat Detail">
-                          <IconButton size="small" onClick={() => handleOpenViewModal(row.id)}>
-                            <VisibilityIcon fontSize="small" />
+                    <TableCell sx={{ py: 2 }}>
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <Tooltip title="Lihat Detail F.S.2">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenViewModal(row.id)}
+                            sx={{
+                              color: '#059669',
+                              bgcolor: 'rgba(5, 150, 105, 0.08)',
+                              '&:hover': {
+                                bgcolor: 'rgba(5, 150, 105, 0.15)',
+                              },
+                            }}
+                          >
+                            <VisibilityIcon sx={{ fontSize: 16 }} />
                           </IconButton>
                         </Tooltip>
                         {fs2Permissions.canUpdate && (
-                          <Tooltip title="Edit">
-                            <IconButton size="small" onClick={() => handleOpenEditModal(row.id)}>
-                              <EditIcon fontSize="small" />
+                          <Tooltip title="Edit F.S.2">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenEditModal(row.id)}
+                              sx={{
+                                color: '#2563EB',
+                                bgcolor: 'rgba(37, 99, 235, 0.08)',
+                                '&:hover': {
+                                  bgcolor: 'rgba(37, 99, 235, 0.15)',
+                                },
+                              }}
+                            >
+                              <EditIcon sx={{ fontSize: 16 }} />
                             </IconButton>
                           </Tooltip>
                         )}
                         {fs2Permissions.canDelete && (
-                          <Tooltip title="Hapus">
-                            <IconButton size="small" color="error" onClick={() => handleOpenDeleteDialog(row.id)}>
-                              <DeleteIcon fontSize="small" />
+                          <Tooltip title="Hapus F.S.2">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenDeleteDialog(row.id)}
+                              sx={{
+                                color: '#DC2626',
+                                bgcolor: 'rgba(220, 38, 38, 0.08)',
+                                '&:hover': {
+                                  bgcolor: 'rgba(220, 38, 38, 0.15)',
+                                },
+                              }}
+                            >
+                              <DeleteIcon sx={{ fontSize: 16 }} />
                             </IconButton>
                           </Tooltip>
                         )}
@@ -767,17 +1198,28 @@ function Fs2List() {
             )}
           </TableBody>
         </Table>
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25, 50]}
-          component="div"
-          count={totalElements}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          labelRowsPerPage="Baris per halaman:"
-        />
       </TableContainer>
+
+      {/* Pagination */}
+      <TablePagination
+        rowsPerPageOptions={[5, 10, 25, 50]}
+        component="div"
+        count={totalElements}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={handleChangePage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+        labelRowsPerPage="Baris per halaman:"
+        sx={{
+          borderTop: '1px solid rgba(0, 0, 0, 0.06)',
+          '& .MuiTablePagination-select': {
+            bgcolor: '#f5f5f7',
+            borderRadius: '8px',
+            border: '1px solid rgba(0, 0, 0, 0.08)',
+          },
+        }}
+      />
+      </Paper>
 
       {/* Status Menu */}
       <Menu
@@ -785,780 +1227,1900 @@ function Fs2List() {
         open={Boolean(anchorEl)}
         onClose={handleStatusMenuClose}
       >
-        <MenuItem onClick={() => handleStatusChange('pending')}>Pending</MenuItem>
-        <MenuItem onClick={() => handleStatusChange('disetujui')}>Disetujui</MenuItem>
-        <MenuItem onClick={() => handleStatusChange('tidak_disetujui')}>Tidak Disetujui</MenuItem>
+        <MenuItem onClick={() => handleStatusChange('disetujui')}>
+          <Chip
+            label="Disetujui"
+            size="small"
+            sx={{
+              bgcolor: '#31A24C',
+              color: 'white',
+              fontWeight: 500,
+            }}
+          />
+        </MenuItem>
+        <MenuItem onClick={() => handleStatusChange('tidak_disetujui')}>
+          <Chip
+            label="Tidak Disetujui"
+            size="small"
+            sx={{
+              bgcolor: '#FF3B30',
+              color: 'white',
+              fontWeight: 500,
+            }}
+          />
+        </MenuItem>
+        <MenuItem onClick={() => handleStatusChange('pending')}>
+          <Chip
+            label="Pending"
+            size="small"
+            sx={{
+              bgcolor: '#FF9500',
+              color: 'white',
+              fontWeight: 500,
+            }}
+          />
+        </MenuItem>
       </Menu>
 
       {/* Add Modal */}
-      <Dialog open={openAddModal} onClose={handleCloseAddModal} maxWidth="md" fullWidth>
-        <DialogTitle>Tambah F.S.2</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            {/* Basic Information */}
-            <Typography variant="subtitle1" fontWeight={600}>Informasi Dasar</Typography>
-            <TextField
-              label="Nama F.S.2"
-              value={formData.nama_fs2}
-              onChange={(e) => setFormData({ ...formData, nama_fs2: e.target.value })}
-              fullWidth
-              required
-            />
-            <Autocomplete
-              options={aplikasiList}
-              getOptionLabel={(option) => `${option.kode_aplikasi} - ${option.nama_aplikasi}`}
-              value={aplikasiList.find(a => a.id === formData.aplikasi_id) || null}
-              onChange={(_, newValue) => setFormData({ ...formData, aplikasi_id: newValue?.id || '' })}
-              renderInput={(params) => <TextField {...params} label="Nama Aplikasi" required />}
-            />
-            <Autocomplete
-              options={skpaList}
-              getOptionLabel={(option) => `${option.kode_skpa} - ${option.nama_skpa}`}
-              value={skpaList.find(s => s.id === formData.skpa_id) || null}
-              onChange={(_, newValue) => setFormData({ ...formData, skpa_id: newValue?.id || '' })}
-              renderInput={(params) => <TextField {...params} label="Satuan Kerja Pemilik Aplikasi (SKPA)" required />}
-            />
-            <Autocomplete
-              options={bidangList}
-              getOptionLabel={(option) => option.nama_bidang}
-              value={bidangList.find(b => b.id === formData.bidang_id) || null}
-              onChange={(_, newValue) => setFormData({ ...formData, bidang_id: newValue?.id || '' })}
-              renderInput={(params) => <TextField {...params} label="Bidang" />}
-            />
-            <TextField
-              label="Tanggal Pengajuan"
-              type="date"
-              value={formData.tanggal_pengajuan}
-              onChange={(e) => setFormData({ ...formData, tanggal_pengajuan: e.target.value })}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-            />
-
-            <Divider sx={{ my: 1 }} />
-
-            {/* Description Section */}
-            <Typography variant="subtitle1" fontWeight={600}>Deskripsi Pengubahan</Typography>
-            <TextField
-              label="Deskripsi Pengubahan"
-              value={formData.deskripsi_pengubahan}
-              onChange={(e) => setFormData({ ...formData, deskripsi_pengubahan: e.target.value })}
-              fullWidth
-              multiline
-              rows={3}
-            />
-            <TextField
-              label="Alasan Pengubahan"
-              value={formData.alasan_pengubahan}
-              onChange={(e) => setFormData({ ...formData, alasan_pengubahan: e.target.value })}
-              fullWidth
-              multiline
-              rows={3}
-            />
-
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 6 }}>
-                <FormControl fullWidth>
-                  <InputLabel>Status Tahapan Aplikasi</InputLabel>
+      <Dialog 
+        open={openAddModal} 
+        onClose={handleCloseAddModal} 
+        maxWidth="md" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            maxHeight: '90vh',
+            bgcolor: 'rgba(255, 255, 255, 0.75)',
+            backdropFilter: 'blur(40px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1) inset',
+          },
+        }}
+        slotProps={{
+          backdrop: {
+            sx: {
+              bgcolor: 'rgba(0, 0, 0, 0.3)',
+              backdropFilter: 'blur(8px)',
+            }
+          }
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+            pb: 2,
+            bgcolor: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+          }}
+        >
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.02em' }}
+          >
+            Tambah F.S.2
+          </Typography>
+          <IconButton
+            onClick={handleCloseAddModal}
+            size="small"
+            sx={{
+              color: '#86868b',
+              '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent
+          sx={{
+            pt: 3,
+            pb: 4,
+            background: 'linear-gradient(135deg, rgba(245, 245, 247, 0.9) 0%, rgba(250, 250, 250, 0.95) 100%)',
+          }}
+        >
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {/* Section 1: Informasi Dasar */}
+            <Accordion
+              expanded={expandedSection === 'section0'}
+              onChange={handleAccordionChange('section0')}
+              sx={{
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    fontSize: '0.95rem',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  1. Informasi Dasar
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Stack spacing={2}>
+                  <Autocomplete
+                    options={aplikasiList}
+                    getOptionLabel={(option) => `${option.kode_aplikasi} - ${option.nama_aplikasi}`}
+                    value={aplikasiList.find(a => a.id === formData.aplikasi_id) || null}
+                    onChange={(_, newValue) => setFormData({ ...formData, aplikasi_id: newValue?.id || '' })}
+                    renderInput={(params) => (
+                      <GlassTextField {...params} label="1.1 Nama Aplikasi" required size="small" />
+                    )}
+                    size="small"
+                  />
+                <FormControl fullWidth size="small">
+                  <InputLabel>1.2 Status Tahapan Aplikasi</InputLabel>
                   <Select
                     value={formData.status_tahapan}
-                    label="Status Tahapan Aplikasi"
+                    label="1.2 Status Tahapan Aplikasi"
                     onChange={(e) => setFormData({ ...formData, status_tahapan: e.target.value })}
+                    sx={{
+                      borderRadius: '12px',
+                      bgcolor: 'rgba(255, 255, 255, 0.6)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.08)',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.15)',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#DA251C',
+                      },
+                    }}
                   >
                     <MenuItem value="DESAIN">Desain</MenuItem>
                     <MenuItem value="PEMELIHARAAN">Pemeliharaan</MenuItem>
                   </Select>
                 </FormControl>
-              </Grid>
-              <Grid size={{ xs: 6 }}>
-                <FormControl fullWidth>
-                  <InputLabel>Urgensi</InputLabel>
+                <Autocomplete
+                  options={skpaList}
+                  getOptionLabel={(option) => `${option.kode_skpa} - ${option.nama_skpa}`}
+                  value={skpaList.find(s => s.id === formData.skpa_id) || null}
+                  onChange={(_, newValue) => setFormData({ ...formData, skpa_id: newValue?.id || '' })}
+                  renderInput={(params) => (
+                    <GlassTextField {...params} label="1.3 Satuan Kerja Pemilik Aplikasi (SKPA)" required size="small" />
+                  )}
+                  size="small"
+                />
+                <FormControl fullWidth size="small">
+                  <InputLabel>1.4 Urgensi</InputLabel>
                   <Select
                     value={formData.urgensi}
-                    label="Urgensi"
+                    label="1.4 Urgensi"
                     onChange={(e) => setFormData({ ...formData, urgensi: e.target.value })}
+                    sx={{
+                      borderRadius: '12px',
+                      bgcolor: 'rgba(255, 255, 255, 0.6)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.08)',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.15)',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#DA251C',
+                      },
+                    }}
                   >
                     <MenuItem value="RENDAH">Rendah</MenuItem>
                     <MenuItem value="SEDANG">Sedang</MenuItem>
                     <MenuItem value="TINGGI">Tinggi</MenuItem>
                   </Select>
                 </FormControl>
-              </Grid>
-            </Grid>
+                <GlassTextField
+                  label="1.5 Deskripsi Pengubahan"
+                  value={formData.deskripsi_pengubahan}
+                  onChange={(e) => setFormData({ ...formData, deskripsi_pengubahan: e.target.value })}
+                  fullWidth
+                  multiline
+                  rows={3}
+                  size="small"
+                />
+                <GlassTextField
+                  label="1.6 Alasan Pengubahan"
+                  value={formData.alasan_pengubahan}
+                  onChange={(e) => setFormData({ ...formData, alasan_pengubahan: e.target.value })}
+                  fullWidth
+                  multiline
+                  rows={3}
+                  size="small"
+                />
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
 
-            <Divider sx={{ my: 1 }} />
-
-            {/* Kesesuaian Kriteria Pengubahan Aplikasi */}
-            <Typography variant="subtitle1" fontWeight={600}>Kesesuaian Kriteria Pengubahan Aplikasi</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Pengubahan ini telah dipastikan memenuhi Kriteria Pengajuan berikut:
-            </Typography>
-            <FormGroup>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.kriteria_1 || false}
-                    onChange={(e) => setFormData({ ...formData, kriteria_1: e.target.checked })}
-                  />
-                }
-                label="1. Tidak menambah fungsi baru dan/atau tidak mengubah fungsi yang sudah ada, yang berdampak struktural terhadap Aplikasi dan/atau dengan cakupan besar"
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.kriteria_2 || false}
-                    onChange={(e) => setFormData({ ...formData, kriteria_2: e.target.checked })}
-                  />
-                }
-                label="2. Tidak menambah sumber data baru dari sistem lainnya, kecuali pengubahan untuk Aplikasi Reference Management, Aplikasi Data Master Management dan Aplikasi Convertion Engine"
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.kriteria_3 || false}
-                    onChange={(e) => setFormData({ ...formData, kriteria_3: e.target.checked })}
-                  />
-                }
-                label="3. Tidak mengubah sumber data yang berdampak struktural terhadap Aplikasi atau Database dan/atau dengan cakupan besar"
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.kriteria_4 || false}
-                    onChange={(e) => setFormData({ ...formData, kriteria_4: e.target.checked })}
-                  />
-                }
-                label="4. Tidak mengubah alur kerja Aplikasi"
-              />
-            </FormGroup>
-
-            <Divider sx={{ my: 1 }} />
-
-            {/* Aspek Perubahan */}
-            <Accordion defaultExpanded>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle1" fontWeight={600}>Aspek Perubahan</Typography>
+            {/* Section 2: Kesesuaian Kriteria Pengubahan Aplikasi */}
+            <Accordion
+              expanded={expandedSection === 'section1'}
+              onChange={handleAccordionChange('section1')}
+              sx={{
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    fontSize: '0.95rem',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  2. Kesesuaian Kriteria Pengubahan Aplikasi
+                </Typography>
               </AccordionSummary>
-              <AccordionDetails>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <TextField
-                    label="1. Terhadap sistem yang ada"
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Pengubahan ini telah dipastikan memenuhi Kriteria Pengajuan berikut:
+                  <br />
+                  <em style={{ fontSize: '0.85rem' }}>
+                    *Jika salah satu kriteria tidak terpenuhi, pengubahan Aplikasi tidak dapat diajukan melalui F.S.2
+                  </em>
+                </Typography>
+                <FormGroup sx={{ '& .MuiFormControlLabel-root': { mb: 1.5, alignItems: 'flex-start' }, '& .MuiCheckbox-root': { pt: 0.5 } }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formData.kriteria_1 || false}
+                        onChange={(e) => setFormData({ ...formData, kriteria_1: e.target.checked })}
+                        sx={{ '&.Mui-checked': { color: '#DA251C' } }}
+                      />
+                    }
+                    label="2.1 Tidak menambah fungsi baru dan/atau tidak mengubah fungsi yang sudah ada, yang berdampak struktural terhadap Aplikasi dan/atau dengan cakupan besar"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formData.kriteria_2 || false}
+                        onChange={(e) => setFormData({ ...formData, kriteria_2: e.target.checked })}
+                        sx={{ '&.Mui-checked': { color: '#DA251C' } }}
+                      />
+                    }
+                    label="2.2 Tidak menambah sumber data baru dari sistem lainnya, kecuali pengubahan untuk Aplikasi Reference Management, Aplikasi Data Master Management dan Aplikasi Convertion Engine"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formData.kriteria_3 || false}
+                        onChange={(e) => setFormData({ ...formData, kriteria_3: e.target.checked })}
+                        sx={{ '&.Mui-checked': { color: '#DA251C' } }}
+                      />
+                    }
+                    label="2.3 Tidak mengubah sumber data yang berdampak struktural terhadap Aplikasi atau Database dan/atau dengan cakupan besar"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formData.kriteria_4 || false}
+                        onChange={(e) => setFormData({ ...formData, kriteria_4: e.target.checked })}
+                        sx={{ '&.Mui-checked': { color: '#DA251C' } }}
+                      />
+                    }
+                    label="2.4 Tidak mengubah alur kerja Aplikasi"
+                  />
+                </FormGroup>
+              </AccordionDetails>
+            </Accordion>
+
+            {/* Section 3: Aspek Perubahan */}
+            <Accordion
+              expanded={expandedSection === 'section2'}
+              onChange={handleAccordionChange('section2')}
+              sx={{
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    fontSize: '0.95rem',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  3. Aspek Perubahan
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
+                  *Apa saja aspek perubahan yang terjadi yang diakibatkannya
+                </Typography>
+                <Stack spacing={2}>
+                  <GlassTextField
+                    label="3.1 Terhadap sistem yang ada"
                     value={formData.aspek_sistem_ada}
                     onChange={(e) => setFormData({ ...formData, aspek_sistem_ada: e.target.value })}
                     fullWidth
                     multiline
                     rows={2}
+                    size="small"
                   />
-                  <TextField
-                    label="2. Terhadap sistem terkait"
+                  <GlassTextField
+                    label="3.2 Terhadap sistem terkait"
                     value={formData.aspek_sistem_terkait}
                     onChange={(e) => setFormData({ ...formData, aspek_sistem_terkait: e.target.value })}
                     fullWidth
                     multiline
                     rows={2}
+                    size="small"
                   />
-                  <TextField
-                    label="3. Terhadap alur kerja bisnis"
+                  <GlassTextField
+                    label="3.3 Terhadap alur kerja bisnis"
                     value={formData.aspek_alur_kerja}
                     onChange={(e) => setFormData({ ...formData, aspek_alur_kerja: e.target.value })}
                     fullWidth
                     multiline
                     rows={2}
+                    size="small"
                   />
-                  <TextField
-                    label="4. Terhadap struktur organisasi"
+                  <GlassTextField
+                    label="3.4 Terhadap struktur organisasi"
                     value={formData.aspek_struktur_organisasi}
                     onChange={(e) => setFormData({ ...formData, aspek_struktur_organisasi: e.target.value })}
                     fullWidth
                     multiline
                     rows={2}
+                    size="small"
                   />
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
 
-                  {/* Dokumentasi T.0.1 */}
-                  <Typography variant="body2" fontWeight={500} sx={{ mt: 1 }}>5.1 Dokumen T.0.1</Typography>
+            {/* Section 4: Aspek Perubahan Terhadap Dokumentasi */}
+            <Accordion
+              expanded={expandedSection === 'section3'}
+              onChange={handleAccordionChange('section3')}
+              sx={{
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    fontSize: '0.95rem',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  4. Aspek Perubahan Terhadap Dokumentasi
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Stack spacing={2}>
+                  <Typography variant="body2" fontWeight={500}>
+                    4.1 Dokumen T.0.1
+                  </Typography>
                   <Grid container spacing={2}>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sebelum Pengubahan"
                         value={formData.dok_t01_sebelum}
                         onChange={(e) => setFormData({ ...formData, dok_t01_sebelum: e.target.value })}
                         fullWidth
                         multiline
                         rows={2}
+                        size="small"
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sesudah Pengubahan"
                         value={formData.dok_t01_sesudah}
                         onChange={(e) => setFormData({ ...formData, dok_t01_sesudah: e.target.value })}
                         fullWidth
                         multiline
                         rows={2}
+                        size="small"
                       />
                     </Grid>
                   </Grid>
 
-                  {/* Dokumentasi T.1.1 */}
-                  <Typography variant="body2" fontWeight={500}>5.2 Dokumen T.1.1</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    4.2 Dokumen T.1.1
+                  </Typography>
                   <Grid container spacing={2}>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sebelum Pengubahan"
                         value={formData.dok_t11_sebelum}
                         onChange={(e) => setFormData({ ...formData, dok_t11_sebelum: e.target.value })}
                         fullWidth
                         multiline
                         rows={2}
+                        size="small"
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sesudah Pengubahan"
                         value={formData.dok_t11_sesudah}
                         onChange={(e) => setFormData({ ...formData, dok_t11_sesudah: e.target.value })}
                         fullWidth
                         multiline
                         rows={2}
+                        size="small"
                       />
                     </Grid>
                   </Grid>
-                </Box>
+                </Stack>
               </AccordionDetails>
             </Accordion>
 
-            {/* Penggunaan Sistem */}
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle1" fontWeight={600}>6. Terhadap Penggunaan Sistem</Typography>
+            {/* Section 5: Aspek Perubahan Terhadap Penggunaan Sistem */}
+            <Accordion
+              expanded={expandedSection === 'section4'}
+              onChange={handleAccordionChange('section4')}
+              sx={{
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    fontSize: '0.95rem',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  5. Aspek Perubahan Terhadap Penggunaan Sistem
+                </Typography>
               </AccordionSummary>
-              <AccordionDetails>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {/* Jumlah Pengguna */}
-                  <Typography variant="body2" fontWeight={500}>6.1 Jumlah Pengguna</Typography>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Stack spacing={2}>
+                  <Typography variant="body2" fontWeight={500}>
+                    5.1 Jumlah Pengguna
+                  </Typography>
                   <Grid container spacing={2}>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sebelum Pengubahan"
                         value={formData.pengguna_sebelum}
                         onChange={(e) => setFormData({ ...formData, pengguna_sebelum: e.target.value })}
                         fullWidth
+                        size="small"
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sesudah Pengubahan"
                         value={formData.pengguna_sesudah}
                         onChange={(e) => setFormData({ ...formData, pengguna_sesudah: e.target.value })}
                         fullWidth
+                        size="small"
                       />
                     </Grid>
                   </Grid>
 
-                  {/* Akses Bersamaan */}
-                  <Typography variant="body2" fontWeight={500}>6.2 Jumlah akses secara bersamaan</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    5.2 Jumlah akses secara bersamaan
+                  </Typography>
                   <Grid container spacing={2}>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sebelum Pengubahan"
                         value={formData.akses_bersamaan_sebelum}
                         onChange={(e) => setFormData({ ...formData, akses_bersamaan_sebelum: e.target.value })}
                         fullWidth
+                        size="small"
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sesudah Pengubahan"
                         value={formData.akses_bersamaan_sesudah}
                         onChange={(e) => setFormData({ ...formData, akses_bersamaan_sesudah: e.target.value })}
                         fullWidth
+                        size="small"
                       />
                     </Grid>
                   </Grid>
 
-                  {/* Pertumbuhan Data */}
-                  <Typography variant="body2" fontWeight={500}>6.3 Jumlah pertumbuhan data per hari/bulan/tahun</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    5.3 Jumlah pertumbuhan data per hari/bulan/tahun
+                  </Typography>
                   <Grid container spacing={2}>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sebelum Pengubahan"
                         value={formData.pertumbuhan_data_sebelum}
                         onChange={(e) => setFormData({ ...formData, pertumbuhan_data_sebelum: e.target.value })}
                         fullWidth
+                        size="small"
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sesudah Pengubahan"
                         value={formData.pertumbuhan_data_sesudah}
                         onChange={(e) => setFormData({ ...formData, pertumbuhan_data_sesudah: e.target.value })}
                         fullWidth
+                        size="small"
                       />
                     </Grid>
                   </Grid>
-                </Box>
+                </Stack>
               </AccordionDetails>
             </Accordion>
 
-            <Divider sx={{ my: 1 }} />
+            {/* Section 6: Jadwal Pelaksanaan */}
+            <Accordion
+              expanded={expandedSection === 'section5'}
+              onChange={handleAccordionChange('section5')}
+              sx={{
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    fontSize: '0.95rem',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  6. Jadwal Pelaksanaan
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
+                  *Diisi untuk pengajuan di tahap pemeliharaan
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 4 }}>
+                    <GlassTextField
+                      label="6.1 Target Pengujian"
+                      type="date"
+                      value={formData.target_pengujian}
+                      onChange={(e) => setFormData({ ...formData, target_pengujian: e.target.value })}
+                      fullWidth
+                      InputLabelProps={{ shrink: true }}
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 4 }}>
+                    <GlassTextField
+                      label="6.2 Target Deployment"
+                      type="date"
+                      value={formData.target_deployment}
+                      onChange={(e) => setFormData({ ...formData, target_deployment: e.target.value })}
+                      fullWidth
+                      InputLabelProps={{ shrink: true }}
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 4 }}>
+                    <GlassTextField
+                      label="6.3 Target Go Live"
+                      type="date"
+                      value={formData.target_go_live}
+                      onChange={(e) => setFormData({ ...formData, target_go_live: e.target.value })}
+                      fullWidth
+                      InputLabelProps={{ shrink: true }}
+                      size="small"
+                    />
+                  </Grid>
+                </Grid>
+              </AccordionDetails>
+            </Accordion>
 
-            {/* Jadwal Pelaksanaan */}
-            <Typography variant="subtitle1" fontWeight={600}>Jadwal Pelaksanaan</Typography>
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 4 }}>
-                <TextField
-                  label="Target Pengujian"
-                  type="date"
-                  value={formData.target_pengujian}
-                  onChange={(e) => setFormData({ ...formData, target_pengujian: e.target.value })}
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid size={{ xs: 4 }}>
-                <TextField
-                  label="Target Deployment"
-                  type="date"
-                  value={formData.target_deployment}
-                  onChange={(e) => setFormData({ ...formData, target_deployment: e.target.value })}
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid size={{ xs: 4 }}>
-                <TextField
-                  label="Target Go Live"
-                  type="date"
-                  value={formData.target_go_live}
-                  onChange={(e) => setFormData({ ...formData, target_go_live: e.target.value })}
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-            </Grid>
+            {/* Section 7: Pernyataan */}
+            <Accordion
+              expanded={expandedSection === 'section6'}
+              onChange={handleAccordionChange('section6')}
+              sx={{
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    fontSize: '0.95rem',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  7. Pernyataan
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <FormGroup sx={{ '& .MuiFormControlLabel-root': { mb: 1.5, alignItems: 'flex-start' }, '& .MuiCheckbox-root': { pt: 0.5 } }}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mb: 1 }}>
+                      *Diisi jika pengajuan pengubahan Aplikasi pada tahap Desain Aplikasi
+                    </Typography>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formData.pernyataan_1 || false}
+                          onChange={(e) => setFormData({ ...formData, pernyataan_1: e.target.checked })}
+                          sx={{ '&.Mui-checked': { color: '#DA251C' } }}
+                        />
+                      }
+                      label="7.1 Kami selaku Satuan Kerja Pemilik Aplikasi menyatakan bersedia menerima konsekuensi pengunduran jadwal implementasi (apabila ada) akibat pengubahan Aplikasi ini."
+                    />
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mb: 1 }}>
+                      *Diisi jika pengajuan pengubahan Aplikasi berdampak pada pengubahan Aplikasi lain
+                    </Typography>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formData.pernyataan_2 || false}
+                          onChange={(e) => setFormData({ ...formData, pernyataan_2: e.target.checked })}
+                          sx={{ '&.Mui-checked': { color: '#DA251C' } }}
+                        />
+                      }
+                      label="7.2 Dalam hal pengubahan Aplikasi berdampak pada pengubahan Aplikasi lain, Satuan Kerja Pemilik Aplikasi terdampak telah menyetujui dan memiliki rencana terkait pengembangan atau pengubahan Aplikasi tersebut (melampirkan risalah rapat)"
+                    />
+                  </Box>
+                </FormGroup>
+              </AccordionDetails>
+            </Accordion>
 
-            <Divider sx={{ my: 1 }} />
+            {/* Section 8: Upload Dokumen F.S.2 */}
+            <Accordion
+              expanded={expandedSection === 'section7'}
+              onChange={handleAccordionChange('section7')}
+              sx={{
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    fontSize: '0.95rem',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  8. Upload Dokumen F.S.2
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Stack spacing={2}>
+                  <Box
+                    sx={{
+                      border: '2px dashed #e5e5e7',
+                      borderRadius: 2,
+                      p: 3,
+                      textAlign: 'center',
+                      cursor: isUploading ? 'not-allowed' : 'pointer',
+                      opacity: isUploading ? 0.7 : 1,
+                      transition: 'all 0.2s ease-in-out',
+                      '&:hover': {
+                        borderColor: isUploading ? '#e5e5e7' : '#DA251C',
+                        bgcolor: isUploading ? 'transparent' : 'rgba(218, 37, 28, 0.04)',
+                      },
+                    }}
+                    onClick={() => !isUploading && document.getElementById('fs2-file-upload-input')?.click()}
+                  >
+                    <input
+                      id="fs2-file-upload-input"
+                      type="file"
+                      hidden
+                      onChange={handleFileUpload}
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                      disabled={isUploading}
+                    />
+                    {isUploading ? (
+                      <>
+                        <CircularProgress size={48} sx={{ color: '#DA251C', mb: 1 }} />
+                        <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                          Mengupload file...
+                        </Typography>
+                      </>
+                    ) : (
+                      <>
+                        <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
+                        <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                          Klik untuk upload file
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
+                          atau drag & drop file di sini
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
+                          Format yang didukung: PDF, Word, Excel, Gambar (max 20MB)
+                        </Typography>
+                      </>
+                    )}
+                  </Box>
 
-            {/* Pernyataan */}
-            <Typography variant="subtitle1" fontWeight={600}>Pernyataan</Typography>
-            <FormGroup>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.pernyataan_1 || false}
-                    onChange={(e) => setFormData({ ...formData, pernyataan_1: e.target.checked })}
-                  />
-                }
-                label="1. Kami selaku Satuan Kerja Pemilik Aplikasi menyatakan bersedia menerima konsekuensi pengunduran jadwal implementasi (apabila ada) akibat pengubahan Aplikasi ini."
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.pernyataan_2 || false}
-                    onChange={(e) => setFormData({ ...formData, pernyataan_2: e.target.checked })}
-                  />
-                }
-                label="2. Dalam hal pengubahan Aplikasi berdampak pada pengubahan Aplikasi lain, Satuan Kerja Pemilik Aplikasi terdampak telah menyetujui dan memiliki rencana terkait pengembangan atau pengubahan Aplikasi tersebut (melampirkan risalah rapat)"
-              />
-            </FormGroup>
-          </Box>
+                  {uploadedFiles.length > 0 && (
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>
+                        File yang diupload ({uploadedFiles.length})
+                      </Typography>
+                      <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px' }}>
+                        {uploadedFiles.map((file, index) => (
+                          <ListItem
+                            key={index}
+                            sx={{
+                              borderBottom: index < uploadedFiles.length - 1 ? '1px solid #e5e5e7' : 'none',
+                            }}
+                          >
+                            <ListItemIcon>
+                              <FileIcon sx={{ color: '#DA251C' }} />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={file.name}
+                              secondary={formatFileSize(file.size)}
+                              primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }}
+                              secondaryTypographyProps={{ sx: { color: '#86868b' } }}
+                            />
+                            <ListItemSecondaryAction>
+                              <IconButton
+                                edge="end"
+                                onClick={() => handleRemoveFile(index)}
+                                disabled={isUploading}
+                                sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </ListItemSecondaryAction>
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Box>
+                  )}
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
+          </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseAddModal}>Batal</Button>
-          <Button variant="contained" onClick={handleAddFs2}>Simpan</Button>
+        <DialogActions sx={{ p: 2.5, pt: 1, borderTop: '1px solid rgba(0, 0, 0, 0.06)' }}>
+          <Button 
+            onClick={handleCloseAddModal}
+            disabled={isUploading}
+            sx={{
+              color: '#86868b',
+              '&:hover': {
+                bgcolor: 'rgba(0, 0, 0, 0.04)',
+              },
+            }}
+          >
+            Batal
+          </Button>
+          <Button 
+            variant="contained" 
+            onClick={handleAddFs2}
+            disabled={isUploading}
+            sx={{
+              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+              fontWeight: 500,
+              px: 3,
+              '&:hover': {
+                background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
+              },
+            }}
+          >
+            Simpan
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* Edit Modal */}
-      <Dialog open={openEditModal} onClose={handleCloseEditModal} maxWidth="md" fullWidth>
-        <DialogTitle>Edit F.S.2</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            {/* Basic Information */}
-            <Typography variant="subtitle1" fontWeight={600}>Informasi Dasar</Typography>
-            <TextField
-              label="Nama F.S.2"
-              value={formData.nama_fs2}
-              onChange={(e) => setFormData({ ...formData, nama_fs2: e.target.value })}
-              fullWidth
-              required
-            />
-            <Autocomplete
-              options={aplikasiList}
-              getOptionLabel={(option) => `${option.kode_aplikasi} - ${option.nama_aplikasi}`}
-              value={aplikasiList.find(a => a.id === formData.aplikasi_id) || null}
-              onChange={(_, newValue) => setFormData({ ...formData, aplikasi_id: newValue?.id || '' })}
-              renderInput={(params) => <TextField {...params} label="Nama Aplikasi" required />}
-            />
-            <Autocomplete
-              options={skpaList}
-              getOptionLabel={(option) => `${option.kode_skpa} - ${option.nama_skpa}`}
-              value={skpaList.find(s => s.id === formData.skpa_id) || null}
-              onChange={(_, newValue) => setFormData({ ...formData, skpa_id: newValue?.id || '' })}
-              renderInput={(params) => <TextField {...params} label="Satuan Kerja Pemilik Aplikasi (SKPA)" required />}
-            />
-            <Autocomplete
-              options={bidangList}
-              getOptionLabel={(option) => option.nama_bidang}
-              value={bidangList.find(b => b.id === formData.bidang_id) || null}
-              onChange={(_, newValue) => setFormData({ ...formData, bidang_id: newValue?.id || '' })}
-              renderInput={(params) => <TextField {...params} label="Bidang" />}
-            />
-            <TextField
-              label="Tanggal Pengajuan"
-              type="date"
-              value={formData.tanggal_pengajuan}
-              onChange={(e) => setFormData({ ...formData, tanggal_pengajuan: e.target.value })}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-            />
-
-            <Divider sx={{ my: 1 }} />
-
-            {/* Description Section */}
-            <Typography variant="subtitle1" fontWeight={600}>Deskripsi Pengubahan</Typography>
-            <TextField
-              label="Deskripsi Pengubahan"
-              value={formData.deskripsi_pengubahan}
-              onChange={(e) => setFormData({ ...formData, deskripsi_pengubahan: e.target.value })}
-              fullWidth
-              multiline
-              rows={3}
-            />
-            <TextField
-              label="Alasan Pengubahan"
-              value={formData.alasan_pengubahan}
-              onChange={(e) => setFormData({ ...formData, alasan_pengubahan: e.target.value })}
-              fullWidth
-              multiline
-              rows={3}
-            />
-
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 6 }}>
-                <FormControl fullWidth>
-                  <InputLabel>Status Tahapan Aplikasi</InputLabel>
+      <Dialog 
+        open={openEditModal} 
+        onClose={handleCloseEditModal} 
+        maxWidth="md" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            maxHeight: '90vh',
+            bgcolor: 'rgba(255, 255, 255, 0.75)',
+            backdropFilter: 'blur(40px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1) inset',
+          },
+        }}
+        slotProps={{
+          backdrop: {
+            sx: {
+              bgcolor: 'rgba(0, 0, 0, 0.3)',
+              backdropFilter: 'blur(8px)',
+            }
+          }
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+            pb: 2,
+            bgcolor: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+          }}
+        >
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.02em' }}
+          >
+            Edit F.S.2
+          </Typography>
+          <IconButton
+            onClick={handleCloseEditModal}
+            size="small"
+            sx={{
+              color: '#86868b',
+              '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent
+          sx={{
+            pt: 3,
+            pb: 4,
+            background: 'linear-gradient(135deg, rgba(245, 245, 247, 0.9) 0%, rgba(250, 250, 250, 0.95) 100%)',
+          }}
+        >
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {/* Section 1: Informasi Dasar */}
+            <Accordion
+              expanded={expandedSection === 'section0'}
+              onChange={handleAccordionChange('section0')}
+              sx={{
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    fontSize: '0.95rem',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  1. Informasi Dasar
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Stack spacing={2}>
+                  <Autocomplete
+                    options={aplikasiList}
+                    getOptionLabel={(option) => `${option.kode_aplikasi} - ${option.nama_aplikasi}`}
+                    value={aplikasiList.find(a => a.id === formData.aplikasi_id) || null}
+                    onChange={(_, newValue) => setFormData({ ...formData, aplikasi_id: newValue?.id || '' })}
+                    renderInput={(params) => (
+                      <GlassTextField {...params} label="1.1 Nama Aplikasi" required size="small" />
+                    )}
+                    size="small"
+                  />
+                <FormControl fullWidth size="small">
+                  <InputLabel>1.2 Status Tahapan Aplikasi</InputLabel>
                   <Select
                     value={formData.status_tahapan}
-                    label="Status Tahapan Aplikasi"
+                    label="1.2 Status Tahapan Aplikasi"
                     onChange={(e) => setFormData({ ...formData, status_tahapan: e.target.value })}
+                    sx={{
+                      borderRadius: '12px',
+                      bgcolor: 'rgba(255, 255, 255, 0.6)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.08)',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.15)',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#DA251C',
+                      },
+                    }}
                   >
                     <MenuItem value="DESAIN">Desain</MenuItem>
                     <MenuItem value="PEMELIHARAAN">Pemeliharaan</MenuItem>
                   </Select>
                 </FormControl>
-              </Grid>
-              <Grid size={{ xs: 6 }}>
-                <FormControl fullWidth>
-                  <InputLabel>Urgensi</InputLabel>
+                <Autocomplete
+                  options={skpaList}
+                  getOptionLabel={(option) => `${option.kode_skpa} - ${option.nama_skpa}`}
+                  value={skpaList.find(s => s.id === formData.skpa_id) || null}
+                  onChange={(_, newValue) => setFormData({ ...formData, skpa_id: newValue?.id || '' })}
+                  renderInput={(params) => (
+                    <GlassTextField {...params} label="1.3 Satuan Kerja Pemilik Aplikasi (SKPA)" required size="small" />
+                  )}
+                  size="small"
+                />
+                <FormControl fullWidth size="small">
+                  <InputLabel>1.4 Urgensi</InputLabel>
                   <Select
                     value={formData.urgensi}
-                    label="Urgensi"
+                    label="1.4 Urgensi"
                     onChange={(e) => setFormData({ ...formData, urgensi: e.target.value })}
+                    sx={{
+                      borderRadius: '12px',
+                      bgcolor: 'rgba(255, 255, 255, 0.6)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.08)',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.15)',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#DA251C',
+                      },
+                    }}
                   >
                     <MenuItem value="RENDAH">Rendah</MenuItem>
                     <MenuItem value="SEDANG">Sedang</MenuItem>
                     <MenuItem value="TINGGI">Tinggi</MenuItem>
                   </Select>
                 </FormControl>
-              </Grid>
-            </Grid>
+                <GlassTextField
+                  label="1.5 Deskripsi Pengubahan"
+                  value={formData.deskripsi_pengubahan}
+                  onChange={(e) => setFormData({ ...formData, deskripsi_pengubahan: e.target.value })}
+                  fullWidth
+                  multiline
+                  rows={3}
+                  size="small"
+                />
+                <GlassTextField
+                  label="1.6 Alasan Pengubahan"
+                  value={formData.alasan_pengubahan}
+                  onChange={(e) => setFormData({ ...formData, alasan_pengubahan: e.target.value })}
+                  fullWidth
+                  multiline
+                  rows={3}
+                  size="small"
+                />
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
 
-            <Divider sx={{ my: 1 }} />
-
-            {/* Kesesuaian Kriteria Pengubahan Aplikasi */}
-            <Typography variant="subtitle1" fontWeight={600}>Kesesuaian Kriteria Pengubahan Aplikasi</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Pengubahan ini telah dipastikan memenuhi Kriteria Pengajuan berikut:
-            </Typography>
-            <FormGroup>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.kriteria_1 || false}
-                    onChange={(e) => setFormData({ ...formData, kriteria_1: e.target.checked })}
-                  />
-                }
-                label="1. Tidak menambah fungsi baru dan/atau tidak mengubah fungsi yang sudah ada, yang berdampak struktural terhadap Aplikasi dan/atau dengan cakupan besar"
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.kriteria_2 || false}
-                    onChange={(e) => setFormData({ ...formData, kriteria_2: e.target.checked })}
-                  />
-                }
-                label="2. Tidak menambah sumber data baru dari sistem lainnya, kecuali pengubahan untuk Aplikasi Reference Management, Aplikasi Data Master Management dan Aplikasi Convertion Engine"
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.kriteria_3 || false}
-                    onChange={(e) => setFormData({ ...formData, kriteria_3: e.target.checked })}
-                  />
-                }
-                label="3. Tidak mengubah sumber data yang berdampak struktural terhadap Aplikasi atau Database dan/atau dengan cakupan besar"
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.kriteria_4 || false}
-                    onChange={(e) => setFormData({ ...formData, kriteria_4: e.target.checked })}
-                  />
-                }
-                label="4. Tidak mengubah alur kerja Aplikasi"
-              />
-            </FormGroup>
-
-            <Divider sx={{ my: 1 }} />
-
-            {/* Aspek Perubahan */}
-            <Accordion defaultExpanded>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle1" fontWeight={600}>Aspek Perubahan</Typography>
+            {/* Section 2: Kesesuaian Kriteria Pengubahan Aplikasi */}
+            <Accordion
+              expanded={expandedSection === 'section1'}
+              onChange={handleAccordionChange('section1')}
+              sx={{
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    fontSize: '0.95rem',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  2. Kesesuaian Kriteria Pengubahan Aplikasi
+                </Typography>
               </AccordionSummary>
-              <AccordionDetails>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <TextField
-                    label="1. Terhadap sistem yang ada"
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Pengubahan ini telah dipastikan memenuhi Kriteria Pengajuan berikut:
+                  <br />
+                  <em style={{ fontSize: '0.85rem' }}>
+                    *Jika salah satu kriteria tidak terpenuhi, pengubahan Aplikasi tidak dapat diajukan melalui F.S.2
+                  </em>
+                </Typography>
+                <FormGroup sx={{ '& .MuiFormControlLabel-root': { mb: 1.5, alignItems: 'flex-start' }, '& .MuiCheckbox-root': { pt: 0.5 } }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formData.kriteria_1 || false}
+                        onChange={(e) => setFormData({ ...formData, kriteria_1: e.target.checked })}
+                        sx={{ '&.Mui-checked': { color: '#DA251C' } }}
+                      />
+                    }
+                    label="2.1 Tidak menambah fungsi baru dan/atau tidak mengubah fungsi yang sudah ada, yang berdampak struktural terhadap Aplikasi dan/atau dengan cakupan besar"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formData.kriteria_2 || false}
+                        onChange={(e) => setFormData({ ...formData, kriteria_2: e.target.checked })}
+                        sx={{ '&.Mui-checked': { color: '#DA251C' } }}
+                      />
+                    }
+                    label="2.2 Tidak menambah sumber data baru dari sistem lainnya, kecuali pengubahan untuk Aplikasi Reference Management, Aplikasi Data Master Management dan Aplikasi Convertion Engine"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formData.kriteria_3 || false}
+                        onChange={(e) => setFormData({ ...formData, kriteria_3: e.target.checked })}
+                        sx={{ '&.Mui-checked': { color: '#DA251C' } }}
+                      />
+                    }
+                    label="2.3 Tidak mengubah sumber data yang berdampak struktural terhadap Aplikasi atau Database dan/atau dengan cakupan besar"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formData.kriteria_4 || false}
+                        onChange={(e) => setFormData({ ...formData, kriteria_4: e.target.checked })}
+                        sx={{ '&.Mui-checked': { color: '#DA251C' } }}
+                      />
+                    }
+                    label="2.4 Tidak mengubah alur kerja Aplikasi"
+                  />
+                </FormGroup>
+              </AccordionDetails>
+            </Accordion>
+
+            {/* Section 3: Aspek Perubahan */}
+            <Accordion
+              expanded={expandedSection === 'section2'}
+              onChange={handleAccordionChange('section2')}
+              sx={{
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    fontSize: '0.95rem',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  3. Aspek Perubahan
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
+                  *Apa saja aspek perubahan yang terjadi yang diakibatkannya
+                </Typography>
+                <Stack spacing={2}>
+                  <GlassTextField
+                    label="3.1 Terhadap sistem yang ada"
                     value={formData.aspek_sistem_ada}
                     onChange={(e) => setFormData({ ...formData, aspek_sistem_ada: e.target.value })}
                     fullWidth
                     multiline
                     rows={2}
+                    size="small"
                   />
-                  <TextField
-                    label="2. Terhadap sistem terkait"
+                  <GlassTextField
+                    label="3.2 Terhadap sistem terkait"
                     value={formData.aspek_sistem_terkait}
                     onChange={(e) => setFormData({ ...formData, aspek_sistem_terkait: e.target.value })}
                     fullWidth
                     multiline
                     rows={2}
+                    size="small"
                   />
-                  <TextField
-                    label="3. Terhadap alur kerja bisnis"
+                  <GlassTextField
+                    label="3.3 Terhadap alur kerja bisnis"
                     value={formData.aspek_alur_kerja}
                     onChange={(e) => setFormData({ ...formData, aspek_alur_kerja: e.target.value })}
                     fullWidth
                     multiline
                     rows={2}
+                    size="small"
                   />
-                  <TextField
-                    label="4. Terhadap struktur organisasi"
+                  <GlassTextField
+                    label="3.4 Terhadap struktur organisasi"
                     value={formData.aspek_struktur_organisasi}
                     onChange={(e) => setFormData({ ...formData, aspek_struktur_organisasi: e.target.value })}
                     fullWidth
                     multiline
                     rows={2}
+                    size="small"
                   />
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
 
-                  {/* Dokumentasi T.0.1 */}
-                  <Typography variant="body2" fontWeight={500} sx={{ mt: 1 }}>5.1 Dokumen T.0.1</Typography>
+            {/* Section 4: Aspek Perubahan Terhadap Dokumentasi */}
+            <Accordion
+              expanded={expandedSection === 'section3'}
+              onChange={handleAccordionChange('section3')}
+              sx={{
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    fontSize: '0.95rem',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  4. Aspek Perubahan Terhadap Dokumentasi
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Stack spacing={2}>
+                  <Typography variant="body2" fontWeight={500}>
+                    4.1 Dokumen T.0.1
+                  </Typography>
                   <Grid container spacing={2}>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sebelum Pengubahan"
                         value={formData.dok_t01_sebelum}
                         onChange={(e) => setFormData({ ...formData, dok_t01_sebelum: e.target.value })}
                         fullWidth
                         multiline
                         rows={2}
+                        size="small"
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sesudah Pengubahan"
                         value={formData.dok_t01_sesudah}
                         onChange={(e) => setFormData({ ...formData, dok_t01_sesudah: e.target.value })}
                         fullWidth
                         multiline
                         rows={2}
+                        size="small"
                       />
                     </Grid>
                   </Grid>
 
-                  {/* Dokumentasi T.1.1 */}
-                  <Typography variant="body2" fontWeight={500}>5.2 Dokumen T.1.1</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    4.2 Dokumen T.1.1
+                  </Typography>
                   <Grid container spacing={2}>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sebelum Pengubahan"
                         value={formData.dok_t11_sebelum}
                         onChange={(e) => setFormData({ ...formData, dok_t11_sebelum: e.target.value })}
                         fullWidth
                         multiline
                         rows={2}
+                        size="small"
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sesudah Pengubahan"
                         value={formData.dok_t11_sesudah}
                         onChange={(e) => setFormData({ ...formData, dok_t11_sesudah: e.target.value })}
                         fullWidth
                         multiline
                         rows={2}
+                        size="small"
                       />
                     </Grid>
                   </Grid>
-                </Box>
+                </Stack>
               </AccordionDetails>
             </Accordion>
 
-            {/* Penggunaan Sistem */}
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle1" fontWeight={600}>6. Terhadap Penggunaan Sistem</Typography>
+            {/* Section 5: Aspek Perubahan Terhadap Penggunaan Sistem */}
+            <Accordion
+              expanded={expandedSection === 'section4'}
+              onChange={handleAccordionChange('section4')}
+              sx={{
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    fontSize: '0.95rem',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  5. Aspek Perubahan Terhadap Penggunaan Sistem
+                </Typography>
               </AccordionSummary>
-              <AccordionDetails>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {/* Jumlah Pengguna */}
-                  <Typography variant="body2" fontWeight={500}>6.1 Jumlah Pengguna</Typography>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Stack spacing={2}>
+                  <Typography variant="body2" fontWeight={500}>
+                    5.1 Jumlah Pengguna
+                  </Typography>
                   <Grid container spacing={2}>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sebelum Pengubahan"
                         value={formData.pengguna_sebelum}
                         onChange={(e) => setFormData({ ...formData, pengguna_sebelum: e.target.value })}
                         fullWidth
+                        size="small"
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sesudah Pengubahan"
                         value={formData.pengguna_sesudah}
                         onChange={(e) => setFormData({ ...formData, pengguna_sesudah: e.target.value })}
                         fullWidth
+                        size="small"
                       />
                     </Grid>
                   </Grid>
 
-                  {/* Akses Bersamaan */}
-                  <Typography variant="body2" fontWeight={500}>6.2 Jumlah akses secara bersamaan</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    5.2 Jumlah akses secara bersamaan
+                  </Typography>
                   <Grid container spacing={2}>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sebelum Pengubahan"
                         value={formData.akses_bersamaan_sebelum}
                         onChange={(e) => setFormData({ ...formData, akses_bersamaan_sebelum: e.target.value })}
                         fullWidth
+                        size="small"
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sesudah Pengubahan"
                         value={formData.akses_bersamaan_sesudah}
                         onChange={(e) => setFormData({ ...formData, akses_bersamaan_sesudah: e.target.value })}
                         fullWidth
+                        size="small"
                       />
                     </Grid>
                   </Grid>
 
-                  {/* Pertumbuhan Data */}
-                  <Typography variant="body2" fontWeight={500}>6.3 Jumlah pertumbuhan data per hari/bulan/tahun</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    5.3 Jumlah pertumbuhan data per hari/bulan/tahun
+                  </Typography>
                   <Grid container spacing={2}>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sebelum Pengubahan"
                         value={formData.pertumbuhan_data_sebelum}
                         onChange={(e) => setFormData({ ...formData, pertumbuhan_data_sebelum: e.target.value })}
                         fullWidth
+                        size="small"
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
-                      <TextField
+                      <GlassTextField
                         label="Sesudah Pengubahan"
                         value={formData.pertumbuhan_data_sesudah}
                         onChange={(e) => setFormData({ ...formData, pertumbuhan_data_sesudah: e.target.value })}
                         fullWidth
+                        size="small"
                       />
                     </Grid>
                   </Grid>
-                </Box>
+                </Stack>
               </AccordionDetails>
             </Accordion>
 
-            <Divider sx={{ my: 1 }} />
+            {/* Section 6: Jadwal Pelaksanaan */}
+            <Accordion
+              expanded={expandedSection === 'section5'}
+              onChange={handleAccordionChange('section5')}
+              sx={{
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    fontSize: '0.95rem',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  6. Jadwal Pelaksanaan
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
+                  *Diisi untuk pengajuan di tahap pemeliharaan
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 4 }}>
+                    <GlassTextField
+                      label="6.1 Target Pengujian"
+                      type="date"
+                      value={formData.target_pengujian}
+                      onChange={(e) => setFormData({ ...formData, target_pengujian: e.target.value })}
+                      fullWidth
+                      InputLabelProps={{ shrink: true }}
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 4 }}>
+                    <GlassTextField
+                      label="6.2 Target Deployment"
+                      type="date"
+                      value={formData.target_deployment}
+                      onChange={(e) => setFormData({ ...formData, target_deployment: e.target.value })}
+                      fullWidth
+                      InputLabelProps={{ shrink: true }}
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 4 }}>
+                    <GlassTextField
+                      label="6.3 Target Go Live"
+                      type="date"
+                      value={formData.target_go_live}
+                      onChange={(e) => setFormData({ ...formData, target_go_live: e.target.value })}
+                      fullWidth
+                      InputLabelProps={{ shrink: true }}
+                      size="small"
+                    />
+                  </Grid>
+                </Grid>
+              </AccordionDetails>
+            </Accordion>
 
-            {/* Jadwal Pelaksanaan */}
-            <Typography variant="subtitle1" fontWeight={600}>Jadwal Pelaksanaan</Typography>
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 4 }}>
-                <TextField
-                  label="Target Pengujian"
-                  type="date"
-                  value={formData.target_pengujian}
-                  onChange={(e) => setFormData({ ...formData, target_pengujian: e.target.value })}
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid size={{ xs: 4 }}>
-                <TextField
-                  label="Target Deployment"
-                  type="date"
-                  value={formData.target_deployment}
-                  onChange={(e) => setFormData({ ...formData, target_deployment: e.target.value })}
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid size={{ xs: 4 }}>
-                <TextField
-                  label="Target Go Live"
-                  type="date"
-                  value={formData.target_go_live}
-                  onChange={(e) => setFormData({ ...formData, target_go_live: e.target.value })}
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-            </Grid>
+            {/* Section 7: Pernyataan */}
+            <Accordion
+              expanded={expandedSection === 'section6'}
+              onChange={handleAccordionChange('section6')}
+              sx={{
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    fontSize: '0.95rem',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  7. Pernyataan
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <FormGroup sx={{ '& .MuiFormControlLabel-root': { mb: 1.5, alignItems: 'flex-start' }, '& .MuiCheckbox-root': { pt: 0.5 } }}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mb: 1 }}>
+                      *Diisi jika pengajuan pengubahan Aplikasi pada tahap Desain Aplikasi
+                    </Typography>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formData.pernyataan_1 || false}
+                          onChange={(e) => setFormData({ ...formData, pernyataan_1: e.target.checked })}
+                          sx={{ '&.Mui-checked': { color: '#DA251C' } }}
+                        />
+                      }
+                      label="7.1 Kami selaku Satuan Kerja Pemilik Aplikasi menyatakan bersedia menerima konsekuensi pengunduran jadwal implementasi (apabila ada) akibat pengubahan Aplikasi ini."
+                    />
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mb: 1 }}>
+                      *Diisi jika pengajuan pengubahan Aplikasi berdampak pada pengubahan Aplikasi lain
+                    </Typography>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formData.pernyataan_2 || false}
+                          onChange={(e) => setFormData({ ...formData, pernyataan_2: e.target.checked })}
+                          sx={{ '&.Mui-checked': { color: '#DA251C' } }}
+                        />
+                      }
+                      label="7.2 Dalam hal pengubahan Aplikasi berdampak pada pengubahan Aplikasi lain, Satuan Kerja Pemilik Aplikasi terdampak telah menyetujui dan memiliki rencana terkait pengembangan atau pengubahan Aplikasi tersebut (melampirkan risalah rapat)"
+                    />
+                  </Box>
+                </FormGroup>
+              </AccordionDetails>
+            </Accordion>
 
-            <Divider sx={{ my: 1 }} />
+            {/* Section 8: Upload Dokumen F.S.2 */}
+            <Accordion
+              expanded={expandedSection === 'section7'}
+              onChange={handleAccordionChange('section7')}
+              sx={{
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    fontSize: '0.95rem',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  8. Upload Dokumen F.S.2
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Stack spacing={2}>
+                  <Box
+                    sx={{
+                      border: '2px dashed #e5e5e7',
+                      borderRadius: 2,
+                      p: 3,
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease-in-out',
+                      '&:hover': {
+                        borderColor: '#DA251C',
+                        bgcolor: 'rgba(218, 37, 28, 0.04)',
+                      },
+                    }}
+                    onClick={() => document.getElementById('fs2-edit-file-upload-input')?.click()}
+                  >
+                    <input
+                      id="fs2-edit-file-upload-input"
+                      type="file"
+                      hidden
+                      onChange={handleFileUpload}
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                    />
+                    <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
+                    <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                      Klik untuk upload file
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
+                      atau drag & drop file di sini
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
+                      Format yang didukung: PDF, Word, Excel, Gambar (max 20MB)
+                    </Typography>
+                  </Box>
 
-            {/* Pernyataan */}
-            <Typography variant="subtitle1" fontWeight={600}>Pernyataan</Typography>
-            <FormGroup>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.pernyataan_1 || false}
-                    onChange={(e) => setFormData({ ...formData, pernyataan_1: e.target.checked })}
-                  />
-                }
-                label="1. Kami selaku Satuan Kerja Pemilik Aplikasi menyatakan bersedia menerima konsekuensi pengunduran jadwal implementasi (apabila ada) akibat pengubahan Aplikasi ini."
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.pernyataan_2 || false}
-                    onChange={(e) => setFormData({ ...formData, pernyataan_2: e.target.checked })}
-                  />
-                }
-                label="2. Dalam hal pengubahan Aplikasi berdampak pada pengubahan Aplikasi lain, Satuan Kerja Pemilik Aplikasi terdampak telah menyetujui dan memiliki rencana terkait pengembangan atau pengubahan Aplikasi tersebut (melampirkan risalah rapat)"
-              />
-            </FormGroup>
-          </Box>
+                  {uploadedFiles.length > 0 && (
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>
+                        File yang diupload ({uploadedFiles.length})
+                      </Typography>
+                      <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px' }}>
+                        {uploadedFiles.map((file, index) => (
+                          <ListItem
+                            key={index}
+                            sx={{
+                              borderBottom: index < uploadedFiles.length - 1 ? '1px solid #e5e5e7' : 'none',
+                            }}
+                          >
+                            <ListItemIcon>
+                              <FileIcon sx={{ color: '#DA251C' }} />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={file.name}
+                              secondary={formatFileSize(file.size)}
+                              primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }}
+                              secondaryTypographyProps={{ sx: { color: '#86868b' } }}
+                            />
+                            <ListItemSecondaryAction>
+                              <IconButton
+                                edge="end"
+                                onClick={() => handleRemoveFile(index)}
+                                sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </ListItemSecondaryAction>
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Box>
+                  )}
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
+          </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseEditModal}>Batal</Button>
-          <Button variant="contained" onClick={handleEditFs2}>Simpan</Button>
+        <DialogActions sx={{ p: 2.5, pt: 1, borderTop: '1px solid rgba(0, 0, 0, 0.06)' }}>
+          <Button 
+            onClick={handleCloseEditModal}
+            sx={{
+              color: '#86868b',
+              '&:hover': {
+                bgcolor: 'rgba(0, 0, 0, 0.04)',
+              },
+            }}
+          >
+            Batal
+          </Button>
+          <Button 
+            variant="contained" 
+            onClick={handleEditFs2}
+            sx={{
+              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+              fontWeight: 500,
+              px: 3,
+              '&:hover': {
+                background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
+              },
+            }}
+          >
+            Simpan
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* View Modal */}
-      <Dialog open={openViewModal} onClose={handleCloseViewModal} maxWidth="md" fullWidth>
-        <DialogTitle>Detail F.S.2</DialogTitle>
-        <DialogContent>
+      <Dialog 
+        open={openViewModal} 
+        onClose={handleCloseViewModal} 
+        maxWidth="md" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            maxHeight: '90vh',
+            bgcolor: 'rgba(255, 255, 255, 0.75)',
+            backdropFilter: 'blur(40px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1) inset',
+          },
+        }}
+        slotProps={{
+          backdrop: {
+            sx: {
+              bgcolor: 'rgba(0, 0, 0, 0.3)',
+              backdropFilter: 'blur(8px)',
+            }
+          }
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+            pb: 2,
+            bgcolor: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+          }}
+        >
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.02em' }}
+          >
+            Detail F.S.2
+          </Typography>
+          <IconButton
+            onClick={handleCloseViewModal}
+            size="small"
+            sx={{
+              color: '#86868b',
+              '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent
+          sx={{
+            pt: 3,
+            pb: 4,
+            background: 'linear-gradient(135deg, rgba(245, 245, 247, 0.9) 0%, rgba(250, 250, 250, 0.95) 100%)',
+          }}
+        >
           {selectedFs2ForView && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
               {/* Basic Information */}
               <Typography variant="subtitle1" fontWeight={600}>Informasi Dasar</Typography>
               <Grid container spacing={2}>
-                <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" color="text.secondary">Nama F.S.2</Typography>
-                  <Typography>{selectedFs2ForView.nama_fs2}</Typography>
-                </Grid>
                 <Grid size={{ xs: 6 }}>
                   <Typography variant="caption" color="text.secondary">Aplikasi</Typography>
                   <Typography>{selectedFs2ForView.nama_aplikasi || '-'}</Typography>
@@ -1610,16 +3172,16 @@ function Fs2List() {
               <Typography variant="subtitle1" fontWeight={600}>Kesesuaian Kriteria Pengubahan Aplikasi</Typography>
               <Box>
                 <Typography variant="body2">
-                  1. Tidak menambah fungsi baru: {selectedFs2ForView.kriteria_1 ? 'âœ“ Ya' : 'âœ— Tidak'}
+                  1. Tidak menambah fungsi baru: {selectedFs2ForView.kriteria_1 ? '✓ Ya' : '✗ Tidak'}
                 </Typography>
                 <Typography variant="body2">
-                  2. Tidak menambah sumber data baru: {selectedFs2ForView.kriteria_2 ? 'âœ“ Ya' : 'âœ— Tidak'}
+                  2. Tidak menambah sumber data baru: {selectedFs2ForView.kriteria_2 ? '✓ Ya' : '✗ Tidak'}
                 </Typography>
                 <Typography variant="body2">
-                  3. Tidak mengubah sumber data: {selectedFs2ForView.kriteria_3 ? 'âœ“ Ya' : 'âœ— Tidak'}
+                  3. Tidak mengubah sumber data: {selectedFs2ForView.kriteria_3 ? '✓ Ya' : '✗ Tidak'}
                 </Typography>
                 <Typography variant="body2">
-                  4. Tidak mengubah alur kerja: {selectedFs2ForView.kriteria_4 ? 'âœ“ Ya' : 'âœ— Tidak'}
+                  4. Tidak mengubah alur kerja: {selectedFs2ForView.kriteria_4 ? '✓ Ya' : '✗ Tidak'}
                 </Typography>
               </Box>
 
@@ -1743,31 +3305,77 @@ function Fs2List() {
               <Typography variant="subtitle1" fontWeight={600}>Pernyataan</Typography>
               <Box>
                 <Typography variant="body2">
-                  1. Bersedia menerima konsekuensi: {selectedFs2ForView.pernyataan_1 ? 'âœ“ Ya' : 'âœ— Tidak'}
+                  1. Bersedia menerima konsekuensi: {selectedFs2ForView.pernyataan_1 ? '✓ Ya' : '✗ Tidak'}
                 </Typography>
                 <Typography variant="body2">
-                  2. Satker terdampak telah menyetujui: {selectedFs2ForView.pernyataan_2 ? 'âœ“ Ya' : 'âœ— Tidak'}
+                  2. Satker terdampak telah menyetujui: {selectedFs2ForView.pernyataan_2 ? '✓ Ya' : '✗ Tidak'}
                 </Typography>
               </Box>
             </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseViewModal}>Tutup</Button>
+        <DialogActions sx={{ p: 2.5, pt: 1, borderTop: '1px solid rgba(0, 0, 0, 0.06)' }}>
+          <Button 
+            onClick={handleCloseViewModal}
+            sx={{
+              color: '#86868b',
+              '&:hover': {
+                bgcolor: 'rgba(0, 0, 0, 0.04)',
+              },
+            }}
+          >
+            Tutup
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}>
-        <DialogTitle>Konfirmasi Hapus</DialogTitle>
+      <Dialog 
+        open={openDeleteDialog} 
+        onClose={handleCloseDeleteDialog}
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            maxWidth: 400,
+          },
+        }}
+      >
+        <DialogTitle sx={{ 
+          fontWeight: 600, 
+          color: '#1d1d1f',
+          pb: 1,
+        }}>
+          Konfirmasi Hapus
+        </DialogTitle>
         <DialogContent>
-          <DialogContentText>
+          <DialogContentText sx={{ color: '#86868b' }}>
             Apakah Anda yakin ingin menghapus F.S.2 ini? Tindakan ini tidak dapat dibatalkan.
           </DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDeleteDialog}>Batal</Button>
-          <Button color="error" variant="contained" onClick={handleDeleteFs2}>Hapus</Button>
+        <DialogActions sx={{ p: 2.5, pt: 1 }}>
+          <Button 
+            onClick={handleCloseDeleteDialog}
+            sx={{
+              color: '#86868b',
+              '&:hover': {
+                bgcolor: 'rgba(0, 0, 0, 0.04)',
+              },
+            }}
+          >
+            Batal
+          </Button>
+          <Button 
+            variant="contained" 
+            onClick={handleDeleteFs2}
+            sx={{
+              bgcolor: '#DC2626',
+              '&:hover': {
+                bgcolor: '#B91C1C',
+              },
+            }}
+          >
+            Hapus
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

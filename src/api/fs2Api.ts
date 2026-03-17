@@ -11,7 +11,6 @@ export interface Fs2DocumentData {
   aplikasi_id?: string;
   nama_aplikasi?: string;
   kode_aplikasi?: string;
-  nama_fs2: string;
   tanggal_pengajuan?: string;
   bidang_id?: string;
   nama_bidang?: string;
@@ -91,7 +90,6 @@ export interface Fs2SearchResponse {
 
 export interface Fs2DocumentRequest {
   aplikasi_id?: string;
-  nama_fs2: string;
   tanggal_pengajuan?: string;
   bidang_id?: string;
   skpa_id?: string;

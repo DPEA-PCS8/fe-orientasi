@@ -51,7 +51,6 @@ import { usePermissions } from '../hooks/usePermissions';
 interface Fs2DisetujuiData {
   id: string;
   namaAplikasi: string;
-  namaFs2: string;
   progres: string;
   fasePengajuan: string;
   iku: string;
@@ -98,7 +97,6 @@ const transformApiData = (apiData: Fs2DocumentData): Fs2DisetujuiData => {
   return {
     id: apiData.id,
     namaAplikasi: apiData.nama_aplikasi || '-',
-    namaFs2: apiData.nama_fs2,
     progres: apiData.progres || '-',
     fasePengajuan: apiData.fase_pengajuan || '-',
     iku: apiData.iku || '-',
@@ -151,7 +149,7 @@ function Fs2Disetujui() {
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [orderBy, setOrderBy] = useState<keyof Fs2DisetujuiData>('namaFs2');
+  const [orderBy, setOrderBy] = useState<keyof Fs2DisetujuiData>('namaAplikasi');
   const [order, setOrder] = useState<Order>('asc');
   const [fs2Data, setFs2Data] = useState<Fs2DisetujuiData[]>([]);
   const [rawData, setRawData] = useState<Fs2DocumentData[]>([]);
@@ -307,7 +305,6 @@ function Fs2Disetujui() {
     if (fs2) {
       setSelectedFs2(fs2);
       setEditFormData({
-        nama_fs2: fs2.nama_fs2,
         progres: fs2.progres || '',
         fase_pengajuan: fs2.fase_pengajuan || '',
         iku: fs2.iku || '',
@@ -333,7 +330,6 @@ function Fs2Disetujui() {
     try {
       await updateFs2Document(selectedFs2.id, {
         ...editFormData,
-        nama_fs2: editFormData.nama_fs2 || selectedFs2.nama_fs2,
       } as Fs2DocumentRequest);
       handleCloseEditModal();
       fetchFs2Data();
@@ -548,15 +544,6 @@ function Fs2Disetujui() {
                   Nama Aplikasi
                 </TableSortLabel>
               </TableCell>
-              <TableCell>
-                <TableSortLabel
-                  active={orderBy === 'namaFs2'}
-                  direction={orderBy === 'namaFs2' ? order : 'asc'}
-                  onClick={() => handleRequestSort('namaFs2')}
-                >
-                  Nama F.S.2
-                </TableSortLabel>
-              </TableCell>
               <TableCell>Progres</TableCell>
               <TableCell>Fase Pengajuan</TableCell>
               <TableCell>IKU</TableCell>
@@ -572,13 +559,13 @@ function Fs2Disetujui() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={13} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={12} align="center" sx={{ py: 4 }}>
                   <CircularProgress size={32} />
                 </TableCell>
               </TableRow>
             ) : fs2Data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={13} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={12} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">Tidak ada data F.S.2 Disetujui</Typography>
                 </TableCell>
               </TableRow>
@@ -590,7 +577,6 @@ function Fs2Disetujui() {
                   <TableRow key={row.id} hover>
                     <TableCell>{page * rowsPerPage + index + 1}</TableCell>
                     <TableCell>{row.namaAplikasi}</TableCell>
-                    <TableCell>{row.namaFs2}</TableCell>
                     <TableCell>
                       <Chip
                         label={PROGRES_LABELS[row.progres] || row.progres}
@@ -680,10 +666,6 @@ function Fs2Disetujui() {
         <DialogContent>
           {selectedFs2ForView && (
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mt: 1 }}>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Nama F.S.2</Typography>
-                <Typography>{selectedFs2ForView.nama_fs2}</Typography>
-              </Box>
               <Box>
                 <Typography variant="caption" color="text.secondary">Aplikasi</Typography>
                 <Typography>{selectedFs2ForView.nama_aplikasi || '-'}</Typography>
