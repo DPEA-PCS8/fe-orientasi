@@ -37,6 +37,7 @@ import {
   ChevronLeftRounded,
   ChevronRightRounded,
 } from '@mui/icons-material';
+import { Chip } from '@mui/material';
 import { isAdmin, getUserRoles } from '../api/authApi';
 import { getMyPermissions } from '../api/rolePermissionApi';
 import type { MenuPermissionItem } from '../types/rbac.types';
@@ -58,6 +59,7 @@ interface SubMenuItem {
   icon: React.ReactNode;
   href: string;
   menuCode?: string; // Add menu code for permission matching
+  isMasterData?: boolean; // Mark as master data menu
 }
 
 interface MenuSection {
@@ -212,7 +214,7 @@ const Sidebar = () => {
           href: '/aplikasi',
           menuCode: 'APLIKASI',
           subItems: [
-            { label: 'Daftar Aplikasi', icon: <AppsRounded />, href: '/aplikasi', menuCode: 'DAFTAR_APLIKASI' },
+            { label: 'Daftar Aplikasi', icon: <AppsRounded />, href: '/aplikasi', menuCode: 'DAFTAR_APLIKASI', isMasterData: true },
             { label: 'Historis Aplikasi', icon: <HistoryRounded />, href: '/historis-aplikasi', menuCode: 'HISTORIS_APLIKASI' },
           ],
         },
@@ -222,8 +224,8 @@ const Sidebar = () => {
           href: '/master-data',
           menuCode: 'MASTER_DATA',
           subItems: [
-            { label: 'SKPA', icon: <ListAltRounded />, href: '/skpa', menuCode: 'SKPA' },
-            { label: 'Bidang', icon: <ListAltRounded />, href: '/bidang', menuCode: 'BIDANG' },
+            { label: 'SKPA', icon: <ListAltRounded />, href: '/skpa', menuCode: 'SKPA', isMasterData: true },
+            { label: 'Bidang', icon: <ListAltRounded />, href: '/bidang', menuCode: 'BIDANG', isMasterData: true },
           ],
         },
       ],
@@ -553,6 +555,9 @@ const Sidebar = () => {
                                     pl: 5,
                                     pr: 1.5,
                                     transition: 'all 0.2s ease',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
                                     '&.Mui-selected': {
                                       bgcolor: 'rgba(218, 37, 28, 0.08)',
                                       color: '#DA251C',
@@ -568,23 +573,41 @@ const Sidebar = () => {
                                     },
                                   }}
                                 >
-                                  <ListItemIcon
-                                    sx={{
-                                      minWidth: 28,
-                                      color: subActive ? '#DA251C' : '#86868b',
-                                      '& svg': { fontSize: 16 },
-                                    }}
-                                  >
-                                    {subItem.icon}
-                                  </ListItemIcon>
-                                  <ListItemText
-                                    primary={subItem.label}
-                                    primaryTypographyProps={{
-                                      fontSize: '0.75rem',
-                                      fontWeight: subActive ? 600 : 500,
-                                      letterSpacing: '-0.01em',
-                                    }}
-                                  />
+                                  <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                                    <ListItemIcon
+                                      sx={{
+                                        minWidth: 28,
+                                        color: subActive ? '#DA251C' : '#86868b',
+                                        '& svg': { fontSize: 16 },
+                                      }}
+                                    >
+                                      {subItem.icon}
+                                    </ListItemIcon>
+                                    <ListItemText
+                                      primary={subItem.label}
+                                      primaryTypographyProps={{
+                                        fontSize: '0.75rem',
+                                        fontWeight: subActive ? 600 : 500,
+                                        letterSpacing: '-0.01em',
+                                      }}
+                                    />
+                                  </Box>
+                                  {subItem.isMasterData && (
+                                    <Chip
+                                      label="MASTER"
+                                      size="small"
+                                      sx={{
+                                        height: 16,
+                                        fontSize: '0.45rem',
+                                        fontWeight: 700,
+                                        bgcolor: '#FF9800',
+                                        color: '#fff',
+                                        '& .MuiChip-label': {
+                                          px: 0.55,
+                                        },
+                                      }}
+                                    />
+                                  )}
                                 </ListItemButton>
                               </ListItem>
                             );
@@ -668,12 +691,28 @@ const Sidebar = () => {
               mx: 0.75,
               mb: 0.5,
               transition: 'all 0.2s ease',
+              position: 'relative',
+              ...(subItem.isMasterData && {
+                paddingLeft: '28px',
+                '&::before': {
+                  content: '"●"',
+                  position: 'absolute',
+                  left: '8px',
+                  color: '#FF9800',
+                  fontSize: '6px',
+                  animation: 'pulse 2s infinite',
+                },
+              }),
               '&.Mui-selected': {
                 bgcolor: 'rgba(218, 37, 28, 0.08)',
                 color: '#DA251C',
                 '&:hover': {
                   bgcolor: 'rgba(218, 37, 28, 0.12)',
                 },
+                ...(subItem.isMasterData && {
+                  color: '#FF9800',
+                  bgcolor: 'transparent',
+                }),
               },
               '&:hover': {
                 bgcolor: 'rgba(0, 0, 0, 0.04)',
@@ -683,7 +722,7 @@ const Sidebar = () => {
             <ListItemIcon
               sx={{
                 minWidth: 32,
-                color: isActive(subItem.href) ? '#DA251C' : '#86868b',
+                color: isActive(subItem.href) ? (subItem.isMasterData ? '#FF9800' : '#DA251C') : (subItem.isMasterData ? '#FF9800' : '#86868b'),
                 '& svg': { fontSize: 18 },
               }}
             >
@@ -694,6 +733,7 @@ const Sidebar = () => {
               primaryTypographyProps={{
                 fontSize: '0.8125rem',
                 fontWeight: isActive(subItem.href) ? 600 : 500,
+                color: subItem.isMasterData ? '#FF9800' : undefined,
               }}
             />
           </MenuItem>
