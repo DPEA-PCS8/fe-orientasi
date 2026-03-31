@@ -1533,27 +1533,66 @@ export default function TeamManagement() {
         onClose={() => setOpenDeleteModal(false)}
         PaperProps={{
           sx: {
-            borderRadius: 4,
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.9) 100%)',
-            backdropFilter: 'blur(40px)',
+            borderRadius: 3,
+            bgcolor: 'white',
+            border: '1px solid #E5E7EB',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            minWidth: 420,
           },
         }}
       >
-        <DialogTitle sx={{ pb: 1 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700, color: '#DA251C' }}>
-            Hapus Tim?
-          </Typography>
+        <DialogTitle sx={{ pb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: 2,
+                bgcolor: '#FEF2F2',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#EF4444',
+              }}
+            >
+              <DeleteIcon sx={{ fontSize: 24 }} />
+            </Box>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: '#111827', mb: 0.5 }}>
+                Hapus Tim
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#6B7280' }}>
+                Konfirmasi penghapusan tim
+              </Typography>
+            </Box>
+          </Box>
         </DialogTitle>
-        <DialogContent>
-          <Typography sx={{ color: '#424245' }}>
-            Anda yakin ingin menghapus tim <strong>{selectedTeam?.name}</strong>? 
-            Aksi ini tidak dapat dibatalkan.
-          </Typography>
+        <DialogContent sx={{ pt: 0 }}>
+          <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: '#FEF2F2', border: '1px solid #FEE2E2' }}>
+            <Typography sx={{ color: '#374151', fontSize: '0.95rem', lineHeight: 1.6 }}>
+              Anda yakin ingin menghapus tim <Box component="span" sx={{ fontWeight: 700, color: '#EF4444' }}>"{selectedTeam?.name}"</Box>? 
+            </Typography>
+            <Typography sx={{ color: '#6B7280', fontSize: '0.875rem', mt: 1.5 }}>
+              ⚠️ Aksi ini tidak dapat dibatalkan
+            </Typography>
+          </Box>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3 }}>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1.5 }}>
           <Button 
             onClick={() => setOpenDeleteModal(false)}
-            sx={{ color: '#86868b', textTransform: 'none', fontWeight: 500 }}
+            variant="outlined"
+            sx={{ 
+              color: '#6B7280',
+              borderColor: '#E5E7EB',
+              textTransform: 'none',
+              fontWeight: 600,
+              px: 3,
+              borderRadius: 2,
+              '&:hover': {
+                borderColor: '#D1D5DB',
+                bgcolor: '#F9FAFB',
+              },
+            }}
           >
             Batal
           </Button>
@@ -1562,14 +1601,29 @@ export default function TeamManagement() {
             variant="contained"
             disabled={submitting}
             sx={{
-              bgcolor: '#DA251C',
+              bgcolor: '#EF4444',
               textTransform: 'none',
               fontWeight: 600,
+              px: 3,
               borderRadius: 2,
-              '&:hover': { bgcolor: '#B91C14' },
+              boxShadow: 'none',
+              '&:hover': { 
+                bgcolor: '#DC2626',
+                boxShadow: 'none',
+              },
+              '&:disabled': {
+                bgcolor: '#FCA5A5',
+              },
             }}
           >
-            {submitting ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Hapus Tim'}
+            {submitting ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CircularProgress size={16} sx={{ color: 'white' }} />
+                <span>Menghapus...</span>
+              </Box>
+            ) : (
+              'Hapus Tim'
+            )}
           </Button>
         </DialogActions>
       </Dialog>
