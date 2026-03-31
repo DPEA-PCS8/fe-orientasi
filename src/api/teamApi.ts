@@ -36,23 +36,57 @@ export interface UpdateTeamRequest {
   memberUuids?: string[];
 }
 
-// ==================== LOCAL STORAGE HELPER ====================
-// Using localStorage as temporary storage until backend is ready
+// ==================== API RESPONSE TYPES ====================
 
-const TEAMS_STORAGE_KEY = 'orientasi_teams';
+interface ApiTeamMember {
+  uuid: string;
+  username: string;
+  full_name: string;
+  email: string;
+  department: string;
+  title?: string;
+}
 
-const getStoredTeams = (): Team[] => {
-  try {
-    const stored = localStorage.getItem(TEAMS_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
-};
+interface ApiTeamResponse {
+  id: string;
+  name: string;
+  description: string;
+  pic: ApiTeamMember | null;
+  members: ApiTeamMember[];
+  created_at: string;
+  updated_at: string;
+}
 
-const setStoredTeams = (teams: Team[]): void => {
-  localStorage.setItem(TEAMS_STORAGE_KEY, JSON.stringify(teams));
-};
+// ==================== HELPER FUNCTIONS ====================
+
+/**
+ * Map API team member response to frontend TeamMember
+ */
+function mapApiMemberToTeamMember(apiMember: ApiTeamMember): TeamMember {
+  return {
+    uuid: apiMember.uuid,
+    username: apiMember.username,
+    fullName: apiMember.full_name,
+    email: apiMember.email,
+    department: apiMember.department,
+    title: apiMember.title,
+  };
+}
+
+/**
+ * Map API team response to frontend Team
+ */
+function mapApiTeamToTeam(apiTeam: ApiTeamResponse): Team {
+  return {
+    id: apiTeam.id,
+    name: apiTeam.name,
+    description: apiTeam.description || '',
+    pic: apiTeam.pic ? mapApiMemberToTeamMember(apiTeam.pic) : null,
+    members: apiTeam.members?.map(mapApiMemberToTeamMember) || [],
+    createdAt: apiTeam.created_at,
+    updatedAt: apiTeam.updated_at,
+  };
+}
 
 // ==================== API FUNCTIONS ====================
 
@@ -60,203 +94,62 @@ const setStoredTeams = (teams: Team[]): void => {
  * Get all users available for team assignment
  */
 export async function getAvailableUsers(): Promise<TeamMember[]> {
-  try {
-    // Try to get real users from the backend
-    interface UserResponse {
-      uuid?: string;
-      id?: string;
-      username: string;
-      fullName?: string;
-      full_name?: string;
-      email: string;
-      department?: string;
-      title?: string;
-      avatar?: string;
-    }
-    const response = await apiRequest<UserResponse[]>('/api/roles/users', 'GET');
-    return response.data.map((user) => ({
-      uuid: user.uuid || user.id || '',
-      username: user.username,
-      fullName: user.fullName || user.full_name || '',
-      email: user.email,
-      department: user.department || 'Unknown',
-      title: user.title,
-      avatar: user.avatar,
-    }));
-  } catch {
-    console.warn('Failed to fetch users from API, using fallback');
-    // Return empty array - no fallback dummy data
-    return [];
-  }
+  const response = await apiRequest<ApiTeamMember[]>('/api/teams/available-users', 'GET');
+  return response.data.map(mapApiMemberToTeamMember);
 }
 
 /**
  * Get all teams
  */
 export async function getAllTeams(): Promise<Team[]> {
-  // For now, use localStorage. Replace with API call when backend is ready
-  // const response = await apiRequest<Team[]>('/api/teams', 'GET');
-  // return response.data;
-  return getStoredTeams();
+  const response = await apiRequest<ApiTeamResponse[]>('/api/teams', 'GET');
+  return response.data.map(mapApiTeamToTeam);
 }
 
 /**
  * Get team by ID
  */
 export async function getTeamById(teamId: string): Promise<Team | null> {
-  const teams = getStoredTeams();
-  return teams.find(t => t.id === teamId) || null;
+  try {
+    const response = await apiRequest<ApiTeamResponse>(`/api/teams/${teamId}`, 'GET');
+    return mapApiTeamToTeam(response.data);
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Create a new team
  */
-export async function createTeam(request: CreateTeamRequest, availableUsers: TeamMember[]): Promise<Team> {
-  const teams = getStoredTeams();
-  
-  const pic = request.picUuid 
-    ? availableUsers.find(u => u.uuid === request.picUuid) || null
-    : null;
-  
-  const members = request.memberUuids
-    .map(uuid => availableUsers.find(u => u.uuid === uuid))
-    .filter((u): u is TeamMember => u !== undefined);
-
-  const newTeam: Team = {
-    id: `team_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+export async function createTeam(request: CreateTeamRequest): Promise<Team> {
+  const payload = {
     name: request.name,
     description: request.description,
-    pic,
-    members,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    pic_uuid: request.picUuid,
+    member_uuids: request.memberUuids,
   };
-
-  teams.push(newTeam);
-  setStoredTeams(teams);
   
-  return newTeam;
+  const response = await apiRequest<ApiTeamResponse>('/api/teams', 'POST', payload);
+  return mapApiTeamToTeam(response.data);
 }
 
 /**
  * Update a team
  */
-export async function updateTeam(
-  teamId: string, 
-  request: UpdateTeamRequest, 
-  availableUsers: TeamMember[]
-): Promise<Team> {
-  const teams = getStoredTeams();
-  const teamIndex = teams.findIndex(t => t.id === teamId);
-  
-  if (teamIndex === -1) {
-    throw new Error('Team not found');
-  }
-
-  const existingTeam = teams[teamIndex];
-
-  const pic = request.picUuid !== undefined
-    ? (request.picUuid ? availableUsers.find(u => u.uuid === request.picUuid) || null : null)
-    : existingTeam.pic;
-
-  const members = request.memberUuids !== undefined
-    ? request.memberUuids
-        .map(uuid => availableUsers.find(u => u.uuid === uuid))
-        .filter((u): u is TeamMember => u !== undefined)
-    : existingTeam.members;
-
-  const updatedTeam: Team = {
-    ...existingTeam,
-    name: request.name ?? existingTeam.name,
-    description: request.description ?? existingTeam.description,
-    pic,
-    members,
-    updatedAt: new Date().toISOString(),
+export async function updateTeam(teamId: string, request: UpdateTeamRequest): Promise<Team> {
+  const payload = {
+    name: request.name,
+    description: request.description,
+    pic_uuid: request.picUuid,
+    member_uuids: request.memberUuids,
   };
-
-  teams[teamIndex] = updatedTeam;
-  setStoredTeams(teams);
   
-  return updatedTeam;
+  const response = await apiRequest<ApiTeamResponse>(`/api/teams/${teamId}`, 'PUT', payload);
+  return mapApiTeamToTeam(response.data);
 }
 
 /**
  * Delete a team
  */
 export async function deleteTeam(teamId: string): Promise<void> {
-  const teams = getStoredTeams();
-  const filteredTeams = teams.filter(t => t.id !== teamId);
-  setStoredTeams(filteredTeams);
-}
-
-/**
- * Add member to team
- */
-export async function addMemberToTeam(
-  teamId: string, 
-  memberUuid: string, 
-  availableUsers: TeamMember[]
-): Promise<Team> {
-  const teams = getStoredTeams();
-  const teamIndex = teams.findIndex(t => t.id === teamId);
-  
-  if (teamIndex === -1) {
-    throw new Error('Team not found');
-  }
-
-  const member = availableUsers.find(u => u.uuid === memberUuid);
-  if (!member) {
-    throw new Error('User not found');
-  }
-
-  const team = teams[teamIndex];
-  if (!team.members.some(m => m.uuid === memberUuid)) {
-    team.members.push(member);
-    team.updatedAt = new Date().toISOString();
-    setStoredTeams(teams);
-  }
-
-  return team;
-}
-
-/**
- * Remove member from team
- */
-export async function removeMemberFromTeam(teamId: string, memberUuid: string): Promise<Team> {
-  const teams = getStoredTeams();
-  const teamIndex = teams.findIndex(t => t.id === teamId);
-  
-  if (teamIndex === -1) {
-    throw new Error('Team not found');
-  }
-
-  const team = teams[teamIndex];
-  team.members = team.members.filter(m => m.uuid !== memberUuid);
-  team.updatedAt = new Date().toISOString();
-  setStoredTeams(teams);
-
-  return team;
-}
-
-/**
- * Set PIC for team
- */
-export async function setTeamPic(
-  teamId: string, 
-  picUuid: string | null, 
-  availableUsers: TeamMember[]
-): Promise<Team> {
-  const teams = getStoredTeams();
-  const teamIndex = teams.findIndex(t => t.id === teamId);
-  
-  if (teamIndex === -1) {
-    throw new Error('Team not found');
-  }
-
-  const team = teams[teamIndex];
-  team.pic = picUuid ? availableUsers.find(u => u.uuid === picUuid) || null : null;
-  team.updatedAt = new Date().toISOString();
-  setStoredTeams(teams);
-
-  return team;
-}
+  await apiRequest<void>(`/api/teams/${teamId}`, 'DELETE');}

@@ -809,7 +809,7 @@ export default function TeamManagement() {
         picUuid: formData.pic?.uuid || null,
         memberUuids: formData.members.map(m => m.uuid),
       };
-      await createTeam(request, users);
+      await createTeam(request);
       await loadData();
       setOpenCreateModal(false);
     } catch (error) {
@@ -831,8 +831,7 @@ export default function TeamManagement() {
           description: formData.description,
           picUuid: formData.pic?.uuid || null,
           memberUuids: formData.members.map(m => m.uuid),
-        },
-        users
+        }
       );
       await loadData();
       setOpenEditModal(false);
