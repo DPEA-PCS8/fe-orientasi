@@ -75,6 +75,8 @@ const Sidebar = () => {
     'Manajemen RBSI': true,
     'Master Data': true,
     'User & Roles': true,
+    'Aplikasi' : true,
+    'FS2' : true,
   });
   const [userPermissions, setUserPermissions] = useState<MenuPermissionItem[]>([]);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
