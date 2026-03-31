@@ -60,6 +60,7 @@ import {
   InsertDriveFile as FileIcon,
 } from '@mui/icons-material';
 import { usePermissions } from '../hooks/usePermissions';
+import { DataCountDisplay } from '../components/DataCountDisplay';
 import { 
   searchFs2Documents, 
   deleteFs2Document, 
@@ -963,6 +964,16 @@ function Fs2List() {
         </Box>
       </Popover>
 
+      {/* Data Count Display */}
+      <Box sx={{ my: 2.5 }}>
+        <DataCountDisplay
+          count={totalElements}
+          isLoading={isLoading}
+          label="Total"
+          unit="F.S.2 Documents"
+        />
+      </Box>
+    
       {/* Table */}
       <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
         <Table sx={{ minWidth: 1000 }}>

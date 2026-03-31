@@ -60,6 +60,7 @@ const AplikasiFormPage = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const { getMenuPermissions, permissionsLoaded } = usePermissions();
   const { canView, canCreate, canUpdate } = getMenuPermissions(MENU_CODE);
@@ -274,19 +275,120 @@ const AplikasiFormPage = () => {
   };
 
   const handleSubmit = async () => {
-    // Validation
-    if (!form.kode_aplikasi || !form.nama_aplikasi || !form.status_aplikasi) {
-      setError('Kode Aplikasi, Nama Aplikasi, dan Status Aplikasi wajib diisi');
-      return;
+    // Reset errors
+    const errors: Record<string, string> = {};
+
+    // Validate required fields
+    if (!form.kode_aplikasi?.trim()) {
+      errors['kode_aplikasi'] = 'Kode Aplikasi wajib diisi';
+    }
+
+    if (!form.nama_aplikasi?.trim()) {
+      errors['nama_aplikasi'] = 'Nama Aplikasi wajib diisi';
+    }
+
+    if (!form.status_aplikasi) {
+      errors['status_aplikasi'] = 'Status Aplikasi wajib dipilih';
+    }
+
+    if (!form.proses_data_pribadi) {
+      errors['proses_data_pribadi'] = 'Pilih apakah aplikasi memproses data pribadi';
+    }
+
+    // Validate URLs
+    if ((form.urls?.length || 0) === 0) {
+      errors['urls'] = 'Minimal 1 URL aplikasi wajib diisi';
+    } else {
+      const invalidUrls = form.urls?.filter((u, idx) => {
+        if (!u.url?.trim()) {
+          errors[`urls_${idx}`] = 'URL wajib diisi';
+          return true;
+        }
+        return false;
+      });
+      if (invalidUrls?.length) {
+        errors['urls_validation'] = `${invalidUrls.length} URL masih kosong`;
+      }
     }
 
     if (form.status_aplikasi === APPLICATION_STATUS.IDLE && !form.kategori_idle) {
-      setError('Kategori Idle wajib dipilih jika status Idle');
-      return;
+      errors['kategori_idle'] = 'Kategori Idle wajib dipilih';
     }
 
-    if ((form.urls?.length || 0) === 0) {
-      setError('Minimal 1 URL aplikasi wajib diisi');
+    // Validate nested arrays with required fields
+    // Satker Internals - should not have empty nama_satker if exists
+    if (form.satker_internals?.length) {
+      form.satker_internals.forEach((satker, idx) => {
+        if (!satker.nama_satker?.trim()) {
+          errors[`satker_${idx}`] = 'Nama Satker wajib diisi';
+        }
+      });
+    }
+
+    // Pengguna Externals - should not have empty nama_pengguna if exists
+    if (form.pengguna_eksternals?.length) {
+      form.pengguna_eksternals.forEach((pengguna, idx) => {
+        if (!pengguna.nama_pengguna?.trim()) {
+          errors[`pengguna_${idx}`] = 'Nama Pengguna wajib diisi';
+        }
+      });
+    }
+
+    // Komunikasi Sistem - should not have empty nama_sistem if exists
+    if (form.komunikasi_sistems?.length) {
+      form.komunikasi_sistems.forEach((kom, idx) => {
+        if (!kom.nama_sistem?.trim()) {
+          errors[`komunikasi_${idx}`] = 'Nama Sistem wajib diisi';
+        }
+      });
+    }
+
+    // Penghargaan - should not have empty kategori_id or tanggal if exists
+    if (form.penghargaans?.length) {
+      form.penghargaans.forEach((penghargaan, idx) => {
+        if (!penghargaan.kategori_id) {
+          errors[`penghargaan_kategori_${idx}`] = 'Kategori Penghargaan wajib dipilih';
+        }
+        if (!penghargaan.tanggal) {
+          errors[`penghargaan_tanggal_${idx}`] = 'Tanggal wajib diisi';
+        }
+      });
+    }
+
+    setFieldErrors(errors);
+
+    // If there are errors, show them and don't submit
+    if (Object.keys(errors).length > 0) {
+      // Build detailed error message
+      const errorMessages: string[] = [];
+      
+      if (errors['kode_aplikasi']) errorMessages.push('• Kode Aplikasi');
+      if (errors['nama_aplikasi']) errorMessages.push('• Nama Aplikasi');
+      if (errors['status_aplikasi']) errorMessages.push('• Status Aplikasi');
+      if (errors['proses_data_pribadi']) errorMessages.push('• Proses Data Pribadi');
+      if (errors['kategori_idle']) errorMessages.push('• Kategori Idle');
+      if (errors['urls'] || errors['urls_validation']) errorMessages.push('• URL Aplikasi (ada yang kosong atau belum ditambahkan)');
+      
+      // Check nested items
+      if (Object.keys(errors).some(k => k.startsWith('satker_'))) {
+        errorMessages.push('• Satker Pengguna Internal (ada Nama Satker yang kosong)');
+      }
+      if (Object.keys(errors).some(k => k.startsWith('pengguna_'))) {
+        errorMessages.push('• Pengguna Eksternal (ada Nama Pengguna yang kosong)');
+      }
+      if (Object.keys(errors).some(k => k.startsWith('komunikasi_'))) {
+        errorMessages.push('• Komunikasi Sistem (ada Nama Sistem yang kosong)');
+      }
+      if (Object.keys(errors).some(k => k.startsWith('penghargaan_'))) {
+        const hasKategoriError = Object.keys(errors).some(k => k.startsWith('penghargaan_kategori_'));
+        const hasTanggalError = Object.keys(errors).some(k => k.startsWith('penghargaan_tanggal_'));
+        if (hasKategoriError) errorMessages.push('• Penghargaan - Kategori Penghargaan (ada yang belum dipilih)');
+        if (hasTanggalError) errorMessages.push('• Penghargaan - Tanggal (ada yang belum diisi)');
+      }
+
+      const detailedError = `Field yang wajib diisi:\n${errorMessages.join('\n')}`;
+      setError(detailedError);
+      window.scrollTo(0, 0);
       return;
     }
 
@@ -392,8 +494,10 @@ const AplikasiFormPage = () => {
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
+        <Alert severity="error" sx={{ mb: 2, whiteSpace: 'pre-line' }} onClose={() => setError(null)}>
+          <Typography component="div" sx={{ whiteSpace: 'pre-wrap', fontSize: '0.875rem', lineHeight: 1.6 }}>
+            {error}
+          </Typography>
         </Alert>
       )}
 
@@ -409,7 +513,8 @@ const AplikasiFormPage = () => {
               name="kode_aplikasi"
               value={form.kode_aplikasi}
               onChange={handleTextChange}
-              helperText="Singkatan/akronim unik aplikasi"
+              error={!!fieldErrors['kode_aplikasi']}
+              helperText={fieldErrors['kode_aplikasi'] || 'Singkatan/akronim unik aplikasi'}
             />
           </Grid>
           <Grid size={{ xs: 12, md: 8 }}>
@@ -420,6 +525,8 @@ const AplikasiFormPage = () => {
               name="nama_aplikasi"
               value={form.nama_aplikasi}
               onChange={handleTextChange}
+              error={!!fieldErrors['nama_aplikasi']}
+              helperText={fieldErrors['nama_aplikasi']}
             />
           </Grid>
           <Grid size={{ xs: 12 }}>
@@ -434,7 +541,7 @@ const AplikasiFormPage = () => {
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <FormControl fullWidth required>
+            <FormControl fullWidth required error={!!fieldErrors['status_aplikasi']}>
               <InputLabel>Status Aplikasi</InputLabel>
               <Select
                 name="status_aplikasi"
@@ -446,6 +553,11 @@ const AplikasiFormPage = () => {
                   <MenuItem key={key} value={key}>{label}</MenuItem>
                 ))}
               </Select>
+              {fieldErrors['status_aplikasi'] && (
+                <Typography sx={{ fontSize: '0.75rem', color: '#d32f2f', mt: 0.5 }}>
+                  {fieldErrors['status_aplikasi']}
+                </Typography>
+              )}
             </FormControl>
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
@@ -530,16 +642,23 @@ const AplikasiFormPage = () => {
             </FormControl>
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  name="proses_data_pribadi"
-                  checked={form.proses_data_pribadi}
-                  onChange={handleSwitchChange}
-                />
-              }
-              label="Melakukan Pemrosesan Data Pribadi"
-            />
+            <Box>
+              <FormControlLabel
+                control={
+                  <Switch
+                    name="proses_data_pribadi"
+                    checked={form.proses_data_pribadi}
+                    onChange={handleSwitchChange}
+                  />
+                }
+                label="Melakukan Pemrosesan Data Pribadi"
+              />
+              {fieldErrors['proses_data_pribadi'] && (
+                <Typography sx={{ fontSize: '0.75rem', color: '#d32f2f', ml: 1 }}>
+                  {fieldErrors['proses_data_pribadi']}
+                </Typography>
+              )}
+            </Box>
           </Grid>
           {form.proses_data_pribadi && (
             <Grid size={{ xs: 12 }}>
@@ -559,11 +678,11 @@ const AplikasiFormPage = () => {
 
       {/* Idle Info (conditional) */}
       {form.status_aplikasi === APPLICATION_STATUS.IDLE && (
-        <Paper sx={{ p: 3, mb: 3 }}>
+        <Paper sx={{ p: 3, mb: 3, border: fieldErrors['kategori_idle'] ? '1px solid #d32f2f' : undefined }}>
           <Typography variant="h6" gutterBottom>Informasi Status Idle</Typography>
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormControl fullWidth required>
+              <FormControl fullWidth required error={!!fieldErrors['kategori_idle']}>
                 <InputLabel>Kategori Idle</InputLabel>
                 <Select
                   name="kategori_idle"
@@ -575,6 +694,11 @@ const AplikasiFormPage = () => {
                     <MenuItem key={key} value={key}>{label}</MenuItem>
                   ))}
                 </Select>
+                {fieldErrors['kategori_idle'] && (
+                  <Typography sx={{ fontSize: '0.75rem', color: '#d32f2f', mt: 0.5 }}>
+                    {fieldErrors['kategori_idle']}
+                  </Typography>
+                )}
               </FormControl>
             </Grid>
             <Grid size={{ xs: 12 }}>
@@ -615,9 +739,16 @@ const AplikasiFormPage = () => {
       )}
 
       {/* URLs */}
-      <Paper sx={{ p: 3, mb: 3 }}>
+      <Paper sx={{ p: 3, mb: 3, border: fieldErrors['urls'] ? '1px solid #d32f2f' : undefined }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h6">URL Aplikasi *</Typography>
+          <Box>
+            <Typography variant="h6">URL Aplikasi *</Typography>
+            {fieldErrors['urls'] && (
+              <Typography sx={{ fontSize: '0.875rem', color: '#d32f2f', mt: 0.5 }}>
+                {fieldErrors['urls']}
+              </Typography>
+            )}
+          </Box>
           <Button startIcon={<Add />} onClick={addUrl} variant="outlined" size="small">
             Tambah URL
           </Button>
@@ -633,6 +764,8 @@ const AplikasiFormPage = () => {
                   value={url.url}
                   onChange={(e) => updateUrl(index, 'url', e.target.value)}
                   placeholder="https://..."
+                  error={!!fieldErrors[`urls_${index}`]}
+                  helperText={fieldErrors[`urls_${index}`]}
                 />
               </Grid>
               <Grid size={{ xs: 12, md: 2 }}>
@@ -692,6 +825,8 @@ const AplikasiFormPage = () => {
                   label="Nama Satker"
                   value={satker.nama_satker}
                   onChange={(e) => updateSatker(index, 'nama_satker', e.target.value)}
+                  error={!!fieldErrors[`satker_${index}`]}
+                  helperText={fieldErrors[`satker_${index}`]}
                 />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
@@ -735,6 +870,8 @@ const AplikasiFormPage = () => {
                   label="Nama Pengguna"
                   value={pengguna.nama_pengguna}
                   onChange={(e) => updatePengguna(index, 'nama_pengguna', e.target.value)}
+                  error={!!fieldErrors[`pengguna_${index}`]}
+                  helperText={fieldErrors[`pengguna_${index}`]}
                 />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
@@ -778,6 +915,8 @@ const AplikasiFormPage = () => {
                   label="Nama Sistem"
                   value={kom.nama_sistem}
                   onChange={(e) => updateKomunikasi(index, 'nama_sistem', e.target.value)}
+                  error={!!fieldErrors[`komunikasi_${index}`]}
+                  helperText={fieldErrors[`komunikasi_${index}`]}
                 />
               </Grid>
               <Grid size={{ xs: 12, md: 2 }}>
@@ -850,7 +989,7 @@ const AplikasiFormPage = () => {
           <Box key={index} mb={2}>
             <Grid container spacing={2} alignItems="center">
               <Grid size={{ xs: 12, md: 4 }}>
-                <FormControl fullWidth required>
+                <FormControl fullWidth required error={!!fieldErrors[`penghargaan_kategori_${index}`]}>
                   <InputLabel>Kategori Penghargaan</InputLabel>
                   <Select
                     value={penghargaan.kategori_id || ''}
@@ -863,6 +1002,11 @@ const AplikasiFormPage = () => {
                       </MenuItem>
                     ))}
                   </Select>
+                  {fieldErrors[`penghargaan_kategori_${index}`] && (
+                    <Typography sx={{ fontSize: '0.75rem', color: '#d32f2f', mt: 0.5 }}>
+                      {fieldErrors[`penghargaan_kategori_${index}`]}
+                    </Typography>
+                  )}
                 </FormControl>
               </Grid>
               <Grid size={{ xs: 12, md: 3 }}>
@@ -874,6 +1018,8 @@ const AplikasiFormPage = () => {
                   value={penghargaan.tanggal || ''}
                   onChange={(e) => updatePenghargaan(index, 'tanggal', e.target.value)}
                   InputLabelProps={{ shrink: true }}
+                  error={!!fieldErrors[`penghargaan_tanggal_${index}`]}
+                  helperText={fieldErrors[`penghargaan_tanggal_${index}`]}
                 />
               </Grid>
               <Grid size={{ xs: 12, md: 4 }}>

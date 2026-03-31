@@ -6,6 +6,7 @@ import { Add, Edit, Search } from '@mui/icons-material';
 import { getAllSkpa, createSkpa, updateSkpa, deleteSkpa, type SkpaData, type SkpaRequest } from '../api/skpaApi';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { usePermissions } from '../hooks/usePermissions';
+import { DataCountDisplay } from '../components/DataCountDisplay';
 
 interface FormData {
   kode_skpa: string;
@@ -213,6 +214,17 @@ const SkpaPage = () => {
           <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenDialog()} disabled={loading}>Tambah SKPA</Button>
         )}
       </Box>
+
+      {/* Data Count Display */}
+      <Box sx={{ my: 2.5 }}>
+        <DataCountDisplay
+          count={filteredSkpaList.length}
+          isLoading={loading}
+          label="Total"
+          unit="SKPA"
+        />
+      </Box>
+
       {loading && <Box display="flex" justifyContent="center" my={3}><CircularProgress /></Box>}
       {!loading && (
         <TableContainer component={Paper}>

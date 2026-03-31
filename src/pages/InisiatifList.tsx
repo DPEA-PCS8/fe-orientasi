@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DataCountDisplay } from '../components/DataCountDisplay';
 import {
   Box,
   TextField,
@@ -412,6 +413,16 @@ function InisiatifList() {
             </Box>
           </Box>
         </Popover>
+
+        {/* Data Count Display */}
+        <Box sx={{ my: 2.5 }}>
+          <DataCountDisplay
+            count={inisiatifData.length}
+            isLoading={false}
+            label="Total"
+            unit="Inisiatif"
+          />
+        </Box>
 
         {/* Table */}
         <TableContainer>

@@ -17,6 +17,7 @@ import {
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { usePermissions } from '../hooks/usePermissions';
+import { DataCountDisplay } from '../components/DataCountDisplay';
 
 const MENU_CODE = 'APLIKASI';
 
@@ -372,6 +373,16 @@ const AplikasiListPage = () => {
           </FormControl>
         </Box>
       </Paper>
+
+      {/* Data Count Display */}
+      <Box sx={{ my: 2.5 }}>
+        <DataCountDisplay
+          count={totalElements}
+          isLoading={loading}
+          label="Total"
+          unit="Aplikasi"
+        />
+      </Box>
 
       {/* Table */}
       <TableContainer component={Paper}>
