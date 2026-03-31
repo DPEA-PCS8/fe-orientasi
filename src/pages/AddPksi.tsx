@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -30,6 +30,14 @@ import {
   InsertDriveFile as FileIcon,
 } from '@mui/icons-material';
 import { getAllAplikasi, type AplikasiData } from '../api/aplikasiApi';
+import { createPksiDocument } from '../api/pksiApi';
+import {
+  uploadPksiTempFiles,
+  movePksiTempFilesToPermanent,
+  deletePksiTempFiles,
+  deletePksiFile,
+  type PksiFileData,
+} from '../api/pksiFileApi';
 
 interface FormData {
   namaPksi: string;
@@ -111,7 +119,15 @@ const AddPksi = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [uploadedFileData, setUploadedFileData] = useState<PksiFileData[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Generate session ID for temp file uploads
+  const sessionId = useMemo(() => {
+    return `pksi_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+  }, []);
 
   useEffect(() => {
     const fetchAplikasi = async () => {
@@ -128,18 +144,48 @@ const AddPksi = () => {
     fetchAplikasi();
   }, []);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (files) {
-      const newFiles = Array.from(files);
-      setUploadedFiles((prev) => [...prev, ...newFiles]);
+    if (files && files.length > 0 && sessionId) {
+      const file = files[0];
+      
+      // Delete existing file if any (single file upload)
+      if (uploadedFileData.length > 0 && uploadedFileData[0]?.id) {
+        try {
+          await deletePksiFile(uploadedFileData[0].id);
+        } catch (error) {
+          console.error('Failed to delete existing file:', error);
+        }
+      }
+      
+      setIsUploading(true);
+      setErrorMessage('');
+      try {
+        const uploadedData = await uploadPksiTempFiles(sessionId, [file]);
+        setUploadedFiles([file]);
+        setUploadedFileData(uploadedData);
+      } catch (error) {
+        console.error('Failed to upload file:', error);
+        setErrorMessage('Gagal mengupload file. Silakan coba lagi.');
+      } finally {
+        setIsUploading(false);
+      }
     }
     // Reset input value to allow uploading same file again
     event.target.value = '';
   };
 
-  const handleRemoveFile = (index: number) => {
+  const handleRemoveFile = async (index: number) => {
+    const fileToRemove = uploadedFileData[index];
+    if (fileToRemove?.id) {
+      try {
+        await deletePksiFile(fileToRemove.id);
+      } catch (error) {
+        console.error('Failed to delete file:', error);
+      }
+    }
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+    setUploadedFileData((prev) => prev.filter((_, i) => i !== index));
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -192,24 +238,73 @@ const AddPksi = () => {
     }
 
     setIsSubmitting(true);
+    setErrorMessage('');
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Create PKSI document
+      const pksiData = {
+        aplikasi_id: formData.aplikasiId || undefined,
+        nama_pksi: formData.namaPksi,
+        tanggal_pengajuan: formData.tanggalPengajuan || undefined,
+        deskripsi_pksi: formData.deskripsiPksi,
+        mengapa_pksi_diperlukan: formData.mengapaPksiDiperlukan,
+        kapan_harus_diselesaikan: formData.kapanHarusDiselesaikan || undefined,
+        pic_satker_ba: formData.picSatkerBA,
+        kegunaan_pksi: formData.kegunaanPksi,
+        tujuan_pksi: formData.tujuanPksi,
+        target_pksi: formData.targetPksi || undefined,
+        ruang_lingkup: formData.ruangLingkup || undefined,
+        batasan_pksi: formData.batasanPksi || undefined,
+        hubungan_sistem_lain: formData.hubunganSistemLain || undefined,
+        asumsi: formData.asumsi || undefined,
+        batasan_desain: formData.batasanDesain || undefined,
+        risiko_bisnis: formData.riskoBisnis || undefined,
+        risiko_sukses_pksi: formData.risikoSuksesPksi || undefined,
+        pengendalian_risiko: formData.pengendalianRisiko || undefined,
+        pengelola_aplikasi: formData.pengelolaAplikasi,
+        pengguna_aplikasi: formData.penggunaAplikasi || undefined,
+        program_inisiatif_rbsi: formData.programInisiatifRBSI || undefined,
+        fungsi_aplikasi: formData.fungsiAplikasi,
+        informasi_yang_dikelola: formData.informasiYangDikelola || undefined,
+        dasar_peraturan: formData.dasarPeraturan || undefined,
+        tahap1_awal: formData.tahap1Awal || undefined,
+        tahap1_akhir: formData.tahap1Akhir || undefined,
+        tahap5_awal: formData.tahap5Awal || undefined,
+        tahap5_akhir: formData.tahap5Akhir || undefined,
+        tahap7_awal: formData.tahap7Awal || undefined,
+        tahap7_akhir: formData.tahap7Akhir || undefined,
+        rencana_pengelolaan: formData.rencanaPengelolaan || undefined,
+      };
+
+      const createdPksi = await createPksiDocument(pksiData);
       
-      console.log('Form Data:', formData);
+      // Move temp files to permanent storage if any
+      if (sessionId && uploadedFileData.length > 0) {
+        await movePksiTempFilesToPermanent(createdPksi.id, sessionId);
+      }
+      
       setSuccessMessage('PKSI berhasil ditambahkan!');
       
       setTimeout(() => {
-        navigate('/');
+        navigate('/pksi');
       }, 2000);
     } catch (error) {
       console.error('Error submitting form:', error);
+      setErrorMessage('Gagal menyimpan PKSI. Silakan coba lagi.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleCancel = () => {
-    navigate('/');
+  const handleCancel = async () => {
+    // Clean up temp files when canceling
+    if (sessionId && uploadedFileData.length > 0) {
+      try {
+        await deletePksiTempFiles(sessionId);
+      } catch (error) {
+        console.error('Failed to delete temp files:', error);
+      }
+    }
+    navigate('/pksi');
   };
 
   return (
@@ -231,6 +326,12 @@ const AddPksi = () => {
       {successMessage && (
         <Alert severity="success" sx={{ mb: 3 }}>
           {successMessage}
+        </Alert>
+      )}
+
+      {errorMessage && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {errorMessage}
         </Alert>
       )}
 
@@ -297,15 +398,43 @@ const AddPksi = () => {
           <Accordion
             expanded={expandedSection === 'section1'}
             onChange={handleAccordionChange('section1')}
-            sx={{ boxShadow: 'none', border: '1px solid #e5e5e7' }}
+            sx={{
+              borderRadius: '20px !important',
+              bgcolor: 'rgba(255, 255, 255, 0.6)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+              '&::before': { display: 'none' },
+              '&.Mui-expanded': { margin: '0 !important' },
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              },
+            }}
           >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+              sx={{
+                borderRadius: '20px',
+                px: 2.5,
+                '&.Mui-expanded': { minHeight: 56 },
+                '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+              }}
+            >
+              <Typography
+                sx={{
+                  fontWeight: 600,
+                  color: '#1d1d1f',
+                  fontSize: '0.95rem',
+                  letterSpacing: '-0.01em',
+                }}
+              >
                 1. Pendahuluan
               </Typography>
             </AccordionSummary>
-            <AccordionDetails>
-              <Stack spacing={2} sx={{ width: '100%' }}>
+            <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+              <Stack spacing={2}>
                 <TextField
                   fullWidth
                   label="1.1 Deskripsi PKSI"
@@ -356,15 +485,43 @@ const AddPksi = () => {
           <Accordion
             expanded={expandedSection === 'section2'}
             onChange={handleAccordionChange('section2')}
-            sx={{ boxShadow: 'none', border: '1px solid #e5e5e7' }}
+            sx={{
+              borderRadius: '20px !important',
+              bgcolor: 'rgba(255, 255, 255, 0.6)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+              '&::before': { display: 'none' },
+              '&.Mui-expanded': { margin: '0 !important' },
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              },
+            }}
           >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+              sx={{
+                borderRadius: '20px',
+                px: 2.5,
+                '&.Mui-expanded': { minHeight: 56 },
+                '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+              }}
+            >
+              <Typography
+                sx={{
+                  fontWeight: 600,
+                  color: '#1d1d1f',
+                  fontSize: '0.95rem',
+                  letterSpacing: '-0.01em',
+                }}
+              >
                 2. Tujuan dan Kegunaan PKSI
               </Typography>
             </AccordionSummary>
-            <AccordionDetails>
-              <Stack spacing={2} sx={{ width: '100%' }}>
+            <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+              <Stack spacing={2}>
                 <TextField
                   fullWidth
                   label="2.1 Kegunaan PKSI"
@@ -405,15 +562,43 @@ const AddPksi = () => {
           <Accordion
             expanded={expandedSection === 'section3'}
             onChange={handleAccordionChange('section3')}
-            sx={{ boxShadow: 'none', border: '1px solid #e5e5e7' }}
+            sx={{
+              borderRadius: '20px !important',
+              bgcolor: 'rgba(255, 255, 255, 0.6)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+              '&::before': { display: 'none' },
+              '&.Mui-expanded': { margin: '0 !important' },
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              },
+            }}
           >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+              sx={{
+                borderRadius: '20px',
+                px: 2.5,
+                '&.Mui-expanded': { minHeight: 56 },
+                '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+              }}
+            >
+              <Typography
+                sx={{
+                  fontWeight: 600,
+                  color: '#1d1d1f',
+                  fontSize: '0.95rem',
+                  letterSpacing: '-0.01em',
+                }}
+              >
                 3. Cakupan PKSI
               </Typography>
             </AccordionSummary>
-            <AccordionDetails>
-              <Stack spacing={2} sx={{ width: '100%' }}>
+            <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+              <Stack spacing={2}>
                 <TextField
                   fullWidth
                   label="3.1 Ruang Lingkup PKSI (Yang Termasuk)"
@@ -457,15 +642,43 @@ const AddPksi = () => {
           <Accordion
             expanded={expandedSection === 'section4'}
             onChange={handleAccordionChange('section4')}
-            sx={{ boxShadow: 'none', border: '1px solid #e5e5e7' }}
+            sx={{
+              borderRadius: '20px !important',
+              bgcolor: 'rgba(255, 255, 255, 0.6)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+              '&::before': { display: 'none' },
+              '&.Mui-expanded': { margin: '0 !important' },
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              },
+            }}
           >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+              sx={{
+                borderRadius: '20px',
+                px: 2.5,
+                '&.Mui-expanded': { minHeight: 56 },
+                '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+              }}
+            >
+              <Typography
+                sx={{
+                  fontWeight: 600,
+                  color: '#1d1d1f',
+                  fontSize: '0.95rem',
+                  letterSpacing: '-0.01em',
+                }}
+              >
                 4. Risiko dan Batasan PKSI
               </Typography>
             </AccordionSummary>
-            <AccordionDetails>
-              <Stack spacing={2} sx={{ width: '100%' }}>
+            <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+              <Stack spacing={2}>
                 <TextField
                   fullWidth
                   label="4.1 Batasan yang dapat berpengaruh pada desain sistem PKSI"
@@ -510,15 +723,43 @@ const AddPksi = () => {
           <Accordion
             expanded={expandedSection === 'section5'}
             onChange={handleAccordionChange('section5')}
-            sx={{ boxShadow: 'none', border: '1px solid #e5e5e7' }}
+            sx={{
+              borderRadius: '20px !important',
+              bgcolor: 'rgba(255, 255, 255, 0.6)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+              '&::before': { display: 'none' },
+              '&.Mui-expanded': { margin: '0 !important' },
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              },
+            }}
           >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+              sx={{
+                borderRadius: '20px',
+                px: 2.5,
+                '&.Mui-expanded': { minHeight: 56 },
+                '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+              }}
+            >
+              <Typography
+                sx={{
+                  fontWeight: 600,
+                  color: '#1d1d1f',
+                  fontSize: '0.95rem',
+                  letterSpacing: '-0.01em',
+                }}
+              >
                 5. Gambaran Umum Aplikasi yang Diharapkan
               </Typography>
             </AccordionSummary>
-            <AccordionDetails>
-              <Stack spacing={2} sx={{ width: '100%' }}>
+            <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+              <Stack spacing={2}>
                 <TextField
                   fullWidth
                   label="5.1 Pengelola Aplikasi"
@@ -586,15 +827,43 @@ const AddPksi = () => {
           <Accordion
             expanded={expandedSection === 'section6'}
             onChange={handleAccordionChange('section6')}
-            sx={{ boxShadow: 'none', border: '1px solid #e5e5e7' }}
+            sx={{
+              borderRadius: '20px !important',
+              bgcolor: 'rgba(255, 255, 255, 0.6)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+              '&::before': { display: 'none' },
+              '&.Mui-expanded': { margin: '0 !important' },
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              },
+            }}
           >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+              sx={{
+                borderRadius: '20px',
+                px: 2.5,
+                '&.Mui-expanded': { minHeight: 56 },
+                '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+              }}
+            >
+              <Typography
+                sx={{
+                  fontWeight: 600,
+                  color: '#1d1d1f',
+                  fontSize: '0.95rem',
+                  letterSpacing: '-0.01em',
+                }}
+              >
                 6. Usulan Jadwal Pelaksanaan PKSI
               </Typography>
             </AccordionSummary>
-            <AccordionDetails>
-              <Stack spacing={3} sx={{ width: '100%' }}>
+            <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+              <Stack spacing={3}>
                 <Box>
                   <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>
                     Tahap 1: Penyusunan Spesifikasi Kebutuhan Aplikasi
@@ -679,14 +948,42 @@ const AddPksi = () => {
           <Accordion
             expanded={expandedSection === 'section7'}
             onChange={handleAccordionChange('section7')}
-            sx={{ boxShadow: 'none', border: '1px solid #e5e5e7' }}
+            sx={{
+              borderRadius: '20px !important',
+              bgcolor: 'rgba(255, 255, 255, 0.6)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+              '&::before': { display: 'none' },
+              '&.Mui-expanded': { margin: '0 !important' },
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              },
+            }}
           >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+              sx={{
+                borderRadius: '20px',
+                px: 2.5,
+                '&.Mui-expanded': { minHeight: 56 },
+                '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+              }}
+            >
+              <Typography
+                sx={{
+                  fontWeight: 600,
+                  color: '#1d1d1f',
+                  fontSize: '0.95rem',
+                  letterSpacing: '-0.01em',
+                }}
+              >
                 7. Rencana Pengelolaan
               </Typography>
             </AccordionSummary>
-            <AccordionDetails>
+            <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
               <TextField
                 fullWidth
                 label="Rencana Pengelolaan"
@@ -704,14 +1001,42 @@ const AddPksi = () => {
           <Accordion
             expanded={expandedSection === 'section8'}
             onChange={handleAccordionChange('section8')}
-            sx={{ boxShadow: 'none', border: '1px solid #e5e5e7' }}
+            sx={{
+              borderRadius: '20px !important',
+              bgcolor: 'rgba(255, 255, 255, 0.6)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+              '&::before': { display: 'none' },
+              '&.Mui-expanded': { margin: '0 !important' },
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              },
+            }}
           >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                8. Upload Dokumen T.0.1
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+              sx={{
+                borderRadius: '20px',
+                px: 2.5,
+                '&.Mui-expanded': { minHeight: 56 },
+                '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+              }}
+            >
+              <Typography
+                sx={{
+                  fontWeight: 600,
+                  color: '#1d1d1f',
+                  fontSize: '0.95rem',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                8. Upload Dokumen
               </Typography>
             </AccordionSummary>
-            <AccordionDetails>
+            <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
               <Stack spacing={2}>
                 <Box
                   sx={{
@@ -719,33 +1044,45 @@ const AddPksi = () => {
                     borderRadius: 2,
                     p: 3,
                     textAlign: 'center',
-                    cursor: 'pointer',
+                    cursor: isUploading ? 'not-allowed' : 'pointer',
+                    opacity: isUploading ? 0.7 : 1,
                     transition: 'all 0.2s ease-in-out',
                     '&:hover': {
-                      borderColor: '#DA251C',
-                      bgcolor: 'rgba(218, 37, 28, 0.04)',
+                      borderColor: isUploading ? '#e5e5e7' : '#DA251C',
+                      bgcolor: isUploading ? 'transparent' : 'rgba(218, 37, 28, 0.04)',
                     },
                   }}
-                  onClick={() => document.getElementById('file-upload-input')?.click()}
+                  onClick={() => !isUploading && document.getElementById('pksi-file-upload-input')?.click()}
                 >
                   <input
-                    id="file-upload-input"
+                    id="pksi-file-upload-input"
                     type="file"
-                    multiple
                     hidden
                     onChange={handleFileUpload}
-                    accept=".pdf"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                    disabled={isUploading}
                   />
-                  <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
-                  <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
-                    Klik untuk upload file
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
-                    atau drag & drop file di sini
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
-                    Format yang didukung: PDF
-                  </Typography>
+                  {isUploading ? (
+                    <>
+                      <CircularProgress size={48} sx={{ color: '#DA251C', mb: 1 }} />
+                      <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                        Mengupload file...
+                      </Typography>
+                    </>
+                  ) : (
+                    <>
+                      <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
+                      <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                        Klik untuk upload file
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
+                        atau drag & drop file di sini
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
+                        Format yang didukung: PDF, Word, Excel, Gambar (max 20MB)
+                      </Typography>
+                    </>
+                  )}
                 </Box>
 
                 {uploadedFiles.length > 0 && (
@@ -753,7 +1090,7 @@ const AddPksi = () => {
                     <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>
                       File yang diupload ({uploadedFiles.length})
                     </Typography>
-                    <List sx={{ bgcolor: '#f5f5f7', borderRadius: 1 }}>
+                    <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px' }}>
                       {uploadedFiles.map((file, index) => (
                         <ListItem
                           key={index}
@@ -774,6 +1111,7 @@ const AddPksi = () => {
                             <IconButton
                               edge="end"
                               onClick={() => handleRemoveFile(index)}
+                              disabled={isUploading}
                               sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
                             >
                               <DeleteIcon />

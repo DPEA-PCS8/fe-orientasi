@@ -19,16 +19,30 @@ import {
   styled,
   Popover,
   MenuItem,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemSecondaryAction,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
   Close as CloseIcon,
+  CloudUpload as CloudUploadIcon,
+  Delete as DeleteIcon,
+  InsertDriveFile as FileIcon,
 } from '@mui/icons-material';
 import { getAllSkpa, type SkpaData } from '../../api/skpaApi';
 import { getAllAplikasi, type AplikasiData } from '../../api/aplikasiApi';
 import { getPksiDocumentById, updatePksiDocument, type PksiDocumentRequest } from '../../api/pksiApi';
 import { getUserInfo } from '../../api/authApi';
 import { getAllRbsi, getRbsiById, type RbsiResponse, type RbsiProgramResponse, type RbsiInisiatifResponse } from '../../api/rbsiApi';
+import {
+  uploadPksiFiles,
+  getPksiFiles,
+  deletePksiFile,
+  type PksiFileData,
+} from '../../api/pksiFileApi';
 
 // Styled TextField with glass effect
 const GlassTextField = styled(TextField)({
@@ -181,6 +195,11 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
   const [popoverWidth, setPopoverWidth] = useState<number>(0);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
+  // File upload state - for edit mode we use existing files directly
+  const [existingFiles, setExistingFiles] = useState<PksiFileData[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
   // Period years derived from selected RBSI
   const periodYears = useMemo(() => {
     if (!selectedRbsi) return [];
@@ -211,6 +230,47 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
 
   const handleAccordionChange = (panel: string) => (_: React.SyntheticEvent, isExpanded: boolean) => {
     setExpandedSection(isExpanded ? panel : false);
+  };
+
+  // File upload handler - for Edit mode, upload directly to PKSI
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0 && pksiData?.id) {
+      const file = files[0];
+      
+      setIsUploading(true);
+      setErrorMessage('');
+      try {
+        await uploadPksiFiles(pksiData.id, [file]);
+        // Refresh existing files list
+        const existingFilesData = await getPksiFiles(pksiData.id);
+        setExistingFiles(existingFilesData);
+      } catch (error) {
+        console.error('Failed to upload file:', error);
+        setErrorMessage('Gagal mengupload file. Silakan coba lagi.');
+      } finally {
+        setIsUploading(false);
+      }
+    }
+    event.target.value = '';
+  };
+
+  const handleRemoveFile = async (fileId: string) => {
+    try {
+      await deletePksiFile(fileId);
+      setExistingFiles((prev) => prev.filter((f) => f.id !== fileId));
+    } catch (error) {
+      console.error('Failed to delete file:', error);
+      setErrorMessage('Gagal menghapus file.');
+    }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   // Fetch SKPA and Aplikasi options
@@ -282,6 +342,14 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
           tahap7Akhir: data.tahap7_akhir ? data.tahap7_akhir.split('T')[0] : '',
           rencanaPengelolaan: data.rencana_pengelolaan || '',
         });
+
+        // Fetch existing files for this PKSI
+        try {
+          const existingFilesData = await getPksiFiles(pksiData.id);
+          setExistingFiles(existingFilesData);
+        } catch (fileError) {
+          console.error('Error fetching PKSI files:', fileError);
+        }
       } catch (error) {
         console.error('Error fetching PKSI details:', error);
       } finally {
@@ -424,6 +492,10 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
     });
     setErrors({});
     setExpandedSection('section1');
+    // Reset file upload state
+    setExistingFiles([]);
+    setIsUploading(false);
+    setErrorMessage('');
     onClose();
   };
 
@@ -1328,6 +1400,138 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
                   placeholder="Jelaskan rencana pengelolaan PKSI..."
                   size="small"
                 />
+              </AccordionDetails>
+            </Accordion>
+
+            {/* Section 8 - Upload File */}
+            <Accordion
+              expanded={expandedSection === 'section8'}
+              onChange={handleAccordionChange('section8')}
+              sx={{
+                borderRadius: '20px !important',
+                bgcolor: 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                '&::before': { display: 'none' },
+                '&.Mui-expanded': { margin: '0 !important' },
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                sx={{
+                  borderRadius: '20px',
+                  px: 2.5,
+                  '&.Mui-expanded': { minHeight: 56 },
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    fontSize: '0.95rem',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  8. Upload Dokumen T.0.1
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                <Stack spacing={2}>
+                  {errorMessage && (
+                    <Typography color="error" variant="body2">{errorMessage}</Typography>
+                  )}
+                  <Box
+                    sx={{
+                      border: '2px dashed #e5e5e7',
+                      borderRadius: 2,
+                      p: 3,
+                      textAlign: 'center',
+                      cursor: isUploading ? 'not-allowed' : 'pointer',
+                      opacity: isUploading ? 0.7 : 1,
+                      transition: 'all 0.2s ease-in-out',
+                      '&:hover': {
+                        borderColor: isUploading ? '#e5e5e7' : '#DA251C',
+                        bgcolor: isUploading ? 'transparent' : 'rgba(218, 37, 28, 0.04)',
+                      },
+                    }}
+                    onClick={() => !isUploading && document.getElementById('edit-pksi-file-upload-input')?.click()}
+                  >
+                    <input
+                      id="edit-pksi-file-upload-input"
+                      type="file"
+                      hidden
+                      onChange={handleFileUpload}
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                      disabled={isUploading}
+                    />
+                    {isUploading ? (
+                      <>
+                        <CircularProgress size={48} sx={{ color: '#DA251C', mb: 1 }} />
+                        <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                          Mengupload file...
+                        </Typography>
+                      </>
+                    ) : (
+                      <>
+                        <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
+                        <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                          Klik untuk upload file
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
+                          atau drag & drop file di sini
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
+                          Format yang didukung: PDF, Word, Excel, Gambar (max 20MB)
+                        </Typography>
+                      </>
+                    )}
+                  </Box>
+
+                  {existingFiles.length > 0 && (
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>
+                        File yang sudah diupload ({existingFiles.length})
+                      </Typography>
+                      <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px' }}>
+                        {existingFiles.map((file, index) => (
+                          <ListItem
+                            key={file.id}
+                            sx={{
+                              borderBottom: index < existingFiles.length - 1 ? '1px solid #e5e5e7' : 'none',
+                            }}
+                          >
+                            <ListItemIcon>
+                              <FileIcon sx={{ color: '#DA251C' }} />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={file.original_name}
+                              secondary={formatFileSize(file.file_size)}
+                              primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }}
+                              secondaryTypographyProps={{ sx: { color: '#86868b' } }}
+                            />
+                            <ListItemSecondaryAction>
+                              <IconButton
+                                edge="end"
+                                onClick={() => handleRemoveFile(file.id)}
+                                disabled={isUploading}
+                                sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </ListItemSecondaryAction>
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Box>
+                  )}
+                </Stack>
               </AccordionDetails>
             </Accordion>
           </Stack>
