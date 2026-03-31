@@ -17,6 +17,7 @@ import { isAuthenticated } from './api/authApi';
 import Profile from './pages/Profile';
 import UserRoleManagement from './pages/UserRoleManagement';
 import RolePermissions from './pages/RolePermissions';
+import TeamManagement from './pages/TeamManagement';
 import SkpaPage from './pages/SkpaPage';
 import BidangPage from './pages/BidangPage';
 import AplikasiListPage from './pages/AplikasiListPage';
@@ -148,6 +149,16 @@ function App() {
               <ProtectedRoute requireMenuPermission="ROLE_PERMISSIONS">
                 <Layout>
                   <RolePermissions />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route
+            path="/admin/team-management"
+            element={
+              <ProtectedRoute requireMenuPermission="TEAM_MANAGEMENT">
+                <Layout>
+                  <TeamManagement />
                 </Layout>
               </ProtectedRoute>
             } 
