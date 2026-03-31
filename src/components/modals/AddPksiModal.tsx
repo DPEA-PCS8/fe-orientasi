@@ -32,7 +32,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   CloudUpload as CloudUploadIcon,
   Delete as DeleteIcon,
-  CheckCircle as CheckCircleIcon,
+  InsertDriveFile as FileIcon,
 } from "@mui/icons-material";
 import { getAllSkpa, type SkpaData } from "../../api/skpaApi";
 import { getAllAplikasi, type AplikasiData } from "../../api/aplikasiApi";
@@ -49,12 +49,12 @@ import {
   type RbsiInisiatifResponse,
 } from "../../api/rbsiApi";
 import { 
-  uploadTempFiles, 
-  moveTempFilesToPermanent, 
-  deleteTempFiles,
+  uploadPksiTempFiles, 
+  movePksiTempFilesToPermanent, 
+  deletePksiTempFiles,
   deletePksiFile,
   type PksiFileData 
-} from "../../api/fileApi";
+} from "../../api/pksiFileApi";
 
 // Styled TextField with glass effect
 const GlassTextField = styled(TextField)({
@@ -198,10 +198,11 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   
-  // File upload state
-  const [uploadedFiles, setUploadedFiles] = useState<PksiFileData[]>([]);
-  const [uploadingFiles, setUploadingFiles] = useState<Map<string, boolean>>(new Map());
-  const sessionIdRef = useRef<string>(crypto.randomUUID());
+  // File upload state - matching FS2 pattern
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [uploadedFileData, setUploadedFileData] = useState<PksiFileData[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const sessionIdRef = useRef<string>(`pksi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
   // Period years derived from selected RBSI
   const periodYears = useMemo(() => {
@@ -269,52 +270,51 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     fetchRbsiOptions();
   }, []);
 
-  // Immediate file upload handler
+  // File upload handler - matching FS2 pattern
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0) return;
-    
-    const fileArray = Array.from(files);
-    event.target.value = "";
-    
-    // Mark files as uploading
-    const tempIds = fileArray.map(() => crypto.randomUUID());
-    const newUploadingFiles = new Map(uploadingFiles);
-    tempIds.forEach(id => newUploadingFiles.set(id, true));
-    setUploadingFiles(newUploadingFiles);
-    
-    try {
-      // Upload to temporary storage immediately
-      const uploadedData = await uploadTempFiles(sessionIdRef.current, fileArray);
+    if (files && files.length > 0 && sessionIdRef.current) {
+      // Only take the first file (single file upload)
+      const file = files[0];
       
-      // Add uploaded files to state
-      setUploadedFiles((prev) => [...prev, ...uploadedData]);
+      // Delete existing file if any
+      if (uploadedFileData.length > 0 && uploadedFileData[0]?.id) {
+        try {
+          await deletePksiFile(uploadedFileData[0].id);
+        } catch (error) {
+          console.error('Failed to delete existing file:', error);
+        }
+      }
       
-      // Clear uploading state
-      const clearedUploadingFiles = new Map(uploadingFiles);
-      tempIds.forEach(id => clearedUploadingFiles.delete(id));
-      setUploadingFiles(clearedUploadingFiles);
-    } catch (error) {
-      console.error("Error uploading files:", error);
-      setErrorMessage("Gagal mengupload file. Silakan coba lagi.");
-      
-      // Clear uploading state on error
-      const clearedUploadingFiles = new Map(uploadingFiles);
-      tempIds.forEach(id => clearedUploadingFiles.delete(id));
-      setUploadingFiles(clearedUploadingFiles);
+      setIsUploading(true);
+      setErrorMessage('');
+      try {
+        // Upload to temp storage
+        const uploadedData = await uploadPksiTempFiles(sessionIdRef.current, [file]);
+        setUploadedFiles([file]);
+        setUploadedFileData(uploadedData);
+      } catch (error) {
+        console.error('Failed to upload file:', error);
+        setErrorMessage('Gagal mengupload file. Silakan coba lagi.');
+      } finally {
+        setIsUploading(false);
+      }
     }
+    // Reset input value to allow uploading same file again
+    event.target.value = '';
   };
 
-  const handleRemoveFile = async (fileId: string) => {
-    try {
-      // Delete from backend
-      await deletePksiFile(fileId);
-      // Remove from state
-      setUploadedFiles((prev) => prev.filter((f) => f.id !== fileId));
-    } catch (error) {
-      console.error("Error deleting file:", error);
-      setErrorMessage("Gagal menghapus file.");
+  const handleRemoveFile = async (index: number) => {
+    const fileToRemove = uploadedFileData[index];
+    if (fileToRemove?.id) {
+      try {
+        await deletePksiFile(fileToRemove.id);
+      } catch (error) {
+        console.error('Failed to delete file:', error);
+      }
     }
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+    setUploadedFileData((prev) => prev.filter((_, i) => i !== index));
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -369,14 +369,15 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     setErrorMessage("");
     setExpandedSection("section1");
     setUploadedFiles([]);
-    setUploadingFiles(new Map());
+    setUploadedFileData([]);
+    setIsUploading(false);
     setSelectedRbsi(null);
     setSelectedProgram(null);
     setSelectedInisiatif(null);
     setSelectedYear(null);
     setProgramOptions([]);
     // Generate new session ID for next form
-    sessionIdRef.current = crypto.randomUUID();
+    sessionIdRef.current = `pksi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
   const validateForm = (): boolean => {
@@ -464,9 +465,9 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
       const createdPksi = await createPksiDocument(requestData);
 
       // Move temp files to permanent storage if any were uploaded
-      if (uploadedFiles.length > 0 && createdPksi.id) {
+      if (uploadedFileData.length > 0 && createdPksi.id) {
         try {
-          await moveTempFilesToPermanent(createdPksi.id, sessionIdRef.current);
+          await movePksiTempFilesToPermanent(createdPksi.id, sessionIdRef.current);
         } catch (uploadError) {
           console.error("Error moving files to permanent storage:", uploadError);
           // PKSI created but files failed - show warning but don't fail
@@ -501,9 +502,9 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
 
   const handleClose = async () => {
     // Clean up temp files if user cancels
-    if (uploadedFiles.length > 0) {
+    if (uploadedFileData.length > 0) {
       try {
-        await deleteTempFiles(sessionIdRef.current);
+        await deletePksiTempFiles(sessionIdRef.current);
       } catch (error) {
         console.error("Error cleaning up temp files:", error);
       }
@@ -1559,155 +1560,124 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
             </AccordionDetails>
           </Accordion>
 
-          {/* Section 8 - Upload File */}
+          {/* Section 8 - Upload File - Matching FS2 pattern */}
           <Accordion
             expanded={expandedSection === "section8"}
             onChange={handleAccordionChange("section8")}
             sx={{
-              mt: expandedSection === "section8" ? 1 : 0,
-              borderRadius: "16px !important",
-              bgcolor: "rgba(255, 255, 255, 0.72)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-              boxShadow:
-                "0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)",
-              "&::before": { display: "none" },
-              "&.Mui-expanded": { margin: 0 },
+              borderRadius: '20px !important',
+              bgcolor: 'rgba(255, 255, 255, 0.6)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+              '&::before': { display: 'none' },
+              '&.Mui-expanded': { margin: '0 !important' },
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              },
             }}
           >
             <AccordionSummary
-              expandIcon={<ExpandMoreIcon sx={{ color: "#86868b" }} />}
+              expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
               sx={{
-                borderRadius: "16px",
-                "&.Mui-expanded": { minHeight: 48 },
+                borderRadius: '20px',
+                px: 2.5,
+                '&.Mui-expanded': { minHeight: 56 },
+                '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
               }}
             >
               <Typography
                 sx={{
                   fontWeight: 600,
-                  color: "#1d1d1f",
-                  fontSize: "0.9rem",
-                  letterSpacing: "-0.01em",
+                  color: '#1d1d1f',
+                  fontSize: '0.95rem',
+                  letterSpacing: '-0.01em',
                 }}
               >
                 8. Upload Dokumen T.0.1
               </Typography>
             </AccordionSummary>
-            <AccordionDetails>
+            <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
               <Stack spacing={2}>
                 <Box
                   sx={{
-                    border: "2px dashed #e5e5e7",
+                    border: '2px dashed #e5e5e7',
                     borderRadius: 2,
                     p: 3,
-                    textAlign: "center",
-                    cursor: "pointer",
-                    transition: "all 0.2s ease-in-out",
-                    "&:hover": {
-                      borderColor: "#DA251C",
-                      bgcolor: "rgba(218, 37, 28, 0.04)",
+                    textAlign: 'center',
+                    cursor: isUploading ? 'not-allowed' : 'pointer',
+                    opacity: isUploading ? 0.7 : 1,
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                      borderColor: isUploading ? '#e5e5e7' : '#DA251C',
+                      bgcolor: isUploading ? 'transparent' : 'rgba(218, 37, 28, 0.04)',
                     },
                   }}
-                  onClick={() =>
-                    document.getElementById("modal-file-upload-input")?.click()
-                  }
+                  onClick={() => !isUploading && document.getElementById('pksi-modal-file-upload-input')?.click()}
                 >
                   <input
-                    id="modal-file-upload-input"
+                    id="pksi-modal-file-upload-input"
                     type="file"
-                    multiple
                     hidden
                     onChange={handleFileUpload}
-                    accept=".pdf"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                    disabled={isUploading}
                   />
-                  <CloudUploadIcon
-                    sx={{ fontSize: 40, color: "#86868b", mb: 1 }}
-                  />
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "#1d1d1f", fontWeight: 500 }}
-                  >
-                    Klik untuk upload file
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: "#86868b", display: "block", mt: 0.5 }}
-                  >
-                    PDF
-                  </Typography>
+                  {isUploading ? (
+                    <>
+                      <CircularProgress size={48} sx={{ color: '#DA251C', mb: 1 }} />
+                      <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                        Mengupload file...
+                      </Typography>
+                    </>
+                  ) : (
+                    <>
+                      <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
+                      <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                        Klik untuk upload file
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
+                        atau drag & drop file di sini
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
+                        Format yang didukung: PDF, Word, Excel, Gambar (max 20MB)
+                      </Typography>
+                    </>
+                  )}
                 </Box>
 
-                {(uploadedFiles.length > 0 || uploadingFiles.size > 0) && (
+                {uploadedFiles.length > 0 && (
                   <Box>
-                    <Typography
-                      variant="body2"
-                      sx={{ mb: 1, fontWeight: 600, color: "#1d1d1f" }}
-                    >
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>
                       File yang diupload ({uploadedFiles.length})
                     </Typography>
-                    <List dense sx={{ bgcolor: "#f5f5f7", borderRadius: 1 }}>
-                      {/* Show uploading files */}
-                      {Array.from(uploadingFiles.keys()).map((tempId) => (
-                        <ListItem
-                          key={tempId}
-                          sx={{
-                            borderBottom: "1px solid #e5e5e7",
-                          }}
-                        >
-                          <ListItemIcon sx={{ minWidth: 36 }}>
-                            <CircularProgress size={20} sx={{ color: "#DA251C" }} />
-                          </ListItemIcon>
-                          <ListItemText
-                            primary="Mengupload..."
-                            primaryTypographyProps={{
-                              sx: {
-                                fontWeight: 500,
-                                color: "#86868b",
-                                fontSize: "0.85rem",
-                              },
-                            }}
-                          />
-                        </ListItem>
-                      ))}
-                      {/* Show uploaded files */}
+                    <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px' }}>
                       {uploadedFiles.map((file, index) => (
                         <ListItem
-                          key={file.id}
+                          key={index}
                           sx={{
-                            borderBottom:
-                              index < uploadedFiles.length - 1
-                                ? "1px solid #e5e5e7"
-                                : "none",
+                            borderBottom: index < uploadedFiles.length - 1 ? '1px solid #e5e5e7' : 'none',
                           }}
                         >
-                          <ListItemIcon sx={{ minWidth: 36 }}>
-                            <CheckCircleIcon sx={{ color: "#059669", fontSize: 20 }} />
+                          <ListItemIcon>
+                            <FileIcon sx={{ color: '#DA251C' }} />
                           </ListItemIcon>
                           <ListItemText
-                            primary={file.original_name}
-                            secondary={formatFileSize(file.file_size)}
-                            primaryTypographyProps={{
-                              sx: {
-                                fontWeight: 500,
-                                color: "#1d1d1f",
-                                fontSize: "0.85rem",
-                              },
-                            }}
-                            secondaryTypographyProps={{
-                              sx: { color: "#86868b", fontSize: "0.75rem" },
-                            }}
+                            primary={file.name}
+                            secondary={formatFileSize(file.size)}
+                            primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }}
+                            secondaryTypographyProps={{ sx: { color: '#86868b' } }}
                           />
                           <ListItemSecondaryAction>
                             <IconButton
                               edge="end"
-                              size="small"
-                              onClick={() => handleRemoveFile(file.id)}
-                              sx={{
-                                color: "#86868b",
-                                "&:hover": { color: "#DA251C" },
-                              }}
+                              onClick={() => handleRemoveFile(index)}
+                              disabled={isUploading}
+                              sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
                             >
-                              <DeleteIcon fontSize="small" />
+                              <DeleteIcon />
                             </IconButton>
                           </ListItemSecondaryAction>
                         </ListItem>
