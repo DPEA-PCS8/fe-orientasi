@@ -16,22 +16,29 @@ import {
   Autocomplete,
   CircularProgress,
   Tooltip,
-  Fade,
-  Zoom,
-  styled,
-  alpha,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableSortLabel,
+  Paper,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Search as SearchIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  PersonAdd as PersonAddIcon,
   Star as StarIcon,
   Group as GroupIcon,
   Close as CloseIcon,
   CheckCircle as CheckCircleIcon,
   WorkspacePremium as CrownIcon,
+  People as PeopleIcon,
+  FilterList as FilterIcon,
+  ViewList as ViewListIcon,
+  GridView as GridViewIcon,
 } from '@mui/icons-material';
 import {
   getAllTeams,
@@ -43,143 +50,6 @@ import {
   type TeamMember,
   type CreateTeamRequest,
 } from '../api/teamApi';
-
-// ==================== STYLED COMPONENTS ====================
-
-const GlassContainer = styled(Box)(({ theme }) => ({
-  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%)',
-  backdropFilter: 'blur(40px) saturate(180%)',
-  WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-  borderRadius: 28,
-  border: '1px solid rgba(255, 255, 255, 0.6)',
-  boxShadow: `
-    0 24px 48px rgba(0, 0, 0, 0.08),
-    0 12px 24px rgba(0, 0, 0, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.02)
-  `,
-  padding: theme.spacing(4),
-  position: 'relative',
-  overflow: 'hidden',
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '1px',
-    background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent)',
-  },
-}));
-
-const TeamCard = styled(Box)<{ selected?: boolean }>(({ selected }) => ({
-  background: selected
-    ? 'linear-gradient(135deg, rgba(218, 37, 28, 0.08) 0%, rgba(255, 77, 69, 0.04) 100%)'
-    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%)',
-  backdropFilter: 'blur(20px)',
-  WebkitBackdropFilter: 'blur(20px)',
-  borderRadius: 24,
-  border: selected 
-    ? '2px solid rgba(218, 37, 28, 0.3)' 
-    : '1px solid rgba(255, 255, 255, 0.8)',
-  boxShadow: selected
-    ? '0 20px 40px rgba(218, 37, 28, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9)'
-    : '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
-  padding: 24,
-  cursor: 'pointer',
-  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-  position: 'relative',
-  overflow: 'hidden',
-  '&:hover': {
-    transform: 'translateY(-4px) scale(1.01)',
-    boxShadow: '0 24px 48px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.95)',
-  },
-  '&::after': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%)',
-    pointerEvents: 'none',
-  },
-}));
-
-const PICBadge = styled(Box)(() => ({
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 8,
-  padding: '10px 20px',
-  background: 'linear-gradient(135deg, rgba(218, 37, 28, 0.1) 0%, rgba(255, 77, 69, 0.05) 100%)',
-  borderRadius: 24,
-  border: '1px solid rgba(218, 37, 28, 0.2)',
-  boxShadow: '0 4px 16px rgba(218, 37, 28, 0.08)',
-}));
-
-const GlassButton = styled(Button)(() => ({
-  background: 'linear-gradient(135deg, rgba(218, 37, 28, 1) 0%, rgba(255, 77, 69, 1) 100%)',
-  color: 'white',
-  borderRadius: 16,
-  padding: '12px 28px',
-  fontWeight: 600,
-  textTransform: 'none',
-  boxShadow: '0 8px 24px rgba(218, 37, 28, 0.3)',
-  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-  '&:hover': {
-    background: 'linear-gradient(135deg, rgba(185, 28, 20, 1) 0%, rgba(216, 58, 50, 1) 100%)',
-    boxShadow: '0 12px 32px rgba(218, 37, 28, 0.4)',
-    transform: 'translateY(-2px)',
-  },
-}));
-
-const GlassTextField = styled(TextField)(() => ({
-  '& .MuiOutlinedInput-root': {
-    borderRadius: 16,
-    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
-    backdropFilter: 'blur(10px)',
-    transition: 'all 0.3s ease',
-    '& fieldset': {
-      borderColor: 'rgba(0, 0, 0, 0.08)',
-      transition: 'all 0.3s ease',
-    },
-    '&:hover fieldset': {
-      borderColor: 'rgba(0, 0, 0, 0.15)',
-    },
-    '&.Mui-focused': {
-      background: 'rgba(255, 255, 255, 0.95)',
-      boxShadow: '0 8px 24px rgba(218, 37, 28, 0.1)',
-    },
-    '&.Mui-focused fieldset': {
-      borderColor: '#DA251C',
-      borderWidth: '2px',
-    },
-  },
-  '& .MuiInputLabel-root': {
-    color: '#86868b',
-    '&.Mui-focused': {
-      color: '#DA251C',
-    },
-  },
-}));
-
-const FloatingOrb = styled(Box)<{ size: number; top: string; left: string; delay: number }>(
-  ({ size, top, left, delay }) => ({
-    position: 'absolute',
-    width: size,
-    height: size,
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, rgba(218, 37, 28, 0.1) 0%, rgba(255, 77, 69, 0.05) 100%)',
-    top,
-    left,
-    filter: 'blur(40px)',
-    animation: `float 8s ease-in-out ${delay}s infinite`,
-    '@keyframes float': {
-      '0%, 100%': { transform: 'translateY(0) scale(1)' },
-      '50%': { transform: 'translateY(-20px) scale(1.1)' },
-    },
-  })
-);
 
 // ==================== HELPER FUNCTIONS ====================
 
@@ -778,6 +648,12 @@ export default function TeamManagement() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [viewMode, setViewMode] = useState<'teams' | 'users'>('teams');
+  
+  // Sort and filter states for users
+  const [sortField, setSortField] = useState<'fullName' | 'department' | 'teamCount'>('fullName');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [filterTeamAssignment, setFilterTeamAssignment] = useState<'all' | 'assigned' | 'unassigned' | 'pic'>('all');
   
   // Modal states
   const [openCreateModal, setOpenCreateModal] = useState(false);
@@ -826,6 +702,79 @@ export default function TeamManagement() {
         team.members.some(m => m.fullName.toLowerCase().includes(term))
     );
   }, [teams, searchTerm]);
+
+  // Users with their team assignments
+  const usersWithTeams = useMemo(() => {
+    return users.map(user => {
+      const assignedTeams = teams
+        .filter(team => 
+          team.pic?.uuid === user.uuid || 
+          team.members.some(m => m.uuid === user.uuid)
+        )
+        .map(team => ({
+          ...team,
+          isPIC: team.pic?.uuid === user.uuid,
+        }));
+      const isPic = teams.some(team => team.pic?.uuid === user.uuid);
+      return {
+        ...user,
+        assignedTeams,
+        isPic,
+        teamCount: assignedTeams.length,
+      };
+    });
+  }, [users, teams]);
+
+  // Filtered users based on search
+  const filteredUsers = useMemo(() => {
+    let result = usersWithTeams;
+    
+    // Apply search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(
+        user =>
+          user.fullName.toLowerCase().includes(term) ||
+          user.email.toLowerCase().includes(term) ||
+          user.department.toLowerCase().includes(term) ||
+          user.assignedTeams.some(t => t.name.toLowerCase().includes(term))
+      );
+    }
+    
+    // Apply team assignment filter
+    if (filterTeamAssignment === 'assigned') {
+      result = result.filter(user => user.teamCount > 0);
+    } else if (filterTeamAssignment === 'unassigned') {
+      result = result.filter(user => user.teamCount === 0);
+    } else if (filterTeamAssignment === 'pic') {
+      result = result.filter(user => user.isPic);
+    }
+    
+    // Apply sorting
+    result = [...result].sort((a, b) => {
+      let comparison = 0;
+      if (sortField === 'fullName') {
+        comparison = a.fullName.localeCompare(b.fullName);
+      } else if (sortField === 'department') {
+        comparison = a.department.localeCompare(b.department);
+      } else if (sortField === 'teamCount') {
+        comparison = a.teamCount - b.teamCount;
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+    
+    return result;
+  }, [usersWithTeams, searchTerm, filterTeamAssignment, sortField, sortDirection]);
+
+  // Handle sort
+  const handleSort = (field: 'fullName' | 'department' | 'teamCount') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
 
   // Handlers
   const handleOpenCreate = () => {
@@ -928,124 +877,211 @@ export default function TeamManagement() {
   }
 
   return (
-    <Box sx={{ p: 3, position: 'relative', minHeight: '100vh' }}>
-      {/* Background Orbs */}
-      <FloatingOrb size={300} top="-5%" left="80%" delay={0} />
-      <FloatingOrb size={200} top="60%" left="-5%" delay={2} />
-      <FloatingOrb size={150} top="30%" left="50%" delay={4} />
-
+    <Box sx={{ p: 4, bgcolor: '#F9FAFB', minHeight: '100vh' }}>
       {/* Header */}
-      <Fade in timeout={600}>
-        <GlassContainer sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 3 }}>
-            <Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-                <Box
-                  sx={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 4,
-                    background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 8px 24px rgba(218, 37, 28, 0.3)',
-                  }}
-                >
-                  <GroupIcon sx={{ color: 'white', fontSize: 28 }} />
-                </Box>
-                <Box>
-                  <Typography 
-                    variant="h4" 
-                    sx={{ 
-                      fontWeight: 800,
-                      background: 'linear-gradient(135deg, #1d1d1f 0%, #424245 100%)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      letterSpacing: '-0.02em',
-                    }}
-                  >
-                    Team Management
-                  </Typography>
-                  <Typography sx={{ color: '#86868b', mt: 0.5 }}>
-                    Kelola tim dan assignment anggota
-                  </Typography>
-                </Box>
+      <Box sx={{ mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Box>
+            <Typography variant="h4" sx={{ fontWeight: 700, color: '#111827', mb: 0.5 }}>
+              Team Management
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#6B7280' }}>
+              Kelola tim dan assignment anggota
+            </Typography>
+          </Box>
+          
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <TextField
+              placeholder={viewMode === 'teams' ? "Cari tim..." : "Cari user..."}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              size="small"
+              sx={{
+                width: 280,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  bgcolor: 'white',
+                  '& fieldset': { borderColor: '#E5E7EB' },
+                  '&:hover fieldset': { borderColor: '#D1D5DB' },
+                  '&.Mui-focused fieldset': { borderColor: '#DA251C', borderWidth: 1 },
+                },
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: '#9CA3AF', fontSize: 20 }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            {viewMode === 'teams' && (
+              <Button
+                startIcon={<AddIcon />}
+                onClick={handleOpenCreate}
+                variant="contained"
+                sx={{
+                  bgcolor: '#DA251C',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  px: 3,
+                  boxShadow: 'none',
+                  '&:hover': { bgcolor: '#B91C14', boxShadow: 'none' },
+                }}
+              >
+                Buat Tim
+              </Button>
+            )}
+          </Box>
+        </Box>
+
+        {/* Stats */}
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, mb: 3 }}>
+          {[
+            { label: 'Total Tim', value: teams.length, icon: <GroupIcon />, color: '#DA251C', bg: '#FEF2F2' },
+            { label: 'Total User', value: users.length, icon: <PeopleIcon />, color: '#0891B2', bg: '#ECFEFF' },
+            { label: 'PIC Assigned', value: teams.filter(t => t.pic).length, icon: <StarIcon />, color: '#F59E0B', bg: '#FFFBEB' },
+          ].map((stat) => (
+            <Box
+              key={stat.label}
+              sx={{
+                p: 3,
+                borderRadius: 2,
+                bgcolor: 'white',
+                border: '1px solid #E5E7EB',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 1.5,
+                  bgcolor: stat.bg,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: stat.color,
+                }}
+              >
+                {stat.icon}
+              </Box>
+              <Box>
+                <Typography variant="h5" sx={{ fontWeight: 700, color: '#111827' }}>
+                  {stat.value}
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#6B7280' }}>
+                  {stat.label}
+                </Typography>
               </Box>
             </Box>
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <GlassTextField
-                placeholder="Cari tim..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                size="small"
-                sx={{ width: 280 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon sx={{ color: '#86868b' }} />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-              <GlassButton startIcon={<AddIcon />} onClick={handleOpenCreate}>
-                Buat Tim Baru
-              </GlassButton>
-            </Box>
-          </Box>
+          ))}
+        </Box>
 
-          {/* Stats */}
-          <Box sx={{ display: 'flex', gap: 4, mt: 4, flexWrap: 'wrap' }}>
-            {[
-              { label: 'Total Tim', value: teams.length, icon: <GroupIcon />, color: '#DA251C' },
-              { label: 'Total Anggota', value: teams.reduce((acc, t) => acc + t.members.length, 0), icon: <PersonAddIcon />, color: '#4ECDC4' },
-              { label: 'PIC Assigned', value: teams.filter(t => t.pic).length, icon: <StarIcon />, color: '#FFB74D' },
-            ].map((stat, index) => (
-              <Zoom in timeout={400 + index * 100} key={stat.label}>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 2,
-                    p: 2,
-                    px: 3,
-                    borderRadius: 3,
-                    background: alpha(stat.color, 0.08),
-                    border: `1px solid ${alpha(stat.color, 0.15)}`,
-                  }}
-                >
-                  <Box sx={{ color: stat.color }}>{stat.icon}</Box>
-                  <Box>
-                    <Typography variant="h5" sx={{ fontWeight: 700, color: '#1d1d1f' }}>
-                      {stat.value}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: '#86868b' }}>
-                      {stat.label}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Zoom>
-            ))}
-          </Box>
-        </GlassContainer>
-      </Fade>
+        {/* View Toggle */}
+        <Box
+          sx={{
+            display: 'inline-flex',
+            p: 0.5,
+            borderRadius: 2,
+            bgcolor: 'white',
+            border: '1px solid #E5E7EB',
+          }}
+        >
+          <Button
+            onClick={() => { setViewMode('teams'); setSearchTerm(''); setFilterTeamAssignment('all'); }}
+            startIcon={<GridViewIcon />}
+            sx={{
+              px: 3,
+              py: 1,
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: 1.5,
+              color: viewMode === 'teams' ? 'white' : '#6B7280',
+              bgcolor: viewMode === 'teams' ? '#DA251C' : 'transparent',
+              '&:hover': {
+                bgcolor: viewMode === 'teams' ? '#B91C14' : '#F3F4F6',
+              },
+            }}
+          >
+            Tim
+            <Chip
+              label={teams.length}
+              size="small"
+              sx={{
+                ml: 1,
+                height: 20,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                bgcolor: viewMode === 'teams' ? 'rgba(255,255,255,0.2)' : '#F3F4F6',
+                color: viewMode === 'teams' ? 'white' : '#6B7280',
+              }}
+            />
+          </Button>
+          <Button
+            onClick={() => { setViewMode('users'); setSearchTerm(''); }}
+            startIcon={<ViewListIcon />}
+            sx={{
+              px: 3,
+              py: 1,
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: 1.5,
+              color: viewMode === 'users' ? 'white' : '#6B7280',
+              bgcolor: viewMode === 'users' ? '#DA251C' : 'transparent',
+              '&:hover': {
+                bgcolor: viewMode === 'users' ? '#B91C14' : '#F3F4F6',
+              },
+            }}
+          >
+            Users
+            <Chip
+              label={users.length}
+              size="small"
+              sx={{
+                ml: 1,
+                height: 20,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                bgcolor: viewMode === 'users' ? 'rgba(255,255,255,0.2)' : '#F3F4F6',
+                color: viewMode === 'users' ? 'white' : '#6B7280',
+              }}
+            />
+          </Button>
+        </Box>
+      </Box>
 
       {/* Teams Grid */}
-      <Box sx={{ 
-        display: 'grid', 
-        gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
-        gap: 3,
-      }}>
-        {filteredTeams.map((team, index) => (
-          <Zoom in timeout={500 + index * 100} key={team.id}>
-            <TeamCard>
+      {viewMode === 'teams' && (
+        <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
+          gap: 2,
+        }}>
+          {filteredTeams.map((team) => (
+            <Box
+              key={team.id}
+              sx={{
+                p: 3,
+                borderRadius: 2,
+                bgcolor: 'white',
+                border: '1px solid #E5E7EB',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  borderColor: '#DA251C',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                },
+              }}
+            >
               {/* Team Header */}
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-                <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#1d1d1f', mb: 0.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#111827', mb: 0.5 }}>
                     {team.name}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#86868b', lineHeight: 1.6 }}>
+                  <Typography variant="body2" sx={{ color: '#6B7280', lineHeight: 1.5 }}>
                     {team.description || 'Tidak ada deskripsi'}
                   </Typography>
                 </Box>
@@ -1055,8 +1091,8 @@ export default function TeamManagement() {
                       size="small" 
                       onClick={(e) => { e.stopPropagation(); handleOpenEdit(team); }}
                       sx={{ 
-                        color: '#86868b',
-                        '&:hover': { color: '#DA251C', bgcolor: alpha('#DA251C', 0.08) },
+                        color: '#9CA3AF',
+                        '&:hover': { color: '#DA251C', bgcolor: '#FEF2F2' },
                       }}
                     >
                       <EditIcon fontSize="small" />
@@ -1067,8 +1103,8 @@ export default function TeamManagement() {
                       size="small"
                       onClick={(e) => { e.stopPropagation(); handleOpenDelete(team); }}
                       sx={{ 
-                        color: '#86868b',
-                        '&:hover': { color: '#DA251C', bgcolor: alpha('#DA251C', 0.08) },
+                        color: '#9CA3AF',
+                        '&:hover': { color: '#EF4444', bgcolor: '#FEF2F2' },
                       }}
                     >
                       <DeleteIcon fontSize="small" />
@@ -1078,36 +1114,36 @@ export default function TeamManagement() {
               </Box>
 
               {/* PIC Section */}
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <Box sx={{ mb: 2.5 }}>
+                <Typography variant="caption" sx={{ color: '#9CA3AF', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.7rem' }}>
                   Person In Charge
                 </Typography>
                 {team.pic ? (
-                  <PICBadge sx={{ mt: 1, display: 'flex' }}>
+                  <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderRadius: 1.5, bgcolor: '#FEF2F2', border: '1px solid #FEE2E2' }}>
                     <Avatar 
                       sx={{ 
                         width: 36, 
                         height: 36, 
-                        bgcolor: getAvatarColor(team.pic.fullName),
+                        bgcolor: '#DA251C',
                         fontWeight: 600,
                         fontSize: '0.85rem',
                       }}
                     >
                       {getInitials(team.pic.fullName)}
                     </Avatar>
-                    <Box>
+                    <Box sx={{ flex: 1 }}>
                       <Typography variant="body2" sx={{ fontWeight: 600, color: '#DA251C' }}>
                         {team.pic.fullName}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: '#86868b' }}>
+                      <Typography variant="caption" sx={{ color: '#9CA3AF' }}>
                         {team.pic.department}
                       </Typography>
                     </Box>
-                    <CrownIcon sx={{ color: '#FFB74D', fontSize: 20, ml: 'auto' }} />
-                  </PICBadge>
+                    <CrownIcon sx={{ color: '#F59E0B', fontSize: 20 }} />
+                  </Box>
                 ) : (
-                  <Box sx={{ mt: 1, p: 2, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.02)', border: '1px dashed rgba(0,0,0,0.1)' }}>
-                    <Typography variant="body2" sx={{ color: '#86868b', textAlign: 'center' }}>
+                  <Box sx={{ mt: 1.5, p: 2, borderRadius: 1.5, bgcolor: '#F9FAFB', border: '1px dashed #E5E7EB' }}>
+                    <Typography variant="body2" sx={{ color: '#9CA3AF', textAlign: 'center', fontSize: '0.875rem' }}>
                       Belum ada PIC
                     </Typography>
                   </Box>
@@ -1117,17 +1153,18 @@ export default function TeamManagement() {
               {/* Members Section */}
               <Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <Typography variant="caption" sx={{ color: '#9CA3AF', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.7rem' }}>
                     Anggota Tim
                   </Typography>
                   <Chip 
                     label={`${team.members.length} orang`}
                     size="small"
                     sx={{ 
-                      bgcolor: alpha('#4ECDC4', 0.1),
-                      color: '#4ECDC4',
+                      bgcolor: '#ECFEFF',
+                      color: '#0891B2',
                       fontWeight: 600,
                       fontSize: '0.7rem',
+                      height: 22,
                     }}
                   />
                 </Box>
@@ -1155,8 +1192,8 @@ export default function TeamManagement() {
                     </AvatarGroup>
                   </Box>
                 ) : (
-                  <Box sx={{ p: 2, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.02)', border: '1px dashed rgba(0,0,0,0.1)' }}>
-                    <Typography variant="body2" sx={{ color: '#86868b', textAlign: 'center' }}>
+                  <Box sx={{ p: 2, borderRadius: 1.5, bgcolor: '#F9FAFB', border: '1px dashed #E5E7EB' }}>
+                    <Typography variant="body2" sx={{ color: '#9CA3AF', textAlign: 'center', fontSize: '0.875rem' }}>
                       Belum ada anggota
                     </Typography>
                   </Box>
@@ -1164,48 +1201,305 @@ export default function TeamManagement() {
               </Box>
 
               {/* Footer */}
-              <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="caption" sx={{ color: '#86868b' }}>
+              <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="caption" sx={{ color: '#9CA3AF', fontSize: '0.75rem' }}>
                   Dibuat: {new Date(team.createdAt).toLocaleDateString('id-ID')}
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#4ECDC4' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#10B981' }}>
                   <CheckCircleIcon sx={{ fontSize: 16 }} />
-                  <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.75rem' }}>
                     Aktif
                   </Typography>
                 </Box>
               </Box>
-            </TeamCard>
-          </Zoom>
-        ))}
-      </Box>
+            </Box>
+          ))}
+        </Box>
+      )}
 
-      {/* Empty State */}
-      {filteredTeams.length === 0 && (
-        <Fade in timeout={500}>
-          <Box 
+      {/* Empty State - Teams */}
+      {viewMode === 'teams' && filteredTeams.length === 0 && (
+        <Box 
+          sx={{ 
+            textAlign: 'center', 
+            py: 12,
+            bgcolor: 'white',
+            borderRadius: 2,
+            border: '2px dashed #E5E7EB',
+          }}
+        >
+          <GroupIcon sx={{ fontSize: 64, color: '#D1D5DB', mb: 2 }} />
+          <Typography variant="h6" sx={{ color: '#6B7280', mb: 1, fontWeight: 600 }}>
+            {searchTerm ? 'Tim tidak ditemukan' : 'Belum ada tim'}
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#9CA3AF', mb: 3 }}>
+            {searchTerm ? 'Coba kata kunci lain' : 'Buat tim pertama Anda sekarang'}
+          </Typography>
+          {!searchTerm && (
+            <Button
+              startIcon={<AddIcon />}
+              onClick={handleOpenCreate}
+              variant="contained"
+              sx={{
+                bgcolor: '#DA251C',
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: 2,
+                px: 3,
+                boxShadow: 'none',
+                '&:hover': { bgcolor: '#B91C14', boxShadow: 'none' },
+              }}
+            >
+              Buat Tim Baru
+            </Button>
+          )}
+        </Box>
+      )}
+
+      {/* Users View */}
+      {viewMode === 'users' && (
+        <>
+          {/* Filter & Sort Controls */}
+          <Box sx={{ mb: 3, p: 3, bgcolor: 'white', borderRadius: 2, border: '1px solid #E5E7EB' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: '#111827', mb: 0.5 }}>
+                  Daftar User & Team Assignment
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#6B7280' }}>
+                  {filteredUsers.length} dari {users.length} users
+                </Typography>
+              </Box>
+              
+              {/* Filter Chips */}
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {[
+                  { value: 'all', label: 'Semua', icon: <PeopleIcon sx={{ fontSize: 16 }} /> },
+                  { value: 'assigned', label: 'Punya Tim', icon: <GroupIcon sx={{ fontSize: 16 }} /> },
+                  { value: 'unassigned', label: 'Belum Ada Tim', icon: <FilterIcon sx={{ fontSize: 16 }} /> },
+                  { value: 'pic', label: 'PIC', icon: <CrownIcon sx={{ fontSize: 16 }} /> },
+                ].map((filter) => (
+                  <Chip
+                    key={filter.value}
+                    label={filter.label}
+                    icon={filter.icon}
+                    onClick={() => setFilterTeamAssignment(filter.value as typeof filterTeamAssignment)}
+                    sx={{
+                      borderRadius: 2,
+                      fontWeight: 600,
+                      fontSize: '0.8rem',
+                      px: 0.5,
+                      transition: 'all 0.2s ease',
+                      ...(filterTeamAssignment === filter.value ? {
+                        bgcolor: '#DA251C',
+                        color: 'white',
+                        '& .MuiChip-icon': { color: 'white' },
+                      } : {
+                        bgcolor: '#F3F4F6',
+                        color: '#6B7280',
+                        border: '1px solid #E5E7EB',
+                        '&:hover': {
+                          bgcolor: '#E5E7EB',
+                        },
+                      }),
+                    }}
+                  />
+                ))}
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Users Table */}
+          <TableContainer 
+            component={Paper} 
             sx={{ 
-              textAlign: 'center', 
-              py: 10,
-              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
-              borderRadius: 4,
-              border: '2px dashed rgba(0,0,0,0.08)',
+              borderRadius: 2,
+              border: '1px solid #E5E7EB',
+              boxShadow: 'none',
             }}
           >
-            <GroupIcon sx={{ fontSize: 64, color: '#e0e0e0', mb: 2 }} />
-            <Typography variant="h6" sx={{ color: '#86868b', mb: 1 }}>
-              {searchTerm ? 'Tim tidak ditemukan' : 'Belum ada tim'}
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#a0a0a0', mb: 3 }}>
-              {searchTerm ? 'Coba kata kunci lain' : 'Buat tim pertama Anda sekarang'}
-            </Typography>
-            {!searchTerm && (
-              <GlassButton startIcon={<AddIcon />} onClick={handleOpenCreate}>
-                Buat Tim Baru
-              </GlassButton>
-            )}
-          </Box>
-        </Fade>
+            <Table>
+              <TableHead>
+                <TableRow sx={{ bgcolor: '#F9FAFB' }}>
+                  <TableCell sx={{ fontWeight: 700, color: '#111827', borderBottom: '1px solid #E5E7EB' }}>
+                    <TableSortLabel
+                      active={sortField === 'fullName'}
+                      direction={sortField === 'fullName' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('fullName')}
+                      sx={{
+                        '&.MuiTableSortLabel-root': { color: '#111827' },
+                        '&.Mui-active': { color: '#DA251C' },
+                        '& .MuiTableSortLabel-icon': { color: '#DA251C !important' },
+                      }}
+                    >
+                      Nama User
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: '#111827', borderBottom: '1px solid #E5E7EB' }}>
+                    <TableSortLabel
+                      active={sortField === 'department'}
+                      direction={sortField === 'department' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('department')}
+                      sx={{
+                        '&.MuiTableSortLabel-root': { color: '#111827' },
+                        '&.Mui-active': { color: '#DA251C' },
+                        '& .MuiTableSortLabel-icon': { color: '#DA251C !important' },
+                      }}
+                    >
+                      Departemen
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: '#111827', borderBottom: '1px solid #E5E7EB' }}>Email</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: '#111827', borderBottom: '1px solid #E5E7EB' }}>Tim</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: '#111827', borderBottom: '1px solid #E5E7EB' }}>
+                    <TableSortLabel
+                      active={sortField === 'teamCount'}
+                      direction={sortField === 'teamCount' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('teamCount')}
+                      sx={{
+                        '&.MuiTableSortLabel-root': { color: '#111827' },
+                        '&.Mui-active': { color: '#DA251C' },
+                        '& .MuiTableSortLabel-icon': { color: '#DA251C !important' },
+                      }}
+                    >
+                      Status
+                    </TableSortLabel>
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredUsers.map((user) => (
+                  <TableRow 
+                    key={user.uuid} 
+                    sx={{ 
+                      '&:hover': { bgcolor: '#F9FAFB' },
+                      '&:last-child td': { borderBottom: 0 },
+                    }}
+                  >
+                    <TableCell sx={{ borderBottom: '1px solid #F3F4F6' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Avatar sx={{ bgcolor: getAvatarColor(user.fullName), width: 36, height: 36, fontSize: '0.85rem', fontWeight: 600 }}>
+                          {getInitials(user.fullName)}
+                        </Avatar>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#111827' }}>
+                          {user.fullName}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell sx={{ borderBottom: '1px solid #F3F4F6' }}>
+                      <Chip 
+                        label={user.department} 
+                        size="small" 
+                        sx={{ 
+                          bgcolor: '#F3F4F6',
+                          color: '#6B7280',
+                          fontWeight: 600,
+                          fontSize: '0.75rem',
+                        }} 
+                      />
+                    </TableCell>
+                    <TableCell sx={{ color: '#6B7280', fontSize: '0.875rem', borderBottom: '1px solid #F3F4F6' }}>
+                      {user.email}
+                    </TableCell>
+                    <TableCell sx={{ borderBottom: '1px solid #F3F4F6' }}>
+                      {user.assignedTeams.length > 0 ? (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {user.assignedTeams.map((team) => (
+                            <Chip
+                              key={team.id}
+                              label={team.name}
+                              size="small"
+                              icon={team.isPIC ? <CrownIcon sx={{ fontSize: 14 }} /> : undefined}
+                              sx={{
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                ...(team.isPIC ? {
+                                  bgcolor: '#FEF2F2',
+                                  color: '#DA251C',
+                                  border: '1px solid #FEE2E2',
+                                  '& .MuiChip-icon': { color: '#DA251C' },
+                                } : {
+                                  bgcolor: '#F3F4F6',
+                                  color: '#6B7280',
+                                }),
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#9CA3AF', fontSize: '0.875rem' }}>
+                          -
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell sx={{ borderBottom: '1px solid #F3F4F6' }}>
+                      {user.isPic ? (
+                        <Chip
+                          label="PIC"
+                          icon={<CrownIcon sx={{ fontSize: 14 }} />}
+                          size="small"
+                          sx={{
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                            bgcolor: '#FFFBEB',
+                            color: '#F59E0B',
+                            border: '1px solid #FEF3C7',
+                            '& .MuiChip-icon': { color: '#F59E0B' },
+                          }}
+                        />
+                      ) : user.assignedTeams.length > 0 ? (
+                        <Chip
+                          label={`${user.assignedTeams.length} Tim`}
+                          size="small"
+                          sx={{
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                            bgcolor: '#ECFEFF',
+                            color: '#0891B2',
+                            border: '1px solid #CFFAFE',
+                          }}
+                        />
+                      ) : (
+                        <Chip
+                          label="Belum Ada Tim"
+                          size="small"
+                          sx={{
+                            bgcolor: '#F3F4F6',
+                            color: '#9CA3AF',
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                          }}
+                        />
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          {/* Empty State - Users */}
+          {filteredUsers.length === 0 && (
+            <Box 
+              sx={{ 
+                textAlign: 'center', 
+                py: 12,
+                bgcolor: 'white',
+                borderRadius: 2,
+                border: '2px dashed #E5E7EB',
+                mt: 3,
+              }}
+            >
+              <PeopleIcon sx={{ fontSize: 64, color: '#D1D5DB', mb: 2 }} />
+              <Typography variant="h6" sx={{ color: '#6B7280', mb: 1, fontWeight: 600 }}>
+                User tidak ditemukan
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#9CA3AF' }}>
+                {searchTerm ? 'Coba kata kunci lain' : 'Ubah filter untuk melihat user'}
+              </Typography>
+            </Box>
+          )}
+        </>
       )}
 
       {/* Create Modal */}
