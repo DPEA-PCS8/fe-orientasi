@@ -37,6 +37,7 @@ import {
   AppsRounded,
   ChevronLeftRounded,
   ChevronRightRounded,
+  GroupsRounded,
 } from '@mui/icons-material';
 import { Chip } from '@mui/material';
 import { isAdmin, getUserRoles } from '../api/authApi';
@@ -242,6 +243,7 @@ const Sidebar = () => {
           subItems: [
             { label: 'User Management', icon: <ManageAccountsRounded />, href: '/admin/user-roles', menuCode: 'USER_MANAGEMENT' },
             { label: 'Role Permissions', icon: <SecurityRounded />, href: '/admin/role-permissions', menuCode: 'ROLE_PERMISSIONS' },
+            { label: 'Team Management', icon: <GroupsRounded />, href: '/admin/team-management', menuCode: 'TEAM_MANAGEMENT' },
           ],
         },
         { label: 'Settings', icon: <SettingsRounded />, href: '/settings', menuCode: 'SETTINGS' },
