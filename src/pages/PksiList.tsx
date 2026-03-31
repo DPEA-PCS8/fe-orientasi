@@ -52,6 +52,7 @@ import {
 } from '@mui/material';
 import { AddPksiModal, EditPksiModal, ViewPksiModal } from '../components/modals';
 import { usePermissions } from '../hooks/usePermissions';
+import { DataCountDisplay } from '../components/DataCountDisplay';
 import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, type PksiDocumentData } from '../api/pksiApi';
 import { getUsersByRole, type UserSimple } from '../api/userApi';
 import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
@@ -1225,6 +1226,14 @@ function PksiList() {
             setSelectedPksiIdForView(null);
           }}
           pksiId={selectedPksiIdForView}
+        />
+
+        {/* Data Count Display */}
+        <DataCountDisplay
+            count={pksiData.length}
+            isLoading={isLoading}
+            label="Total"
+            unit="PKSI Documents"
         />
 
         {/* Table */}

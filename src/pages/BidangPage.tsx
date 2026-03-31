@@ -4,6 +4,7 @@ import { Close, Save, Folder, Lock, Delete } from '@mui/icons-material';
 import { Add, Edit, Search } from '@mui/icons-material';
 import { getAllBidang, createBidang, updateBidang, deleteBidang, type BidangData, type BidangRequest } from '../api/bidangApi';
 import { usePermissions } from '../hooks/usePermissions';
+import { DataCountDisplay } from '../components/DataCountDisplay';
 
 interface FormData {
   kode_bidang: string;
@@ -184,6 +185,17 @@ const BidangPage = () => {
           <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenDialog()} disabled={loading}>Tambah Bidang</Button>
         )}
       </Box>
+
+      {/* Data Count Display */}
+      <Box sx={{ my: 2.5 }}>
+        <DataCountDisplay
+          count={filteredBidangList.length}
+          isLoading={loading}
+          label="Total"
+          unit="Bidang"
+        />
+      </Box>
+
       {loading && <Box display="flex" justifyContent="center" my={3}><CircularProgress /></Box>}
       {!loading && (
         <TableContainer component={Paper}>
