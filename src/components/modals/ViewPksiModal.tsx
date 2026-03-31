@@ -33,6 +33,11 @@ import {
   Download as DownloadIcon,
   Visibility as VisibilityIcon,
   AttachFile as AttachFileIcon,
+  MonitorHeart as MonitorHeartIcon,
+  Payments as PaymentsIcon,
+  Timeline as TimelineIcon,
+  Gavel as GavelIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 import { getPksiDocumentById, type PksiDocumentData } from '../../api/pksiApi';
 import { getAllSkpa } from '../../api/skpaApi';
@@ -79,6 +84,7 @@ interface ViewPksiModalProps {
   open: boolean;
   onClose: () => void;
   pksiId: string | null;
+  showMonitoringSection?: boolean;
 }
 
 interface SkpaOption {
@@ -87,7 +93,7 @@ interface SkpaOption {
   nama_skpa: string;
 }
 
-const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId }) => {
+const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, showMonitoringSection = false }) => {
   const [pksiData, setPksiData] = useState<PksiDocumentData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [skpaMap, setSkpaMap] = useState<Map<string, SkpaOption>>(new Map());
@@ -680,14 +686,181 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId }) 
               </Typography>
             </GlassCard>
 
-            {/* Section 8: Dokumen T.0.1 */}
+            {/* Section 8: Monitoring & Tracking (Only for DISETUJUI status and when showMonitoringSection is true) */}
+            {showMonitoringSection && pksiData.status === 'DISETUJUI' && (
+              <GlassCard>
+                <SectionHeader>
+                  <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(49, 162, 76, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <MonitorHeartIcon sx={{ color: '#31A24C', fontSize: 20 }} />
+                  </Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                    8. Monitoring & Tracking
+                  </Typography>
+                </SectionHeader>
+
+                {/* Tim & PIC */}
+                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(49, 162, 76, 0.03)', border: '1px solid rgba(49, 162, 76, 0.1)', mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <PersonIcon sx={{ color: '#31A24C', fontSize: 18 }} />
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#31A24C' }}>Tim & PIC</Typography>
+                  </Box>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>PIC</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.pic_approval_name || '-'}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Anggota Tim</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.anggota_tim_names || '-'}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>IKU</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.iku === 'ya' ? 'Ya' : 'Tidak'}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Inhouse/Outsource</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.inhouse_outsource || '-'}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Progres</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontWeight: 500 }}>{pksiData.progress || '-'}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Inisiatif RBSI</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.inisiatif_rbsi || pksiData.program_inisiatif_rbsi || '-'}</Typography>
+                    </InfoRow>
+                  </Box>
+                </Box>
+
+                {/* Anggaran */}
+                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(59, 130, 246, 0.03)', border: '1px solid rgba(59, 130, 246, 0.1)', mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <PaymentsIcon sx={{ color: '#2563EB', fontSize: 18 }} />
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#2563EB' }}>Anggaran</Typography>
+                  </Box>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Total</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.anggaran_total || '-'}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tahun Ini</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.anggaran_tahun_ini || '-'}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tahun Depan</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.anggaran_tahun_depan || '-'}</Typography>
+                    </InfoRow>
+                  </Box>
+                </Box>
+
+                {/* Timeline */}
+                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(139, 92, 246, 0.03)', border: '1px solid rgba(139, 92, 246, 0.1)', mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <TimelineIcon sx={{ color: '#7C3AED', fontSize: 18 }} />
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#7C3AED' }}>Timeline</Typography>
+                  </Box>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, gap: 2 }}>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target Usreq</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_usreq || '-'}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target SIT</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_sit || '-'}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target UAT/PDKK</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_uat || '-'}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target Go Live</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_go_live || '-'}</Typography>
+                    </InfoRow>
+                  </Box>
+                </Box>
+
+                {/* Dokumen */}
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mb: 2 }}>
+                  <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(217, 119, 6, 0.03)', border: '1px solid rgba(217, 119, 6, 0.1)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#D97706', mb: 1.5 }}>Rencana PKSI (T01/T02)</Typography>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Status</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.status_t01_t02 || '-'}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Berkas Terbaru</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.berkas_t01_t02 || '-'}</Typography>
+                    </InfoRow>
+                  </Box>
+                  <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(5, 150, 105, 0.03)', border: '1px solid rgba(5, 150, 105, 0.1)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#059669', mb: 1.5 }}>Spesifikasi Kebutuhan (T11)</Typography>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Status</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.status_t11 || '-'}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Berkas Terbaru</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.berkas_t11 || '-'}</Typography>
+                    </InfoRow>
+                  </Box>
+                </Box>
+
+                {/* CD Prinsip */}
+                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(220, 38, 38, 0.03)', border: '1px solid rgba(220, 38, 38, 0.1)', mb: 2 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#DC2626', mb: 1.5 }}>CD Prinsip</Typography>
+                  <InfoRow>
+                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Nomor CD</Typography>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.nomor_cd || '-'}</Typography>
+                  </InfoRow>
+                </Box>
+
+                {/* Kontrak */}
+                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(8, 145, 178, 0.03)', border: '1px solid rgba(8, 145, 178, 0.1)', mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <GavelIcon sx={{ color: '#0891B2', fontSize: 18 }} />
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#0891B2' }}>Kontrak</Typography>
+                  </Box>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Mulai</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.kontrak_tanggal_mulai || '-'}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Selesai</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.kontrak_tanggal_selesai || '-'}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Nilai Kontrak</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.kontrak_nilai || '-'}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Jumlah Termin</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.kontrak_jumlah_termin || '-'}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Detail Pembayaran</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.kontrak_detail_pembayaran || '-'}</Typography>
+                    </InfoRow>
+                  </Box>
+                </Box>
+
+                {/* BA Deploy */}
+                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(124, 58, 237, 0.03)', border: '1px solid rgba(124, 58, 237, 0.1)' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#7C3AED', mb: 1.5 }}>BA Deploy</Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.ba_deploy || '-'}</Typography>
+                </Box>
+              </GlassCard>
+            )}
+
+            {/* Section 9: Dokumen T.0.1 */}
             <GlassCard>
               <SectionHeader>
                 <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(218, 37, 28, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <AttachFileIcon sx={{ color: '#DA251C', fontSize: 20 }} />
                 </Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                  8. Dokumen T.0.1
+                  9. Dokumen T.0.1
                 </Typography>
               </SectionHeader>
 
