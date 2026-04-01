@@ -53,6 +53,7 @@ import {
   ChangeCircle as ChangedIcon,
   Close as CloseIcon,
   Analytics as AnalyticsIcon,
+  FileDownload as DownloadIcon,
 } from '@mui/icons-material';
 import {
   getAllRbsi,
@@ -62,6 +63,7 @@ import {
   createKep as apiCreateKep,
   batchUpdateKepProgress,
   getMonitoringData,
+  downloadMonitoringExcel,
   updateProgram as apiUpdateProgram,
   updateInisiatif as apiUpdateInisiatif,
   deleteProgram as apiDeleteProgram,
@@ -222,6 +224,9 @@ function RbsiManagementPage() {
   const [newKepNomor, setNewKepNomor] = useState<string>('');
   const [newKepYear, setNewKepYear] = useState<number>(new Date().getFullYear());
   const [addKepLoading, setAddKepLoading] = useState(false);
+
+  // Download Excel state
+  const [downloadLoading, setDownloadLoading] = useState(false);
 
   // Snackbar
   const [snackbar, setSnackbar] = useState<{
@@ -904,6 +909,30 @@ function RbsiManagementPage() {
     }
   };
 
+  // Download Excel
+  const handleDownloadExcel = async () => {
+    if (!selectedRbsi) return;
+    
+    setDownloadLoading(true);
+    try {
+      await downloadMonitoringExcel(selectedRbsi.id);
+      setSnackbar({
+        open: true,
+        message: 'File Excel berhasil diunduh',
+        severity: 'success',
+      });
+    } catch (error) {
+      console.error('Failed to download Excel:', error);
+      setSnackbar({
+        open: true,
+        message: error instanceof Error ? error.message : 'Gagal mengunduh file Excel',
+        severity: 'error',
+      });
+    } finally {
+      setDownloadLoading(false);
+    }
+  };
+
   // Create RBSI
   const handleCreateRbsi = async (periode: string) => {
     const response = await createRbsi(periode);
@@ -1365,6 +1394,27 @@ function RbsiManagementPage() {
                   }}
                 >
                   <AnalyticsIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+
+            {viewMode === 'monitoring' && (
+              <Tooltip title="Download Excel">
+                <IconButton
+                  size="small"
+                  onClick={handleDownloadExcel}
+                  disabled={downloadLoading || !monitoringData}
+                  sx={{
+                    color: '#2E7D32',
+                    '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.08)' },
+                    '&.Mui-disabled': { color: '#ccc' },
+                  }}
+                >
+                  {downloadLoading ? (
+                    <CircularProgress size={20} sx={{ color: '#2E7D32' }} />
+                  ) : (
+                    <DownloadIcon sx={{ fontSize: 20 }} />
+                  )}
                 </IconButton>
               </Tooltip>
             )}
