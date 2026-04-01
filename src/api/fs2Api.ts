@@ -72,6 +72,32 @@ export interface Fs2DocumentData {
   pic_id?: string;
   pic_name?: string;
   dokumen_path?: string;
+  
+  // Monitoring Fields - Dokumen Pengajuan F.S.2
+  nomor_nd?: string;
+  tanggal_nd?: string;
+  berkas_nd?: string;
+  berkas_fs2?: string;
+  
+  // Monitoring Fields - CD Prinsip
+  nomor_cd?: string;
+  tanggal_cd?: string;
+  berkas_cd?: string;
+  berkas_fs2a?: string;
+  berkas_fs2b?: string;
+  
+  // Monitoring Fields - Pengujian
+  realisasi_pengujian?: string;
+  berkas_f45?: string;
+  berkas_f46?: string;
+  
+  // Monitoring Fields - Deployment
+  realisasi_deployment?: string;
+  berkas_nd_ba_deployment?: string;
+  
+  // Monitoring Fields - Keterangan
+  keterangan?: string;
+  
   created_at?: string;
   updated_at?: string;
 }
@@ -147,6 +173,31 @@ export interface Fs2DocumentRequest {
   tahun_selesai?: number;
   pic_id?: string;
   dokumen_path?: string;
+  
+  // Monitoring Fields - Dokumen Pengajuan F.S.2
+  nomor_nd?: string;
+  tanggal_nd?: string;
+  berkas_nd?: string;
+  berkas_fs2?: string;
+  
+  // Monitoring Fields - CD Prinsip
+  nomor_cd?: string;
+  tanggal_cd?: string;
+  berkas_cd?: string;
+  berkas_fs2a?: string;
+  berkas_fs2b?: string;
+  
+  // Monitoring Fields - Pengujian
+  realisasi_pengujian?: string;
+  berkas_f45?: string;
+  berkas_f46?: string;
+  
+  // Monitoring Fields - Deployment
+  realisasi_deployment?: string;
+  berkas_nd_ba_deployment?: string;
+  
+  // Monitoring Fields - Keterangan
+  keterangan?: string;
 }
 
 // ==================== API FUNCTIONS ====================

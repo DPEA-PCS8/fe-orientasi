@@ -33,7 +33,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Divider,
   Accordion,
   AccordionSummary,
   AccordionDetails,
@@ -58,6 +57,9 @@ import {
   ExpandMore as ExpandMoreIcon,
   CloudUpload as CloudUploadIcon,
   InsertDriveFile as FileIcon,
+  PushPin as PushPinIcon,
+  Download as DownloadIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material';
 import { usePermissions } from '../hooks/usePermissions';
 import { DataCountDisplay } from '../components/DataCountDisplay';
@@ -78,8 +80,12 @@ import {
   moveFs2TempFilesToPermanent, 
   deleteFs2TempFiles,
   deleteFs2File,
+  getFs2Files,
+  uploadFs2Files,
+  downloadFs2File,
   type Fs2FileData 
 } from '../api/fs2FileApi';
+import ViewFs2Modal from '../components/modals/ViewFs2Modal';
 
 // Interface for transformed data
 interface Fs2Data {
@@ -87,6 +93,7 @@ interface Fs2Data {
   namaAplikasi: string;
   bidang: string;
   skpa: string;
+  urgensi: string;
   tanggalPengajuan: string;
   status: 'pending' | 'disetujui' | 'tidak_disetujui';
 }
@@ -105,6 +112,7 @@ const transformApiData = (apiData: Fs2DocumentData): Fs2Data => {
     namaAplikasi: apiData.nama_aplikasi || '-',
     bidang: apiData.nama_bidang || '-',
     skpa: apiData.kode_skpa || apiData.nama_skpa || '-',
+    urgensi: apiData.urgensi || '-',
     tanggalPengajuan: apiData.tanggal_pengajuan || '',
     status: mapStatus(apiData.status),
   };
@@ -198,7 +206,7 @@ function Fs2List() {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedFs2ForEdit, setSelectedFs2ForEdit] = useState<Fs2DocumentData | null>(null);
-  const [selectedFs2ForView, setSelectedFs2ForView] = useState<Fs2DocumentData | null>(null);
+  const [selectedFs2IdForView, setSelectedFs2IdForView] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [orderBy, setOrderBy] = useState<keyof Fs2Data>('namaAplikasi');
@@ -222,6 +230,55 @@ function Fs2List() {
   const [selectedStatus, setSelectedStatus] = useState<Set<string>>(new Set());
   const [selectedBidangFilter, setSelectedBidangFilter] = useState<string>('');
   const [selectedSkpaFilter, setSelectedSkpaFilter] = useState<string>('');
+
+  // Sticky columns configuration
+  const [stickyColumnsAnchorEl, setStickyColumnsAnchorEl] = useState<null | HTMLElement>(null);
+  const [stickyColumns, setStickyColumns] = useState<Set<string>>(new Set(['no', 'namaAplikasi']));
+  
+  // Column definitions for sticky configuration - will dynamically include all columns
+  const COLUMN_OPTIONS = useMemo(() => [
+    { id: 'no', label: 'No', width: 50 },
+    { id: 'namaAplikasi', label: 'Nama Aplikasi', width: 150 },
+    { id: 'bidang', label: 'Bidang', width: 120 },
+    { id: 'skpa', label: 'SKPA', width: 100 },
+    { id: 'urgensi', label: 'Urgensi', width: 100 },
+    { id: 'tanggalPengajuan', label: 'Tanggal Pengajuan', width: 150 },
+    { id: 'docsFs2', label: 'Docs F.S.2', width: 90 },
+    { id: 'status', label: 'Status', width: 130 },
+  ], []);
+
+  // Calculate sticky left positions based on selected columns
+  const getStickyLeft = useCallback((columnId: string): number | undefined => {
+    if (!stickyColumns.has(columnId)) return undefined;
+    
+    const orderedSticky = COLUMN_OPTIONS.filter(col => stickyColumns.has(col.id));
+    const colIndex = orderedSticky.findIndex(col => col.id === columnId);
+    if (colIndex === -1) return undefined;
+    
+    let left = 0;
+    for (let i = 0; i < colIndex; i++) {
+      left += orderedSticky[i].width;
+    }
+    return left;
+  }, [stickyColumns, COLUMN_OPTIONS]);
+
+  const isLastStickyColumn = useCallback((columnId: string): boolean => {
+    if (!stickyColumns.has(columnId)) return false;
+    const orderedSticky = COLUMN_OPTIONS.filter(col => stickyColumns.has(col.id));
+    return orderedSticky[orderedSticky.length - 1]?.id === columnId;
+  }, [stickyColumns, COLUMN_OPTIONS]);
+
+  const handleStickyColumnToggle = (columnId: string) => {
+    setStickyColumns(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(columnId)) {
+        newSet.delete(columnId);
+      } else {
+        newSet.add(columnId);
+      }
+      return newSet;
+    });
+  };
 
   // Reference data for dropdowns
   const [aplikasiList, setAplikasiList] = useState<AplikasiData[]>([]);
@@ -270,9 +327,19 @@ function Fs2List() {
   const [sessionId, setSessionId] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
 
+  // Existing files state for Edit modal
+  const [existingFs2Files, setExistingFs2Files] = useState<Fs2FileData[]>([]);
+  const [isLoadingExistingFiles, setIsLoadingExistingFiles] = useState(false);
+
   // Delete confirmation dialog
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [fs2ToDelete, setFs2ToDelete] = useState<string | null>(null);
+
+  // File preview dialog state
+  const [openFilePreviewDialog, setOpenFilePreviewDialog] = useState(false);
+  const [filePreviewFiles, setFilePreviewFiles] = useState<Fs2FileData[]>([]);
+  const [isLoadingFilePreview, setIsLoadingFilePreview] = useState(false);
+  const [filePreviewDownloadingId, setFilePreviewDownloadingId] = useState<string | null>(null);
 
   // Fetch F.S.2 data from API
   const fetchFs2Data = useCallback(async () => {
@@ -559,7 +626,7 @@ function Fs2List() {
   };
 
   // Edit modal handlers
-  const handleOpenEditModal = (fs2Id: string) => {
+  const handleOpenEditModal = async (fs2Id: string) => {
     const fs2 = rawData.find(item => item.id === fs2Id);
     if (fs2) {
       setSelectedFs2ForEdit(fs2);
@@ -596,6 +663,19 @@ function Fs2List() {
         pernyataan_1: fs2.pernyataan_1 || false,
         pernyataan_2: fs2.pernyataan_2 || false,
       });
+      
+      // Fetch existing files
+      setIsLoadingExistingFiles(true);
+      try {
+        const files = await getFs2Files(fs2Id);
+        setExistingFs2Files(files);
+      } catch (error) {
+        console.error('Failed to fetch existing files:', error);
+        setExistingFs2Files([]);
+      } finally {
+        setIsLoadingExistingFiles(false);
+      }
+      
       setOpenEditModal(true);
     }
   };
@@ -603,6 +683,7 @@ function Fs2List() {
   const handleCloseEditModal = () => {
     setOpenEditModal(false);
     setSelectedFs2ForEdit(null);
+    setExistingFs2Files([]);
   };
 
   const handleEditFs2 = async () => {
@@ -611,24 +692,70 @@ function Fs2List() {
       await updateFs2Document(selectedFs2ForEdit.id, formData);
       setOpenEditModal(false);
       setSelectedFs2ForEdit(null);
+      setExistingFs2Files([]);
       fetchFs2Data();
     } catch (error) {
       console.error('Failed to update F.S.2:', error);
     }
   };
 
+  // Edit modal file handlers
+  const handleEditFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0 && selectedFs2ForEdit) {
+      const file = files[0];
+      setIsUploading(true);
+      try {
+        // Upload directly to the F.S.2 document
+        const uploadedData = await uploadFs2Files(selectedFs2ForEdit.id, [file]);
+        // Add to existing files list
+        setExistingFs2Files(prev => [...prev, ...uploadedData]);
+      } catch (error) {
+        console.error('Failed to upload file:', error);
+        alert('Gagal mengupload file. Silakan coba lagi.');
+      } finally {
+        setIsUploading(false);
+      }
+    }
+    event.target.value = '';
+  };
+
+  const handleDeleteExistingFile = async (fileId: string) => {
+    try {
+      await deleteFs2File(fileId);
+      setExistingFs2Files(prev => prev.filter(f => f.id !== fileId));
+    } catch (error) {
+      console.error('Failed to delete file:', error);
+      alert('Gagal menghapus file. Silakan coba lagi.');
+    }
+  };
+
+  const handleDownloadExistingFile = async (file: Fs2FileData) => {
+    try {
+      const blob = await downloadFs2File(file.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.original_name || file.file_name;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Failed to download file:', error);
+      alert('Gagal mengunduh file. Silakan coba lagi.');
+    }
+  };
+
   // View modal handlers
   const handleOpenViewModal = (fs2Id: string) => {
-    const fs2 = rawData.find(item => item.id === fs2Id);
-    if (fs2) {
-      setSelectedFs2ForView(fs2);
-      setOpenViewModal(true);
-    }
+    setSelectedFs2IdForView(fs2Id);
+    setOpenViewModal(true);
   };
 
   const handleCloseViewModal = () => {
     setOpenViewModal(false);
-    setSelectedFs2ForView(null);
+    setSelectedFs2IdForView(null);
   };
 
   // Delete handlers
@@ -640,6 +767,50 @@ function Fs2List() {
   const handleCloseDeleteDialog = () => {
     setOpenDeleteDialog(false);
     setFs2ToDelete(null);
+  };
+
+  // File preview dialog handlers
+  const handleOpenFilePreviewDialog = async (fs2Id: string) => {
+    setOpenFilePreviewDialog(true);
+    setIsLoadingFilePreview(true);
+    try {
+      const files = await getFs2Files(fs2Id);
+      setFilePreviewFiles(files);
+    } catch (error) {
+      console.error('Failed to load files:', error);
+      setFilePreviewFiles([]);
+    } finally {
+      setIsLoadingFilePreview(false);
+    }
+  };
+
+  const handleCloseFilePreviewDialog = () => {
+    setOpenFilePreviewDialog(false);
+    setFilePreviewFiles([]);
+  };
+
+  const handleViewFileInNewTab = (file: Fs2FileData) => {
+    window.open(`/api/fs2/files/download/${file.id}`, '_blank');
+  };
+
+  const handleDownloadFilePreview = async (file: Fs2FileData) => {
+    setFilePreviewDownloadingId(file.id);
+    try {
+      const blob = await downloadFs2File(file.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.original_name || file.file_name;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Failed to download file:', error);
+      alert('Gagal mengunduh file. Silakan coba lagi.');
+    } finally {
+      setFilePreviewDownloadingId(null);
+    }
   };
 
   const handleDeleteFs2 = async () => {
@@ -763,6 +934,31 @@ function Fs2List() {
                 />
               )}
             </Button>
+            
+            {/* Sticky Columns Settings Button */}
+            <Tooltip title="Atur Kolom Sticky">
+              <Button
+                variant="text"
+                startIcon={<PushPinIcon sx={{ fontSize: 18 }} />}
+                onClick={(e) => setStickyColumnsAnchorEl(e.currentTarget)}
+                sx={{
+                  color: stickyColumns.size > 0 ? '#2563EB' : '#86868b',
+                  fontWeight: 500,
+                  '&:hover': {
+                    bgcolor: 'rgba(0, 0, 0, 0.04)',
+                  },
+                }}
+              >
+                Pin
+                {stickyColumns.size > 0 && (
+                  <Chip
+                    label={stickyColumns.size}
+                    size="small"
+                    sx={{ ml: 1, bgcolor: '#2563EB', color: 'white', height: 20, fontSize: '0.7rem' }}
+                  />
+                )}
+              </Button>
+            </Tooltip>
           </Box>
           {fs2Permissions.canCreate && (
             <Button
@@ -964,6 +1160,77 @@ function Fs2List() {
         </Box>
       </Popover>
 
+      {/* Sticky Columns Popover */}
+      <Popover
+        open={Boolean(stickyColumnsAnchorEl)}
+        anchorEl={stickyColumnsAnchorEl}
+        onClose={() => setStickyColumnsAnchorEl(null)}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+            border: '1px solid rgba(0, 0, 0, 0.06)',
+            p: 2,
+            minWidth: 280,
+          },
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+            Kolom Sticky
+          </Typography>
+          <IconButton size="small" onClick={() => setStickyColumnsAnchorEl(null)}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+        <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mb: 2 }}>
+          Pilih kolom yang akan tetap terlihat saat scroll horizontal
+        </Typography>
+        <FormGroup>
+          {COLUMN_OPTIONS.map((col) => (
+            <FormControlLabel
+              key={col.id}
+              control={
+                <Checkbox
+                  checked={stickyColumns.has(col.id)}
+                  onChange={() => handleStickyColumnToggle(col.id)}
+                  size="small"
+                  sx={{
+                    '&.Mui-checked': { color: '#2563EB' },
+                  }}
+                />
+              }
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2">{col.label}</Typography>
+                  {stickyColumns.has(col.id) && (
+                    <PushPinIcon sx={{ fontSize: 14, color: '#2563EB' }} />
+                  )}
+                </Box>
+              }
+              sx={{ mb: 0.5 }}
+            />
+          ))}
+        </FormGroup>
+        <Button
+          fullWidth
+          variant="text"
+          size="small"
+          onClick={() => setStickyColumns(new Set())}
+          sx={{ mt: 1, color: '#86868b' }}
+        >
+          Reset Semua
+        </Button>
+      </Popover>
+
       {/* Data Count Display */}
       <Box sx={{ my: 2.5 }}>
         <DataCountDisplay
@@ -973,9 +1240,27 @@ function Fs2List() {
           unit="F.S.2 Documents"
         />
       </Box>
-    
+
       {/* Table */}
-      <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
+      <TableContainer sx={{ 
+        width: '100%', 
+        overflowX: 'auto',
+        '&::-webkit-scrollbar': {
+          height: 8,
+        },
+        '&::-webkit-scrollbar-track': {
+          background: 'rgba(0, 0, 0, 0.02)',
+          borderRadius: 4,
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: 'rgba(0, 0, 0, 0.08)',
+          borderRadius: 4,
+          border: '1px solid rgba(0, 0, 0, 0.06)',
+          '&:hover': {
+            background: 'rgba(0, 0, 0, 0.12)',
+          },
+        },
+      }}>
         <Table sx={{ minWidth: 1000 }}>
           <TableHead>
             <TableRow sx={{ bgcolor: '#f5f5f7' }}>
@@ -987,6 +1272,8 @@ function Fs2List() {
                   width: 50,
                   minWidth: 50,
                   textAlign: 'center',
+                  ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                  ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                 }}
               >
                 No
@@ -998,6 +1285,8 @@ function Fs2List() {
                   color: '#1d1d1f', 
                   py: 2,
                   minWidth: 150,
+                  ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                  ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                 }}
               >
                 <TableSortLabel
@@ -1008,8 +1297,30 @@ function Fs2List() {
                   Nama Aplikasi
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2, minWidth: 120 }}>Bidang</TableCell>
-              <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2, minWidth: 100 }}>SKPA</TableCell>
+              <TableCell sx={{ 
+                fontWeight: 600, 
+                color: '#1d1d1f', 
+                py: 2, 
+                minWidth: 120,
+                ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+              }}>Bidang</TableCell>
+              <TableCell sx={{ 
+                fontWeight: 600, 
+                color: '#1d1d1f', 
+                py: 2, 
+                minWidth: 100,
+                ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+              }}>SKPA</TableCell>
+              <TableCell sx={{ 
+                fontWeight: 600, 
+                color: '#1d1d1f', 
+                py: 2, 
+                minWidth: 100,
+                ...(stickyColumns.has('urgensi') && { position: 'sticky', left: getStickyLeft('urgensi'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                ...(isLastStickyColumn('urgensi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+              }}>Urgensi</TableCell>
               <TableCell 
                 sortDirection={orderBy === 'tanggalPengajuan' ? order : false}
                 sx={{ 
@@ -1017,6 +1328,8 @@ function Fs2List() {
                   color: '#1d1d1f', 
                   py: 2,
                   minWidth: 150,
+                  ...(stickyColumns.has('tanggalPengajuan') && { position: 'sticky', left: getStickyLeft('tanggalPengajuan'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                  ...(isLastStickyColumn('tanggalPengajuan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                 }}
               >
                 <TableSortLabel
@@ -1027,14 +1340,31 @@ function Fs2List() {
                   Tanggal Pengajuan
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2, minWidth: 130 }}>Status</TableCell>
+              <TableCell 
+                sx={{ 
+                  fontWeight: 600, 
+                  color: '#1d1d1f', 
+                  py: 2,
+                  minWidth: 90,
+                }}
+              >
+                Docs F.S.2
+              </TableCell>
+              <TableCell sx={{ 
+                fontWeight: 600, 
+                color: '#1d1d1f', 
+                py: 2, 
+                minWidth: 130,
+                ...(stickyColumns.has('status') && { position: 'sticky', left: getStickyLeft('status'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                ...(isLastStickyColumn('status') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+              }}>Status</TableCell>
               <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2, minWidth: 120 }}>Aksi</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} sx={{ textAlign: 'center', py: 6 }}>
+                <TableCell colSpan={9} sx={{ textAlign: 'center', py: 6 }}>
                   <CircularProgress size={40} sx={{ color: '#DA251C' }} />
                   <Typography variant="body2" sx={{ mt: 2, color: '#86868b' }}>
                     Memuat data...
@@ -1043,7 +1373,7 @@ function Fs2List() {
               </TableRow>
             ) : fs2Data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} sx={{ textAlign: 'center', py: 6 }}>
+                <TableCell colSpan={9} sx={{ textAlign: 'center', py: 6 }}>
                   <Typography variant="body2" sx={{ color: '#86868b' }}>
                     Tidak ada data F.S.2 ditemukan
                   </Typography>
@@ -1071,11 +1401,21 @@ function Fs2List() {
                         textAlign: 'center',
                         fontWeight: 500,
                         fontSize: '0.85rem',
+                        minWidth: 50,
+                        ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 1, bgcolor: '#fff' }),
+                        ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                       }}
                     >
                       {page * rowsPerPage + index + 1}
                     </TableCell>
-                    <TableCell sx={{ py: 2, whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                    <TableCell sx={{ 
+                      py: 2, 
+                      whiteSpace: 'normal', 
+                      wordWrap: 'break-word',
+                      minWidth: 150,
+                      ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 1, bgcolor: '#fff' }),
+                      ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+                    }}>
                       <Typography 
                         variant="body2" 
                         sx={{ 
@@ -1086,12 +1426,22 @@ function Fs2List() {
                         {row.namaAplikasi}
                       </Typography>
                     </TableCell>
-                    <TableCell sx={{ py: 2 }}>
+                    <TableCell sx={{ 
+                      py: 2,
+                      minWidth: 120,
+                      ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 1, bgcolor: '#fff' }),
+                      ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+                    }}>
                       <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.85rem' }}>
                         {row.bidang}
                       </Typography>
                     </TableCell>
-                    <TableCell sx={{ py: 2 }}>
+                    <TableCell sx={{ 
+                      py: 2,
+                      minWidth: 100,
+                      ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 1, bgcolor: '#fff' }),
+                      ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+                    }}>
                       <Chip
                         label={row.skpa}
                         size="small"
@@ -1105,7 +1455,31 @@ function Fs2List() {
                         }}
                       />
                     </TableCell>
-                    <TableCell sx={{ py: 2 }}>
+                    <TableCell sx={{ 
+                      py: 2,
+                      minWidth: 100,
+                      ...(stickyColumns.has('urgensi') && { position: 'sticky', left: getStickyLeft('urgensi'), zIndex: 1, bgcolor: '#fff' }),
+                      ...(isLastStickyColumn('urgensi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+                    }}>
+                      <Chip
+                        label={row.urgensi}
+                        size="small"
+                        sx={{
+                          bgcolor: row.urgensi === 'TINGGI' ? 'rgba(220, 38, 38, 0.1)' : row.urgensi === 'SEDANG' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+                          color: row.urgensi === 'TINGGI' ? '#DC2626' : row.urgensi === 'SEDANG' ? '#F59E0B' : '#22C55E',
+                          fontWeight: 600,
+                          fontSize: '0.7rem',
+                          height: 24,
+                          borderRadius: '6px',
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell sx={{ 
+                      py: 2,
+                      minWidth: 150,
+                      ...(stickyColumns.has('tanggalPengajuan') && { position: 'sticky', left: getStickyLeft('tanggalPengajuan'), zIndex: 1, bgcolor: '#fff' }),
+                      ...(isLastStickyColumn('tanggalPengajuan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+                    }}>
                       <Typography 
                         variant="body2" 
                         sx={{ 
@@ -1117,6 +1491,28 @@ function Fs2List() {
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ py: 2 }}>
+                      <Tooltip title="Lihat Dokumen F.S.2">
+                        <IconButton
+                          onClick={() => handleOpenFilePreviewDialog(row.id)}
+                          size="small"
+                          sx={{
+                            color: '#DA251C',
+                            bgcolor: 'rgba(218, 37, 28, 0.08)',
+                            '&:hover': {
+                              bgcolor: 'rgba(218, 37, 28, 0.15)',
+                            },
+                          }}
+                        >
+                          <OpenInNewIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell sx={{ 
+                      py: 2,
+                      minWidth: 130,
+                      ...(stickyColumns.has('status') && { position: 'sticky', left: getStickyLeft('status'), zIndex: 1, bgcolor: '#fff' }),
+                      ...(isLastStickyColumn('status') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+                    }}>
                       <Box
                         onClick={fs2Permissions.canUpdate ? (e) => handleStatusMenuOpen(e, row.id) : undefined}
                         sx={{
@@ -2961,76 +3357,110 @@ function Fs2List() {
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
                 <Stack spacing={2}>
-                  <Box
-                    sx={{
-                      border: '2px dashed #e5e5e7',
-                      borderRadius: 2,
-                      p: 3,
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease-in-out',
-                      '&:hover': {
-                        borderColor: '#DA251C',
-                        bgcolor: 'rgba(218, 37, 28, 0.04)',
-                      },
-                    }}
-                    onClick={() => document.getElementById('fs2-edit-file-upload-input')?.click()}
-                  >
-                    <input
-                      id="fs2-edit-file-upload-input"
-                      type="file"
-                      hidden
-                      onChange={handleFileUpload}
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-                    />
-                    <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
-                    <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
-                      Klik untuk upload file
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
-                      atau drag & drop file di sini
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
-                      Format yang didukung: PDF, Word, Excel, Gambar (max 20MB)
-                    </Typography>
-                  </Box>
-
-                  {uploadedFiles.length > 0 && (
+                  {/* Existing Files Section */}
+                  {isLoadingExistingFiles ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                      <CircularProgress size={32} sx={{ color: '#DA251C' }} />
+                    </Box>
+                  ) : existingFs2Files.length > 0 ? (
                     <Box>
                       <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>
-                        File yang diupload ({uploadedFiles.length})
+                        File yang sudah diunggah ({existingFs2Files.length})
                       </Typography>
                       <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px' }}>
-                        {uploadedFiles.map((file, index) => (
+                        {existingFs2Files.map((file, index) => (
                           <ListItem
-                            key={index}
+                            key={file.id}
                             sx={{
-                              borderBottom: index < uploadedFiles.length - 1 ? '1px solid #e5e5e7' : 'none',
+                              borderBottom: index < existingFs2Files.length - 1 ? '1px solid #e5e5e7' : 'none',
                             }}
                           >
                             <ListItemIcon>
                               <FileIcon sx={{ color: '#DA251C' }} />
                             </ListItemIcon>
                             <ListItemText
-                              primary={file.name}
-                              secondary={formatFileSize(file.size)}
+                              primary={file.original_name || file.file_name}
+                              secondary={formatFileSize(file.file_size)}
                               primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }}
                               secondaryTypographyProps={{ sx: { color: '#86868b' } }}
                             />
                             <ListItemSecondaryAction>
-                              <IconButton
-                                edge="end"
-                                onClick={() => handleRemoveFile(index)}
-                                sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
+                              <Tooltip title="Download">
+                                <IconButton
+                                  edge="end"
+                                  onClick={() => handleDownloadExistingFile(file)}
+                                  sx={{ color: '#86868b', '&:hover': { color: '#2563EB' }, mr: 0.5 }}
+                                >
+                                  <DownloadIcon />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Hapus">
+                                <IconButton
+                                  edge="end"
+                                  onClick={() => handleDeleteExistingFile(file.id)}
+                                  sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              </Tooltip>
                             </ListItemSecondaryAction>
                           </ListItem>
                         ))}
                       </List>
                     </Box>
+                  ) : (
+                    <Typography variant="body2" sx={{ color: '#86868b', fontStyle: 'italic', textAlign: 'center', py: 2 }}>
+                      Belum ada file yang diunggah
+                    </Typography>
                   )}
+
+                  {/* Upload New File Section */}
+                  <Box
+                    sx={{
+                      border: '2px dashed #e5e5e7',
+                      borderRadius: 2,
+                      p: 3,
+                      textAlign: 'center',
+                      cursor: isUploading ? 'not-allowed' : 'pointer',
+                      opacity: isUploading ? 0.7 : 1,
+                      transition: 'all 0.2s ease-in-out',
+                      '&:hover': {
+                        borderColor: isUploading ? '#e5e5e7' : '#DA251C',
+                        bgcolor: isUploading ? 'transparent' : 'rgba(218, 37, 28, 0.04)',
+                      },
+                    }}
+                    onClick={() => !isUploading && document.getElementById('fs2-edit-file-upload-input')?.click()}
+                  >
+                    <input
+                      id="fs2-edit-file-upload-input"
+                      type="file"
+                      hidden
+                      onChange={handleEditFileUpload}
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                      disabled={isUploading}
+                    />
+                    {isUploading ? (
+                      <>
+                        <CircularProgress size={48} sx={{ color: '#DA251C', mb: 1 }} />
+                        <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                          Mengupload file...
+                        </Typography>
+                      </>
+                    ) : (
+                      <>
+                        <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
+                        <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                          Klik untuk upload file tambahan
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
+                          atau drag & drop file di sini
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
+                          Format yang didukung: PDF, Word, Excel, Gambar (max 20MB)
+                        </Typography>
+                      </>
+                    )}
+                  </Box>
                 </Stack>
               </AccordionDetails>
             </Accordion>
@@ -3066,279 +3496,11 @@ function Fs2List() {
       </Dialog>
 
       {/* View Modal */}
-      <Dialog 
-        open={openViewModal} 
-        onClose={handleCloseViewModal} 
-        maxWidth="md" 
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: '20px',
-            maxHeight: '90vh',
-            bgcolor: 'rgba(255, 255, 255, 0.75)',
-            backdropFilter: 'blur(40px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1) inset',
-          },
-        }}
-        slotProps={{
-          backdrop: {
-            sx: {
-              bgcolor: 'rgba(0, 0, 0, 0.3)',
-              backdropFilter: 'blur(8px)',
-            }
-          }
-        }}
-      >
-        <DialogTitle
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
-            pb: 2,
-            bgcolor: 'rgba(255, 255, 255, 0.85)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-          }}
-        >
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.02em' }}
-          >
-            Detail F.S.2
-          </Typography>
-          <IconButton
-            onClick={handleCloseViewModal}
-            size="small"
-            sx={{
-              color: '#86868b',
-              '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' },
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent
-          sx={{
-            pt: 3,
-            pb: 4,
-            background: 'linear-gradient(135deg, rgba(245, 245, 247, 0.9) 0%, rgba(250, 250, 250, 0.95) 100%)',
-          }}
-        >
-          {selectedFs2ForView && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-              {/* Basic Information */}
-              <Typography variant="subtitle1" fontWeight={600}>Informasi Dasar</Typography>
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" color="text.secondary">Aplikasi</Typography>
-                  <Typography>{selectedFs2ForView.nama_aplikasi || '-'}</Typography>
-                </Grid>
-                <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" color="text.secondary">SKPA</Typography>
-                  <Typography>{selectedFs2ForView.kode_skpa || selectedFs2ForView.nama_skpa || '-'}</Typography>
-                </Grid>
-                <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" color="text.secondary">Bidang</Typography>
-                  <Typography>{selectedFs2ForView.nama_bidang || '-'}</Typography>
-                </Grid>
-                <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" color="text.secondary">Tanggal Pengajuan</Typography>
-                  <Typography>{formatDate(selectedFs2ForView.tanggal_pengajuan || '')}</Typography>
-                </Grid>
-                <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" color="text.secondary">Status</Typography>
-                  <Typography>{selectedFs2ForView.status}</Typography>
-                </Grid>
-              </Grid>
-
-              <Divider sx={{ my: 1 }} />
-
-              {/* Description */}
-              <Typography variant="subtitle1" fontWeight={600}>Deskripsi Pengubahan</Typography>
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 12 }}>
-                  <Typography variant="caption" color="text.secondary">Deskripsi Pengubahan</Typography>
-                  <Typography>{selectedFs2ForView.deskripsi_pengubahan || '-'}</Typography>
-                </Grid>
-                <Grid size={{ xs: 12 }}>
-                  <Typography variant="caption" color="text.secondary">Alasan Pengubahan</Typography>
-                  <Typography>{selectedFs2ForView.alasan_pengubahan || '-'}</Typography>
-                </Grid>
-                <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" color="text.secondary">Status Tahapan Aplikasi</Typography>
-                  <Typography>{selectedFs2ForView.status_tahapan || '-'}</Typography>
-                </Grid>
-                <Grid size={{ xs: 6 }}>
-                  <Typography variant="caption" color="text.secondary">Urgensi</Typography>
-                  <Typography>{selectedFs2ForView.urgensi || '-'}</Typography>
-                </Grid>
-              </Grid>
-
-              <Divider sx={{ my: 1 }} />
-
-              {/* Kriteria */}
-              <Typography variant="subtitle1" fontWeight={600}>Kesesuaian Kriteria Pengubahan Aplikasi</Typography>
-              <Box>
-                <Typography variant="body2">
-                  1. Tidak menambah fungsi baru: {selectedFs2ForView.kriteria_1 ? '✓ Ya' : '✗ Tidak'}
-                </Typography>
-                <Typography variant="body2">
-                  2. Tidak menambah sumber data baru: {selectedFs2ForView.kriteria_2 ? '✓ Ya' : '✗ Tidak'}
-                </Typography>
-                <Typography variant="body2">
-                  3. Tidak mengubah sumber data: {selectedFs2ForView.kriteria_3 ? '✓ Ya' : '✗ Tidak'}
-                </Typography>
-                <Typography variant="body2">
-                  4. Tidak mengubah alur kerja: {selectedFs2ForView.kriteria_4 ? '✓ Ya' : '✗ Tidak'}
-                </Typography>
-              </Box>
-
-              <Divider sx={{ my: 1 }} />
-
-              {/* Aspek Perubahan */}
-              <Accordion>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Typography variant="subtitle1" fontWeight={600}>Aspek Perubahan</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Grid container spacing={2}>
-                    <Grid size={{ xs: 12 }}>
-                      <Typography variant="caption" color="text.secondary">1. Terhadap sistem yang ada</Typography>
-                      <Typography>{selectedFs2ForView.aspek_sistem_ada || '-'}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 12 }}>
-                      <Typography variant="caption" color="text.secondary">2. Terhadap sistem terkait</Typography>
-                      <Typography>{selectedFs2ForView.aspek_sistem_terkait || '-'}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 12 }}>
-                      <Typography variant="caption" color="text.secondary">3. Terhadap alur kerja bisnis</Typography>
-                      <Typography>{selectedFs2ForView.aspek_alur_kerja || '-'}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 12 }}>
-                      <Typography variant="caption" color="text.secondary">4. Terhadap struktur organisasi</Typography>
-                      <Typography>{selectedFs2ForView.aspek_struktur_organisasi || '-'}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 12 }}>
-                      <Typography variant="body2" fontWeight={500}>5.1 Dokumen T.0.1</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography variant="caption" color="text.secondary">Sebelum</Typography>
-                      <Typography>{selectedFs2ForView.dok_t01_sebelum || '-'}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography variant="caption" color="text.secondary">Sesudah</Typography>
-                      <Typography>{selectedFs2ForView.dok_t01_sesudah || '-'}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 12 }}>
-                      <Typography variant="body2" fontWeight={500}>5.2 Dokumen T.1.1</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography variant="caption" color="text.secondary">Sebelum</Typography>
-                      <Typography>{selectedFs2ForView.dok_t11_sebelum || '-'}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography variant="caption" color="text.secondary">Sesudah</Typography>
-                      <Typography>{selectedFs2ForView.dok_t11_sesudah || '-'}</Typography>
-                    </Grid>
-                  </Grid>
-                </AccordionDetails>
-              </Accordion>
-
-              {/* Penggunaan Sistem */}
-              <Accordion>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Typography variant="subtitle1" fontWeight={600}>6. Terhadap Penggunaan Sistem</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Grid container spacing={2}>
-                    <Grid size={{ xs: 12 }}>
-                      <Typography variant="body2" fontWeight={500}>6.1 Jumlah Pengguna</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography variant="caption" color="text.secondary">Sebelum</Typography>
-                      <Typography>{selectedFs2ForView.pengguna_sebelum || '-'}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography variant="caption" color="text.secondary">Sesudah</Typography>
-                      <Typography>{selectedFs2ForView.pengguna_sesudah || '-'}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 12 }}>
-                      <Typography variant="body2" fontWeight={500}>6.2 Jumlah akses bersamaan</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography variant="caption" color="text.secondary">Sebelum</Typography>
-                      <Typography>{selectedFs2ForView.akses_bersamaan_sebelum || '-'}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography variant="caption" color="text.secondary">Sesudah</Typography>
-                      <Typography>{selectedFs2ForView.akses_bersamaan_sesudah || '-'}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 12 }}>
-                      <Typography variant="body2" fontWeight={500}>6.3 Pertumbuhan data</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography variant="caption" color="text.secondary">Sebelum</Typography>
-                      <Typography>{selectedFs2ForView.pertumbuhan_data_sebelum || '-'}</Typography>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography variant="caption" color="text.secondary">Sesudah</Typography>
-                      <Typography>{selectedFs2ForView.pertumbuhan_data_sesudah || '-'}</Typography>
-                    </Grid>
-                  </Grid>
-                </AccordionDetails>
-              </Accordion>
-
-              <Divider sx={{ my: 1 }} />
-
-              {/* Jadwal */}
-              <Typography variant="subtitle1" fontWeight={600}>Jadwal Pelaksanaan</Typography>
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 4 }}>
-                  <Typography variant="caption" color="text.secondary">Target Pengujian</Typography>
-                  <Typography>{formatDate(selectedFs2ForView.target_pengujian || '')}</Typography>
-                </Grid>
-                <Grid size={{ xs: 4 }}>
-                  <Typography variant="caption" color="text.secondary">Target Deployment</Typography>
-                  <Typography>{formatDate(selectedFs2ForView.target_deployment || '')}</Typography>
-                </Grid>
-                <Grid size={{ xs: 4 }}>
-                  <Typography variant="caption" color="text.secondary">Target Go Live</Typography>
-                  <Typography>{formatDate(selectedFs2ForView.target_go_live || '')}</Typography>
-                </Grid>
-              </Grid>
-
-              <Divider sx={{ my: 1 }} />
-
-              {/* Pernyataan */}
-              <Typography variant="subtitle1" fontWeight={600}>Pernyataan</Typography>
-              <Box>
-                <Typography variant="body2">
-                  1. Bersedia menerima konsekuensi: {selectedFs2ForView.pernyataan_1 ? '✓ Ya' : '✗ Tidak'}
-                </Typography>
-                <Typography variant="body2">
-                  2. Satker terdampak telah menyetujui: {selectedFs2ForView.pernyataan_2 ? '✓ Ya' : '✗ Tidak'}
-                </Typography>
-              </Box>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ p: 2.5, pt: 1, borderTop: '1px solid rgba(0, 0, 0, 0.06)' }}>
-          <Button 
-            onClick={handleCloseViewModal}
-            sx={{
-              color: '#86868b',
-              '&:hover': {
-                bgcolor: 'rgba(0, 0, 0, 0.04)',
-              },
-            }}
-          >
-            Tutup
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ViewFs2Modal
+        open={openViewModal}
+        onClose={handleCloseViewModal}
+        fs2Id={selectedFs2IdForView}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog 
@@ -3388,6 +3550,119 @@ function Fs2List() {
             Hapus
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* File Preview Dialog */}
+      <Dialog
+        open={openFilePreviewDialog}
+        onClose={handleCloseFilePreviewDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ 
+          fontWeight: 600, 
+          color: '#1d1d1f',
+          pb: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <FileIcon sx={{ color: '#DA251C' }} />
+            Dokumen F.S.2
+          </Box>
+          <IconButton onClick={handleCloseFilePreviewDialog} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {isLoadingFilePreview ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={32} sx={{ color: '#DA251C' }} />
+            </Box>
+          ) : filePreviewFiles.length > 0 ? (
+            <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px', p: 1 }}>
+              {filePreviewFiles.map((file, index) => (
+                <ListItem
+                  key={file.id}
+                  sx={{
+                    borderRadius: '8px',
+                    mb: index < filePreviewFiles.length - 1 ? 1 : 0,
+                    bgcolor: 'white',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.9)',
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <FileIcon sx={{ color: '#DA251C', fontSize: 24 }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={file.original_name}
+                    secondary={formatFileSize(file.file_size)}
+                    primaryTypographyProps={{
+                      sx: {
+                        fontWeight: 500,
+                        color: '#1d1d1f',
+                        fontSize: '0.9rem',
+                      },
+                    }}
+                    secondaryTypographyProps={{
+                      sx: { color: '#86868b', fontSize: '0.75rem' },
+                    }}
+                  />
+                  <ListItemSecondaryAction>
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      {file.content_type === 'application/pdf' && (
+                        <Tooltip title="Lihat PDF">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleViewFileInNewTab(file)}
+                            sx={{
+                              color: '#DA251C',
+                              '&:hover': { bgcolor: 'rgba(218, 37, 28, 0.1)' },
+                            }}
+                          >
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <Tooltip title="Unduh">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDownloadFilePreview(file)}
+                          disabled={filePreviewDownloadingId === file.id}
+                          sx={{
+                            color: '#DA251C',
+                            '&:hover': { bgcolor: 'rgba(218, 37, 28, 0.1)' },
+                          }}
+                        >
+                          {filePreviewDownloadingId === file.id ? (
+                            <CircularProgress size={16} sx={{ color: '#DA251C' }} />
+                          ) : (
+                            <DownloadIcon fontSize="small" />
+                          )}
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 4, color: '#86868b' }}>
+              <FileIcon sx={{ fontSize: 48, mb: 1, opacity: 0.5 }} />
+              <Typography variant="body2">Tidak ada dokumen yang diunggah</Typography>
+            </Box>
+          )}
+        </DialogContent>
       </Dialog>
     </Box>
   );
