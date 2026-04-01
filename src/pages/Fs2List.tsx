@@ -86,6 +86,7 @@ import {
   type Fs2FileData 
 } from '../api/fs2FileApi';
 import ViewFs2Modal from '../components/modals/ViewFs2Modal';
+import { FilePreviewModal } from '../components/modals';
 
 // Interface for transformed data
 interface Fs2Data {
@@ -340,6 +341,10 @@ function Fs2List() {
   const [filePreviewFiles, setFilePreviewFiles] = useState<Fs2FileData[]>([]);
   const [isLoadingFilePreview, setIsLoadingFilePreview] = useState(false);
   const [filePreviewDownloadingId, setFilePreviewDownloadingId] = useState<string | null>(null);
+  
+  // File preview modal state (popup preview)
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewFile, setPreviewFile] = useState<Fs2FileData | null>(null);
 
   // Fetch F.S.2 data from API
   const fetchFs2Data = useCallback(async () => {
@@ -789,8 +794,28 @@ function Fs2List() {
     setFilePreviewFiles([]);
   };
 
+  // Open preview modal instead of new tab
   const handleViewFileInNewTab = (file: Fs2FileData) => {
-    window.open(`/api/fs2/files/download/${file.id}`, '_blank');
+    setPreviewFile(file);
+    setPreviewOpen(true);
+  };
+
+  // Check if file is previewable
+  const isPreviewable = (contentType: string): boolean => {
+    return contentType === 'application/pdf' || contentType.startsWith('image/');
+  };
+
+  // Handle preview close
+  const handlePreviewClose = () => {
+    setPreviewOpen(false);
+    setPreviewFile(null);
+  };
+
+  // Handle download from preview modal
+  const handlePreviewDownload = async () => {
+    if (previewFile) {
+      await handleDownloadFilePreview(previewFile);
+    }
   };
 
   const handleDownloadFilePreview = async (file: Fs2FileData) => {
@@ -3620,8 +3645,8 @@ function Fs2List() {
                   />
                   <ListItemSecondaryAction>
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
-                      {file.content_type === 'application/pdf' && (
-                        <Tooltip title="Lihat PDF">
+                      {isPreviewable(file.content_type) && (
+                        <Tooltip title="Lihat">
                           <IconButton
                             size="small"
                             onClick={() => handleViewFileInNewTab(file)}
@@ -3664,6 +3689,17 @@ function Fs2List() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* File Preview Modal */}
+      <FilePreviewModal
+        open={previewOpen}
+        onClose={handlePreviewClose}
+        fileId={previewFile?.id || null}
+        fileName={previewFile?.original_name || ''}
+        contentType={previewFile?.content_type || ''}
+        onDownload={handlePreviewDownload}
+        downloadUrl={`/api/fs2/files/download/${previewFile?.id}`}
+      />
     </Box>
   );
 }

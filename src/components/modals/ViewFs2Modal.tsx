@@ -40,6 +40,7 @@ import {
 } from '@mui/icons-material';
 import { getFs2DocumentById, type Fs2DocumentData } from '../../api/fs2Api';
 import { getFs2Files, downloadFs2File, type Fs2FileData } from '../../api/fs2FileApi';
+import FilePreviewModal from './FilePreviewModal';
 
 // Glass Card Component - matching ViewPksiModal
 const GlassCard = styled(Box)({
@@ -128,6 +129,10 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
   const [fs2Files, setFs2Files] = useState<Fs2FileData[]>([]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+  
+  // File preview state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewFile, setPreviewFile] = useState<Fs2FileData | null>(null);
 
   // Fetch FS2 details
   useEffect(() => {
@@ -194,9 +199,28 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
     }
   };
 
-  // Handle file view in new tab (for PDFs)
+  // Handle file view - open preview modal instead of new tab
   const handleViewFile = (file: Fs2FileData) => {
-    window.open(`/api/fs2/files/download/${file.id}`, '_blank');
+    setPreviewFile(file);
+    setPreviewOpen(true);
+  };
+
+  // Check if file is previewable
+  const isPreviewable = (contentType: string): boolean => {
+    return contentType === 'application/pdf' || contentType.startsWith('image/');
+  };
+
+  // Handle preview close
+  const handlePreviewClose = () => {
+    setPreviewOpen(false);
+    setPreviewFile(null);
+  };
+
+  // Handle download from preview modal
+  const handlePreviewDownload = async () => {
+    if (previewFile) {
+      await handleDownload(previewFile);
+    }
   };
 
   // Format file size
@@ -785,7 +809,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                       />
                       <ListItemSecondaryAction>
                         <Box sx={{ display: 'flex', gap: 0.5 }}>
-                          {file.content_type === 'application/pdf' && (
+                          {isPreviewable(file.content_type) && (
                             <IconButton
                               size="small"
                               onClick={() => handleViewFile(file)}
@@ -1078,6 +1102,17 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
           Tutup
         </Button>
       </DialogActions>
+
+      {/* File Preview Modal */}
+      <FilePreviewModal
+        open={previewOpen}
+        onClose={handlePreviewClose}
+        fileId={previewFile?.id || null}
+        fileName={previewFile?.original_name || ''}
+        contentType={previewFile?.content_type || ''}
+        onDownload={handlePreviewDownload}
+        downloadUrl={`/api/fs2/files/download/${previewFile?.id}`}
+      />
     </Dialog>
   );
 };

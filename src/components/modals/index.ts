@@ -1,6 +1,7 @@
 export { default as AddPksiModal } from './AddPksiModal';
 export { default as EditPksiModal } from './EditPksiModal';
 export { default as ViewPksiModal } from './ViewPksiModal';
+export { default as FilePreviewModal } from './FilePreviewModal';
 export { default as AddProgramModal } from './AddProgramModal';
 export { default as AddInisiatifModal } from './AddInisiatifModal';
 export { default as AddPeriodeModal } from './AddPeriodeModal';

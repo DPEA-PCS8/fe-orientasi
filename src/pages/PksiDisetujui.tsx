@@ -42,13 +42,21 @@ import {
   Delete as DeleteIcon,
   PushPin as PushPinIcon,
   AssessmentRounded,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { searchPksiDocuments, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getUsersByRole, type UserSimple } from '../api/userApi';
 import { getUserRoles } from '../api/authApi';
-import { ViewPksiModal } from '../components/modals';
+import { ViewPksiModal, FilePreviewModal } from '../components/modals';
 import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
+import { 
+  uploadPksiFiles, 
+  getPksiFiles, 
+  deletePksiFile, 
+  downloadPksiFile,
+  type PksiFileData 
+} from '../api/pksiFileApi';
 
 // Interface untuk data PKSI (transformed from API)
 interface PksiData {
@@ -338,11 +346,19 @@ function PksiDisetujui() {
   });
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
-  // File upload state for T01 and T11
-  const [filesT01, setFilesT01] = useState<File[]>([]);
-  const [filesT11, setFilesT11] = useState<File[]>([]);
+  // File upload state for T01 and T11 - API-based
+  const [filesT01Data, setFilesT01Data] = useState<PksiFileData[]>([]);
+  const [filesT11Data, setFilesT11Data] = useState<PksiFileData[]>([]);
   const [isDraggingT01, setIsDraggingT01] = useState(false);
   const [isDraggingT11, setIsDraggingT11] = useState(false);
+  const [isUploadingT01, setIsUploadingT01] = useState(false);
+  const [isUploadingT11, setIsUploadingT11] = useState(false);
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  
+  // Preview modal state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewFile, setPreviewFile] = useState<PksiFileData | null>(null);
 
   // Eligible users for PIC/Anggota Tim (Admin + Pengembang)
   const [eligibleUsers, setEligibleUsers] = useState<UserSimple[]>([]);
@@ -370,7 +386,7 @@ function PksiDisetujui() {
     setOpenViewModal(true);
   };
 
-  const handleEditClick = (pksi: PksiData) => {
+  const handleEditClick = async (pksi: PksiData) => {
     setSelectedPksiForEdit(pksi);
     
     // Parse existing anggota tim UUIDs and names
@@ -412,6 +428,29 @@ function PksiDisetujui() {
       kontrakDetailPembayaran: pksi.kontrakDetailPembayaran !== '-' ? pksi.kontrakDetailPembayaran : '',
       baDeploy: pksi.baDeploy !== '-' ? pksi.baDeploy : '',
     });
+    
+    // Load existing files for this PKSI
+    setIsLoadingFiles(true);
+    try {
+      const files = await getPksiFiles(pksi.id);
+      // Ensure files is an array and handle potential null/undefined response
+      const fileArray = Array.isArray(files) ? files : [];
+      // Separate T01 and T11 files based on file naming convention or metadata
+      // For now, load all files as T01 files (can be enhanced later with file categorization)
+      setFilesT01Data(fileArray);
+      setFilesT11Data([]);
+      // Update status based on files
+      if (fileArray.length > 0) {
+        setEditForm(prev => ({ ...prev, statusT01T02: 'Diterima' }));
+      }
+    } catch (error) {
+      console.error('Failed to load existing files:', error);
+      setFilesT01Data([]);
+      setFilesT11Data([]);
+    } finally {
+      setIsLoadingFiles(false);
+    }
+    
     setOpenEditDialog(true);
   };
 
@@ -454,6 +493,13 @@ function PksiDisetujui() {
       fetchPksiData();
       setOpenEditDialog(false);
       setSelectedPksiForEdit(null);
+      // Reset file states
+      setFilesT01Data([]);
+      setFilesT11Data([]);
+      setIsLoadingFiles(false);
+      setIsUploadingT01(false);
+      setIsUploadingT11(false);
+      setDownloadingFileId(null);
     } catch (error) {
       console.error('Error updating PKSI:', error);
     } finally {
@@ -464,6 +510,13 @@ function PksiDisetujui() {
   const handleEditCancel = () => {
     setOpenEditDialog(false);
     setSelectedPksiForEdit(null);
+    // Reset file states
+    setFilesT01Data([]);
+    setFilesT11Data([]);
+    setIsLoadingFiles(false);
+    setIsUploadingT01(false);
+    setIsUploadingT11(false);
+    setDownloadingFileId(null);
   };
 
   // Fetch PKSI data from API - only approved
@@ -758,68 +811,173 @@ function PksiDisetujui() {
     setPage(0);
   };
 
-  // File handling functions for T01
-  const handleFileSelectT01 = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // File handling functions for T01 - API-based
+  const handleFileSelectT01 = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (files) {
-      const newFiles = [...filesT01, ...Array.from(files)];
-      setFilesT01(newFiles);
-      // Auto-update status based on files
-      setEditForm(prev => ({ ...prev, statusT01T02: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
+    if (files && files.length > 0 && selectedPksiForEdit) {
+      setIsUploadingT01(true);
+      try {
+        const uploadedData = await uploadPksiFiles(selectedPksiForEdit.id, Array.from(files));
+        console.log('[T01 Upload] Received data:', JSON.stringify(uploadedData, null, 2));
+        const uploadArray = Array.isArray(uploadedData) ? uploadedData : [];
+        console.log('[T01 Upload] Setting files state:', JSON.stringify(uploadArray, null, 2));
+        setFilesT01Data(prev => [...prev, ...uploadArray]);
+        // Auto-update status based on files
+        setEditForm(prev => ({ ...prev, statusT01T02: 'Diterima' }));
+      } catch (error) {
+        console.error('Failed to upload T01 files:', error);
+      } finally {
+        setIsUploadingT01(false);
+      }
     }
+    event.target.value = '';
   };
 
-  const handleDropT01 = (event: React.DragEvent<HTMLElement>) => {
+  const handleDropT01 = async (event: React.DragEvent<HTMLElement>) => {
     event.preventDefault();
     setIsDraggingT01(false);
     const files = event.dataTransfer.files;
-    if (files) {
-      const newFiles = [...filesT01, ...Array.from(files)];
-      setFilesT01(newFiles);
-      // Auto-update status based on files
+    if (files && files.length > 0 && selectedPksiForEdit) {
+      setIsUploadingT01(true);
+      try {
+        const uploadedData = await uploadPksiFiles(selectedPksiForEdit.id, Array.from(files));
+        const uploadArray = Array.isArray(uploadedData) ? uploadedData : [];
+        setFilesT01Data(prev => [...prev, ...uploadArray]);
+        // Auto-update status based on files
+        setEditForm(prev => ({ ...prev, statusT01T02: 'Diterima' }));
+      } catch (error) {
+        console.error('Failed to upload T01 files:', error);
+      } finally {
+        setIsUploadingT01(false);
+      }
+    }
+  };
+
+  const handleRemoveFileT01 = async (fileId: string) => {
+    try {
+      await deletePksiFile(fileId);
+      const newFiles = filesT01Data.filter(f => f.id !== fileId);
+      setFilesT01Data(newFiles);
+      // Auto-update status based on remaining files
       setEditForm(prev => ({ ...prev, statusT01T02: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
+    } catch (error) {
+      console.error('Failed to delete file:', error);
     }
   };
 
-  const handleRemoveFileT01 = (index: number) => {
-    const newFiles = filesT01.filter((_, i) => i !== index);
-    setFilesT01(newFiles);
-    // Auto-update status based on remaining files
-    setEditForm(prev => ({ ...prev, statusT01T02: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
+  const handleDownloadFileT01 = async (file: PksiFileData) => {
+    setDownloadingFileId(file.id);
+    try {
+      await downloadPksiFile(file.id, file.original_name);
+    } catch (error) {
+      console.error('Failed to download file:', error);
+    } finally {
+      setDownloadingFileId(null);
+    }
   };
 
-  // File handling functions for T11
-  const handleFileSelectT11 = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePreviewFileT01 = (file: PksiFileData) => {
+    setPreviewFile(file);
+    setPreviewOpen(true);
+  };
+
+  // Handle preview modal close
+  const handlePreviewClose = () => {
+    setPreviewOpen(false);
+    setPreviewFile(null);
+  };
+
+  // Handle download from preview modal
+  const handlePreviewDownload = async () => {
+    if (previewFile) {
+      setDownloadingFileId(previewFile.id);
+      try {
+        await downloadPksiFile(previewFile.id, previewFile.original_name);
+      } catch (error) {
+        console.error('Failed to download file:', error);
+      } finally {
+        setDownloadingFileId(null);
+      }
+    }
+  };
+
+  const isPreviewableT01 = (contentType: string | undefined): boolean => {
+    if (!contentType) return false;
+    return contentType.startsWith('image/') || contentType === 'application/pdf';
+  };
+
+  // File handling functions for T11 - API-based (similar structure to T01)
+  const handleFileSelectT11 = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (files) {
-      const newFiles = [...filesT11, ...Array.from(files)];
-      setFilesT11(newFiles);
-      // Auto-update status based on files
-      setEditForm(prev => ({ ...prev, statusT11: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
+    if (files && files.length > 0 && selectedPksiForEdit) {
+      setIsUploadingT11(true);
+      try {
+        const uploadedData = await uploadPksiFiles(selectedPksiForEdit.id, Array.from(files));
+        const uploadArray = Array.isArray(uploadedData) ? uploadedData : [];
+        setFilesT11Data(prev => [...prev, ...uploadArray]);
+        // Auto-update status based on files
+        setEditForm(prev => ({ ...prev, statusT11: 'Diterima' }));
+      } catch (error) {
+        console.error('Failed to upload T11 files:', error);
+      } finally {
+        setIsUploadingT11(false);
+      }
     }
+    event.target.value = '';
   };
 
-  const handleDropT11 = (event: React.DragEvent<HTMLElement>) => {
+  const handleDropT11 = async (event: React.DragEvent<HTMLElement>) => {
     event.preventDefault();
     setIsDraggingT11(false);
     const files = event.dataTransfer.files;
-    if (files) {
-      const newFiles = [...filesT11, ...Array.from(files)];
-      setFilesT11(newFiles);
-      // Auto-update status based on files
-      setEditForm(prev => ({ ...prev, statusT11: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
+    if (files && files.length > 0 && selectedPksiForEdit) {
+      setIsUploadingT11(true);
+      try {
+        const uploadedData = await uploadPksiFiles(selectedPksiForEdit.id, Array.from(files));
+        const uploadArray = Array.isArray(uploadedData) ? uploadedData : [];
+        setFilesT11Data(prev => [...prev, ...uploadArray]);
+        // Auto-update status based on files
+        setEditForm(prev => ({ ...prev, statusT11: 'Diterima' }));
+      } catch (error) {
+        console.error('Failed to upload T11 files:', error);
+      } finally {
+        setIsUploadingT11(false);
+      }
     }
   };
 
-  const handleRemoveFileT11 = (index: number) => {
-    const newFiles = filesT11.filter((_, i) => i !== index);
-    setFilesT11(newFiles);
-    // Auto-update status based on remaining files
-    setEditForm(prev => ({ ...prev, statusT11: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
+  const handleRemoveFileT11 = async (fileId: string) => {
+    try {
+      await deletePksiFile(fileId);
+      const newFiles = filesT11Data.filter(f => f.id !== fileId);
+      setFilesT11Data(newFiles);
+      // Auto-update status based on remaining files
+      setEditForm(prev => ({ ...prev, statusT11: newFiles.length > 0 ? 'Diterima' : 'Belum Diterima' }));
+    } catch (error) {
+      console.error('Failed to delete file:', error);
+    }
+  };
+
+  const handleDownloadFileT11 = async (file: PksiFileData) => {
+    setDownloadingFileId(file.id);
+    try {
+      await downloadPksiFile(file.id, file.original_name);
+    } catch (error) {
+      console.error('Failed to download file:', error);
+    } finally {
+      setDownloadingFileId(null);
+    }
+  };
+
+  const handlePreviewFileT11 = (file: PksiFileData) => {
+    setPreviewFile(file);
+    setPreviewOpen(true);
   };
 
   // Format file size
-  const formatFileSize = (bytes: number): string => {
+  const formatFileSize = (bytes: number | undefined | null): string => {
+    if (bytes === undefined || bytes === null || isNaN(bytes)) return '0 Bytes';
+    if (bytes === 0) return '0 Bytes';
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -2107,6 +2265,16 @@ function PksiDisetujui() {
         showMonitoringSection={true}
       />
 
+      {/* File Preview Modal */}
+      <FilePreviewModal
+        open={previewOpen}
+        onClose={handlePreviewClose}
+        fileId={previewFile?.id || null}
+        fileName={previewFile?.original_name || ''}
+        contentType={previewFile?.content_type || ''}
+        onDownload={handlePreviewDownload}
+      />
+
       {/* Edit Approval Dialog - Apple Liquid Glass Style */}
       <Dialog
         open={openEditDialog}
@@ -2809,17 +2977,17 @@ function PksiDisetujui() {
               px: 1.5,
               py: 0.5,
               borderRadius: '8px',
-              background: filesT01.length > 0 
+              background: filesT01Data.length > 0 
                 ? 'linear-gradient(145deg, rgba(5, 150, 105, 0.15) 0%, rgba(5, 150, 105, 0.08) 100%)'
                 : 'linear-gradient(145deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.08) 100%)',
-              border: filesT01.length > 0 ? '1px solid rgba(5, 150, 105, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+              border: filesT01Data.length > 0 ? '1px solid rgba(5, 150, 105, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
             }}>
               <Typography sx={{ 
                 fontSize: '0.7rem', 
                 fontWeight: 600, 
-                color: filesT01.length > 0 ? '#059669' : '#EF4444',
+                color: filesT01Data.length > 0 ? '#059669' : '#EF4444',
               }}>
-                {filesT01.length > 0 ? '✓ Diterima' : '○ Belum Diterima'}
+                {filesT01Data.length > 0 ? '✓ Diterima' : '○ Belum Diterima'}
               </Typography>
             </Box>
           </Box>
@@ -2840,7 +3008,8 @@ function PksiDisetujui() {
               background: isDraggingT01 
                 ? 'linear-gradient(145deg, rgba(217, 119, 6, 0.1) 0%, rgba(217, 119, 6, 0.05) 100%)'
                 : 'linear-gradient(145deg, rgba(217, 119, 6, 0.04) 0%, rgba(217, 119, 6, 0.02) 100%)',
-              cursor: 'pointer',
+              cursor: isUploadingT01 ? 'not-allowed' : 'pointer',
+              opacity: isUploadingT01 ? 0.7 : 1,
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               backdropFilter: 'blur(10px)',
             }}
@@ -2851,32 +3020,44 @@ function PksiDisetujui() {
               multiple
               hidden
               onChange={handleFileSelectT01}
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg"
+              disabled={isUploadingT01}
             />
-            <Box sx={{
-              width: 52,
-              height: 52,
-              borderRadius: '50%',
-              background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              mx: 'auto',
-              mb: 1.5,
-              border: '1px solid rgba(217, 119, 6, 0.2)',
-            }}>
-              <CloudUploadIcon sx={{ fontSize: 26, color: '#D97706' }} />
-            </Box>
-            <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', mb: 0.5 }}>
-              Drop dokumen T01/T02 di sini
-            </Typography>
-            <Typography sx={{ color: '#86868b', fontSize: '0.75rem' }}>
-              atau klik untuk memilih file (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX)
-            </Typography>
+            {isUploadingT01 ? (
+              <>
+                <CircularProgress size={48} sx={{ color: '#D97706', mb: 1 }} />
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem' }}>
+                  Mengupload file...
+                </Typography>
+              </>
+            ) : (
+              <>
+                <Box sx={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mx: 'auto',
+                  mb: 1.5,
+                  border: '1px solid rgba(217, 119, 6, 0.2)',
+                }}>
+                  <CloudUploadIcon sx={{ fontSize: 26, color: '#D97706' }} />
+                </Box>
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', mb: 0.5 }}>
+                  Drop dokumen T01/T02 di sini
+                </Typography>
+                <Typography sx={{ color: '#86868b', fontSize: '0.75rem' }}>
+                  atau klik untuk memilih file (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, Gambar)
+                </Typography>
+              </>
+            )}
           </label>
 
           {/* T01/T02 Files List */}
-          {filesT01.length > 0 && (
+          {filesT01Data.length > 0 && (
             <Box sx={{ mb: 3 }}>
               <Typography sx={{ 
                 fontWeight: 600, 
@@ -2888,12 +3069,12 @@ function PksiDisetujui() {
                 gap: 1,
               }}>
                 <FileIcon sx={{ color: '#D97706', fontSize: 18 }} />
-                File Terpilih ({filesT01.length})
+                File yang diupload ({filesT01Data.length})
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {filesT01.map((file, index) => (
+                {filesT01Data.map((file) => (
                   <Box
-                    key={index}
+                    key={file.id}
                     sx={{
                       display: 'flex',
                       alignItems: 'center',
@@ -2925,30 +3106,75 @@ function PksiDisetujui() {
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                       }}>
-                        {file.name}
+                        {file.original_name || file.file_name || 'File tidak bernama'}
                       </Typography>
                       <Typography sx={{ color: '#86868b', fontSize: '0.7rem' }}>
-                        {formatFileSize(file.size)}
+                        {formatFileSize(file.file_size)}
                       </Typography>
                     </Box>
-                    <Tooltip title="Hapus file">
-                      <IconButton 
-                        size="small" 
-                        onClick={() => handleRemoveFileT01(index)}
-                        sx={{ 
-                          color: '#DC2626',
-                          background: 'linear-gradient(145deg, rgba(220, 38, 38, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)',
-                          width: 32,
-                          height: 32,
-                          borderRadius: '10px',
-                          '&:hover': {
-                            background: 'linear-gradient(145deg, rgba(220, 38, 38, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%)',
-                          },
-                        }}
-                      >
-                        <DeleteIcon sx={{ fontSize: 16 }} />
-                      </IconButton>
-                    </Tooltip>
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      {isPreviewableT01(file.content_type) && (
+                        <Tooltip title="Preview">
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handlePreviewFileT01(file)}
+                            sx={{ 
+                              color: '#0891B2',
+                              background: 'linear-gradient(145deg, rgba(8, 145, 178, 0.1) 0%, rgba(8, 145, 178, 0.05) 100%)',
+                              width: 32,
+                              height: 32,
+                              borderRadius: '10px',
+                              '&:hover': {
+                                background: 'linear-gradient(145deg, rgba(8, 145, 178, 0.2) 0%, rgba(8, 145, 178, 0.1) 100%)',
+                              },
+                            }}
+                          >
+                            <VisibilityIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <Tooltip title="Download">
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleDownloadFileT01(file)}
+                          disabled={downloadingFileId === file.id}
+                          sx={{ 
+                            color: '#059669',
+                            background: 'linear-gradient(145deg, rgba(5, 150, 105, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)',
+                            width: 32,
+                            height: 32,
+                            borderRadius: '10px',
+                            '&:hover': {
+                              background: 'linear-gradient(145deg, rgba(5, 150, 105, 0.2) 0%, rgba(5, 150, 105, 0.1) 100%)',
+                            },
+                          }}
+                        >
+                          {downloadingFileId === file.id ? (
+                            <CircularProgress size={16} sx={{ color: '#059669' }} />
+                          ) : (
+                            <DownloadIcon sx={{ fontSize: 16 }} />
+                          )}
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Hapus file">
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleRemoveFileT01(file.id)}
+                          sx={{ 
+                            color: '#DC2626',
+                            background: 'linear-gradient(145deg, rgba(220, 38, 38, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)',
+                            width: 32,
+                            height: 32,
+                            borderRadius: '10px',
+                            '&:hover': {
+                              background: 'linear-gradient(145deg, rgba(220, 38, 38, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%)',
+                            },
+                          }}
+                        >
+                          <DeleteIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                   </Box>
                 ))}
               </Box>
@@ -2970,17 +3196,17 @@ function PksiDisetujui() {
               px: 1.5,
               py: 0.5,
               borderRadius: '8px',
-              background: filesT11.length > 0 
+              background: filesT11Data.length > 0 
                 ? 'linear-gradient(145deg, rgba(5, 150, 105, 0.15) 0%, rgba(5, 150, 105, 0.08) 100%)'
                 : 'linear-gradient(145deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.08) 100%)',
-              border: filesT11.length > 0 ? '1px solid rgba(5, 150, 105, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+              border: filesT11Data.length > 0 ? '1px solid rgba(5, 150, 105, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
             }}>
               <Typography sx={{ 
                 fontSize: '0.7rem', 
                 fontWeight: 600, 
-                color: filesT11.length > 0 ? '#059669' : '#EF4444',
+                color: filesT11Data.length > 0 ? '#059669' : '#EF4444',
               }}>
-                {filesT11.length > 0 ? '✓ Diterima' : '○ Belum Diterima'}
+                {filesT11Data.length > 0 ? '✓ Diterima' : '○ Belum Diterima'}
               </Typography>
             </Box>
           </Box>
@@ -3001,7 +3227,8 @@ function PksiDisetujui() {
               background: isDraggingT11 
                 ? 'linear-gradient(145deg, rgba(5, 150, 105, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)'
                 : 'linear-gradient(145deg, rgba(5, 150, 105, 0.04) 0%, rgba(5, 150, 105, 0.02) 100%)',
-              cursor: 'pointer',
+              cursor: isUploadingT11 ? 'not-allowed' : 'pointer',
+              opacity: isUploadingT11 ? 0.7 : 1,
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               backdropFilter: 'blur(10px)',
             }}
@@ -3012,32 +3239,44 @@ function PksiDisetujui() {
               multiple
               hidden
               onChange={handleFileSelectT11}
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg"
+              disabled={isUploadingT11}
             />
-            <Box sx={{
-              width: 52,
-              height: 52,
-              borderRadius: '50%',
-              background: 'linear-gradient(145deg, rgba(5, 150, 105, 0.15) 0%, rgba(5, 150, 105, 0.08) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              mx: 'auto',
-              mb: 1.5,
-              border: '1px solid rgba(5, 150, 105, 0.2)',
-            }}>
-              <CloudUploadIcon sx={{ fontSize: 26, color: '#059669' }} />
-            </Box>
-            <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', mb: 0.5 }}>
-              Drop dokumen T11 di sini
-            </Typography>
-            <Typography sx={{ color: '#86868b', fontSize: '0.75rem' }}>
-              atau klik untuk memilih file (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX)
-            </Typography>
+            {isUploadingT11 ? (
+              <>
+                <CircularProgress size={48} sx={{ color: '#059669', mb: 1 }} />
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem' }}>
+                  Mengupload file...
+                </Typography>
+              </>
+            ) : (
+              <>
+                <Box sx={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(145deg, rgba(5, 150, 105, 0.15) 0%, rgba(5, 150, 105, 0.08) 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mx: 'auto',
+                  mb: 1.5,
+                  border: '1px solid rgba(5, 150, 105, 0.2)',
+                }}>
+                  <CloudUploadIcon sx={{ fontSize: 26, color: '#059669' }} />
+                </Box>
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', mb: 0.5 }}>
+                  Drop dokumen T11 di sini
+                </Typography>
+                <Typography sx={{ color: '#86868b', fontSize: '0.75rem' }}>
+                  atau klik untuk memilih file (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, Gambar)
+                </Typography>
+              </>
+            )}
           </label>
 
           {/* T11 Files List */}
-          {filesT11.length > 0 && (
+          {filesT11Data.length > 0 && (
             <Box sx={{ mb: 3 }}>
               <Typography sx={{ 
                 fontWeight: 600, 
@@ -3049,12 +3288,12 @@ function PksiDisetujui() {
                 gap: 1,
               }}>
                 <FileIcon sx={{ color: '#059669', fontSize: 18 }} />
-                File Terpilih ({filesT11.length})
+                File yang diupload ({filesT11Data.length})
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {filesT11.map((file, index) => (
+                {filesT11Data.map((file) => (
                   <Box
-                    key={index}
+                    key={file.id}
                     sx={{
                       display: 'flex',
                       alignItems: 'center',
@@ -3086,30 +3325,75 @@ function PksiDisetujui() {
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                       }}>
-                        {file.name}
+                        {file.original_name || file.file_name || 'File tidak bernama'}
                       </Typography>
                       <Typography sx={{ color: '#86868b', fontSize: '0.7rem' }}>
-                        {formatFileSize(file.size)}
+                        {formatFileSize(file.file_size)}
                       </Typography>
                     </Box>
-                    <Tooltip title="Hapus file">
-                      <IconButton 
-                        size="small" 
-                        onClick={() => handleRemoveFileT11(index)}
-                        sx={{ 
-                          color: '#DC2626',
-                          background: 'linear-gradient(145deg, rgba(220, 38, 38, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)',
-                          width: 32,
-                          height: 32,
-                          borderRadius: '10px',
-                          '&:hover': {
-                            background: 'linear-gradient(145deg, rgba(220, 38, 38, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%)',
-                          },
-                        }}
-                      >
-                        <DeleteIcon sx={{ fontSize: 16 }} />
-                      </IconButton>
-                    </Tooltip>
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      {isPreviewableT01(file.content_type) && (
+                        <Tooltip title="Preview">
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handlePreviewFileT11(file)}
+                            sx={{ 
+                              color: '#0891B2',
+                              background: 'linear-gradient(145deg, rgba(8, 145, 178, 0.1) 0%, rgba(8, 145, 178, 0.05) 100%)',
+                              width: 32,
+                              height: 32,
+                              borderRadius: '10px',
+                              '&:hover': {
+                                background: 'linear-gradient(145deg, rgba(8, 145, 178, 0.2) 0%, rgba(8, 145, 178, 0.1) 100%)',
+                              },
+                            }}
+                          >
+                            <VisibilityIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <Tooltip title="Download">
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleDownloadFileT11(file)}
+                          disabled={downloadingFileId === file.id}
+                          sx={{ 
+                            color: '#059669',
+                            background: 'linear-gradient(145deg, rgba(5, 150, 105, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)',
+                            width: 32,
+                            height: 32,
+                            borderRadius: '10px',
+                            '&:hover': {
+                              background: 'linear-gradient(145deg, rgba(5, 150, 105, 0.2) 0%, rgba(5, 150, 105, 0.1) 100%)',
+                            },
+                          }}
+                        >
+                          {downloadingFileId === file.id ? (
+                            <CircularProgress size={16} sx={{ color: '#059669' }} />
+                          ) : (
+                            <DownloadIcon sx={{ fontSize: 16 }} />
+                          )}
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Hapus file">
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleRemoveFileT11(file.id)}
+                          sx={{ 
+                            color: '#DC2626',
+                            background: 'linear-gradient(145deg, rgba(220, 38, 38, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)',
+                            width: 32,
+                            height: 32,
+                            borderRadius: '10px',
+                            '&:hover': {
+                              background: 'linear-gradient(145deg, rgba(220, 38, 38, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%)',
+                            },
+                          }}
+                        >
+                          <DeleteIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                   </Box>
                 ))}
               </Box>

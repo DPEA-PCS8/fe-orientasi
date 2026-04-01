@@ -42,6 +42,9 @@ import {
   Visibility as VisibilityIcon,
   PushPin as PushPinIcon,
   ListAltRounded,
+  InsertDriveFile as FileIcon,
+  Download as DownloadIcon,
+  AttachFile as AttachFileIcon,
 } from '@mui/icons-material';
 import {
   Dialog,
@@ -49,11 +52,17 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemSecondaryAction,
 } from '@mui/material';
-import { AddPksiModal, EditPksiModal, ViewPksiModal } from '../components/modals';
+import { AddPksiModal, EditPksiModal, ViewPksiModal, FilePreviewModal } from '../components/modals';
 import { usePermissions } from '../hooks/usePermissions';
 import { DataCountDisplay } from '../components/DataCountDisplay';
 import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, type PksiDocumentData } from '../api/pksiApi';
+import { getPksiFiles, downloadPksiFile, type PksiFileData } from '../api/pksiFileApi';
 import { getAllTeams, type Team } from '../api/teamApi';
 import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
 
@@ -185,6 +194,16 @@ function PksiList() {
   const [isLoading, setIsLoading] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedPksiId, setSelectedPksiId] = useState<string | null>(null);
+
+  // File preview state
+  const [fileDialogOpen, setFileDialogOpen] = useState(false);
+  const [fileDialogPksiId, setFileDialogPksiId] = useState<string | null>(null);
+  const [fileDialogPksiName, setFileDialogPksiName] = useState<string>('');
+  const [fileDialogFiles, setFileDialogFiles] = useState<PksiFileData[]>([]);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewFile, setPreviewFile] = useState<PksiFileData | null>(null);
 
   // Permission check for PKSI menu
   const { getMenuPermissions } = usePermissions();
@@ -489,6 +508,71 @@ function PksiList() {
   const handleViewClick = (pksiId: string) => {
     setSelectedPksiIdForView(pksiId);
     setOpenViewModal(true);
+  };
+
+  // File dialog functions
+  const handleOpenFileDialog = async (pksiId: string, pksiName: string) => {
+    setFileDialogPksiId(pksiId);
+    setFileDialogPksiName(pksiName);
+    setFileDialogOpen(true);
+    setIsLoadingFiles(true);
+    
+    try {
+      const files = await getPksiFiles(pksiId);
+      setFileDialogFiles(files);
+    } catch (error) {
+      console.error('Failed to fetch files:', error);
+      setFileDialogFiles([]);
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  };
+
+  const handleCloseFileDialog = () => {
+    setFileDialogOpen(false);
+    setFileDialogPksiId(null);
+    setFileDialogPksiName('');
+    setFileDialogFiles([]);
+  };
+
+  const handleFileDownload = async (file: PksiFileData) => {
+    setDownloadingFileId(file.id);
+    try {
+      await downloadPksiFile(file.id, file.original_name);
+    } catch (error) {
+      console.error('Failed to download file:', error);
+    } finally {
+      setDownloadingFileId(null);
+    }
+  };
+
+  const handleFilePreview = (file: PksiFileData) => {
+    setPreviewFile(file);
+    setPreviewOpen(true);
+  };
+
+  const handlePreviewClose = () => {
+    setPreviewOpen(false);
+    setPreviewFile(null);
+  };
+
+  const handlePreviewDownload = async () => {
+    if (previewFile) {
+      await handleFileDownload(previewFile);
+    }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (!bytes || bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const isPreviewable = (contentType: string | undefined): boolean => {
+    if (!contentType) return false;
+    return contentType.startsWith('image/') || contentType === 'application/pdf';
   };
 
   const handleEditSuccess = () => {
@@ -1233,6 +1317,153 @@ function PksiList() {
           pksiId={selectedPksiIdForView}
         />
 
+        {/* File List Dialog */}
+        <Dialog
+          open={fileDialogOpen}
+          onClose={handleCloseFileDialog}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: '20px',
+              bgcolor: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(40px)',
+              WebkitBackdropFilter: 'blur(40px)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            },
+          }}
+        >
+          <DialogTitle sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+            pb: 2,
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(218, 37, 28, 0.25)',
+                }}
+              >
+                <AttachFileIcon sx={{ color: 'white', fontSize: 20 }} />
+              </Box>
+              <Box>
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '1rem' }}>
+                  Dokumen T.01
+                </Typography>
+                <Typography sx={{ color: '#86868b', fontSize: '0.75rem', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {fileDialogPksiName}
+                </Typography>
+              </Box>
+            </Box>
+            <IconButton onClick={handleCloseFileDialog} size="small" sx={{ color: '#86868b' }}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent sx={{ p: 2 }}>
+            {isLoadingFiles ? (
+              <Box display="flex" justifyContent="center" py={4}>
+                <CircularProgress size={32} sx={{ color: '#DA251C' }} />
+              </Box>
+            ) : fileDialogFiles.length > 0 ? (
+              <List dense sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px', p: 1 }}>
+                {fileDialogFiles.map((file, index) => (
+                  <ListItem
+                    key={file.id}
+                    sx={{
+                      borderRadius: '8px',
+                      mb: index < fileDialogFiles.length - 1 ? 1 : 0,
+                      bgcolor: 'white',
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                      '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.9)' },
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 40 }}>
+                      <FileIcon sx={{ color: '#DA251C', fontSize: 24 }} />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={file.original_name || file.file_name || 'File'}
+                      secondary={formatFileSize(file.file_size)}
+                      primaryTypographyProps={{
+                        sx: { fontWeight: 500, color: '#1d1d1f', fontSize: '0.9rem' },
+                      }}
+                      secondaryTypographyProps={{
+                        sx: { color: '#86868b', fontSize: '0.75rem' },
+                      }}
+                    />
+                    <ListItemSecondaryAction>
+                      {isPreviewable(file.content_type) && (
+                        <IconButton
+                          edge="end"
+                          size="small"
+                          onClick={() => handleFilePreview(file)}
+                          sx={{
+                            color: '#0891B2',
+                            mr: 1,
+                            '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' },
+                          }}
+                          title="Preview"
+                        >
+                          <VisibilityIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                      <IconButton
+                        edge="end"
+                        size="small"
+                        onClick={() => handleFileDownload(file)}
+                        disabled={downloadingFileId === file.id}
+                        sx={{
+                          color: '#059669',
+                          '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' },
+                        }}
+                        title="Download"
+                      >
+                        {downloadingFileId === file.id ? (
+                          <CircularProgress size={18} sx={{ color: '#059669' }} />
+                        ) : (
+                          <DownloadIcon fontSize="small" />
+                        )}
+                      </IconButton>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                ))}
+              </List>
+            ) : (
+              <Box
+                sx={{
+                  p: 4,
+                  textAlign: 'center',
+                  borderRadius: '12px',
+                  bgcolor: 'rgba(245, 245, 247, 0.8)',
+                }}
+              >
+                <AttachFileIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
+                <Typography sx={{ color: '#86868b' }}>
+                  Belum ada dokumen yang diupload
+                </Typography>
+              </Box>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* File Preview Modal */}
+        <FilePreviewModal
+          open={previewOpen}
+          onClose={handlePreviewClose}
+          fileId={previewFile?.id || null}
+          fileName={previewFile?.original_name || ''}
+          contentType={previewFile?.content_type || ''}
+          onDownload={handlePreviewDownload}
+        />
+
         {/* Data Count Display */}
         <DataCountDisplay
             count={pksiData.length}
@@ -1559,11 +1790,9 @@ function PksiList() {
                     </Typography>
                   </TableCell>
                   <TableCell sx={{ py: 2 }}>
-                    <Tooltip title="Buka dokumen T.01">
+                    <Tooltip title="Lihat dokumen T.01">
                       <IconButton
-                        component={Link}
-                        href={item.linkDocsT01}
-                        target="_blank"
+                        onClick={() => handleOpenFileDialog(item.id, item.namaPksi)}
                         size="small"
                         sx={{
                           color: '#DA251C',
@@ -1573,7 +1802,7 @@ function PksiList() {
                           },
                         }}
                       >
-                        <OpenInNewIcon sx={{ fontSize: 16 }} />
+                        <AttachFileIcon sx={{ fontSize: 16 }} />
                       </IconButton>
                     </Tooltip>
                   </TableCell>
