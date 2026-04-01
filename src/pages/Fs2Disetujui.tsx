@@ -228,7 +228,7 @@ function Fs2Disetujui() {
   // Column definitions for sticky configuration - all table columns
   const COLUMN_OPTIONS = useMemo(() => [
     { id: 'no', label: 'No', width: 50 },
-    { id: 'namaAplikasi', label: 'Nama Aplikasi', width: 180 },
+    { id: 'namaAplikasi', label: 'Nama Aplikasi', width: 160 },
     { id: 'progres', label: 'Progres', width: 100 },
     { id: 'fasePengajuan', label: 'Fase Pengajuan', width: 130 },
     { id: 'iku', label: 'IKU', width: 80 },
@@ -421,19 +421,6 @@ function Fs2Disetujui() {
     setPreviewOpen(false);
     setPreviewUrl('');
     setPreviewFileName('');
-  };
-
-  // Check if URL is previewable
-  const isPreviewableUrl = (url: string): boolean => {
-    if (!url) return false;
-    const lowerUrl = url.toLowerCase();
-    return lowerUrl.endsWith('.pdf') || 
-           lowerUrl.endsWith('.png') || 
-           lowerUrl.endsWith('.jpg') || 
-           lowerUrl.endsWith('.jpeg') || 
-           lowerUrl.endsWith('.gif') ||
-           lowerUrl.includes('pdf') ||
-           lowerUrl.includes('image');
   };
 
   // Get content type from URL
@@ -1221,7 +1208,7 @@ function Fs2Disetujui() {
             {/* First row - Grouped headers */}
             <TableRow sx={{ bgcolor: '#f5f5f7' }}>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', textAlign: 'center', fontSize: '0.8rem', minWidth: 50, ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>No</TableCell>
-              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', width: 180, minWidth: 180, maxWidth: 180, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                 <TableSortLabel
                   active={orderBy === 'namaAplikasi'}
                   direction={orderBy === 'namaAplikasi' ? order : 'asc'}
@@ -1314,8 +1301,8 @@ function Fs2Disetujui() {
                       {page * rowsPerPage + index + 1}
                     </TableCell>
                     {/* Nama Aplikasi */}
-                    <TableCell sx={{ py: 1, px: 2, width: 180, minWidth: 180, maxWidth: 180, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.4, wordBreak: 'break-word' }} title={row.namaAplikasi}>{row.namaAplikasi}</Typography>
+                    <TableCell sx={{ py: 1, px: 2, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 160, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>{row.namaAplikasi}</Typography>
                     </TableCell>
                     {/* Progres */}
                     <TableCell sx={{ py: 1, px: 2, minWidth: 100, ...(stickyColumns.has('progres') && { position: 'sticky', left: getStickyLeft('progres'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('progres') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
@@ -1574,8 +1561,8 @@ function Fs2Disetujui() {
                     {/* Go Live - Target */}
                     <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(5, 150, 105, 0.02)' }}>{row.targetGoLive}</TableCell>
                     {/* Keterangan */}
-                    <TableCell align="left" sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 150 }}>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }} title={row.keterangan}>
+                    <TableCell align="center" sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 150 }}>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' }} title={row.keterangan}>
                         {row.keterangan}
                       </Typography>
                     </TableCell>

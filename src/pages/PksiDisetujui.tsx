@@ -354,7 +354,6 @@ function PksiDisetujui() {
   const [isUploadingT01, setIsUploadingT01] = useState(false);
   const [isUploadingT11, setIsUploadingT11] = useState(false);
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
-  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   
   // Preview modal state
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -430,7 +429,7 @@ function PksiDisetujui() {
     });
     
     // Load existing files for this PKSI
-    setIsLoadingFiles(true);
+    // setIsLoadingFiles(true);
     try {
       const files = await getPksiFiles(pksi.id);
       // Ensure files is an array and handle potential null/undefined response
@@ -448,7 +447,7 @@ function PksiDisetujui() {
       setFilesT01Data([]);
       setFilesT11Data([]);
     } finally {
-      setIsLoadingFiles(false);
+      // setIsLoadingFiles(false);
     }
     
     setOpenEditDialog(true);
@@ -496,7 +495,7 @@ function PksiDisetujui() {
       // Reset file states
       setFilesT01Data([]);
       setFilesT11Data([]);
-      setIsLoadingFiles(false);
+      // setIsLoadingFiles(false);
       setIsUploadingT01(false);
       setIsUploadingT11(false);
       setDownloadingFileId(null);
@@ -513,7 +512,7 @@ function PksiDisetujui() {
     // Reset file states
     setFilesT01Data([]);
     setFilesT11Data([]);
-    setIsLoadingFiles(false);
+    // setIsLoadingFiles(false);
     setIsUploadingT01(false);
     setIsUploadingT11(false);
     setDownloadingFileId(null);

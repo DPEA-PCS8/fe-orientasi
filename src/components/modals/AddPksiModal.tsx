@@ -203,7 +203,6 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const [errorMessage, setErrorMessage] = useState("");
   
   // File upload state - matching FS2 pattern
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [uploadedFileData, setUploadedFileData] = useState<PksiFileData[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
@@ -296,7 +295,6 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
       try {
         // Upload to temp storage
         const uploadedData = await uploadPksiTempFiles(sessionIdRef.current, [file]);
-        setUploadedFiles([file]);
         setUploadedFileData(uploadedData);
       } catch (error) {
         console.error('Failed to upload file:', error);
@@ -318,7 +316,6 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
         console.error('Failed to delete file:', error);
       }
     }
-    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
     setUploadedFileData((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -401,7 +398,6 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     setSuccessMessage("");
     setErrorMessage("");
     setExpandedSection("section1");
-    setUploadedFiles([]);
     setUploadedFileData([]);
     setIsUploading(false);
     setSelectedRbsi(null);

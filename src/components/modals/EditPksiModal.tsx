@@ -44,7 +44,7 @@ import {
   getPksiFiles,
   deletePksiFile,
   downloadPksiFile,
-  previewPksiFile,
+  
   type PksiFileData,
 } from '../../api/pksiFileApi';
 
@@ -274,15 +274,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
   const handleDownload = async (file: PksiFileData) => {
     setDownloadingFileId(file.id);
     try {
-      const blob = await downloadPksiFile(file.id);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = file.original_name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      await downloadPksiFile(file.id, file.original_name);
     } catch (error) {
       console.error('Error downloading file:', error);
     } finally {
