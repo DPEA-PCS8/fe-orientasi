@@ -415,10 +415,7 @@ function PksiList() {
     if (newStatus === 'disetujui') {
       setPendingApprovalPksiId(selectedPksiId);
       setApprovalForm({
-        pic: '',
-        picName: '',
-        anggotaTim: [],
-        anggotaTimNames: [],
+        teamId: '',
         iku: 'ya',
         inhouseOutsource: 'inhouse',
       });
