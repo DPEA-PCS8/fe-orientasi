@@ -41,7 +41,7 @@ import {
 } from '@mui/icons-material';
 import { getPksiDocumentById, type PksiDocumentData } from '../../api/pksiApi';
 import { getAllSkpa } from '../../api/skpaApi';
-import { getPksiFiles, downloadPksiFile, previewPksiFile, type PksiFileData } from '../../api/fileApi';
+import { getPksiFiles, downloadPksiFile, type PksiFileData } from '../../api/fileApi';
 import FilePreviewModal from './FilePreviewModal';
 
 // Glass Card Component

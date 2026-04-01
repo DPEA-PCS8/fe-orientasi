@@ -18,7 +18,6 @@ import {
   Tooltip,
   Menu,
   MenuItem,
-  Link,
   Chip,
   Popover,
   Checkbox,
@@ -35,7 +34,6 @@ import {
   Add as AddIcon,
   TuneRounded,
   KeyboardArrowDown as ArrowDownIcon,
-  OpenInNew as OpenInNewIcon,
   Close as CloseIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -197,7 +195,6 @@ function PksiList() {
 
   // File preview state
   const [fileDialogOpen, setFileDialogOpen] = useState(false);
-  const [fileDialogPksiId, setFileDialogPksiId] = useState<string | null>(null);
   const [fileDialogPksiName, setFileDialogPksiName] = useState<string>('');
   const [fileDialogFiles, setFileDialogFiles] = useState<PksiFileData[]>([]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
@@ -509,7 +506,6 @@ function PksiList() {
 
   // File dialog functions
   const handleOpenFileDialog = async (pksiId: string, pksiName: string) => {
-    setFileDialogPksiId(pksiId);
     setFileDialogPksiName(pksiName);
     setFileDialogOpen(true);
     setIsLoadingFiles(true);
@@ -527,7 +523,6 @@ function PksiList() {
 
   const handleCloseFileDialog = () => {
     setFileDialogOpen(false);
-    setFileDialogPksiId(null);
     setFileDialogPksiName('');
     setFileDialogFiles([]);
   };

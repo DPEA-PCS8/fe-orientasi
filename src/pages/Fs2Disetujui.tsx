@@ -423,19 +423,6 @@ function Fs2Disetujui() {
     setPreviewFileName('');
   };
 
-  // Check if URL is previewable
-  const isPreviewableUrl = (url: string): boolean => {
-    if (!url) return false;
-    const lowerUrl = url.toLowerCase();
-    return lowerUrl.endsWith('.pdf') || 
-           lowerUrl.endsWith('.png') || 
-           lowerUrl.endsWith('.jpg') || 
-           lowerUrl.endsWith('.jpeg') || 
-           lowerUrl.endsWith('.gif') ||
-           lowerUrl.includes('pdf') ||
-           lowerUrl.includes('image');
-  };
-
   // Get content type from URL
   const getContentTypeFromUrl = (url: string): string => {
     const lowerUrl = url.toLowerCase();
