@@ -54,7 +54,7 @@ import { AddPksiModal, EditPksiModal, ViewPksiModal } from '../components/modals
 import { usePermissions } from '../hooks/usePermissions';
 import { DataCountDisplay } from '../components/DataCountDisplay';
 import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, type PksiDocumentData } from '../api/pksiApi';
-import { getUsersByRole, type UserSimple } from '../api/userApi';
+import { getAllTeams, type Team } from '../api/teamApi';
 import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
 
 // Interface untuk data PKSI (transformed from API)
@@ -253,18 +253,15 @@ function PksiList() {
     });
   };
 
-  // Users with Pengembang role for PIC and Anggota Tim dropdowns
-  const [pengembangUsers, setPengembangUsers] = useState<UserSimple[]>([]);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  // Teams for approval dropdown
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [isLoadingTeams, setIsLoadingTeams] = useState(false);
 
   // Approval form state
   const [openApprovalDialog, setOpenApprovalDialog] = useState(false);
   const [pendingApprovalPksiId, setPendingApprovalPksiId] = useState<string | null>(null);
   const [approvalForm, setApprovalForm] = useState({
-    pic: '', // UUID of selected PIC
-    picName: '', // Name for display
-    anggotaTim: [] as string[], // UUIDs of selected team members
-    anggotaTimNames: [] as string[], // Names for display
+    teamId: '', // ID of selected team
     iku: 'ya',
     inhouseOutsource: 'inhouse',
   });
@@ -342,21 +339,21 @@ function PksiList() {
     fetchPksiData();
   }, [fetchPksiData]);
 
-  // Fetch users with Admin and Pengembang roles for PIC and Anggota Tim
+  // Fetch teams for approval dropdown
   useEffect(() => {
-    const fetchEligibleUsers = async () => {
-      setIsLoadingUsers(true);
+    const fetchTeams = async () => {
+      setIsLoadingTeams(true);
       try {
-        const users = await getUsersByRole('Admin,Pengembang');
-        setPengembangUsers(users);
+        const teamsData = await getAllTeams();
+        setTeams(teamsData);
       } catch (error) {
-        console.error('Failed to fetch eligible users:', error);
-        setPengembangUsers([]);
+        console.error('Failed to fetch teams:', error);
+        setTeams([]);
       } finally {
-        setIsLoadingUsers(false);
+        setIsLoadingTeams(false);
       }
     };
-    fetchEligibleUsers();
+    fetchTeams();
   }, []);
 
   // Helper function to parse SKPA codes from pic_satker_names (comma-separated string from backend)
@@ -429,22 +426,33 @@ function PksiList() {
   };
 
   const handleApprovalSubmit = async () => {
-    if (!pendingApprovalPksiId || !approvalForm.pic || approvalForm.anggotaTim.length === 0) {
-      alert('Mohon isi semua field yang diperlukan');
+    if (!pendingApprovalPksiId || !approvalForm.teamId) {
+      alert('Mohon pilih tim yang akan ditugaskan');
       return;
     }
 
+    const selectedTeam = teams.find(t => t.id === approvalForm.teamId);
+    if (!selectedTeam) {
+      alert('Tim tidak ditemukan');
+      return;
+    }
+
+    // Extract PIC and members from selected team
+    const picUuid = selectedTeam.pic?.uuid || '';
+    const picName = selectedTeam.pic?.fullName || '';
+    const memberUuids = selectedTeam.members.map(m => m.uuid);
+    const memberNames = selectedTeam.members.map(m => m.fullName);
+
     setIsSubmittingApproval(true);
     try {
-      // Update status to DISETUJUI with approval data
-      // Send UUIDs for storage, names for display
+      // Update status to DISETUJUI with team data
       await updatePksiStatus(pendingApprovalPksiId, 'DISETUJUI', {
         iku: approvalForm.iku,
         inhouse_outsource: approvalForm.inhouseOutsource,
-        pic_approval: approvalForm.pic,
-        pic_approval_name: approvalForm.picName,
-        anggota_tim: approvalForm.anggotaTim.join(', '),
-        anggota_tim_names: approvalForm.anggotaTimNames.join(', '),
+        pic_approval: picUuid,
+        pic_approval_name: picName,
+        anggota_tim: memberUuids.join(', '),
+        anggota_tim_names: memberNames.join(', '),
       });
       
       // Update local state after successful API call
@@ -467,10 +475,7 @@ function PksiList() {
     setOpenApprovalDialog(false);
     setPendingApprovalPksiId(null);
     setApprovalForm({
-      pic: '',
-      picName: '',
-      anggotaTim: [],
-      anggotaTimNames: [],
+      teamId: '',
       iku: 'ya',
       inhouseOutsource: 'inhouse',
     });
@@ -1870,22 +1875,15 @@ function PksiList() {
               Mohon lengkapi form di bawah untuk menyetujui PKSI ini:
             </Typography>
 
-            {/* PIC Field */}
+            {/* Tim Field */}
             <FormControl fullWidth sx={{ mb: 2.5 }}>
-              <InputLabel id="pic-label">PIC (User) *</InputLabel>
+              <InputLabel id="team-label">Tim *</InputLabel>
               <Select
-                labelId="pic-label"
-                value={approvalForm.pic}
-                label="PIC (User) *"
-                onChange={(e) => {
-                  const selectedUser = pengembangUsers.find(u => u.uuid === e.target.value);
-                  setApprovalForm({ 
-                    ...approvalForm, 
-                    pic: e.target.value,
-                    picName: selectedUser?.full_name || ''
-                  });
-                }}
-                disabled={isLoadingUsers}
+                labelId="team-label"
+                value={approvalForm.teamId}
+                label="Tim *"
+                onChange={(e) => setApprovalForm({ ...approvalForm, teamId: e.target.value })}
+                disabled={isLoadingTeams}
                 sx={{
                   borderRadius: '12px',
                   backgroundColor: 'rgba(255, 255, 255, 0.6)',
@@ -1908,92 +1906,49 @@ function PksiList() {
                   },
                 }}
               >
-                <MenuItem value=""><em>{isLoadingUsers ? 'Memuat...' : 'Pilih PIC'}</em></MenuItem>
-                {pengembangUsers.map((user) => (
-                  <MenuItem key={user.uuid} value={user.uuid}>
-                    {user.full_name} {user.department ? `(${user.department})` : ''}
+                <MenuItem value=""><em>{isLoadingTeams ? 'Memuat...' : 'Pilih Tim'}</em></MenuItem>
+                {teams.map((team) => (
+                  <MenuItem key={team.id} value={team.id}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {team.name}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: '#86868b' }}>
+                        PIC: {team.pic?.fullName || '-'} • {team.members.length} anggota
+                      </Typography>
+                    </Box>
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
 
-            {/* Anggota Tim Field */}
-            <FormControl fullWidth sx={{ mb: 2.5 }}>
-              <Autocomplete
-                multiple
-                options={pengembangUsers}
-                getOptionLabel={(option) => option.full_name || ''}
-                value={pengembangUsers.filter(u => approvalForm.anggotaTim.includes(u.uuid))}
-                onChange={(_, newValue) => setApprovalForm({ 
-                  ...approvalForm, 
-                  anggotaTim: newValue.map(u => u.uuid),
-                  anggotaTimNames: newValue.map(u => u.full_name)
-                })}
-                isOptionEqualToValue={(option, value) => option.uuid === value.uuid}
-                loading={isLoadingUsers}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Anggota Tim *"
-                    placeholder="Pilih anggota tim"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: '12px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.6)',
-                        backdropFilter: 'blur(10px)',
-                        transition: 'all 0.2s ease-in-out',
-                        '& fieldset': {
-                          borderColor: 'rgba(0, 0, 0, 0.08)',
-                          transition: 'all 0.2s ease-in-out',
-                        },
-                        '&:hover fieldset': {
-                          borderColor: 'rgba(0, 0, 0, 0.15)',
-                        },
-                        '&.Mui-focused fieldset': {
-                          borderColor: '#31A24C',
-                          borderWidth: '1.5px',
-                        },
-                        '&.Mui-focused': {
-                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                          boxShadow: '0 4px 20px rgba(49, 162, 76, 0.1)',
-                        },
-                      },
-                      '& .MuiInputLabel-root': {
-                        color: '#86868b',
-                        fontWeight: 500,
-                        '&.Mui-focused': {
-                          color: '#31A24C',
-                        },
-                      },
-                    }}
-                  />
-                )}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => {
-                    const { key, ...tagProps } = getTagProps({ index });
-                    return (
-                      <Chip
-                        key={key}
-                        label={option.full_name}
-                        size="small"
-                        {...tagProps}
-                        sx={{ 
-                          bgcolor: '#31A24C', 
-                          color: 'white',
-                          fontWeight: 500,
-                          '& .MuiChip-deleteIcon': {
-                            color: 'rgba(255, 255, 255, 0.7)',
-                            '&:hover': {
-                              color: 'white',
-                            },
-                          },
-                        }}
-                      />
-                    );
-                  })
-                }
-              />
-            </FormControl>
+            {/* Team Preview */}
+            {approvalForm.teamId && (() => {
+              const selectedTeam = teams.find(t => t.id === approvalForm.teamId);
+              return selectedTeam ? (
+                <Box 
+                  sx={{ 
+                    mb: 2.5, 
+                    p: 2, 
+                    bgcolor: 'rgba(49, 162, 76, 0.08)', 
+                    borderRadius: '12px',
+                    border: '1px solid rgba(49, 162, 76, 0.2)',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ color: '#31A24C', fontWeight: 600, display: 'block', mb: 1 }}>
+                    Detail Tim
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', mb: 0.5 }}>
+                    <strong>PIC:</strong> {selectedTeam.pic?.fullName || 'Belum ditentukan'}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
+                    <strong>Anggota:</strong> {selectedTeam.members.length > 0 
+                      ? selectedTeam.members.map(m => m.fullName).join(', ')
+                      : 'Belum ada anggota'}
+                  </Typography>
+                </Box>
+              ) : null;
+            })()}
 
             {/* IKU Field */}
             <FormControl fullWidth sx={{ mb: 2.5 }}>
