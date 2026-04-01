@@ -312,10 +312,10 @@ const FormModal = memo(({
             </Typography>
             <Autocomplete
               options={users}
-              getOptionLabel={(option) => option.fullName}
+              getOptionLabel={(option) => option?.fullName || ''}
               value={formData.pic}
               onChange={(_, newValue) => setFormData({ ...formData, pic: newValue })}
-              isOptionEqualToValue={(option, value) => option.uuid === value?.uuid}
+              isOptionEqualToValue={(option, value) => option?.uuid === value?.uuid}
               renderInput={(params) => (
                 <TextField
                   {...params}
@@ -447,10 +447,11 @@ const FormModal = memo(({
             <Autocomplete
               multiple
               options={users.filter(u => u.uuid !== formData.pic?.uuid)}
-              getOptionLabel={(option) => option.fullName}
+              getOptionLabel={(option) => option?.fullName || ''}
               value={formData.members}
               onChange={(_, newValue) => setFormData({ ...formData, members: newValue })}
-              isOptionEqualToValue={(option, value) => option.uuid === value?.uuid}
+              isOptionEqualToValue={(option, value) => option?.uuid === value?.uuid}
+              filterSelectedOptions
               disableCloseOnSelect
               renderInput={(params) => (
                 <TextField
@@ -784,11 +785,18 @@ export default function TeamManagement() {
 
   const handleOpenEdit = (team: Team) => {
     setSelectedTeam(team);
+    
+    // Match team members with users array to ensure proper object references
+    const matchedPic = team.pic ? users.find(u => u.uuid === team.pic?.uuid) || team.pic : null;
+    const matchedMembers = team.members
+      .map(member => users.find(u => u.uuid === member.uuid) || member)
+      .filter(Boolean) as TeamMember[];
+    
     setFormData({
       name: team.name,
       description: team.description,
-      pic: team.pic,
-      members: team.members,
+      pic: matchedPic,
+      members: matchedMembers,
     });
     setOpenEditModal(true);
   };
