@@ -495,12 +495,35 @@ function Fs2List() {
     setExpandedSection(isExpanded ? panel : false);
   };
 
-  // File upload handlers
+  // File upload handlers - constants
+  const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8MB
+  const ALLOWED_FILE_TYPES = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ];
+  const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx'];
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0 && sessionId) {
       // Only take the first file (single file upload)
       const file = files[0];
+
+      // Validate file size (max 8MB)
+      if (file.size > MAX_FILE_SIZE) {
+        alert('Ukuran file melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.');
+        event.target.value = '';
+        return;
+      }
+
+      // Validate file type (PDF and Word only)
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      if (!ALLOWED_FILE_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(fileExtension)) {
+        alert('Format file tidak didukung. Hanya file PDF dan Word (.pdf, .doc, .docx) yang diperbolehkan.');
+        event.target.value = '';
+        return;
+      }
       
       // Delete existing file if any
       if (uploadedFileData.length > 0 && uploadedFileData[0]?.id) {
@@ -519,7 +542,8 @@ function Fs2List() {
         setUploadedFileData(uploadedData);
       } catch (error) {
         console.error('Failed to upload file:', error);
-        alert('Gagal mengupload file. Silakan coba lagi.');
+        const errorMessage = error instanceof Error ? error.message : 'Gagal mengupload file. Silakan coba lagi.';
+        alert(errorMessage);
       } finally {
         setIsUploading(false);
       }
@@ -709,6 +733,22 @@ function Fs2List() {
     const files = event.target.files;
     if (files && files.length > 0 && selectedFs2ForEdit) {
       const file = files[0];
+
+      // Validate file size (max 8MB)
+      if (file.size > MAX_FILE_SIZE) {
+        alert('Ukuran file melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.');
+        event.target.value = '';
+        return;
+      }
+
+      // Validate file type (PDF and Word only)
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      if (!ALLOWED_FILE_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(fileExtension)) {
+        alert('Format file tidak didukung. Hanya file PDF dan Word (.pdf, .doc, .docx) yang diperbolehkan.');
+        event.target.value = '';
+        return;
+      }
+
       setIsUploading(true);
       try {
         // Upload directly to the F.S.2 document
@@ -717,7 +757,8 @@ function Fs2List() {
         setExistingFs2Files(prev => [...prev, ...uploadedData]);
       } catch (error) {
         console.error('Failed to upload file:', error);
-        alert('Gagal mengupload file. Silakan coba lagi.');
+        const errorMessage = error instanceof Error ? error.message : 'Gagal mengupload file. Silakan coba lagi.';
+        alert(errorMessage);
       } finally {
         setIsUploading(false);
       }
@@ -2499,7 +2540,7 @@ function Fs2List() {
                       type="file"
                       hidden
                       onChange={handleFileUpload}
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                      accept=".pdf,.doc,.docx"
                       disabled={isUploading}
                     />
                     {isUploading ? (
@@ -2519,7 +2560,7 @@ function Fs2List() {
                           atau drag & drop file di sini
                         </Typography>
                         <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
-                          Format yang didukung: PDF, Word, Excel, Gambar (max 20MB)
+                          Format yang didukung: PDF, Word (max 8MB)
                         </Typography>
                       </>
                     )}
@@ -3461,7 +3502,7 @@ function Fs2List() {
                       type="file"
                       hidden
                       onChange={handleEditFileUpload}
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                      accept=".pdf,.doc,.docx"
                       disabled={isUploading}
                     />
                     {isUploading ? (
@@ -3481,7 +3522,7 @@ function Fs2List() {
                           atau drag & drop file di sini
                         </Typography>
                         <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
-                          Format yang didukung: PDF, Word, Excel, Gambar (max 20MB)
+                          Format yang didukung: PDF, Word (max 8MB)
                         </Typography>
                       </>
                     )}
