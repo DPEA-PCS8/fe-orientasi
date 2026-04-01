@@ -26,7 +26,6 @@ import {
   LightbulbRounded,
   ExpandLess,
   ExpandMore,
-  CheckCircleRounded,
   ListAltRounded,
   PeopleRounded,
   AssessmentRounded,
@@ -205,7 +204,7 @@ const Sidebar = () => {
           menuCode: 'FS2',
           subItems: [
             { label: 'Semua F.S.2', icon: <ListAltRounded />, href: '/fs2-list', menuCode: 'FS2_ALL' },
-            { label: 'F.S.2 Disetujui', icon: <CheckCircleRounded />, href: '/fs2-disetujui', menuCode: 'FS2_APPROVED' },
+            { label: 'Monitoring F.S.2', icon: <AssessmentRounded />, href: '/fs2-disetujui', menuCode: 'FS2_APPROVED' },
           ],
         },
         {

@@ -31,7 +31,6 @@ import {
   Select,
   MenuItem,
   Autocomplete,
-  Link,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -39,13 +38,16 @@ import {
   Close as CloseIcon,
   Visibility as VisibilityIcon,
   Edit as EditIcon,
-  InsertDriveFile as FileIcon,
+  PushPin as PushPinIcon,
+  AssessmentRounded,
 } from '@mui/icons-material';
 import { searchApprovedFs2Documents, updateFs2Document, type Fs2DocumentData, type Fs2DocumentRequest } from '../api/fs2Api';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getUsersByRole, type UserSimple } from '../api/userApi';
 import { usePermissions } from '../hooks/usePermissions';
+import ViewFs2Modal from '../components/modals/ViewFs2Modal';
+import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
 
 // Interface for transformed data
 interface Fs2DisetujuiData {
@@ -63,6 +65,30 @@ interface Fs2DisetujuiData {
   tahunSelesai: number | null;
   pic: string;
   dokumenPath: string;
+  // Dokumen Pengajuan F.S.2
+  nomorNd: string;
+  tanggalNd: string;
+  berkasNd: string;
+  berkasFs2: string;
+  // CD Prinsip
+  nomorCd: string;
+  tanggalCd: string;
+  berkasCd: string;
+  berkasFs2a: string;
+  berkasFs2b: string;
+  // Pengujian
+  targetPengujian: string;
+  realisasiPengujian: string;
+  berkasF45: string;
+  berkasF46: string;
+  // Deployment
+  targetDeployment: string;
+  realisasiDeployment: string;
+  berkasNdBaDeployment: string;
+  // Go Live
+  targetGoLive: string;
+  // Keterangan
+  keterangan: string;
 }
 
 const PROGRES_OPTIONS = ['ASESMEN', 'CODING', 'PDKK', 'DEPLOY_SELESAI'] as const;
@@ -109,6 +135,30 @@ const transformApiData = (apiData: Fs2DocumentData): Fs2DisetujuiData => {
     tahunSelesai: apiData.tahun_selesai || null,
     pic: apiData.pic_name || '-',
     dokumenPath: apiData.dokumen_path || '',
+    // Dokumen Pengajuan F.S.2
+    nomorNd: apiData.nomor_nd || '-',
+    tanggalNd: apiData.tanggal_nd || '-',
+    berkasNd: apiData.berkas_nd || '',
+    berkasFs2: apiData.berkas_fs2 || '',
+    // CD Prinsip
+    nomorCd: apiData.nomor_cd || '-',
+    tanggalCd: apiData.tanggal_cd || '-',
+    berkasCd: apiData.berkas_cd || '',
+    berkasFs2a: apiData.berkas_fs2a || '',
+    berkasFs2b: apiData.berkas_fs2b || '',
+    // Pengujian
+    targetPengujian: apiData.target_pengujian || '-',
+    realisasiPengujian: apiData.realisasi_pengujian || '-',
+    berkasF45: apiData.berkas_f45 || '',
+    berkasF46: apiData.berkas_f46 || '',
+    // Deployment
+    targetDeployment: apiData.target_deployment || '-',
+    realisasiDeployment: apiData.realisasi_deployment || '-',
+    berkasNdBaDeployment: apiData.berkas_nd_ba_deployment || '',
+    // Go Live
+    targetGoLive: apiData.target_go_live || '-',
+    // Keterangan
+    keterangan: apiData.keterangan || '-',
   };
 };
 
@@ -146,6 +196,7 @@ const PROGRES_COLORS: Record<string, { bg: string; text: string }> = {
 };
 
 function Fs2Disetujui() {
+  const { isCollapsed } = useSidebar();
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -169,6 +220,63 @@ function Fs2Disetujui() {
   const [selectedBidangFilter, setSelectedBidangFilter] = useState<string>('');
   const [selectedSkpaFilter, setSelectedSkpaFilter] = useState<string>('');
 
+  // Sticky columns configuration
+  const [stickyColumnsAnchorEl, setStickyColumnsAnchorEl] = useState<null | HTMLElement>(null);
+  const [stickyColumns, setStickyColumns] = useState<Set<string>>(new Set(['no', 'namaAplikasi']));
+  
+  // Column definitions for sticky configuration - all table columns
+  const COLUMN_OPTIONS = useMemo(() => [
+    { id: 'no', label: 'No', width: 50 },
+    { id: 'namaAplikasi', label: 'Nama Aplikasi', width: 160 },
+    { id: 'progres', label: 'Progres', width: 100 },
+    { id: 'fasePengajuan', label: 'Fase Pengajuan', width: 130 },
+    { id: 'iku', label: 'IKU', width: 80 },
+    { id: 'bidang', label: 'Bidang', width: 120 },
+    { id: 'skpa', label: 'SKPA', width: 100 },
+    { id: 'mekanisme', label: 'Mekanisme', width: 100 },
+    { id: 'pelaksanaan', label: 'Pelaksanaan', width: 140 },
+    { id: 'pic', label: 'PIC', width: 120 },
+    { id: 'dokumenPengajuan', label: 'Dokumen Pengajuan F.S.2', width: 360 },
+    { id: 'cdPrinsip', label: 'CD Prinsip', width: 440 },
+    { id: 'pengujian', label: 'Pengujian', width: 360 },
+    { id: 'deployment', label: 'Deployment', width: 300 },
+    { id: 'goLive', label: 'Go Live', width: 100 },
+    { id: 'keterangan', label: 'Keterangan', width: 150 },
+  ], []);
+
+  // Calculate sticky left positions based on selected columns
+  const getStickyLeft = useCallback((columnId: string): number | undefined => {
+    if (!stickyColumns.has(columnId)) return undefined;
+    
+    const orderedSticky = COLUMN_OPTIONS.filter(col => stickyColumns.has(col.id));
+    const colIndex = orderedSticky.findIndex(col => col.id === columnId);
+    if (colIndex === -1) return undefined;
+    
+    let left = 0;
+    for (let i = 0; i < colIndex; i++) {
+      left += orderedSticky[i].width;
+    }
+    return left;
+  }, [stickyColumns, COLUMN_OPTIONS]);
+
+  const isLastStickyColumn = useCallback((columnId: string): boolean => {
+    if (!stickyColumns.has(columnId)) return false;
+    const orderedSticky = COLUMN_OPTIONS.filter(col => stickyColumns.has(col.id));
+    return orderedSticky[orderedSticky.length - 1]?.id === columnId;
+  }, [stickyColumns, COLUMN_OPTIONS]);
+
+  const handleStickyColumnToggle = (columnId: string) => {
+    setStickyColumns(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(columnId)) {
+        newSet.delete(columnId);
+      } else {
+        newSet.add(columnId);
+      }
+      return newSet;
+    });
+  };
+
   // Reference data
   const [bidangList, setBidangList] = useState<BidangData[]>([]);
   const [skpaList, setSkpaList] = useState<SkpaData[]>([]);
@@ -181,7 +289,7 @@ function Fs2Disetujui() {
 
   // View modal state
   const [openViewModal, setOpenViewModal] = useState(false);
-  const [selectedFs2ForView, setSelectedFs2ForView] = useState<Fs2DocumentData | null>(null);
+  const [selectedFs2IdForView, setSelectedFs2IdForView] = useState<string | null>(null);
 
   // Fetch approved F.S.2 data
   const fetchFs2Data = useCallback(async () => {
@@ -287,16 +395,13 @@ function Fs2Disetujui() {
 
   // View modal handlers
   const handleOpenViewModal = (fs2Id: string) => {
-    const fs2 = rawData.find(item => item.id === fs2Id);
-    if (fs2) {
-      setSelectedFs2ForView(fs2);
-      setOpenViewModal(true);
-    }
+    setSelectedFs2IdForView(fs2Id);
+    setOpenViewModal(true);
   };
 
   const handleCloseViewModal = () => {
     setOpenViewModal(false);
-    setSelectedFs2ForView(null);
+    setSelectedFs2IdForView(null);
   };
 
   // Edit modal handlers
@@ -314,6 +419,31 @@ function Fs2Disetujui() {
         tahun_mulai: fs2.tahun_mulai || undefined,
         tahun_selesai: fs2.tahun_selesai || undefined,
         pic_id: fs2.pic_id || '',
+        bidang_id: fs2.bidang_id || '',
+        // Dokumen Pengajuan F.S.2
+        nomor_nd: fs2.nomor_nd || '',
+        tanggal_nd: fs2.tanggal_nd || '',
+        berkas_nd: fs2.berkas_nd || '',
+        berkas_fs2: fs2.berkas_fs2 || '',
+        // CD Prinsip
+        nomor_cd: fs2.nomor_cd || '',
+        tanggal_cd: fs2.tanggal_cd || '',
+        berkas_cd: fs2.berkas_cd || '',
+        berkas_fs2a: fs2.berkas_fs2a || '',
+        berkas_fs2b: fs2.berkas_fs2b || '',
+        // Pengujian
+        target_pengujian: fs2.target_pengujian || '',
+        realisasi_pengujian: fs2.realisasi_pengujian || '',
+        berkas_f45: fs2.berkas_f45 || '',
+        berkas_f46: fs2.berkas_f46 || '',
+        // Deployment
+        target_deployment: fs2.target_deployment || '',
+        realisasi_deployment: fs2.realisasi_deployment || '',
+        berkas_nd_ba_deployment: fs2.berkas_nd_ba_deployment || '',
+        // Go Live
+        target_go_live: fs2.target_go_live || '',
+        // Keterangan
+        keterangan: fs2.keterangan || '',
       });
       setOpenEditModal(true);
     }
@@ -352,190 +482,704 @@ function Fs2Disetujui() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ 
+      px: 2,
+      py: 3,
+      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
+      minHeight: '100vh',
+      width: '100%',
+      maxWidth: '100%',
+      overflowX: 'hidden',
+      boxSizing: 'border-box',
+    }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" fontWeight={600}>
-          F.S.2 Disetujui
+      <Box sx={{ mb: 3, px: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+          <AssessmentRounded sx={{ fontSize: 32, color: '#31A24C' }} />
+          <Typography 
+            variant="h4" 
+            sx={{ 
+              fontWeight: 700, 
+              color: '#1d1d1f',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Monitoring F.S.2
+          </Typography>
+        </Box>
+        <Typography variant="body1" sx={{ color: '#86868b', ml: 0.5 }}>
+          Monitoring dan tracking F.S.2 ({totalElements} item)
         </Typography>
       </Box>
 
-      {/* Search and Filter */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <TextField
-          placeholder="Cari F.S.2..."
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          size="small"
-          sx={{ width: 300 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-        />
-        <Button
-          variant="outlined"
-          startIcon={<TuneRounded />}
-          onClick={handleFilterClick}
-          sx={{ borderRadius: 2 }}
-        >
-          Filter {activeFiltersCount > 0 && `(${activeFiltersCount})`}
-        </Button>
-      </Box>
-
-      {/* Filter Popover */}
-      <Popover
-        open={Boolean(filterAnchorEl)}
-        anchorEl={filterAnchorEl}
-        onClose={handleFilterClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      {/* Main Card */}
+      <Paper
+        elevation={0}
+        sx={{
+          width: isCollapsed 
+            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)` 
+            : '80vw',
+          maxWidth: isCollapsed 
+            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)` 
+            : '80vw',
+          borderRadius: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.5)',
+          overflow: 'hidden',
+          background: 'rgba(255, 255, 255, 0.7)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
       >
-        <Box sx={{ p: 2, minWidth: 320, maxHeight: 500, overflow: 'auto' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="subtitle1" fontWeight={600}>Filter</Typography>
-            <IconButton size="small" onClick={handleFilterClose}>
+        {/* Toolbar */}
+        <Box
+          sx={{
+            p: 2.5,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.3)',
+            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.6) 100%)',
+          }}
+        >
+          {/* Search & Filter */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <TextField
+              placeholder="Cari F.S.2..."
+              size="small"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              sx={{ 
+                width: 280,
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: '#f5f5f7',
+                  borderRadius: '10px',
+                  '& fieldset': {
+                    borderColor: 'transparent',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'transparent',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#31A24C',
+                    borderWidth: 2,
+                  },
+                },
+              }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ color: '#86868b', fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+            <Button
+              variant="text"
+              startIcon={<TuneRounded sx={{ fontSize: 18 }} />}
+              onClick={handleFilterClick}
+              sx={{
+                color: activeFiltersCount > 0 ? '#31A24C' : '#86868b',
+                fontWeight: 500,
+                '&:hover': {
+                  bgcolor: 'rgba(0, 0, 0, 0.04)',
+                },
+              }}
+            >
+              Filters
+              {activeFiltersCount > 0 && (
+                <Chip
+                  label={activeFiltersCount}
+                  size="small"
+                  sx={{ ml: 1, bgcolor: '#31A24C', color: 'white', height: 20, fontSize: '0.7rem' }}
+                />
+              )}
+            </Button>
+            
+            {/* Sticky Columns Settings Button */}
+            <Tooltip title="Atur Kolom Sticky">
+              <Button
+                variant="text"
+                startIcon={<PushPinIcon sx={{ fontSize: 18 }} />}
+                onClick={(e) => setStickyColumnsAnchorEl(e.currentTarget)}
+                sx={{
+                  color: stickyColumns.size > 0 ? '#2563EB' : '#86868b',
+                  fontWeight: 500,
+                  '&:hover': {
+                    bgcolor: 'rgba(0, 0, 0, 0.04)',
+                  },
+                }}
+              >
+                Pin
+                {stickyColumns.size > 0 && (
+                  <Chip
+                    label={stickyColumns.size}
+                    size="small"
+                    sx={{ ml: 1, bgcolor: '#2563EB', color: 'white', height: 20, fontSize: '0.7rem' }}
+                  />
+                )}
+              </Button>
+            </Tooltip>
+          </Box>
+        </Box>
+
+        {/* Sticky Columns Popover */}
+        <Popover
+          open={Boolean(stickyColumnsAnchorEl)}
+          anchorEl={stickyColumnsAnchorEl}
+          onClose={() => setStickyColumnsAnchorEl(null)}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'left',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'left',
+          }}
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+              border: '1px solid rgba(0, 0, 0, 0.06)',
+              p: 2,
+              minWidth: 280,
+            },
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+              Kolom Sticky
+            </Typography>
+            <IconButton size="small" onClick={() => setStickyColumnsAnchorEl(null)}>
               <CloseIcon fontSize="small" />
             </IconButton>
           </Box>
-
-          {/* Progres Filter */}
-          <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>Progres</Typography>
+          <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mb: 2 }}>
+            Pilih kolom yang akan tetap terlihat saat scroll horizontal
+          </Typography>
           <FormGroup>
-            {PROGRES_OPTIONS.map((progres) => (
+            {COLUMN_OPTIONS.map((col) => (
               <FormControlLabel
-                key={progres}
+                key={col.id}
                 control={
                   <Checkbox
-                    checked={selectedProgres.has(progres)}
-                    onChange={(e) => {
-                      const newSet = new Set(selectedProgres);
-                      if (e.target.checked) newSet.add(progres);
-                      else newSet.delete(progres);
-                      setSelectedProgres(newSet);
-                    }}
+                    checked={stickyColumns.has(col.id)}
+                    onChange={() => handleStickyColumnToggle(col.id)}
                     size="small"
+                    sx={{
+                      '&.Mui-checked': { color: '#2563EB' },
+                    }}
                   />
                 }
-                label={PROGRES_LABELS[progres]}
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2">{col.label}</Typography>
+                    {stickyColumns.has(col.id) && (
+                      <PushPinIcon sx={{ fontSize: 14, color: '#2563EB' }} />
+                    )}
+                  </Box>
+                }
+                sx={{ mb: 0.5 }}
               />
             ))}
           </FormGroup>
-
-          {/* Fase Pengajuan Filter */}
-          <Typography variant="body2" fontWeight={500} sx={{ mb: 1, mt: 2 }}>Fase Pengajuan</Typography>
-          <FormGroup>
-            {FASE_PENGAJUAN_OPTIONS.map((fase) => (
-              <FormControlLabel
-                key={fase}
-                control={
-                  <Checkbox
-                    checked={selectedFase.has(fase)}
-                    onChange={(e) => {
-                      const newSet = new Set(selectedFase);
-                      if (e.target.checked) newSet.add(fase);
-                      else newSet.delete(fase);
-                      setSelectedFase(newSet);
-                    }}
-                    size="small"
-                  />
-                }
-                label={FASE_LABELS[fase]}
-              />
-            ))}
-          </FormGroup>
-
-          {/* Mekanisme Filter */}
-          <Typography variant="body2" fontWeight={500} sx={{ mb: 1, mt: 2 }}>Mekanisme</Typography>
-          <FormGroup>
-            {MEKANISME_OPTIONS.map((mekanisme) => (
-              <FormControlLabel
-                key={mekanisme}
-                control={
-                  <Checkbox
-                    checked={selectedMekanisme.has(mekanisme)}
-                    onChange={(e) => {
-                      const newSet = new Set(selectedMekanisme);
-                      if (e.target.checked) newSet.add(mekanisme);
-                      else newSet.delete(mekanisme);
-                      setSelectedMekanisme(newSet);
-                    }}
-                    size="small"
-                  />
-                }
-                label={MEKANISME_LABELS[mekanisme]}
-              />
-            ))}
-          </FormGroup>
-
-          {/* Pelaksanaan Filter */}
-          <Typography variant="body2" fontWeight={500} sx={{ mb: 1, mt: 2 }}>Pelaksanaan</Typography>
-          <FormGroup>
-            {PELAKSANAAN_OPTIONS.map((pelaksanaan) => (
-              <FormControlLabel
-                key={pelaksanaan}
-                control={
-                  <Checkbox
-                    checked={selectedPelaksanaan.has(pelaksanaan)}
-                    onChange={(e) => {
-                      const newSet = new Set(selectedPelaksanaan);
-                      if (e.target.checked) newSet.add(pelaksanaan);
-                      else newSet.delete(pelaksanaan);
-                      setSelectedPelaksanaan(newSet);
-                    }}
-                    size="small"
-                  />
-                }
-                label={PELAKSANAAN_LABELS[pelaksanaan]}
-              />
-            ))}
-          </FormGroup>
-
-          {/* Bidang Filter */}
-          <FormControl fullWidth size="small" sx={{ mt: 2 }}>
-            <InputLabel>Bidang</InputLabel>
-            <Select
-              value={selectedBidangFilter}
-              label="Bidang"
-              onChange={(e) => setSelectedBidangFilter(e.target.value)}
-            >
-              <MenuItem value="">Semua</MenuItem>
-              {bidangList.map((bidang) => (
-                <MenuItem key={bidang.id} value={bidang.id}>{bidang.nama_bidang}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          {/* SKPA Filter */}
-          <FormControl fullWidth size="small" sx={{ mt: 2 }}>
-            <InputLabel>SKPA</InputLabel>
-            <Select
-              value={selectedSkpaFilter}
-              label="SKPA"
-              onChange={(e) => setSelectedSkpaFilter(e.target.value)}
-            >
-              <MenuItem value="">Semua</MenuItem>
-              {skpaList.map((skpa) => (
-                <MenuItem key={skpa.id} value={skpa.id}>{skpa.kode_skpa} - {skpa.nama_skpa}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <Button fullWidth variant="text" onClick={clearFilters} sx={{ mt: 2 }}>
-            Clear Filters
+          <Button
+            fullWidth
+            variant="text"
+            size="small"
+            onClick={() => setStickyColumns(new Set())}
+            sx={{ mt: 1, color: '#86868b' }}
+          >
+            Reset Semua
           </Button>
-        </Box>
-      </Popover>
+        </Popover>
 
-      {/* Table */}
-      <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
-        <Table size="small">
+        {/* Filter Popover - Apple Liquid Glass Style */}
+        <Popover
+          open={Boolean(filterAnchorEl)}
+          anchorEl={filterAnchorEl}
+          onClose={handleFilterClose}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'left',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'left',
+          }}
+          PaperProps={{
+            sx: {
+              mt: 1.5,
+              borderRadius: '24px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 12px 24px -8px rgba(49, 162, 76, 0.1)',
+              overflow: 'hidden',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              background: 'rgba(255, 255, 255, 0.85)',
+              backdropFilter: 'blur(40px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+              width: 520,
+            },
+          }}
+        >
+          {/* Header - Liquid Glass */}
+          <Box sx={{
+            background: 'linear-gradient(135deg, rgba(49, 162, 76, 0.95) 0%, rgba(34, 139, 60, 0.9) 100%)',
+            backdropFilter: 'blur(20px)',
+            p: 2.5,
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{
+                width: 40,
+                height: 40,
+                borderRadius: '12px',
+                bgcolor: 'rgba(255, 255, 255, 0.25)',
+                backdropFilter: 'blur(10px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
+              }}>
+                <TuneRounded sx={{ fontSize: 20, color: 'white' }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'white', letterSpacing: '-0.02em' }}>
+                  Filter Data
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.7rem' }}>
+                  {activeFiltersCount > 0 ? `${activeFiltersCount} filter aktif` : 'Pilih kriteria filter'}
+                </Typography>
+              </Box>
+            </Box>
+            <IconButton 
+              size="small" 
+              onClick={handleFilterClose}
+              sx={{ 
+                color: 'white',
+                bgcolor: 'rgba(255, 255, 255, 0.15)',
+                backdropFilter: 'blur(10px)',
+                '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.25)' },
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <CloseIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Box>
+          
+          <Box sx={{ 
+            p: 3, 
+            maxHeight: 520, 
+            overflowY: 'auto',
+            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 252, 250, 0.98) 100%)',
+            '&::-webkit-scrollbar': {
+              width: 6,
+            },
+            '&::-webkit-scrollbar-track': {
+              background: 'rgba(0, 0, 0, 0.02)',
+              borderRadius: 3,
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: 'rgba(49, 162, 76, 0.3)',
+              borderRadius: 3,
+              '&:hover': {
+                background: 'rgba(49, 162, 76, 0.5)',
+              },
+            },
+          }}>
+            {/* Row 1: Progres & Fase Pengajuan */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2.5 }}>
+              {/* Progres Filter */}
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#31A24C' }} />
+                  Progres
+                </Typography>
+                <Autocomplete
+                  multiple
+                  size="small"
+                  options={[...PROGRES_OPTIONS]}
+                  getOptionLabel={(option) => PROGRES_LABELS[option] || option}
+                  value={Array.from(selectedProgres)}
+                  onChange={(_, newValue) => setSelectedProgres(new Set(newValue))}
+                  disableCloseOnSelect
+                  renderOption={(props, option, { selected }) => {
+                    const { key, ...restProps } = props;
+                    return (
+                      <li key={key} {...restProps}>
+                        <Checkbox
+                          size="small"
+                          checked={selected}
+                          sx={{ mr: 1, '&.Mui-checked': { color: '#31A24C' } }}
+                        />
+                        {PROGRES_LABELS[option] || option}
+                      </li>
+                    );
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={selectedProgres.size === 0 ? 'Pilih Progres' : ''}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '12px',
+                          bgcolor: 'rgba(255, 255, 255, 0.9)',
+                          '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.1)' },
+                          '&:hover fieldset': { borderColor: '#31A24C' },
+                          '&.Mui-focused fieldset': { borderColor: '#31A24C', borderWidth: 2 },
+                        },
+                      }}
+                    />
+                  )}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return (
+                        <Chip
+                          key={key}
+                          label={PROGRES_LABELS[option] || option}
+                          size="small"
+                          {...tagProps}
+                          sx={{ 
+                            bgcolor: '#31A24C', 
+                            color: 'white', 
+                            fontWeight: 500,
+                            '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } 
+                          }}
+                        />
+                      );
+                    })
+                  }
+                />
+              </Box>
+
+              {/* Fase Pengajuan Filter */}
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#7C3AED' }} />
+                  Fase Pengajuan
+                </Typography>
+                <Autocomplete
+                  multiple
+                  size="small"
+                  options={[...FASE_PENGAJUAN_OPTIONS]}
+                  getOptionLabel={(option) => FASE_LABELS[option] || option}
+                  value={Array.from(selectedFase)}
+                  onChange={(_, newValue) => setSelectedFase(new Set(newValue))}
+                  disableCloseOnSelect
+                  renderOption={(props, option, { selected }) => {
+                    const { key, ...restProps } = props;
+                    return (
+                      <li key={key} {...restProps}>
+                        <Checkbox
+                          size="small"
+                          checked={selected}
+                          sx={{ mr: 1, '&.Mui-checked': { color: '#7C3AED' } }}
+                        />
+                        {FASE_LABELS[option] || option}
+                      </li>
+                    );
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={selectedFase.size === 0 ? 'Pilih Fase' : ''}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '12px',
+                          bgcolor: 'rgba(255, 255, 255, 0.9)',
+                          '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.1)' },
+                          '&:hover fieldset': { borderColor: '#7C3AED' },
+                          '&.Mui-focused fieldset': { borderColor: '#7C3AED', borderWidth: 2 },
+                        },
+                      }}
+                    />
+                  )}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return (
+                        <Chip
+                          key={key}
+                          label={FASE_LABELS[option] || option}
+                          size="small"
+                          {...tagProps}
+                          sx={{ 
+                            bgcolor: '#7C3AED', 
+                            color: 'white', 
+                            fontWeight: 500,
+                            '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } 
+                          }}
+                        />
+                      );
+                    })
+                  }
+                />
+              </Box>
+            </Box>
+
+            {/* Row 2: Mekanisme & Pelaksanaan */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2.5 }}>
+              {/* Mekanisme Filter */}
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#0891B2' }} />
+                  Mekanisme
+                </Typography>
+                <Autocomplete
+                  multiple
+                  size="small"
+                  options={[...MEKANISME_OPTIONS]}
+                  getOptionLabel={(option) => MEKANISME_LABELS[option] || option}
+                  value={Array.from(selectedMekanisme)}
+                  onChange={(_, newValue) => setSelectedMekanisme(new Set(newValue))}
+                  disableCloseOnSelect
+                  renderOption={(props, option, { selected }) => {
+                    const { key, ...restProps } = props;
+                    return (
+                      <li key={key} {...restProps}>
+                        <Checkbox
+                          size="small"
+                          checked={selected}
+                          sx={{ mr: 1, '&.Mui-checked': { color: '#0891B2' } }}
+                        />
+                        {MEKANISME_LABELS[option] || option}
+                      </li>
+                    );
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={selectedMekanisme.size === 0 ? 'Pilih Mekanisme' : ''}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '12px',
+                          bgcolor: 'rgba(255, 255, 255, 0.9)',
+                          '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.1)' },
+                          '&:hover fieldset': { borderColor: '#0891B2' },
+                          '&.Mui-focused fieldset': { borderColor: '#0891B2', borderWidth: 2 },
+                        },
+                      }}
+                    />
+                  )}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return (
+                        <Chip
+                          key={key}
+                          label={MEKANISME_LABELS[option] || option}
+                          size="small"
+                          {...tagProps}
+                          sx={{ 
+                            bgcolor: '#0891B2', 
+                            color: 'white', 
+                            fontWeight: 500,
+                            '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } 
+                          }}
+                        />
+                      );
+                    })
+                  }
+                />
+              </Box>
+
+              {/* Pelaksanaan Filter */}
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#D97706' }} />
+                  Pelaksanaan
+                </Typography>
+                <Autocomplete
+                  multiple
+                  size="small"
+                  options={[...PELAKSANAAN_OPTIONS]}
+                  getOptionLabel={(option) => PELAKSANAAN_LABELS[option] || option}
+                  value={Array.from(selectedPelaksanaan)}
+                  onChange={(_, newValue) => setSelectedPelaksanaan(new Set(newValue))}
+                  disableCloseOnSelect
+                  renderOption={(props, option, { selected }) => {
+                    const { key, ...restProps } = props;
+                    return (
+                      <li key={key} {...restProps}>
+                        <Checkbox
+                          size="small"
+                          checked={selected}
+                          sx={{ mr: 1, '&.Mui-checked': { color: '#D97706' } }}
+                        />
+                        {PELAKSANAAN_LABELS[option] || option}
+                      </li>
+                    );
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={selectedPelaksanaan.size === 0 ? 'Pilih Pelaksanaan' : ''}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '12px',
+                          bgcolor: 'rgba(255, 255, 255, 0.9)',
+                          '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.1)' },
+                          '&:hover fieldset': { borderColor: '#D97706' },
+                          '&.Mui-focused fieldset': { borderColor: '#D97706', borderWidth: 2 },
+                        },
+                      }}
+                    />
+                  )}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return (
+                        <Chip
+                          key={key}
+                          label={PELAKSANAAN_LABELS[option] || option}
+                          size="small"
+                          {...tagProps}
+                          sx={{ 
+                            bgcolor: '#D97706', 
+                            color: 'white', 
+                            fontWeight: 500,
+                            '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } 
+                          }}
+                        />
+                      );
+                    })
+                  }
+                />
+              </Box>
+            </Box>
+
+            {/* Row 3: Bidang & SKPA */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2.5 }}>
+              {/* Bidang Filter */}
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#DC2626' }} />
+                  Bidang
+                </Typography>
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={selectedBidangFilter}
+                    displayEmpty
+                    onChange={(e) => setSelectedBidangFilter(e.target.value)}
+                    sx={{
+                      borderRadius: '12px',
+                      bgcolor: 'rgba(255, 255, 255, 0.9)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#DC2626',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#DC2626',
+                        borderWidth: 2,
+                      },
+                    }}
+                  >
+                    <MenuItem value="">
+                      <em>Semua Bidang</em>
+                    </MenuItem>
+                    {bidangList.map((bidang) => (
+                      <MenuItem key={bidang.id} value={bidang.id}>{bidang.nama_bidang}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+
+              {/* SKPA Filter */}
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#4F46E5' }} />
+                  SKPA
+                </Typography>
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={selectedSkpaFilter}
+                    displayEmpty
+                    onChange={(e) => setSelectedSkpaFilter(e.target.value)}
+                    sx={{
+                      borderRadius: '12px',
+                      bgcolor: 'rgba(255, 255, 255, 0.9)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#4F46E5',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#4F46E5',
+                        borderWidth: 2,
+                      },
+                    }}
+                  >
+                    <MenuItem value="">
+                      <em>Semua SKPA</em>
+                    </MenuItem>
+                    {skpaList.map((skpa) => (
+                      <MenuItem key={skpa.id} value={skpa.id}>{skpa.kode_skpa} - {skpa.nama_skpa}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            </Box>
+
+            {/* Reset Button */}
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={clearFilters}
+              sx={{
+                mt: 1,
+                py: 1.5,
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, rgba(49, 162, 76, 0.1) 0%, rgba(34, 139, 60, 0.15) 100%)',
+                color: '#31A24C',
+                fontWeight: 600,
+                letterSpacing: '-0.01em',
+                boxShadow: 'none',
+                border: '1px solid rgba(49, 162, 76, 0.2)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, rgba(49, 162, 76, 0.15) 0%, rgba(34, 139, 60, 0.2) 100%)',
+                  boxShadow: '0 4px 12px rgba(49, 162, 76, 0.15)',
+                },
+              }}
+            >
+              Reset Filter
+            </Button>
+          </Box>
+        </Popover>
+
+        {/* Table */}
+        <TableContainer sx={{ 
+          width: '100%',
+          overflowX: 'auto',
+          '&::-webkit-scrollbar': {
+            height: 8,
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'rgba(0, 0, 0, 0.02)',
+            borderRadius: 4,
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'rgba(49, 162, 76, 0.2)',
+            borderRadius: 4,
+            '&:hover': {
+              background: 'rgba(49, 162, 76, 0.35)',
+            },
+          },
+        }}>
+        <Table sx={{ tableLayout: 'auto', minWidth: 3500 }}>
           <TableHead>
-            <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-              <TableCell>No</TableCell>
-              <TableCell>
+            {/* First row - Grouped headers */}
+            <TableRow sx={{ bgcolor: '#f5f5f7' }}>
+              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', textAlign: 'center', fontSize: '0.8rem', minWidth: 50, ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>No</TableCell>
+              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                 <TableSortLabel
                   active={orderBy === 'namaAplikasi'}
                   direction={orderBy === 'namaAplikasi' ? order : 'asc'}
@@ -544,28 +1188,63 @@ function Fs2Disetujui() {
                   Nama Aplikasi
                 </TableSortLabel>
               </TableCell>
-              <TableCell>Progres</TableCell>
-              <TableCell>Fase Pengajuan</TableCell>
-              <TableCell>IKU</TableCell>
-              <TableCell>Bidang</TableCell>
-              <TableCell>SKPA</TableCell>
-              <TableCell>Mekanisme</TableCell>
-              <TableCell>Pelaksanaan</TableCell>
-              <TableCell>PIC</TableCell>
-              <TableCell>Dokumen</TableCell>
-              <TableCell align="center">Aksi</TableCell>
+              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100, ...(stickyColumns.has('progres') && { position: 'sticky', left: getStickyLeft('progres'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('progres') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Progres</TableCell>
+              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 130, ...(stickyColumns.has('fasePengajuan') && { position: 'sticky', left: getStickyLeft('fasePengajuan'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('fasePengajuan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Fase Pengajuan</TableCell>
+              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 80, ...(stickyColumns.has('iku') && { position: 'sticky', left: getStickyLeft('iku'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('iku') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>IKU</TableCell>
+              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Bidang</TableCell>
+              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>SKPA</TableCell>
+              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100, ...(stickyColumns.has('mekanisme') && { position: 'sticky', left: getStickyLeft('mekanisme'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('mekanisme') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Mekanisme</TableCell>
+              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 140, ...(stickyColumns.has('pelaksanaan') && { position: 'sticky', left: getStickyLeft('pelaksanaan'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('pelaksanaan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Pelaksanaan</TableCell>
+              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('pic') && { position: 'sticky', left: getStickyLeft('pic'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('pic') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>PIC</TableCell>
+              {/* Dokumen Pengajuan F.S.2 - grouped */}
+              <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(49, 162, 76, 0.08)' }}>Dokumen Pengajuan F.S.2</TableCell>
+              {/* CD Prinsip - grouped */}
+              <TableCell colSpan={5} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(37, 99, 235, 0.08)' }}>CD Prinsip</TableCell>
+              {/* Pengujian - grouped */}
+              <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(217, 119, 6, 0.08)' }}>Pengujian</TableCell>
+              {/* Deployment - grouped */}
+              <TableCell colSpan={3} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(124, 58, 237, 0.08)' }}>Deployment</TableCell>
+              {/* Go Live - grouped */}
+              <TableCell colSpan={1} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(5, 150, 105, 0.08)' }}>Go Live</TableCell>
+              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150 }}>Keterangan</TableCell>
+              <TableCell rowSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100 }}>Aksi</TableCell>
+            </TableRow>
+            {/* Second row - Sub-headers */}
+            <TableRow sx={{ bgcolor: '#f5f5f7' }}>
+              {/* Dokumen Pengajuan F.S.2 sub-headers */}
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(49, 162, 76, 0.04)' }}>Nomor ND</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(49, 162, 76, 0.04)' }}>Tanggal</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(49, 162, 76, 0.04)' }}>Berkas ND</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(49, 162, 76, 0.04)' }}>Berkas F.S.2</TableCell>
+              {/* CD Prinsip sub-headers */}
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Nomor CD</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Tanggal</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Berkas CD</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Berkas F.S.2A</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Berkas F.S.2B</TableCell>
+              {/* Pengujian sub-headers */}
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(217, 119, 6, 0.04)' }}>Target</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(217, 119, 6, 0.04)' }}>Realisasi</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(217, 119, 6, 0.04)' }}>Berkas F45</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(217, 119, 6, 0.04)' }}>Berkas F46</TableCell>
+              {/* Deployment sub-headers */}
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(124, 58, 237, 0.04)' }}>Target</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(124, 58, 237, 0.04)' }}>Realisasi</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(124, 58, 237, 0.04)' }}>Berkas ND/BA</TableCell>
+              {/* Go Live sub-headers */}
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(5, 150, 105, 0.04)' }}>Target</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={12} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={28} align="center" sx={{ py: 4 }}>
                   <CircularProgress size={32} />
                 </TableCell>
               </TableRow>
             ) : fs2Data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={12} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={28} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">Tidak ada data F.S.2 Disetujui</Typography>
                 </TableCell>
               </TableRow>
@@ -574,69 +1253,358 @@ function Fs2Disetujui() {
                 const skpaColor = getChipColor(row.skpa);
                 const progresColor = PROGRES_COLORS[row.progres] || { bg: '#f5f5f5', text: '#666' };
                 return (
-                  <TableRow key={row.id} hover>
-                    <TableCell>{page * rowsPerPage + index + 1}</TableCell>
-                    <TableCell>{row.namaAplikasi}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={PROGRES_LABELS[row.progres] || row.progres}
-                        size="small"
-                        sx={{
-                          bgcolor: progresColor.bg,
-                          color: progresColor.text,
-                          fontWeight: 500,
-                        }}
-                      />
+                  <TableRow 
+                    key={row.id} 
+                    sx={{
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 250, 245, 0.8) 100%)',
+                        boxShadow: '0 4px 20px rgba(49, 162, 76, 0.08)',
+                        transform: 'scale(1.001)',
+                      },
+                      '&:not(:last-child)': {
+                        borderBottom: '1px solid rgba(0, 0, 0, 0.04)',
+                      },
+                    }}
+                  >
+                    {/* No */}
+                    <TableCell sx={{ color: '#86868b', py: 1, px: 2, textAlign: 'center', fontWeight: 500, fontSize: '0.8rem', minWidth: 50, ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                      {page * rowsPerPage + index + 1}
                     </TableCell>
-                    <TableCell>{FASE_LABELS[row.fasePengajuan] || row.fasePengajuan}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={row.iku === 'Y' ? 'Ya' : row.iku === 'T' ? 'Tidak' : row.iku}
-                        size="small"
-                        sx={{
-                          bgcolor: row.iku === 'Y' ? '#D1FAE5' : '#FEE2E2',
-                          color: row.iku === 'Y' ? '#059669' : '#DC2626',
-                          fontWeight: 500,
-                        }}
-                      />
+                    {/* Nama Aplikasi */}
+                    <TableCell sx={{ py: 1, px: 2, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 160, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>{row.namaAplikasi}</Typography>
                     </TableCell>
-                    <TableCell>{row.bidang}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={row.skpa}
-                        size="small"
-                        sx={{
-                          bgcolor: skpaColor.bg,
-                          color: skpaColor.text,
-                          fontWeight: 500,
-                        }}
-                      />
+                    {/* Progres */}
+                    <TableCell sx={{ py: 1, px: 2, minWidth: 100, ...(stickyColumns.has('progres') && { position: 'sticky', left: getStickyLeft('progres'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('progres') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                      <Chip label={PROGRES_LABELS[row.progres] || row.progres} size="small" sx={{ bgcolor: progresColor.bg, color: progresColor.text, fontWeight: 500, fontSize: '0.7rem' }} />
                     </TableCell>
-                    <TableCell>{MEKANISME_LABELS[row.mekanisme] || row.mekanisme}</TableCell>
-                    <TableCell>{getPelaksanaanDisplay(row)}</TableCell>
-                    <TableCell>{row.pic}</TableCell>
-                    <TableCell>
-                      {row.dokumenPath ? (
-                        <Link href={row.dokumenPath} target="_blank" rel="noopener">
-                          <IconButton size="small">
-                            <FileIcon fontSize="small" />
-                          </IconButton>
-                        </Link>
-                      ) : (
-                        '-'
-                      )}
+                    {/* Fase Pengajuan */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 130, ...(stickyColumns.has('fasePengajuan') && { position: 'sticky', left: getStickyLeft('fasePengajuan'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('fasePengajuan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>{FASE_LABELS[row.fasePengajuan] || row.fasePengajuan}</TableCell>
+                    {/* IKU */}
+                    <TableCell sx={{ py: 1, px: 2, minWidth: 80, ...(stickyColumns.has('iku') && { position: 'sticky', left: getStickyLeft('iku'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('iku') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                      <Chip label={row.iku === 'Y' ? 'Ya' : row.iku === 'T' ? 'Tidak' : row.iku} size="small" sx={{ bgcolor: row.iku === 'Y' ? '#D1FAE5' : '#FEE2E2', color: row.iku === 'Y' ? '#059669' : '#DC2626', fontWeight: 500, fontSize: '0.7rem' }} />
                     </TableCell>
-                    <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                        <Tooltip title="Lihat Detail">
-                          <IconButton size="small" onClick={() => handleOpenViewModal(row.id)}>
-                            <VisibilityIcon fontSize="small" />
+                    {/* Bidang */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>{row.bidang}</TableCell>
+                    {/* SKPA */}
+                    <TableCell sx={{ py: 1, px: 2, minWidth: 100, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                      <Chip label={row.skpa} size="small" sx={{ bgcolor: skpaColor.bg, color: skpaColor.text, fontWeight: 500, fontSize: '0.7rem' }} />
+                    </TableCell>
+                    {/* Mekanisme */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, ...(stickyColumns.has('mekanisme') && { position: 'sticky', left: getStickyLeft('mekanisme'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('mekanisme') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>{MEKANISME_LABELS[row.mekanisme] || row.mekanisme}</TableCell>
+                    {/* Pelaksanaan */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 140, ...(stickyColumns.has('pelaksanaan') && { position: 'sticky', left: getStickyLeft('pelaksanaan'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('pelaksanaan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>{getPelaksanaanDisplay(row)}</TableCell>
+                    {/* PIC */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('pic') && { position: 'sticky', left: getStickyLeft('pic'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('pic') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>{row.pic}</TableCell>
+                    {/* Dokumen Pengajuan F.S.2 - Nomor ND */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(49, 162, 76, 0.02)' }}>{row.nomorNd}</TableCell>
+                    {/* Dokumen Pengajuan F.S.2 - Tanggal */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(49, 162, 76, 0.02)' }}>{row.tanggalNd}</TableCell>
+                    {/* Dokumen Pengajuan F.S.2 - Berkas ND */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 80, bgcolor: 'rgba(49, 162, 76, 0.02)' }}>
+                      {row.berkasNd ? (
+                        <Button
+                          size="small"
+                          component="a"
+                          href={row.berkasNd}
+                          target="_blank"
+                          rel="noopener"
+                          startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                          sx={{
+                            textTransform: 'none',
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            color: '#059669',
+                            borderRadius: '8px',
+                            px: 1.5,
+                            py: 0.5,
+                            background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, rgba(52, 211, 153, 0.08) 100%)',
+                            border: '1px solid rgba(5, 150, 105, 0.2)',
+                            '&:hover': {
+                              background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.15) 0%, rgba(52, 211, 153, 0.12) 100%)',
+                              boxShadow: '0 2px 8px rgba(5, 150, 105, 0.15)',
+                            },
+                          }}
+                        >
+                          View
+                        </Button>
+                      ) : <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>}
+                    </TableCell>
+                    {/* Dokumen Pengajuan F.S.2 - Berkas F.S.2 */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 80, bgcolor: 'rgba(49, 162, 76, 0.02)' }}>
+                      {row.berkasFs2 ? (
+                        <Button
+                          size="small"
+                          component="a"
+                          href={row.berkasFs2}
+                          target="_blank"
+                          rel="noopener"
+                          startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                          sx={{
+                            textTransform: 'none',
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            color: '#059669',
+                            borderRadius: '8px',
+                            px: 1.5,
+                            py: 0.5,
+                            background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, rgba(52, 211, 153, 0.08) 100%)',
+                            border: '1px solid rgba(5, 150, 105, 0.2)',
+                            '&:hover': {
+                              background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.15) 0%, rgba(52, 211, 153, 0.12) 100%)',
+                              boxShadow: '0 2px 8px rgba(5, 150, 105, 0.15)',
+                            },
+                          }}
+                        >
+                          View
+                        </Button>
+                      ) : <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>}
+                    </TableCell>
+                    {/* CD Prinsip - Nomor CD */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.02)' }}>{row.nomorCd}</TableCell>
+                    {/* CD Prinsip - Tanggal */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.02)' }}>{row.tanggalCd}</TableCell>
+                    {/* CD Prinsip - Berkas CD */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 80, bgcolor: 'rgba(37, 99, 235, 0.02)' }}>
+                      {row.berkasCd ? (
+                        <Button
+                          size="small"
+                          component="a"
+                          href={row.berkasCd}
+                          target="_blank"
+                          rel="noopener"
+                          startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                          sx={{
+                            textTransform: 'none',
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            color: '#2563EB',
+                            borderRadius: '8px',
+                            px: 1.5,
+                            py: 0.5,
+                            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(96, 165, 250, 0.08) 100%)',
+                            border: '1px solid rgba(37, 99, 235, 0.2)',
+                            '&:hover': {
+                              background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(96, 165, 250, 0.12) 100%)',
+                              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)',
+                            },
+                          }}
+                        >
+                          View
+                        </Button>
+                      ) : <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>}
+                    </TableCell>
+                    {/* CD Prinsip - Berkas F.S.2A */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 80, bgcolor: 'rgba(37, 99, 235, 0.02)' }}>
+                      {row.berkasFs2a ? (
+                        <Button
+                          size="small"
+                          component="a"
+                          href={row.berkasFs2a}
+                          target="_blank"
+                          rel="noopener"
+                          startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                          sx={{
+                            textTransform: 'none',
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            color: '#2563EB',
+                            borderRadius: '8px',
+                            px: 1.5,
+                            py: 0.5,
+                            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(96, 165, 250, 0.08) 100%)',
+                            border: '1px solid rgba(37, 99, 235, 0.2)',
+                            '&:hover': {
+                              background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(96, 165, 250, 0.12) 100%)',
+                              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)',
+                            },
+                          }}
+                        >
+                          View
+                        </Button>
+                      ) : <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>}
+                    </TableCell>
+                    {/* CD Prinsip - Berkas F.S.2B */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 80, bgcolor: 'rgba(37, 99, 235, 0.02)' }}>
+                      {row.berkasFs2b ? (
+                        <Button
+                          size="small"
+                          component="a"
+                          href={row.berkasFs2b}
+                          target="_blank"
+                          rel="noopener"
+                          startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                          sx={{
+                            textTransform: 'none',
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            color: '#2563EB',
+                            borderRadius: '8px',
+                            px: 1.5,
+                            py: 0.5,
+                            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(96, 165, 250, 0.08) 100%)',
+                            border: '1px solid rgba(37, 99, 235, 0.2)',
+                            '&:hover': {
+                              background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(96, 165, 250, 0.12) 100%)',
+                              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)',
+                            },
+                          }}
+                        >
+                          View
+                        </Button>
+                      ) : <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>}
+                    </TableCell>
+                    {/* Pengujian - Target */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(217, 119, 6, 0.02)' }}>{row.targetPengujian}</TableCell>
+                    {/* Pengujian - Realisasi */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(217, 119, 6, 0.02)' }}>{row.realisasiPengujian}</TableCell>
+                    {/* Pengujian - Berkas F45 */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 80, bgcolor: 'rgba(217, 119, 6, 0.02)' }}>
+                      {row.berkasF45 ? (
+                        <Button
+                          size="small"
+                          component="a"
+                          href={row.berkasF45}
+                          target="_blank"
+                          rel="noopener"
+                          startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                          sx={{
+                            textTransform: 'none',
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            color: '#D97706',
+                            borderRadius: '8px',
+                            px: 1.5,
+                            py: 0.5,
+                            background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.1) 0%, rgba(251, 191, 36, 0.08) 100%)',
+                            border: '1px solid rgba(217, 119, 6, 0.2)',
+                            '&:hover': {
+                              background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.15) 0%, rgba(251, 191, 36, 0.12) 100%)',
+                              boxShadow: '0 2px 8px rgba(217, 119, 6, 0.15)',
+                            },
+                          }}
+                        >
+                          View
+                        </Button>
+                      ) : <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>}
+                    </TableCell>
+                    {/* Pengujian - Berkas F46 */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 80, bgcolor: 'rgba(217, 119, 6, 0.02)' }}>
+                      {row.berkasF46 ? (
+                        <Button
+                          size="small"
+                          component="a"
+                          href={row.berkasF46}
+                          target="_blank"
+                          rel="noopener"
+                          startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                          sx={{
+                            textTransform: 'none',
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            color: '#D97706',
+                            borderRadius: '8px',
+                            px: 1.5,
+                            py: 0.5,
+                            background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.1) 0%, rgba(251, 191, 36, 0.08) 100%)',
+                            border: '1px solid rgba(217, 119, 6, 0.2)',
+                            '&:hover': {
+                              background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.15) 0%, rgba(251, 191, 36, 0.12) 100%)',
+                              boxShadow: '0 2px 8px rgba(217, 119, 6, 0.15)',
+                            },
+                          }}
+                        >
+                          View
+                        </Button>
+                      ) : <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>}
+                    </TableCell>
+                    {/* Deployment - Target */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(124, 58, 237, 0.02)' }}>{row.targetDeployment}</TableCell>
+                    {/* Deployment - Realisasi */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(124, 58, 237, 0.02)' }}>{row.realisasiDeployment}</TableCell>
+                    {/* Deployment - Berkas ND/BA */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(124, 58, 237, 0.02)' }}>
+                      {row.berkasNdBaDeployment ? (
+                        <Button
+                          size="small"
+                          component="a"
+                          href={row.berkasNdBaDeployment}
+                          target="_blank"
+                          rel="noopener"
+                          startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                          sx={{
+                            textTransform: 'none',
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            color: '#7C3AED',
+                            borderRadius: '8px',
+                            px: 1.5,
+                            py: 0.5,
+                            background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.1) 0%, rgba(167, 139, 250, 0.08) 100%)',
+                            border: '1px solid rgba(124, 58, 237, 0.2)',
+                            '&:hover': {
+                              background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.15) 0%, rgba(167, 139, 250, 0.12) 100%)',
+                              boxShadow: '0 2px 8px rgba(124, 58, 237, 0.15)',
+                            },
+                          }}
+                        >
+                          View
+                        </Button>
+                      ) : <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>}
+                    </TableCell>
+                    {/* Go Live - Target */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(5, 150, 105, 0.02)' }}>{row.targetGoLive}</TableCell>
+                    {/* Keterangan */}
+                    <TableCell align="center" sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 150 }}>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' }} title={row.keterangan}>
+                        {row.keterangan}
+                      </Typography>
+                    </TableCell>
+                    {/* Aksi */}
+                    <TableCell align="center" sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.75 }}>
+                        <Tooltip title="Lihat Detail F.S.2">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenViewModal(row.id)}
+                            sx={{
+                              color: '#059669',
+                              background: 'linear-gradient(135deg, rgba(52, 211, 153, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%)',
+                              backdropFilter: 'blur(10px)',
+                              border: '1px solid rgba(255, 255, 255, 0.3)',
+                              borderRadius: '10px',
+                              transition: 'all 0.2s ease',
+                              '&:hover': { 
+                                background: 'linear-gradient(135deg, rgba(52, 211, 153, 0.25) 0%, rgba(16, 185, 129, 0.2) 100%)',
+                                transform: 'scale(1.05)',
+                                boxShadow: '0 4px 12px rgba(5, 150, 105, 0.2)',
+                              },
+                            }}
+                          >
+                            <VisibilityIcon sx={{ fontSize: 16 }} />
                           </IconButton>
                         </Tooltip>
                         {fs2Permissions.canUpdate && (
-                          <Tooltip title="Edit">
-                            <IconButton size="small" onClick={() => handleOpenEditModal(row.id)}>
-                              <EditIcon fontSize="small" />
+                          <Tooltip title="Edit F.S.2">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenEditModal(row.id)}
+                              sx={{
+                                color: '#D97706',
+                                background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.1) 100%)',
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid rgba(255, 255, 255, 0.3)',
+                                borderRadius: '10px',
+                                transition: 'all 0.2s ease',
+                                '&:hover': { 
+                                  background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(245, 158, 11, 0.2) 100%)',
+                                  transform: 'scale(1.05)',
+                                  boxShadow: '0 4px 12px rgba(217, 119, 6, 0.2)',
+                                },
+                              }}
+                            >
+                              <EditIcon sx={{ fontSize: 16 }} />
                             </IconButton>
                           </Tooltip>
                         )}
@@ -648,6 +1616,9 @@ function Fs2Disetujui() {
             )}
           </TableBody>
         </Table>
+        </TableContainer>
+        
+        {/* Pagination - outside TableContainer for static positioning */}
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
@@ -657,76 +1628,175 @@ function Fs2Disetujui() {
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           labelRowsPerPage="Baris per halaman:"
+          sx={{
+            borderTop: '1px solid rgba(0, 0, 0, 0.06)',
+            bgcolor: 'rgba(255, 255, 255, 0.9)',
+            '& .MuiTablePagination-select': {
+              borderRadius: '8px',
+            },
+          }}
         />
-      </TableContainer>
+      </Paper>
 
       {/* View Modal */}
-      <Dialog open={openViewModal} onClose={handleCloseViewModal} maxWidth="md" fullWidth>
-        <DialogTitle>Detail F.S.2 Disetujui</DialogTitle>
-        <DialogContent>
-          {selectedFs2ForView && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mt: 1 }}>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Aplikasi</Typography>
-                <Typography>{selectedFs2ForView.nama_aplikasi || '-'}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Progres</Typography>
-                <Typography>{PROGRES_LABELS[selectedFs2ForView.progres || ''] || selectedFs2ForView.progres || '-'}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Fase Pengajuan</Typography>
-                <Typography>{FASE_LABELS[selectedFs2ForView.fase_pengajuan || ''] || selectedFs2ForView.fase_pengajuan || '-'}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">IKU</Typography>
-                <Typography>{selectedFs2ForView.iku === 'Y' ? 'Ya' : selectedFs2ForView.iku === 'T' ? 'Tidak' : '-'}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Bidang</Typography>
-                <Typography>{selectedFs2ForView.nama_bidang || '-'}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">SKPA</Typography>
-                <Typography>{selectedFs2ForView.kode_skpa || selectedFs2ForView.nama_skpa || '-'}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Mekanisme</Typography>
-                <Typography>{MEKANISME_LABELS[selectedFs2ForView.mekanisme || ''] || selectedFs2ForView.mekanisme || '-'}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Pelaksanaan</Typography>
-                <Typography>
-                  {selectedFs2ForView.pelaksanaan === 'SINGLE_YEAR' 
-                    ? `Single Year${selectedFs2ForView.tahun ? ` (${selectedFs2ForView.tahun})` : ''}`
-                    : selectedFs2ForView.pelaksanaan === 'MULTIYEARS'
-                      ? `Multiyears${selectedFs2ForView.tahun_mulai && selectedFs2ForView.tahun_selesai ? ` (${selectedFs2ForView.tahun_mulai} - ${selectedFs2ForView.tahun_selesai})` : ''}`
-                      : '-'}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">PIC</Typography>
-                <Typography>{selectedFs2ForView.pic_name || '-'}</Typography>
+      <ViewFs2Modal
+        open={openViewModal}
+        onClose={handleCloseViewModal}
+        fs2Id={selectedFs2IdForView}
+        showMonitoringSection={true}
+      />
+
+      {/* Edit Modal */}
+      <Dialog 
+        open={openEditModal} 
+        onClose={handleCloseEditModal} 
+        maxWidth="md" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '24px',
+            maxHeight: '90vh',
+            bgcolor: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(40px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 2, 
+          borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+          pb: 2,
+          bgcolor: 'rgba(255, 255, 255, 0.85)',
+        }}>
+          <Box sx={{
+            width: 48,
+            height: 48,
+            borderRadius: '14px',
+            background: 'linear-gradient(135deg, #31A24C 0%, #059669 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 14px rgba(49, 162, 76, 0.3)',
+          }}>
+            <EditIcon sx={{ color: 'white', fontSize: 24 }} />
+          </Box>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: '#1d1d1f', letterSpacing: '-0.02em' }}>
+              Edit F.S.2
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#86868b' }}>
+              Update informasi monitoring F.S.2
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ 
+          pt: 3, 
+          pb: 4,
+          background: 'linear-gradient(135deg, rgba(245, 245, 247, 0.9) 0%, rgba(250, 250, 250, 0.95) 100%)',
+        }}>
+          {/* Nama Aplikasi & SKPA Display Section */}
+          {selectedFs2 && (
+            <Box sx={{ 
+              mb: 3,
+              p: 2.5,
+              borderRadius: '16px',
+              background: 'linear-gradient(145deg, rgba(245, 245, 247, 0.8) 0%, rgba(240, 240, 242, 0.6) 100%)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+            }}>
+              <Box sx={{ display: 'flex', gap: 3 }}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ 
+                    fontSize: '0.7rem', 
+                    color: '#86868b', 
+                    mb: 0.5,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    fontWeight: 500,
+                  }}>
+                    Nama Aplikasi
+                  </Typography>
+                  <Typography sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f',
+                    fontSize: '0.9rem',
+                  }}>
+                    {selectedFs2.nama_aplikasi || '-'}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ 
+                    fontSize: '0.7rem', 
+                    color: '#86868b', 
+                    mb: 0.5,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    fontWeight: 500,
+                  }}>
+                    SKPA
+                  </Typography>
+                  {selectedFs2.kode_skpa ? (
+                    <Chip
+                      label={selectedFs2.kode_skpa}
+                      size="small"
+                      sx={{
+                        bgcolor: getChipColor(selectedFs2.kode_skpa).bg,
+                        color: getChipColor(selectedFs2.kode_skpa).text,
+                        fontWeight: 600,
+                        fontSize: '0.65rem',
+                        height: 22,
+                        borderRadius: '6px',
+                      }}
+                    />
+                  ) : (
+                    <Typography sx={{ color: '#86868b', fontSize: '0.85rem' }}>-</Typography>
+                  )}
+                </Box>
               </Box>
             </Box>
           )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseViewModal}>Tutup</Button>
-        </DialogActions>
-      </Dialog>
 
-      {/* Edit Modal */}
-      <Dialog open={openEditModal} onClose={handleCloseEditModal} maxWidth="md" fullWidth>
-        <DialogTitle>Edit F.S.2 Disetujui</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mt: 1 }}>
+          {/* Info Umum Section */}
+          <Box sx={{ p: 2.5, borderRadius: '16px', bgcolor: 'rgba(49, 162, 76, 0.04)', border: '1px solid rgba(49, 162, 76, 0.12)', mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#31A24C', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#31A24C' }} />
+              Informasi Umum
+            </Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
             <FormControl fullWidth size="small">
-              <InputLabel>Progres</InputLabel>
+              <InputLabel sx={{ '&.Mui-focused': { color: '#31A24C' } }}>Progres</InputLabel>
               <Select
                 value={editFormData.progres || ''}
                 label="Progres"
                 onChange={(e) => setEditFormData({ ...editFormData, progres: e.target.value })}
+                sx={{
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0, 0, 0, 0.08)',
+                    transition: 'all 0.3s ease',
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(49, 162, 76, 0.3)',
+                    },
+                  },
+                  '&.Mui-focused': {
+                    backgroundColor: 'rgba(255, 255, 255, 1)',
+                    boxShadow: '0 4px 20px rgba(49, 162, 76, 0.12)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                      borderWidth: '1.5px',
+                    },
+                  },
+                }}
               >
                 {PROGRES_OPTIONS.map((option) => (
                   <MenuItem key={option} value={option}>{PROGRES_LABELS[option]}</MenuItem>
@@ -735,11 +1805,35 @@ function Fs2Disetujui() {
             </FormControl>
 
             <FormControl fullWidth size="small">
-              <InputLabel>Fase Pengajuan</InputLabel>
+              <InputLabel sx={{ '&.Mui-focused': { color: '#31A24C' } }}>Fase Pengajuan</InputLabel>
               <Select
                 value={editFormData.fase_pengajuan || ''}
                 label="Fase Pengajuan"
                 onChange={(e) => setEditFormData({ ...editFormData, fase_pengajuan: e.target.value })}
+                sx={{
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0, 0, 0, 0.08)',
+                    transition: 'all 0.3s ease',
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(49, 162, 76, 0.3)',
+                    },
+                  },
+                  '&.Mui-focused': {
+                    backgroundColor: 'rgba(255, 255, 255, 1)',
+                    boxShadow: '0 4px 20px rgba(49, 162, 76, 0.12)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                      borderWidth: '1.5px',
+                    },
+                  },
+                }}
               >
                 {FASE_PENGAJUAN_OPTIONS.map((option) => (
                   <MenuItem key={option} value={option}>{FASE_LABELS[option]}</MenuItem>
@@ -748,11 +1842,35 @@ function Fs2Disetujui() {
             </FormControl>
 
             <FormControl fullWidth size="small">
-              <InputLabel>IKU</InputLabel>
+              <InputLabel sx={{ '&.Mui-focused': { color: '#31A24C' } }}>IKU</InputLabel>
               <Select
                 value={editFormData.iku || ''}
                 label="IKU"
                 onChange={(e) => setEditFormData({ ...editFormData, iku: e.target.value })}
+                sx={{
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0, 0, 0, 0.08)',
+                    transition: 'all 0.3s ease',
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(49, 162, 76, 0.3)',
+                    },
+                  },
+                  '&.Mui-focused': {
+                    backgroundColor: 'rgba(255, 255, 255, 1)',
+                    boxShadow: '0 4px 20px rgba(49, 162, 76, 0.12)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                      borderWidth: '1.5px',
+                    },
+                  },
+                }}
               >
                 <MenuItem value="Y">Ya</MenuItem>
                 <MenuItem value="T">Tidak</MenuItem>
@@ -760,11 +1878,35 @@ function Fs2Disetujui() {
             </FormControl>
 
             <FormControl fullWidth size="small">
-              <InputLabel>Mekanisme</InputLabel>
+              <InputLabel sx={{ '&.Mui-focused': { color: '#31A24C' } }}>Mekanisme</InputLabel>
               <Select
                 value={editFormData.mekanisme || ''}
                 label="Mekanisme"
                 onChange={(e) => setEditFormData({ ...editFormData, mekanisme: e.target.value })}
+                sx={{
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0, 0, 0, 0.08)',
+                    transition: 'all 0.3s ease',
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(49, 162, 76, 0.3)',
+                    },
+                  },
+                  '&.Mui-focused': {
+                    backgroundColor: 'rgba(255, 255, 255, 1)',
+                    boxShadow: '0 4px 20px rgba(49, 162, 76, 0.12)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                      borderWidth: '1.5px',
+                    },
+                  },
+                }}
               >
                 {MEKANISME_OPTIONS.map((option) => (
                   <MenuItem key={option} value={option}>{MEKANISME_LABELS[option]}</MenuItem>
@@ -773,11 +1915,35 @@ function Fs2Disetujui() {
             </FormControl>
 
             <FormControl fullWidth size="small">
-              <InputLabel>Pelaksanaan</InputLabel>
+              <InputLabel sx={{ '&.Mui-focused': { color: '#31A24C' } }}>Pelaksanaan</InputLabel>
               <Select
                 value={editFormData.pelaksanaan || ''}
                 label="Pelaksanaan"
                 onChange={(e) => setEditFormData({ ...editFormData, pelaksanaan: e.target.value })}
+                sx={{
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0, 0, 0, 0.08)',
+                    transition: 'all 0.3s ease',
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(49, 162, 76, 0.3)',
+                    },
+                  },
+                  '&.Mui-focused': {
+                    backgroundColor: 'rgba(255, 255, 255, 1)',
+                    boxShadow: '0 4px 20px rgba(49, 162, 76, 0.12)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                      borderWidth: '1.5px',
+                    },
+                  },
+                }}
               >
                 {PELAKSANAAN_OPTIONS.map((option) => (
                   <MenuItem key={option} value={option}>{PELAKSANAAN_LABELS[option]}</MenuItem>
@@ -785,50 +1951,267 @@ function Fs2Disetujui() {
               </Select>
             </FormControl>
 
-            {editFormData.pelaksanaan === 'SINGLE_YEAR' && (
-              <TextField
-                label="Tahun"
-                type="number"
-                size="small"
-                value={editFormData.tahun || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, tahun: parseInt(e.target.value) || undefined })}
-                fullWidth
-              />
-            )}
-
-            {editFormData.pelaksanaan === 'MULTIYEARS' && (
-              <>
-                <TextField
-                  label="Tahun Mulai"
-                  type="number"
-                  size="small"
-                  value={editFormData.tahun_mulai || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, tahun_mulai: parseInt(e.target.value) || undefined })}
-                  fullWidth
-                />
-                <TextField
-                  label="Tahun Selesai"
-                  type="number"
-                  size="small"
-                  value={editFormData.tahun_selesai || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, tahun_selesai: parseInt(e.target.value) || undefined })}
-                  fullWidth
-                />
-              </>
-            )}
+            <FormControl fullWidth size="small">
+              <InputLabel sx={{ '&.Mui-focused': { color: '#31A24C' } }}>Bidang</InputLabel>
+              <Select
+                value={editFormData.bidang_id || ''}
+                label="Bidang"
+                onChange={(e) => setEditFormData({ ...editFormData, bidang_id: e.target.value })}
+                sx={{
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0, 0, 0, 0.08)',
+                    transition: 'all 0.3s ease',
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(49, 162, 76, 0.3)',
+                    },
+                  },
+                  '&.Mui-focused': {
+                    backgroundColor: 'rgba(255, 255, 255, 1)',
+                    boxShadow: '0 4px 20px rgba(49, 162, 76, 0.12)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#31A24C',
+                      borderWidth: '1.5px',
+                    },
+                  },
+                }}
+              >
+                {bidangList.map((bidang) => (
+                  <MenuItem key={bidang.id} value={bidang.id}>{bidang.nama_bidang}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
             <Autocomplete
               options={userList}
               getOptionLabel={(option) => option.full_name}
               value={userList.find(u => u.uuid === editFormData.pic_id) || null}
               onChange={(_, newValue) => setEditFormData({ ...editFormData, pic_id: newValue?.uuid || '' })}
-              renderInput={(params) => <TextField {...params} label="PIC" size="small" />}
+              renderInput={(params) => (
+                <TextField 
+                  {...params} 
+                  label="PIC" 
+                  size="small"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '14px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                      backdropFilter: 'blur(10px)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.08)', transition: 'all 0.3s ease' },
+                      '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.9)', '& fieldset': { borderColor: 'rgba(49, 162, 76, 0.3)' } },
+                      '&.Mui-focused': { backgroundColor: 'rgba(255, 255, 255, 1)', boxShadow: '0 4px 20px rgba(49, 162, 76, 0.12)', '& fieldset': { borderColor: '#31A24C', borderWidth: '1.5px' } },
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': { color: '#31A24C' },
+                  }}
+                />
+              )}
             />
           </Box>
+          </Box>
+
+          {/* Dokumen Pengajuan F.S.2 Section */}
+          <Box sx={{ p: 2.5, borderRadius: '16px', bgcolor: 'rgba(49, 162, 76, 0.04)', border: '1px solid rgba(49, 162, 76, 0.12)', mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#31A24C', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#31A24C' }} />
+              Dokumen Pengajuan F.S.2
+            </Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+            <TextField
+              label="Nomor ND"
+              size="small"
+              value={editFormData.nomor_nd || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, nomor_nd: e.target.value })}
+              fullWidth
+            />
+            <TextField
+              label="Tanggal ND"
+              type="date"
+              size="small"
+              value={editFormData.tanggal_nd || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, tanggal_nd: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Berkas ND (URL)"
+              size="small"
+              value={editFormData.berkas_nd || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, berkas_nd: e.target.value })}
+              fullWidth
+            />
+            <TextField
+              label="Berkas F.S.2 (URL)"
+              size="small"
+              value={editFormData.berkas_fs2 || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, berkas_fs2: e.target.value })}
+              fullWidth
+            />
+          </Box>
+          </Box>
+
+          {/* CD Prinsip Section */}
+          <Box sx={{ p: 2.5, borderRadius: '16px', bgcolor: 'rgba(37, 99, 235, 0.04)', border: '1px solid rgba(37, 99, 235, 0.12)', mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#2563EB', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#2563EB' }} />
+              CD Prinsip
+            </Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+            <TextField
+              label="Nomor CD"
+              size="small"
+              value={editFormData.nomor_cd || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, nomor_cd: e.target.value })}
+              fullWidth
+            />
+            <TextField
+              label="Tanggal CD"
+              type="date"
+              size="small"
+              value={editFormData.tanggal_cd || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, tanggal_cd: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Berkas CD (URL)"
+              size="small"
+              value={editFormData.berkas_cd || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, berkas_cd: e.target.value })}
+              fullWidth
+            />
+            <TextField
+              label="Berkas F.S.2A (URL)"
+              size="small"
+              value={editFormData.berkas_fs2a || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, berkas_fs2a: e.target.value })}
+              fullWidth
+            />
+            <TextField
+              label="Berkas F.S.2B (URL)"
+              size="small"
+              value={editFormData.berkas_fs2b || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, berkas_fs2b: e.target.value })}
+              fullWidth
+            />
+          </Box>
+          </Box>
+
+          {/* Pengujian Section */}
+          <Box sx={{ p: 2.5, borderRadius: '16px', bgcolor: 'rgba(217, 119, 6, 0.04)', border: '1px solid rgba(217, 119, 6, 0.12)', mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#D97706', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#D97706' }} />
+              Pengujian
+            </Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+            <TextField
+              label="Target Pengujian"
+              type="date"
+              size="small"
+              value={editFormData.target_pengujian || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, target_pengujian: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Realisasi Pengujian"
+              type="date"
+              size="small"
+              value={editFormData.realisasi_pengujian || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, realisasi_pengujian: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Berkas F45 (URL)"
+              size="small"
+              value={editFormData.berkas_f45 || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, berkas_f45: e.target.value })}
+              fullWidth
+            />
+            <TextField
+              label="Berkas F46 (URL)"
+              size="small"
+              value={editFormData.berkas_f46 || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, berkas_f46: e.target.value })}
+              fullWidth
+            />
+          </Box>
+          </Box>
+
+          {/* Deployment Section */}
+          <Box sx={{ p: 2.5, borderRadius: '16px', bgcolor: 'rgba(124, 58, 237, 0.04)', border: '1px solid rgba(124, 58, 237, 0.12)', mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#7C3AED', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#7C3AED' }} />
+              Deployment
+            </Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+            <TextField
+              label="Target Deployment"
+              type="date"
+              size="small"
+              value={editFormData.target_deployment || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, target_deployment: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Realisasi Deployment"
+              type="date"
+              size="small"
+              value={editFormData.realisasi_deployment || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, realisasi_deployment: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Berkas ND/BA Deployment (URL)"
+              size="small"
+              value={editFormData.berkas_nd_ba_deployment || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, berkas_nd_ba_deployment: e.target.value })}
+              fullWidth
+              sx={{ gridColumn: 'span 2' }}
+            />
+          </Box>
+          </Box>
+
+          {/* Go Live & Keterangan Section */}
+          <Box sx={{ p: 2.5, borderRadius: '16px', bgcolor: 'rgba(5, 150, 105, 0.04)', border: '1px solid rgba(5, 150, 105, 0.12)', mb: 2 }}>
+            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#059669', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#059669' }} />
+              Go Live & Keterangan
+            </Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+            <TextField
+              label="Target Go Live"
+              type="date"
+              size="small"
+              value={editFormData.target_go_live || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, target_go_live: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Keterangan"
+              size="small"
+              multiline
+              rows={2}
+              value={editFormData.keterangan || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, keterangan: e.target.value })}
+              fullWidth
+            />
+            </Box>
+          </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseEditModal}>Batal</Button>
-          <Button variant="contained" onClick={handleEditSubmit}>Simpan</Button>
+        <DialogActions sx={{ p: 3, bgcolor: 'transparent' }}>
+          <Button onClick={handleCloseEditModal} sx={{ borderRadius: '12px', px: 3 }}>Batal</Button>
+          <Button variant="contained" onClick={handleEditSubmit} sx={{ borderRadius: '12px', px: 3, bgcolor: '#0066cc', '&:hover': { bgcolor: '#0052a3' } }}>Simpan</Button>
         </DialogActions>
       </Dialog>
     </Box>
