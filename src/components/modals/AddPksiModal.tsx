@@ -33,6 +33,8 @@ import {
   CloudUpload as CloudUploadIcon,
   Delete as DeleteIcon,
   InsertDriveFile as FileIcon,
+  Download as DownloadIcon,
+  Visibility as VisibilityIcon,
 } from "@mui/icons-material";
 import { getAllSkpa, type SkpaData } from "../../api/skpaApi";
 import { getAllAplikasi, type AplikasiData } from "../../api/aplikasiApi";
@@ -53,6 +55,8 @@ import {
   movePksiTempFilesToPermanent, 
   deletePksiTempFiles,
   deletePksiFile,
+  downloadPksiFile,
+  previewPksiFile,
   type PksiFileData 
 } from "../../api/pksiFileApi";
 
@@ -202,6 +206,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [uploadedFileData, setUploadedFileData] = useState<PksiFileData[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
   const sessionIdRef = useRef<string>(`pksi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
   // Period years derived from selected RBSI
@@ -315,6 +320,34 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     }
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
     setUploadedFileData((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDownload = async (fileData: PksiFileData) => {
+    if (!fileData?.id) return;
+    setDownloadingFileId(fileData.id);
+    try {
+      await downloadPksiFile(fileData.id, fileData.original_name);
+    } catch (error) {
+      console.error('Failed to download file:', error);
+      setErrorMessage('Gagal mengunduh file. Silakan coba lagi.');
+    } finally {
+      setDownloadingFileId(null);
+    }
+  };
+
+  const handlePreview = async (fileData: PksiFileData) => {
+    if (!fileData?.id) return;
+    try {
+      await previewPksiFile(fileData.id);
+    } catch (error) {
+      console.error('Failed to preview file:', error);
+      setErrorMessage('Gagal membuka preview file. Silakan coba lagi.');
+    }
+  };
+
+  const isPreviewable = (contentType: string | undefined): boolean => {
+    if (!contentType) return false;
+    return contentType.startsWith('image/') || contentType === 'application/pdf';
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -1648,36 +1681,63 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                   )}
                 </Box>
 
-                {uploadedFiles.length > 0 && (
+                {uploadedFileData.length > 0 && (
                   <Box>
                     <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>
-                      File yang diupload ({uploadedFiles.length})
+                      File yang diupload ({uploadedFileData.length})
                     </Typography>
                     <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px' }}>
-                      {uploadedFiles.map((file, index) => (
+                      {uploadedFileData.map((fileData, index) => (
                         <ListItem
-                          key={index}
+                          key={fileData.id || index}
                           sx={{
-                            borderBottom: index < uploadedFiles.length - 1 ? '1px solid #e5e5e7' : 'none',
+                            borderBottom: index < uploadedFileData.length - 1 ? '1px solid #e5e5e7' : 'none',
                           }}
                         >
                           <ListItemIcon>
                             <FileIcon sx={{ color: '#DA251C' }} />
                           </ListItemIcon>
                           <ListItemText
-                            primary={file.name}
-                            secondary={formatFileSize(file.size)}
+                            primary={fileData.original_name}
+                            secondary={formatFileSize(fileData.file_size)}
                             primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }}
                             secondaryTypographyProps={{ sx: { color: '#86868b' } }}
                           />
-                          <ListItemSecondaryAction>
+                          <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
+                            {isPreviewable(fileData.content_type) && (
+                              <IconButton
+                                edge="end"
+                                size="small"
+                                onClick={() => handlePreview(fileData)}
+                                sx={{ color: '#0891B2', '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' } }}
+                                title="Preview"
+                              >
+                                <VisibilityIcon fontSize="small" />
+                              </IconButton>
+                            )}
                             <IconButton
                               edge="end"
+                              size="small"
+                              onClick={() => handleDownload(fileData)}
+                              disabled={downloadingFileId === fileData.id}
+                              sx={{ color: '#059669', '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' } }}
+                              title="Download"
+                            >
+                              {downloadingFileId === fileData.id ? (
+                                <CircularProgress size={18} sx={{ color: '#059669' }} />
+                              ) : (
+                                <DownloadIcon fontSize="small" />
+                              )}
+                            </IconButton>
+                            <IconButton
+                              edge="end"
+                              size="small"
                               onClick={() => handleRemoveFile(index)}
                               disabled={isUploading}
                               sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
+                              title="Hapus"
                             >
-                              <DeleteIcon />
+                              <DeleteIcon fontSize="small" />
                             </IconButton>
                           </ListItemSecondaryAction>
                         </ListItem>

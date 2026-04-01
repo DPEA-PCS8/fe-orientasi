@@ -199,7 +199,7 @@ export async function getPksiFileById(fileId: string): Promise<PksiFileData> {
 /**
  * Download file - returns blob for download
  */
-export async function downloadPksiFile(fileId: string): Promise<Blob> {
+export async function downloadPksiFile(fileId: string, fileName?: string): Promise<void> {
   const token = getAuthToken();
   
   if (!token) {
@@ -219,7 +219,45 @@ export async function downloadPksiFile(fileId: string): Promise<Blob> {
     throw new Error(errorData.message || `Download failed: ${response.statusText}`);
   }
 
-  return response.blob();
+  const blob = await response.blob();
+  
+  // Create download link
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName || 'download';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+}
+
+/**
+ * Preview file - opens in new tab
+ */
+export async function previewPksiFile(fileId: string): Promise<void> {
+  const token = getAuthToken();
+  
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(`${BASE_URL}/pksi/files/download/${fileId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'APIKey': API_KEY,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Preview failed: ${response.statusText}`);
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  window.open(url, '_blank');
 }
 
 /**

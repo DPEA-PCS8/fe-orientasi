@@ -236,6 +236,34 @@ export async function downloadPksiFile(fileId: string, fileName: string): Promis
 }
 
 /**
+ * Preview a file - opens in new tab
+ */
+export async function previewPksiFile(fileId: string): Promise<void> {
+  const token = getAuthToken();
+  
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(`${BASE_URL}/pksi/files/preview/${fileId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'APIKey': API_KEY,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to preview file: ${response.statusText}`);
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  window.open(url, '_blank');
+}
+
+/**
  * Format file size to human readable format
  */
 export function formatFileSize(bytes: number): string {

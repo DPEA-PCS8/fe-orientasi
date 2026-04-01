@@ -41,7 +41,8 @@ import {
 } from '@mui/icons-material';
 import { getPksiDocumentById, type PksiDocumentData } from '../../api/pksiApi';
 import { getAllSkpa } from '../../api/skpaApi';
-import { getPksiFiles, downloadPksiFile, type PksiFileData } from '../../api/fileApi';
+import { getPksiFiles, downloadPksiFile, previewPksiFile, type PksiFileData } from '../../api/fileApi';
+import FilePreviewModal from './FilePreviewModal';
 
 // Glass Card Component
 const GlassCard = styled(Box)({
@@ -100,6 +101,10 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
   const [pksiFiles, setPksiFiles] = useState<PksiFileData[]>([]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+  
+  // Preview modal state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewFile, setPreviewFile] = useState<PksiFileData | null>(null);
 
   // Fetch SKPA lookup data
   useEffect(() => {
@@ -175,10 +180,23 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
     }
   };
 
-  // Handle file view in new tab (for PDFs)
+  // Handle file preview in popup modal
   const handleViewFile = (file: PksiFileData) => {
-    // Open download URL in new tab for preview
-    window.open(`/api/pksi/files/download/${file.id}`, '_blank');
+    setPreviewFile(file);
+    setPreviewOpen(true);
+  };
+
+  // Handle preview modal close
+  const handlePreviewClose = () => {
+    setPreviewOpen(false);
+    setPreviewFile(null);
+  };
+
+  // Handle download from preview modal
+  const handlePreviewDownload = () => {
+    if (previewFile) {
+      handleDownload(previewFile);
+    }
   };
 
   // Format file size
@@ -901,7 +919,7 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                         }}
                       />
                       <ListItemSecondaryAction>
-                        {file.content_type === 'application/pdf' && (
+                        {(file.content_type === 'application/pdf' || file.content_type?.startsWith('image/')) && (
                           <IconButton
                             edge="end"
                             size="small"
@@ -1001,6 +1019,16 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
           Tutup
         </Button>
       </DialogActions>
+
+      {/* File Preview Modal */}
+      <FilePreviewModal
+        open={previewOpen}
+        onClose={handlePreviewClose}
+        fileId={previewFile?.id || null}
+        fileName={previewFile?.original_name || ''}
+        contentType={previewFile?.content_type || ''}
+        onDownload={handlePreviewDownload}
+      />
     </Dialog>
   );
 };

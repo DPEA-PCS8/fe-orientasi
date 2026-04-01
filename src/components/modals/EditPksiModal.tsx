@@ -31,6 +31,8 @@ import {
   CloudUpload as CloudUploadIcon,
   Delete as DeleteIcon,
   InsertDriveFile as FileIcon,
+  Download as DownloadIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import { getAllSkpa, type SkpaData } from '../../api/skpaApi';
 import { getAllAplikasi, type AplikasiData } from '../../api/aplikasiApi';
@@ -41,6 +43,8 @@ import {
   uploadPksiFiles,
   getPksiFiles,
   deletePksiFile,
+  downloadPksiFile,
+  previewPksiFile,
   type PksiFileData,
 } from '../../api/pksiFileApi';
 
@@ -199,6 +203,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
   const [existingFiles, setExistingFiles] = useState<PksiFileData[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
 
   // Period years derived from selected RBSI
   const periodYears = useMemo(() => {
@@ -263,6 +268,37 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
       console.error('Failed to delete file:', error);
       setErrorMessage('Gagal menghapus file.');
     }
+  };
+
+  // Handle file download
+  const handleDownload = async (file: PksiFileData) => {
+    setDownloadingFileId(file.id);
+    try {
+      const blob = await downloadPksiFile(file.id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.original_name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+    } finally {
+      setDownloadingFileId(null);
+    }
+  };
+
+  // Handle file preview in new tab
+  const handlePreview = (file: PksiFileData) => {
+    window.open(`/api/pksi/files/preview/${file.id}`, '_blank');
+  };
+
+  // Check if file is previewable
+  const isPreviewable = (contentType: string): boolean => {
+    const previewableTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    return previewableTypes.includes(contentType);
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -1516,14 +1552,41 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
                               primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }}
                               secondaryTypographyProps={{ sx: { color: '#86868b' } }}
                             />
-                            <ListItemSecondaryAction>
+                            <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
+                              {isPreviewable(file.content_type) && (
+                                <IconButton
+                                  edge="end"
+                                  size="small"
+                                  onClick={() => handlePreview(file)}
+                                  sx={{ color: '#0891B2', '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' } }}
+                                  title="Preview"
+                                >
+                                  <VisibilityIcon fontSize="small" />
+                                </IconButton>
+                              )}
                               <IconButton
                                 edge="end"
+                                size="small"
+                                onClick={() => handleDownload(file)}
+                                disabled={downloadingFileId === file.id}
+                                sx={{ color: '#059669', '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' } }}
+                                title="Download"
+                              >
+                                {downloadingFileId === file.id ? (
+                                  <CircularProgress size={18} sx={{ color: '#059669' }} />
+                                ) : (
+                                  <DownloadIcon fontSize="small" />
+                                )}
+                              </IconButton>
+                              <IconButton
+                                edge="end"
+                                size="small"
                                 onClick={() => handleRemoveFile(file.id)}
                                 disabled={isUploading}
                                 sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
+                                title="Hapus"
                               >
-                                <DeleteIcon />
+                                <DeleteIcon fontSize="small" />
                               </IconButton>
                             </ListItemSecondaryAction>
                           </ListItem>

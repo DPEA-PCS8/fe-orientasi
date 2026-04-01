@@ -47,6 +47,7 @@ import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getUsersByRole, type UserSimple } from '../api/userApi';
 import { usePermissions } from '../hooks/usePermissions';
 import ViewFs2Modal from '../components/modals/ViewFs2Modal';
+import { FilePreviewModal } from '../components/modals';
 import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
 
 // Interface for transformed data
@@ -291,6 +292,11 @@ function Fs2Disetujui() {
   const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedFs2IdForView, setSelectedFs2IdForView] = useState<string | null>(null);
 
+  // File preview modal state (popup preview for berkas links)
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [previewFileName, setPreviewFileName] = useState<string>('');
+
   // Fetch approved F.S.2 data
   const fetchFs2Data = useCallback(async () => {
     setIsLoading(true);
@@ -402,6 +408,42 @@ function Fs2Disetujui() {
   const handleCloseViewModal = () => {
     setOpenViewModal(false);
     setSelectedFs2IdForView(null);
+  };
+
+  // File preview handlers (for berkas links)
+  const handleOpenPreview = (url: string, fileName: string) => {
+    setPreviewUrl(url);
+    setPreviewFileName(fileName);
+    setPreviewOpen(true);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewOpen(false);
+    setPreviewUrl('');
+    setPreviewFileName('');
+  };
+
+  // Check if URL is previewable
+  const isPreviewableUrl = (url: string): boolean => {
+    if (!url) return false;
+    const lowerUrl = url.toLowerCase();
+    return lowerUrl.endsWith('.pdf') || 
+           lowerUrl.endsWith('.png') || 
+           lowerUrl.endsWith('.jpg') || 
+           lowerUrl.endsWith('.jpeg') || 
+           lowerUrl.endsWith('.gif') ||
+           lowerUrl.includes('pdf') ||
+           lowerUrl.includes('image');
+  };
+
+  // Get content type from URL
+  const getContentTypeFromUrl = (url: string): string => {
+    const lowerUrl = url.toLowerCase();
+    if (lowerUrl.endsWith('.pdf') || lowerUrl.includes('pdf')) return 'application/pdf';
+    if (lowerUrl.endsWith('.png')) return 'image/png';
+    if (lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg')) return 'image/jpeg';
+    if (lowerUrl.endsWith('.gif')) return 'image/gif';
+    return 'application/pdf'; // Default to PDF for preview
   };
 
   // Edit modal handlers
@@ -1306,10 +1348,7 @@ function Fs2Disetujui() {
                       {row.berkasNd ? (
                         <Button
                           size="small"
-                          component="a"
-                          href={row.berkasNd}
-                          target="_blank"
-                          rel="noopener"
+                          onClick={() => handleOpenPreview(row.berkasNd, 'Berkas ND')}
                           startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
                           sx={{
                             textTransform: 'none',
@@ -1336,10 +1375,7 @@ function Fs2Disetujui() {
                       {row.berkasFs2 ? (
                         <Button
                           size="small"
-                          component="a"
-                          href={row.berkasFs2}
-                          target="_blank"
-                          rel="noopener"
+                          onClick={() => handleOpenPreview(row.berkasFs2, 'Berkas F.S.2')}
                           startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
                           sx={{
                             textTransform: 'none',
@@ -1370,10 +1406,7 @@ function Fs2Disetujui() {
                       {row.berkasCd ? (
                         <Button
                           size="small"
-                          component="a"
-                          href={row.berkasCd}
-                          target="_blank"
-                          rel="noopener"
+                          onClick={() => handleOpenPreview(row.berkasCd, 'Berkas CD')}
                           startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
                           sx={{
                             textTransform: 'none',
@@ -1400,10 +1433,7 @@ function Fs2Disetujui() {
                       {row.berkasFs2a ? (
                         <Button
                           size="small"
-                          component="a"
-                          href={row.berkasFs2a}
-                          target="_blank"
-                          rel="noopener"
+                          onClick={() => handleOpenPreview(row.berkasFs2a, 'Berkas F.S.2A')}
                           startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
                           sx={{
                             textTransform: 'none',
@@ -1430,10 +1460,7 @@ function Fs2Disetujui() {
                       {row.berkasFs2b ? (
                         <Button
                           size="small"
-                          component="a"
-                          href={row.berkasFs2b}
-                          target="_blank"
-                          rel="noopener"
+                          onClick={() => handleOpenPreview(row.berkasFs2b, 'Berkas F.S.2B')}
                           startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
                           sx={{
                             textTransform: 'none',
@@ -1464,10 +1491,7 @@ function Fs2Disetujui() {
                       {row.berkasF45 ? (
                         <Button
                           size="small"
-                          component="a"
-                          href={row.berkasF45}
-                          target="_blank"
-                          rel="noopener"
+                          onClick={() => handleOpenPreview(row.berkasF45, 'Berkas F45')}
                           startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
                           sx={{
                             textTransform: 'none',
@@ -1494,10 +1518,7 @@ function Fs2Disetujui() {
                       {row.berkasF46 ? (
                         <Button
                           size="small"
-                          component="a"
-                          href={row.berkasF46}
-                          target="_blank"
-                          rel="noopener"
+                          onClick={() => handleOpenPreview(row.berkasF46, 'Berkas F46')}
                           startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
                           sx={{
                             textTransform: 'none',
@@ -1528,10 +1549,7 @@ function Fs2Disetujui() {
                       {row.berkasNdBaDeployment ? (
                         <Button
                           size="small"
-                          component="a"
-                          href={row.berkasNdBaDeployment}
-                          target="_blank"
-                          rel="noopener"
+                          onClick={() => handleOpenPreview(row.berkasNdBaDeployment, 'Berkas ND/BA Deployment')}
                           startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
                           sx={{
                             textTransform: 'none',
@@ -2214,6 +2232,16 @@ function Fs2Disetujui() {
           <Button variant="contained" onClick={handleEditSubmit} sx={{ borderRadius: '12px', px: 3, bgcolor: '#0066cc', '&:hover': { bgcolor: '#0052a3' } }}>Simpan</Button>
         </DialogActions>
       </Dialog>
+
+      {/* File Preview Modal for external berkas URLs */}
+      <FilePreviewModal
+        open={previewOpen}
+        onClose={handleClosePreview}
+        fileId={null}
+        fileName={previewFileName}
+        contentType={getContentTypeFromUrl(previewUrl)}
+        directUrl={previewUrl}
+      />
     </Box>
   );
 }
