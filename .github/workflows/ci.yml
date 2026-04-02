@@ -1,26 +1,90 @@
-name: Build & Deploy to OpenShift
+name: Build & Deploy Frontend to OpenShift
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build-deploy:
     runs-on: self-hosted
 
     env:
-      REGISTRY: image-registry.openshift-image-registry.svc:5000
       NAMESPACE: test-orientasi
 
     steps:
-      - uses: actions/checkout@v4
+      # 1. Checkout repo
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Trigger OpenShift Build
+      # 2. Setup Node
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 3. Cache npm (biar kenceng)
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+
+      # 4. Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # 5. Build frontend
+      - name: Build frontend
+        run: npm run build
+
+      # 6. Prepare build context (kayak backend)
+      - name: Prepare build context
         run: |
-          oc start-build frontend-app -n ${{ env.NAMESPACE }} --follow --wait
+          mkdir -p build-context
+          cp -r dist build-context/dist
+          cp nginx.conf build-context/nginx.conf
+          cp Dockerfile build-context/Dockerfile
 
-      - name: Rollout restart
+      # 7. Start OpenShift Binary Build
+      - name: Start OpenShift Binary Build
+        run: |
+          BUILD=$(oc start-build frontend-app \
+            --from-dir=build-context \
+            -n ${{ env.NAMESPACE }} \
+            -o name)
+
+          echo "BUILD_NAME=$BUILD" >> $GITHUB_ENV
+
+      # 8. Stream logs
+      - name: Stream build logs
+        run: |
+          oc logs -f $BUILD_NAME -n ${{ env.NAMESPACE }}
+
+      # 9. Verify build
+      - name: Verify build
+        run: |
+          for i in {1..12}; do
+            STATUS=$(oc get $BUILD_NAME -n ${{ env.NAMESPACE }} -o jsonpath='{.status.phase}')
+            echo "Build status (attempt $i): $STATUS"
+            
+            if [ "$STATUS" = "Complete" ] || [ "$STATUS" = "Succeeded" ]; then
+              echo "Build completed successfully!"
+              exit 0
+            fi
+            
+            if [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Error" ]; then
+              echo "Build failed!"
+              exit 1
+            fi
+            
+            sleep 5
+          done
+          
+          echo "Build status check timeout"
+          exit 1
+
+      # 10. Deploy
+      - name: Deploy
         run: |
           oc rollout restart deployment/frontend-app -n ${{ env.NAMESPACE }}
-          
-          oc rollout status deployment/frontend-app -n ${{ env.NAMESPACE }}
+          oc rollout status deployment/frontend-app -n ${{ env.NAMESPACE }} --timeout=180s
