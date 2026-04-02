@@ -77,6 +77,7 @@ import type {
   RbsiMonitoringResponse,
   InisiatifGroupResponse,
 } from '../api/rbsiApi';
+import { useNavigate } from 'react-router-dom';
 import {
   AddProgramModal,
   AddInisiatifModal,
@@ -170,6 +171,8 @@ ProgressCell.displayName = 'ProgressCell';
 // ============ COMPONENT ============
 
 function RbsiManagementPage() {
+  const navigate = useNavigate();
+  
   // View mode: 'table' = simple program list, 'monitoring' = with KEP progress columns
   const [viewMode, setViewMode] = useState<'table' | 'monitoring'>('monitoring');
 
@@ -1397,6 +1400,19 @@ function RbsiManagementPage() {
                 </IconButton>
               </Tooltip>
             )}
+
+            <Tooltip title="Dashboard Inisiatif-PKSI">
+              <IconButton
+                size="small"
+                onClick={() => navigate('/rbsi-dashboard')}
+                sx={{
+                  color: '#E65100',
+                  '&:hover': { bgcolor: 'rgba(230, 81, 0, 0.08)' },
+                }}
+              >
+                <DashboardIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
 
             {viewMode === 'monitoring' && (
               <Tooltip title="Download Excel">

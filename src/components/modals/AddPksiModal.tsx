@@ -458,6 +458,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     try {
       const requestData: PksiDocumentRequest = {
         aplikasi_id: formData.aplikasiId || undefined,
+        inisiatif_id: selectedInisiatif?.id || undefined,
         nama_pksi: formData.namaPksi,
         tanggal_pengajuan: formData.tanggalPengajuan || undefined,
         deskripsi_pksi: formData.deskripsiPksi,

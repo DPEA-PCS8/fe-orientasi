@@ -37,6 +37,11 @@ export interface PksiDocumentData {
   pengelola_aplikasi?: string;
   pengguna_aplikasi?: string;
   program_inisiatif_rbsi?: string;
+  inisiatif_group_id?: string;
+  inisiatif_id?: string;
+  inisiatif_nomor?: string;
+  inisiatif_nama?: string;
+  inisiatif_tahun?: number;
   fungsi_aplikasi?: string;
   informasi_yang_dikelola?: string;
   dasar_peraturan?: string;
@@ -104,6 +109,7 @@ export interface PksiSearchResponse {
 
 export interface PksiDocumentRequest {
   aplikasi_id?: string;
+  inisiatif_id?: string;
   nama_pksi: string;
   tanggal_pengajuan?: string;
   // Section 1
