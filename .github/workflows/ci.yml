@@ -15,23 +15,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      # Run npm build inside Node.js container to avoid missing system libraries on self-hosted runner
+      - name: Build application in container
+        uses: docker://node:25.3.0-alpine
         with:
-          node-version: '25.3.0'
-
-      - name: Cache npm dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: Install dependencies and build
-        run: |
-          npm ci
-          npm run build
+          entrypoint: /bin/sh
+          args: -c "npm ci && npm run build"
 
       - name: Prepare build context
         run: |
