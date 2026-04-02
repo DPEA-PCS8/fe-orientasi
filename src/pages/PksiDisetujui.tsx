@@ -50,6 +50,7 @@ import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getUsersByRole, type UserSimple } from '../api/userApi';
 import { getUserRoles } from '../api/authApi';
 import { ViewPksiModal, FilePreviewModal } from '../components/modals';
+import { DataCountDisplay } from '../components/DataCountDisplay';
 import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
 import { 
   uploadPksiFiles, 
@@ -234,6 +235,8 @@ function PksiDisetujui() {
   const [pksiData, setPksiData] = useState<PksiData[]>([]);
   const [rawPksiData, setRawPksiData] = useState<PksiDocumentData[]>([]);
   const [totalElements, setTotalElements] = useState(0);
+  const [totalCount, setTotalCount] = useState(0); // Total count for DataCountDisplay
+  const [noInisiatifCount, setNoInisiatifCount] = useState(0); // Count of PKSI without initiative
   const [isLoading, setIsLoading] = useState(false);
 
   // Get user info for department-based filtering
@@ -259,6 +262,7 @@ function PksiDisetujui() {
   const [selectedInhouseOutsource, setSelectedInhouseOutsource] = useState<string>('');
   const [selectedBidang, setSelectedBidang] = useState<Set<string>>(new Set());
   const [selectedPic, setSelectedPic] = useState<Set<string>>(new Set());
+  const [noInisiatif, setNoInisiatif] = useState(false); // Filter for PKSI with no initiative
   
   // Year filter (exposed in toolbar) - default to current year
   const [selectedYearFilter, setSelectedYearFilter] = useState<string>(new Date().getFullYear().toString());
@@ -534,6 +538,7 @@ function PksiDisetujui() {
         search: keyword || undefined,
         status: 'DISETUJUI',
         year: yearFilter,
+        noInisiatif: noInisiatif || undefined,
         page: page,
         size: rowsPerPage,
         sortBy: 'nama_pksi',
@@ -546,8 +551,10 @@ function PksiDisetujui() {
       console.log('User Roles:', userRoles);
       console.log('Is Admin/Pengembang:', isAdminOrPengembang);
       console.log('Year Filter:', yearFilter);
+      console.log('No Inisiatif Filter:', noInisiatif);
       console.log('PKSI Response:', response);
       console.log('Total Elements:', response.total_elements);
+      console.log('Total Count:', response.total_count);
       console.log('===========================');
 
       // Store raw data for year filtering
@@ -569,14 +576,32 @@ function PksiDisetujui() {
       
       setPksiData(transformedData);
       setTotalElements(isAdminOrPengembang ? response.total_elements : transformedData.length);
+      setTotalCount(response.total_count || response.total_elements); // Use total_count from API
+      
+      // Fetch count of PKSI without initiative (for the clickable card)
+      try {
+        const noInisiatifResponse = await searchPksiDocuments({
+          status: 'DISETUJUI',
+          year: selectedYear ? parseInt(selectedYear, 10) : undefined,
+          noInisiatif: true,
+          page: 0,
+          size: 1, // We only need the count
+        });
+        setNoInisiatifCount(noInisiatifResponse.total_count || noInisiatifResponse.total_elements);
+      } catch (countError) {
+        console.error('Failed to fetch noInisiatif count:', countError);
+        setNoInisiatifCount(0);
+      }
     } catch (error) {
       console.error('Failed to fetch PKSI data:', error);
       setPksiData([]);
       setTotalElements(0);
+      setTotalCount(0);
+      setNoInisiatifCount(0);
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, page, rowsPerPage, selectedYearFilter, userDepartment, userRoles, isAdminOrPengembang]);
+  }, [keyword, page, rowsPerPage, selectedYearFilter, noInisiatif, userDepartment, userRoles, isAdminOrPengembang]);
 
   // Fetch data on mount and when dependencies change
   useEffect(() => {
@@ -663,19 +688,18 @@ function PksiDisetujui() {
     setSelectedInhouseOutsource('');
     setSelectedBidang(new Set());
     setSelectedPic(new Set());
+    setNoInisiatif(false);
   };
 
-  // Generate year options from data
+  // Generate year options - static range from 2020 to current year + 2
   const yearOptions = useMemo(() => {
-    const years = new Set<string>();
-    pksiData.forEach(item => {
-      if (item.tanggalPengajuan) {
-        const year = new Date(item.tanggalPengajuan).getFullYear().toString();
-        years.add(year);
-      }
-    });
-    return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
-  }, [pksiData]);
+    const currentYear = new Date().getFullYear();
+    const years: string[] = [];
+    for (let year = currentYear + 2; year >= 2020; year--) {
+      years.push(year.toString());
+    }
+    return years;
+  }, []);
 
   // Generate aplikasi options from data
   const aplikasiOptions = useMemo(() => {
@@ -765,8 +789,9 @@ function PksiDisetujui() {
     if (selectedInhouseOutsource) count++;
     if (selectedBidang.size > 0) count++;
     if (selectedPic.size > 0) count++;
+    if (noInisiatif) count++;
     return count;
-  }, [selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa, selectedProgress, selectedIku, selectedInhouseOutsource, selectedBidang, selectedPic]);
+  }, [selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa, selectedProgress, selectedIku, selectedInhouseOutsource, selectedBidang, selectedPic, noInisiatif]);
 
   // Filter locally based on all filter criteria
   // Note: Timeline year filter (selectedYearFilter) is now handled by backend
@@ -783,13 +808,7 @@ function PksiDisetujui() {
       });
     }
 
-    if (selectedYear) {
-      result = result.filter(item => {
-        if (!item.tanggalPengajuan) return false;
-        const year = new Date(item.tanggalPengajuan).getFullYear().toString();
-        return year === selectedYear;
-      });
-    }
+    // Note: Year filter is now applied on the API side, no local filtering needed
 
     if (selectedAplikasi) {
       result = result.filter(item => item.namaAplikasi === selectedAplikasi);
@@ -838,7 +857,7 @@ function PksiDisetujui() {
     }
     
     return result;
-  }, [pksiData, selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa, selectedProgress, selectedIku, selectedInhouseOutsource, selectedBidang, selectedPic, resolveSkpaCodes, resolveBidangNames]);
+  }, [pksiData, selectedJangkaWaktu, selectedAplikasi, selectedSkpa, selectedProgress, selectedIku, selectedInhouseOutsource, selectedBidang, selectedPic, resolveSkpaCodes, resolveBidangNames]);
 
   const paginatedPksi = filteredPksi;
 
@@ -1050,7 +1069,7 @@ function PksiDisetujui() {
           </Typography>
         </Box>
         <Typography variant="body1" sx={{ color: '#86868b', ml: 0.5 }}>
-          Monitoring dan tracking PKSI ({totalElements} item)
+          Monitoring dan tracking PKSI
         </Typography>
       </Box>
 
@@ -1833,6 +1852,37 @@ function PksiDisetujui() {
               </Box>
             </Box>
 
+            {/* Row 6: Tidak Ada Inisiatif Filter */}
+            <Box sx={{ 
+              p: 2, 
+              borderRadius: '14px', 
+              bgcolor: 'rgba(220, 38, 38, 0.06)', 
+              border: '1px solid rgba(220, 38, 38, 0.15)',
+              mb: 3,
+            }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={noInisiatif}
+                    onChange={(e) => setNoInisiatif(e.target.checked)}
+                    sx={{ 
+                      '&.Mui-checked': { color: '#DC2626' },
+                    }}
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                      Tidak Ada Inisiatif
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#86868b' }}>
+                      Tampilkan PKSI yang belum memiliki program/inisiatif RBSI
+                    </Typography>
+                  </Box>
+                }
+              />
+            </Box>
+
             {/* Action Buttons */}
             <Box sx={{ display: 'flex', gap: 2 }}>
               <Button
@@ -1879,6 +1929,128 @@ function PksiDisetujui() {
             </Box>
           </Box>
         </Popover>
+
+        {/* Data Count Display */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            py: 1.5,
+            px: 2,
+            backgroundColor: '#F5F5F7',
+            borderRadius: '8px',
+            border: '1px solid rgba(0, 0, 0, 0.06)',
+          }}
+        >
+          {/* Total PKSI Documents */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                backgroundColor: '#DA251C',
+                color: 'white',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+              }}
+            >
+              {isLoading ? '...' : totalCount}
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              <Typography
+                sx={{
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  color: '#86868b',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                }}
+              >
+                {selectedYear ? `Total PKSI Tahun ${selectedYear}` : 'Total'}
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  color: '#1d1d1f',
+                }}
+              >
+                {isLoading ? 'Loading...' : `${totalCount} PKSI Documents`}
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* PKSI Tanpa Inisiatif - Clickable */}
+          <Box
+            onClick={() => setNoInisiatif(!noInisiatif)}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              cursor: 'pointer',
+              opacity: noInisiatif ? 1 : 0.8,
+              transition: 'all 0.15s ease',
+              '&:hover': {
+                opacity: 1,
+              },
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                backgroundColor: noInisiatif ? '#F59E0B' : '#F59E0B',
+                color: 'white',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                boxShadow: noInisiatif ? '0 0 0 3px rgba(245, 158, 11, 0.3)' : 'none',
+              }}
+            >
+              {isLoading ? '...' : noInisiatifCount}
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              <Typography
+                sx={{
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  color: '#86868b',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                }}
+              >
+                Tanpa Inisiatif
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  color: '#1d1d1f',
+                }}
+              >
+                {isLoading ? 'Loading...' : `${noInisiatifCount} PKSI`}
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: '0.65rem',
+                  fontWeight: 500,
+                  color: noInisiatif ? '#F59E0B' : '#86868b',
+                  fontStyle: 'italic',
+                }}
+              >
+                {noInisiatif ? '✓ Filter aktif - Klik untuk nonaktifkan' : 'Klik untuk filter'}
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
 
         {/* Table */}
         <TableContainer sx={{ 

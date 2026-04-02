@@ -103,6 +103,7 @@ export interface PksiSearchResponse {
   size: number;
   has_next: boolean;
   has_previous: boolean;
+  total_count?: number; // Total count filtered by year (if provided) for display purposes
 }
 
 // ==================== REQUEST TYPES ====================
@@ -188,6 +189,7 @@ export async function searchPksiDocuments(params: {
   search?: string;
   status?: string;
   year?: number;
+  noInisiatif?: boolean;
   page?: number;
   size?: number;
   sortBy?: string;
@@ -198,6 +200,7 @@ export async function searchPksiDocuments(params: {
   if (params.search) queryParams.append('search', params.search);
   if (params.status) queryParams.append('status', params.status);
   if (params.year !== undefined) queryParams.append('year', params.year.toString());
+  if (params.noInisiatif !== undefined) queryParams.append('noInisiatif', params.noInisiatif.toString());
   if (params.page !== undefined) queryParams.append('page', params.page.toString());
   if (params.size !== undefined) queryParams.append('size', params.size.toString());
   if (params.sortBy) queryParams.append('sortBy', params.sortBy);
@@ -213,6 +216,7 @@ export async function searchPksiDocuments(params: {
 
   console.log('[PKSI API] searchPksiDocuments - Response:', response.data);
   console.log('[PKSI API] searchPksiDocuments - Total elements:', response.data?.total_elements);
+  console.log('[PKSI API] searchPksiDocuments - Total count:', response.data?.total_count);
   console.log('[PKSI API] searchPksiDocuments - Content count:', response.data?.content?.length);
   if (response.data?.content) {
     response.data.content.forEach((pksi, idx) => {
