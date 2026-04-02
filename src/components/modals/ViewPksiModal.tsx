@@ -871,14 +871,14 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
               </GlassCard>
             )}
 
-            {/* Section 9: Dokumen T.0.1 */}
+            {/* Section 9: Dokumen */}
             <GlassCard>
               <SectionHeader>
                 <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(218, 37, 28, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <AttachFileIcon sx={{ color: '#DA251C', fontSize: 20 }} />
                 </Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                  9. Dokumen T.0.1
+                  9. Dokumen
                 </Typography>
               </SectionHeader>
 
@@ -886,88 +886,187 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                 <Box display="flex" justifyContent="center" py={2}>
                   <CircularProgress size={24} sx={{ color: '#DA251C' }} />
                 </Box>
-              ) : pksiFiles.length > 0 ? (
-                <List dense sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px', p: 1 }}>
-                  {pksiFiles.map((file, index) => (
-                    <ListItem
-                      key={file.id}
-                      sx={{
-                        borderRadius: '8px',
-                        mb: index < pksiFiles.length - 1 ? 1 : 0,
-                        bgcolor: 'white',
-                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-                        '&:hover': {
-                          bgcolor: 'rgba(255, 255, 255, 0.9)',
-                        },
-                      }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 40 }}>
-                        <FileIcon sx={{ color: '#DA251C', fontSize: 24 }} />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={file.original_name}
-                        secondary={formatFileSize(file.file_size)}
-                        primaryTypographyProps={{
-                          sx: {
-                            fontWeight: 500,
-                            color: '#1d1d1f',
-                            fontSize: '0.9rem',
-                          },
-                        }}
-                        secondaryTypographyProps={{
-                          sx: { color: '#86868b', fontSize: '0.75rem' },
-                        }}
-                      />
-                      <ListItemSecondaryAction>
-                        {(file.content_type === 'application/pdf' || file.content_type?.startsWith('image/')) && (
-                          <IconButton
-                            edge="end"
-                            size="small"
-                            onClick={() => handleViewFile(file)}
-                            sx={{
-                              color: '#0891B2',
-                              mr: 1,
-                              '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' },
-                            }}
-                            title="Lihat"
-                          >
-                            <VisibilityIcon fontSize="small" />
-                          </IconButton>
-                        )}
-                        <IconButton
-                          edge="end"
-                          size="small"
-                          onClick={() => handleDownload(file)}
-                          disabled={downloadingFileId === file.id}
-                          sx={{
-                            color: '#059669',
-                            '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' },
-                          }}
-                          title="Download"
-                        >
-                          {downloadingFileId === file.id ? (
-                            <CircularProgress size={18} sx={{ color: '#059669' }} />
-                          ) : (
-                            <DownloadIcon fontSize="small" />
-                          )}
-                        </IconButton>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  ))}
-                </List>
               ) : (
-                <Box
-                  sx={{
-                    p: 3,
-                    textAlign: 'center',
-                    borderRadius: '12px',
-                    bgcolor: 'rgba(245, 245, 247, 0.8)',
-                  }}
-                >
-                  <FileIcon sx={{ fontSize: 40, color: '#86868b', mb: 1 }} />
-                  <Typography variant="body2" sx={{ color: '#86868b' }}>
-                    Belum ada dokumen yang diupload
-                  </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {/* T01 - Rencana PKSI */}
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600, color: '#1d1d1f' }}>
+                      Rencana PKSI (T01/T02)
+                    </Typography>
+                    {pksiFiles.filter(f => f.file_type === 'T01' || !f.file_type).length > 0 ? (
+                      <List dense sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px', p: 1 }}>
+                        {pksiFiles.filter(f => f.file_type === 'T01' || !f.file_type).map((file, index, arr) => (
+                          <ListItem
+                            key={file.id}
+                            sx={{
+                              borderRadius: '8px',
+                              mb: index < arr.length - 1 ? 1 : 0,
+                              bgcolor: 'white',
+                              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                              '&:hover': {
+                                bgcolor: 'rgba(255, 255, 255, 0.9)',
+                              },
+                            }}
+                          >
+                            <ListItemIcon sx={{ minWidth: 40 }}>
+                              <FileIcon sx={{ color: '#DA251C', fontSize: 24 }} />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={file.original_name}
+                              secondary={formatFileSize(file.file_size)}
+                              primaryTypographyProps={{
+                                sx: {
+                                  fontWeight: 500,
+                                  color: '#1d1d1f',
+                                  fontSize: '0.9rem',
+                                },
+                              }}
+                              secondaryTypographyProps={{
+                                sx: { color: '#86868b', fontSize: '0.75rem' },
+                              }}
+                            />
+                            <ListItemSecondaryAction>
+                              {(file.content_type === 'application/pdf' || file.content_type?.startsWith('image/')) && (
+                                <IconButton
+                                  edge="end"
+                                  size="small"
+                                  onClick={() => handleViewFile(file)}
+                                  sx={{
+                                    color: '#0891B2',
+                                    mr: 1,
+                                    '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' },
+                                  }}
+                                  title="Lihat"
+                                >
+                                  <VisibilityIcon fontSize="small" />
+                                </IconButton>
+                              )}
+                              <IconButton
+                                edge="end"
+                                size="small"
+                                onClick={() => handleDownload(file)}
+                                disabled={downloadingFileId === file.id}
+                                sx={{
+                                  color: '#059669',
+                                  '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' },
+                                }}
+                                title="Download"
+                              >
+                                {downloadingFileId === file.id ? (
+                                  <CircularProgress size={18} sx={{ color: '#059669' }} />
+                                ) : (
+                                  <DownloadIcon fontSize="small" />
+                                )}
+                              </IconButton>
+                            </ListItemSecondaryAction>
+                          </ListItem>
+                        ))}
+                      </List>
+                    ) : (
+                      <Box
+                        sx={{
+                          p: 2,
+                          textAlign: 'center',
+                          borderRadius: '12px',
+                          bgcolor: 'rgba(245, 245, 247, 0.8)',
+                        }}
+                      >
+                        <Typography variant="body2" sx={{ color: '#86868b' }}>
+                          Belum ada dokumen Rencana PKSI
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+
+                  {/* T11 - Spesifikasi Kebutuhan */}
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600, color: '#1d1d1f' }}>
+                      Spesifikasi Kebutuhan (T11)
+                    </Typography>
+                    {pksiFiles.filter(f => f.file_type === 'T11').length > 0 ? (
+                      <List dense sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px', p: 1 }}>
+                        {pksiFiles.filter(f => f.file_type === 'T11').map((file, index, arr) => (
+                          <ListItem
+                            key={file.id}
+                            sx={{
+                              borderRadius: '8px',
+                              mb: index < arr.length - 1 ? 1 : 0,
+                              bgcolor: 'white',
+                              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                              '&:hover': {
+                                bgcolor: 'rgba(255, 255, 255, 0.9)',
+                              },
+                            }}
+                          >
+                            <ListItemIcon sx={{ minWidth: 40 }}>
+                              <FileIcon sx={{ color: '#0891B2', fontSize: 24 }} />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={file.original_name}
+                              secondary={formatFileSize(file.file_size)}
+                              primaryTypographyProps={{
+                                sx: {
+                                  fontWeight: 500,
+                                  color: '#1d1d1f',
+                                  fontSize: '0.9rem',
+                                },
+                              }}
+                              secondaryTypographyProps={{
+                                sx: { color: '#86868b', fontSize: '0.75rem' },
+                              }}
+                            />
+                            <ListItemSecondaryAction>
+                              {(file.content_type === 'application/pdf' || file.content_type?.startsWith('image/')) && (
+                                <IconButton
+                                  edge="end"
+                                  size="small"
+                                  onClick={() => handleViewFile(file)}
+                                  sx={{
+                                    color: '#0891B2',
+                                    mr: 1,
+                                    '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' },
+                                  }}
+                                  title="Lihat"
+                                >
+                                  <VisibilityIcon fontSize="small" />
+                                </IconButton>
+                              )}
+                              <IconButton
+                                edge="end"
+                                size="small"
+                                onClick={() => handleDownload(file)}
+                                disabled={downloadingFileId === file.id}
+                                sx={{
+                                  color: '#059669',
+                                  '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' },
+                                }}
+                                title="Download"
+                              >
+                                {downloadingFileId === file.id ? (
+                                  <CircularProgress size={18} sx={{ color: '#059669' }} />
+                                ) : (
+                                  <DownloadIcon fontSize="small" />
+                                )}
+                              </IconButton>
+                            </ListItemSecondaryAction>
+                          </ListItem>
+                        ))}
+                      </List>
+                    ) : (
+                      <Box
+                        sx={{
+                          p: 2,
+                          textAlign: 'center',
+                          borderRadius: '12px',
+                          bgcolor: 'rgba(245, 245, 247, 0.8)',
+                        }}
+                      >
+                        <Typography variant="body2" sx={{ color: '#86868b' }}>
+                          Belum ada dokumen Spesifikasi Kebutuhan
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
                 </Box>
               )}
             </GlassCard>

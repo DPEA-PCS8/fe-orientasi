@@ -13,6 +13,7 @@ export interface PksiFileData {
   content_type: string;
   file_size: number;
   blob_url: string;
+  file_type: string; // T01 = Rencana PKSI, T11 = Spesifikasi Kebutuhan
   created_at: string;
 }
 
@@ -26,8 +27,11 @@ export interface PksiFileResponse {
 
 /**
  * Upload files for a PKSI document
+ * @param pksiId - The PKSI document ID
+ * @param files - The files to upload
+ * @param fileType - The file type: T01 (Rencana PKSI) or T11 (Spesifikasi Kebutuhan)
  */
-export async function uploadPksiFiles(pksiId: string, files: File[]): Promise<PksiFileData[]> {
+export async function uploadPksiFiles(pksiId: string, files: File[], fileType: string = 'T01'): Promise<PksiFileData[]> {
   const token = getAuthToken();
   
   if (!token) {
@@ -38,8 +42,9 @@ export async function uploadPksiFiles(pksiId: string, files: File[]): Promise<Pk
   files.forEach((file) => {
     formData.append('files', file);
   });
+  formData.append('fileType', fileType);
 
-  const response = await fetch(`${BASE_URL}/pksi/files/upload/${pksiId}`, {
+  const response = await fetch(`${BASE_URL}/pksi/files/upload/${pksiId}?fileType=${fileType}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -59,8 +64,11 @@ export async function uploadPksiFiles(pksiId: string, files: File[]): Promise<Pk
 
 /**
  * Upload files to temporary storage (before PKSI is created)
+ * @param sessionId - The session ID for temp files
+ * @param files - The files to upload
+ * @param fileType - The file type: T01 (Rencana PKSI) or T11 (Spesifikasi Kebutuhan)
  */
-export async function uploadPksiTempFiles(sessionId: string, files: File[]): Promise<PksiFileData[]> {
+export async function uploadPksiTempFiles(sessionId: string, files: File[], fileType: string = 'T01'): Promise<PksiFileData[]> {
   const token = getAuthToken();
   
   if (!token) {
@@ -72,7 +80,7 @@ export async function uploadPksiTempFiles(sessionId: string, files: File[]): Pro
     formData.append('files', file);
   });
 
-  const response = await fetch(`${BASE_URL}/pksi/files/temp/upload/${sessionId}`, {
+  const response = await fetch(`${BASE_URL}/pksi/files/temp/upload/${sessionId}?fileType=${fileType}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
