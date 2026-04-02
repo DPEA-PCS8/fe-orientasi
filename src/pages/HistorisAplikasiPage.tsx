@@ -26,7 +26,7 @@ import {
   getSnapshotByAplikasiAndTahun,
   type AplikasiSnapshotData
 } from '../api/historisAplikasiApi';
-import { APPLICATION_STATUS_LABELS } from '../api/aplikasiApi';
+import { APPLICATION_STATUS_LABELS, ACCESS_TYPE_LABELS } from '../api/aplikasiApi';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { usePermissions } from '../hooks/usePermissions';
@@ -938,9 +938,9 @@ const HistorisAplikasiPage = () => {
                       label="Akses"
                       onChange={(e) => setEditForm(prev => ({ ...prev, akses: e.target.value }))}
                     >
-                      <MenuItem value="INTERNET">Internet</MenuItem>
-                      <MenuItem value="INTRANET">Intranet</MenuItem>
-                      <MenuItem value="BOTH">Keduanya</MenuItem>
+                      {Object.entries(ACCESS_TYPE_LABELS).map(([key, label]) => (
+                        <MenuItem key={key} value={key}>{label}</MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
                 </Box>

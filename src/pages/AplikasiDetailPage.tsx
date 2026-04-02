@@ -638,7 +638,35 @@ const AplikasiDetailPage = () => {
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <InfoItem 
                       label="Tipe Akses" 
-                      value={ACCESS_TYPE_LABELS[aplikasi.akses || ''] || aplikasi.akses || '-'}
+                      value={
+                        aplikasi.akses ? (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {aplikasi.akses.split(',').map((aksesItem, idx) => {
+                              const trimmed = aksesItem.trim();
+                              // Handle OTHER:custom_text format
+                              if (trimmed.startsWith('OTHER:')) {
+                                const customText = trimmed.substring(6);
+                                return (
+                                  <Chip
+                                    key={idx}
+                                    label={`Lainnya: ${customText}`}
+                                    size="small"
+                                    sx={{ fontSize: '0.75rem' }}
+                                  />
+                                );
+                              }
+                              return (
+                                <Chip
+                                  key={idx}
+                                  label={ACCESS_TYPE_LABELS[trimmed] || trimmed}
+                                  size="small"
+                                  sx={{ fontSize: '0.75rem' }}
+                                />
+                              );
+                            })}
+                          </Box>
+                        ) : '-'
+                      }
                       icon={<AccessTime sx={{ fontSize: 18 }} />}
                     />
                   </Grid>

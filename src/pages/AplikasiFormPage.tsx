@@ -24,6 +24,8 @@ const MENU_CODE = 'APLIKASI';
 interface FormData extends Omit<AplikasiRequest, 'bidang_id' | 'skpa_id'> {
   bidang_id: string;
   skpa_id: string;
+  akses_list: string[]; // For multi-select
+  akses_other_text: string; // For custom text when OTHER is selected
 }
 
 const initialForm: FormData = {
@@ -35,6 +37,8 @@ const initialForm: FormData = {
   skpa_id: '',
   tanggal_implementasi: '',
   akses: '',
+  akses_list: [],
+  akses_other_text: '',
   proses_data_pribadi: false,
   data_pribadi_diproses: '',
   kategori_idle: '',
@@ -93,6 +97,12 @@ const AplikasiFormPage = () => {
       setError(null);
       try {
         const data = await getAplikasiById(id);
+        // Parse akses string to array and extract "other" text if present
+        const aksesArray = data.akses ? data.akses.split(',').map(a => a.trim()) : [];
+        const otherItem = aksesArray.find(a => a.startsWith('OTHER:'));
+        const otherText = otherItem ? otherItem.substring(6) : '';
+        const cleanAksesArray = aksesArray.map(a => a.startsWith('OTHER:') ? 'OTHER' : a);
+        
         setForm({
           kode_aplikasi: data.kode_aplikasi,
           nama_aplikasi: data.nama_aplikasi,
@@ -102,6 +112,8 @@ const AplikasiFormPage = () => {
           skpa_id: data.skpa?.id || '',
           tanggal_implementasi: data.tanggal_implementasi || '',
           akses: data.akses || '',
+          akses_list: cleanAksesArray,
+          akses_other_text: otherText,
           proses_data_pribadi: data.proses_data_pribadi,
           data_pribadi_diproses: data.data_pribadi_diproses || '',
           kategori_idle: data.kategori_idle || '',
@@ -291,6 +303,11 @@ const AplikasiFormPage = () => {
       errors['status_aplikasi'] = 'Status Aplikasi wajib dipilih';
     }
 
+    // Validate "Other" text if OTHER is selected
+    if (form.akses_list.includes('OTHER') && !form.akses_other_text?.trim()) {
+      errors['akses_other'] = 'Harap isi keterangan untuk pilihan "Lainnya"';
+    }
+
     // Validate URLs
     if ((form.urls?.length || 0) === 0) {
       errors['urls'] = 'Minimal 1 URL aplikasi wajib diisi';
@@ -391,8 +408,14 @@ const AplikasiFormPage = () => {
     setError(null);
 
     try {
+      // Build akses string from array
+      const aksesString = form.akses_list
+        .map(a => a === 'OTHER' && form.akses_other_text ? `OTHER:${form.akses_other_text}` : a)
+        .join(',');
+
       const payload: AplikasiRequest = {
         ...form,
+        akses: aksesString || undefined,
         bidang_id: form.bidang_id || undefined,
         skpa_id: form.skpa_id || undefined,
         tanggal_implementasi: form.tanggal_implementasi || undefined,
@@ -624,18 +647,50 @@ const AplikasiFormPage = () => {
             <FormControl fullWidth>
               <InputLabel>Akses</InputLabel>
               <Select
-                name="akses"
-                value={form.akses}
+                multiple
+                name="akses_list"
+                value={form.akses_list}
                 label="Akses"
-                onChange={handleSelectChange}
+                onChange={(e) => {
+                  const value = e.target.value as string[];
+                  setForm(prev => ({ ...prev, akses_list: value }));
+                }}
+                renderValue={(selected) => {
+                  if (selected.length === 0) return '';
+                  return selected.map(s => ACCESS_TYPE_LABELS[s] || s).join(', ');
+                }}
               >
-                <MenuItem value="">-</MenuItem>
                 {Object.entries(ACCESS_TYPE_LABELS).map(([key, label]) => (
-                  <MenuItem key={key} value={key}>{label}</MenuItem>
+                  <MenuItem key={key} value={key}>
+                    <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <input
+                        type="checkbox"
+                        checked={form.akses_list.includes(key)}
+                        readOnly
+                        style={{ margin: 0 }}
+                      />
+                      {label}
+                    </Box>
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
           </Grid>
+          {form.akses_list.includes('OTHER') && (
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                fullWidth
+                required
+                label="Keterangan Lainnya"
+                name="akses_other_text"
+                value={form.akses_other_text}
+                onChange={handleTextChange}
+                placeholder="Sebutkan tipe akses lainnya..."
+                error={!!fieldErrors['akses_other']}
+                helperText={fieldErrors['akses_other']}
+              />
+            </Grid>
+          )}
           <Grid size={{ xs: 12, md: 4 }}>
             <FormControlLabel
               control={
@@ -765,7 +820,7 @@ const AplikasiFormPage = () => {
                     onChange={(e) => updateUrl(index, 'tipe_akses', e.target.value)}
                   >
                     <MenuItem value="">-</MenuItem>
-                    {Object.entries(ACCESS_TYPE_LABELS).filter(([k]) => k !== 'BOTH').map(([key, label]) => (
+                    {Object.entries(ACCESS_TYPE_LABELS).map(([key, label]) => (
                       <MenuItem key={key} value={key}>{label}</MenuItem>
                     ))}
                   </Select>
