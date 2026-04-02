@@ -171,13 +171,19 @@ export const APPLICATION_STATUS_LABELS: Record<string, string> = {
 export const ACCESS_TYPE = {
   INTERNET: 'INTERNET',
   INTRANET: 'INTRANET',
-  BOTH: 'BOTH',
+  EXTRANET: 'EXTRANET',
+  DESKTOP_APP: 'DESKTOP_APP',
+  MOBILE_APP: 'MOBILE_APP',
+  OTHER: 'OTHER',
 } as const;
 
 export const ACCESS_TYPE_LABELS: Record<string, string> = {
   INTERNET: 'Internet',
   INTRANET: 'Intranet',
-  BOTH: 'Internet & Intranet',
+  EXTRANET: 'Extranet',
+  DESKTOP_APP: 'Desktop Application/Install',
+  MOBILE_APP: 'Mobile Application',
+  OTHER: 'Lainnya',
 };
 
 export const KATEGORI_IDLE = {
