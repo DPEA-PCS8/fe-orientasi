@@ -198,6 +198,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
   const [inisiatifPopoverAnchor, setInisiatifPopoverAnchor] = useState<HTMLElement | null>(null);
   const [popoverWidth, setPopoverWidth] = useState<number>(0);
   const [isLoadingData, setIsLoadingData] = useState(false);
+  const [loadedInisiatifId, setLoadedInisiatifId] = useState<string | null>(null);
 
   // File upload state - for edit mode we use existing files directly
   const [existingFiles, setExistingFiles] = useState<PksiFileData[]>([]);
@@ -371,6 +372,11 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
           rencanaPengelolaan: data.rencana_pengelolaan || '',
         });
 
+        // Store inisiatif ID to set later when inisiatifs are loaded
+        if (data.inisiatif_id) {
+          setLoadedInisiatifId(data.inisiatif_id);
+        }
+
         // Fetch existing files for this PKSI
         try {
           const existingFilesData = await getPksiFiles(pksiData.id);
@@ -387,6 +393,54 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
 
     fetchPksiDetails();
   }, [pksiData?.id, open]);
+
+  // Set selectedInisiatif when inisiatifs are loaded and we have an inisiatif_id
+  useEffect(() => {
+    if (!loadedInisiatifId || !programOptions.length) return;
+
+    // Find the inisiatif with matching id
+    for (const program of programOptions) {
+      const matchingInisiatif = program.inisiatifs?.find(
+        init => init.id === loadedInisiatifId
+      );
+      if (matchingInisiatif) {
+        setSelectedInisiatif(matchingInisiatif);
+        setSelectedProgram(program);
+        setLoadedInisiatifId(null); // Clear to prevent re-setting
+        break;
+      }
+    }
+  }, [loadedInisiatifId, programOptions]);
+
+  // Auto-select RBSI when editing with inisiatif_id
+  useEffect(() => {
+    const autoSelectRbsi = async () => {
+      if (!loadedInisiatifId || !rbsiOptions.length || selectedRbsi) return;
+
+      // Search through all RBSI to find which one contains this inisiatif
+      for (const rbsi of rbsiOptions) {
+        try {
+          const response = await getRbsiById(rbsi.id);
+          const programs = response.data?.programs || [];
+          
+          // Check if any program has an inisiatif with this id
+          const hasMatchingInisiatif = programs.some(program =>
+            program.inisiatifs?.some(init => init.id === loadedInisiatifId)
+          );
+
+          if (hasMatchingInisiatif) {
+            setSelectedRbsi(rbsi);
+            setProgramOptions(programs);
+            break;
+          }
+        } catch (error) {
+          console.error('Error checking RBSI:', error);
+        }
+      }
+    };
+
+    autoSelectRbsi();
+  }, [loadedInisiatifId, rbsiOptions, selectedRbsi]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -441,7 +495,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
     try {
       const requestData: PksiDocumentRequest = {
         aplikasi_id: formData.aplikasiId || undefined,
-        inisiatif_group_id: selectedInisiatif?.group_id || undefined,
+        inisiatif_id: selectedInisiatif?.id || undefined,
         nama_pksi: formData.namaPksi,
         tanggal_pengajuan: formData.tanggalPengajuan || undefined,
         deskripsi_pksi: formData.deskripsiPksi,
@@ -525,6 +579,12 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
     setExistingFiles([]);
     setIsUploading(false);
     setErrorMessage('');
+    // Reset RBSI selection
+    setSelectedRbsi(null);
+    setSelectedProgram(null);
+    setSelectedInisiatif(null);
+    setSelectedYear(null);
+    setLoadedInisiatifId(null);
     onClose();
   };
 
