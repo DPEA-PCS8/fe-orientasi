@@ -238,6 +238,7 @@ export async function searchFs2Documents(params: {
   bidang_id?: string;
   skpa_id?: string;
   status?: string;
+  year?: number;
   page?: number;
   size?: number;
 }): Promise<Fs2SearchResponse> {
@@ -246,6 +247,7 @@ export async function searchFs2Documents(params: {
   if (params.bidang_id) queryParams.append('bidang_id', params.bidang_id);
   if (params.skpa_id) queryParams.append('skpa_id', params.skpa_id);
   if (params.status) queryParams.append('status', params.status);
+  if (params.year !== undefined) queryParams.append('year', params.year.toString());
   if (params.page !== undefined) queryParams.append('page', params.page.toString());
   if (params.size !== undefined) queryParams.append('size', params.size.toString());
 
@@ -266,6 +268,7 @@ export async function searchApprovedFs2Documents(params: {
   fase_pengajuan?: string;
   mekanisme?: string;
   pelaksanaan?: string;
+  year?: number;
   page?: number;
   size?: number;
 }): Promise<Fs2SearchResponse> {
@@ -277,6 +280,7 @@ export async function searchApprovedFs2Documents(params: {
   if (params.fase_pengajuan) queryParams.append('fase_pengajuan', params.fase_pengajuan);
   if (params.mekanisme) queryParams.append('mekanisme', params.mekanisme);
   if (params.pelaksanaan) queryParams.append('pelaksanaan', params.pelaksanaan);
+  if (params.year !== undefined) queryParams.append('year', params.year.toString());
   if (params.page !== undefined) queryParams.append('page', params.page.toString());
   if (params.size !== undefined) queryParams.append('size', params.size.toString());
 

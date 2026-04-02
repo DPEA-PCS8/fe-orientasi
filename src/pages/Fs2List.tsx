@@ -60,6 +60,7 @@ import {
   PushPin as PushPinIcon,
   Download as DownloadIcon,
   OpenInNew as OpenInNewIcon,
+  CalendarMonth as CalendarIcon,
 } from '@mui/icons-material';
 import { usePermissions } from '../hooks/usePermissions';
 import { DataCountDisplay } from '../components/DataCountDisplay';
@@ -231,6 +232,9 @@ function Fs2List() {
   const [selectedStatus, setSelectedStatus] = useState<Set<string>>(new Set());
   const [selectedBidangFilter, setSelectedBidangFilter] = useState<string>('');
   const [selectedSkpaFilter, setSelectedSkpaFilter] = useState<string>('');
+  
+  // Year filter (exposed in toolbar) - default to current year, filters by tanggal_pengajuan
+  const [selectedYearFilter, setSelectedYearFilter] = useState<string>(new Date().getFullYear().toString());
 
   // Sticky columns configuration
   const [stickyColumnsAnchorEl, setStickyColumnsAnchorEl] = useState<null | HTMLElement>(null);
@@ -359,11 +363,15 @@ function Fs2List() {
         ? statusMapping[Array.from(selectedStatus)[0]] 
         : undefined;
 
+      // Parse year filter for backend API
+      const yearFilter = selectedYearFilter ? parseInt(selectedYearFilter, 10) : undefined;
+
       const response = await searchFs2Documents({
         search: keyword || undefined,
         status: statusFilter,
         bidang_id: selectedBidangFilter || undefined,
         skpa_id: selectedSkpaFilter || undefined,
+        year: yearFilter,
         page: page,
         size: rowsPerPage,
       });
@@ -380,7 +388,7 @@ function Fs2List() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, page, rowsPerPage, selectedStatus, selectedBidangFilter, selectedSkpaFilter]);
+  }, [keyword, page, rowsPerPage, selectedStatus, selectedBidangFilter, selectedSkpaFilter, selectedYearFilter]);
 
   // Fetch reference data
   useEffect(() => {
@@ -572,6 +580,31 @@ function Fs2List() {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
+
+  // Generate year options from tanggal_pengajuan
+  const yearOptions = useMemo(() => {
+    const years = new Set<string>();
+    const currentYear = new Date().getFullYear();
+    // Add current year and surrounding years as defaults
+    for (let y = currentYear - 2; y <= currentYear + 2; y++) {
+      years.add(y.toString());
+    }
+    // Extract years from rawData tanggal_pengajuan
+    rawData.forEach(item => {
+      if (item.tanggal_pengajuan) {
+        const year = new Date(item.tanggal_pengajuan).getFullYear();
+        if (!isNaN(year)) years.add(year.toString());
+      }
+    });
+    return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
+  }, [rawData]);
+
+  // Filter fs2Data by selected year (tanggal_pengajuan)
+  // Note: Year filter is now handled by backend, this is kept for compatibility
+  const filteredFs2Data = useMemo(() => {
+    // Year filtering is now done by backend, so just return the data as-is
+    return fs2Data;
+  }, [fs2Data]);
 
   const activeFiltersCount = useMemo(() => {
     let count = 0;
@@ -979,6 +1012,87 @@ function Fs2List() {
                 },
               }}
             />
+            
+            {/* Year Filter Dropdown - Enhanced UI */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                bgcolor: selectedYearFilter ? 'rgba(218, 37, 28, 0.08)' : '#f5f5f7',
+                borderRadius: '12px',
+                px: 1.5,
+                py: 0.5,
+                border: selectedYearFilter ? '1.5px solid rgba(218, 37, 28, 0.3)' : '1.5px solid transparent',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  bgcolor: selectedYearFilter ? 'rgba(218, 37, 28, 0.12)' : '#eeeeef',
+                },
+              }}
+            >
+              <CalendarIcon sx={{ fontSize: 18, color: selectedYearFilter ? '#DA251C' : '#86868b' }} />
+              <FormControl size="small" variant="standard" sx={{ minWidth: 100 }}>
+                <Select
+                  value={selectedYearFilter}
+                  onChange={(e) => setSelectedYearFilter(e.target.value)}
+                  displayEmpty
+                  disableUnderline
+                  sx={{
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: selectedYearFilter ? '#DA251C' : '#1d1d1f',
+                    '& .MuiSelect-select': {
+                      py: 0.5,
+                      pr: 3,
+                    },
+                    '& .MuiSvgIcon-root': {
+                      color: selectedYearFilter ? '#DA251C' : '#86868b',
+                    },
+                  }}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        mt: 1,
+                        borderRadius: '12px',
+                        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+                        border: '1px solid rgba(0, 0, 0, 0.06)',
+                      },
+                    },
+                  }}
+                >
+                  <MenuItem value="" sx={{ fontSize: '0.875rem' }}>
+                    <em>Semua Tahun</em>
+                  </MenuItem>
+                  {yearOptions.map((year) => (
+                    <MenuItem 
+                      key={year} 
+                      value={year}
+                      sx={{ 
+                        fontSize: '0.875rem',
+                        fontWeight: year === new Date().getFullYear().toString() ? 600 : 400,
+                        color: year === new Date().getFullYear().toString() ? '#DA251C' : 'inherit',
+                      }}
+                    >
+                      {year}
+                      {year === new Date().getFullYear().toString() && (
+                        <Chip 
+                          label="Now" 
+                          size="small" 
+                          sx={{ 
+                            ml: 1, 
+                            height: 18, 
+                            fontSize: '0.65rem',
+                            bgcolor: '#DA251C',
+                            color: 'white',
+                          }} 
+                        />
+                      )}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+            
             <Button
               variant="text"
               startIcon={<TuneRounded sx={{ fontSize: 18 }} />}
@@ -1437,7 +1551,7 @@ function Fs2List() {
                   </Typography>
                 </TableCell>
               </TableRow>
-            ) : fs2Data.length === 0 ? (
+            ) : filteredFs2Data.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} sx={{ textAlign: 'center', py: 6 }}>
                   <Typography variant="body2" sx={{ color: '#86868b' }}>
@@ -1446,7 +1560,7 @@ function Fs2List() {
                 </TableCell>
               </TableRow>
             ) : (
-              fs2Data.map((row, index) => {
+              filteredFs2Data.map((row, index) => {
                 const skpaColor = getSkpaColor(row.skpa);
                 return (
                   <TableRow 

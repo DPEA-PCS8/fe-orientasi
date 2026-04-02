@@ -181,6 +181,7 @@ export async function getAllPksiDocuments(): Promise<PksiDocumentData[]> {
 export async function searchPksiDocuments(params: {
   search?: string;
   status?: string;
+  year?: number;
   page?: number;
   size?: number;
   sortBy?: string;
@@ -190,6 +191,7 @@ export async function searchPksiDocuments(params: {
   
   if (params.search) queryParams.append('search', params.search);
   if (params.status) queryParams.append('status', params.status);
+  if (params.year !== undefined) queryParams.append('year', params.year.toString());
   if (params.page !== undefined) queryParams.append('page', params.page.toString());
   if (params.size !== undefined) queryParams.append('size', params.size.toString());
   if (params.sortBy) queryParams.append('sortBy', params.sortBy);
