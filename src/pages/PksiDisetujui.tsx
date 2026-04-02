@@ -43,6 +43,7 @@ import {
   PushPin as PushPinIcon,
   AssessmentRounded,
   Download as DownloadIcon,
+  CalendarMonth as CalendarIcon,
 } from '@mui/icons-material';
 import { searchPksiDocuments, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
@@ -231,6 +232,7 @@ function PksiDisetujui() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [pksiData, setPksiData] = useState<PksiData[]>([]);
+  const [rawPksiData, setRawPksiData] = useState<PksiDocumentData[]>([]);
   const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -257,6 +259,9 @@ function PksiDisetujui() {
   const [selectedInhouseOutsource, setSelectedInhouseOutsource] = useState<string>('');
   const [selectedBidang, setSelectedBidang] = useState<Set<string>>(new Set());
   const [selectedPic, setSelectedPic] = useState<Set<string>>(new Set());
+  
+  // Year filter (exposed in toolbar) - default to current year
+  const [selectedYearFilter, setSelectedYearFilter] = useState<string>(new Date().getFullYear().toString());
 
   // Sticky columns configuration
   const [stickyColumnsAnchorEl, setStickyColumnsAnchorEl] = useState<null | HTMLElement>(null);
@@ -522,9 +527,13 @@ function PksiDisetujui() {
   const fetchPksiData = useCallback(async () => {
     setIsLoading(true);
     try {
+      // Parse year filter for backend API
+      const yearFilter = selectedYearFilter ? parseInt(selectedYearFilter, 10) : undefined;
+
       const response = await searchPksiDocuments({
         search: keyword || undefined,
         status: 'DISETUJUI',
+        year: yearFilter,
         page: page,
         size: rowsPerPage,
         sortBy: 'nama_pksi',
@@ -536,10 +545,14 @@ function PksiDisetujui() {
       console.log('User Department:', userDepartment);
       console.log('User Roles:', userRoles);
       console.log('Is Admin/Pengembang:', isAdminOrPengembang);
+      console.log('Year Filter:', yearFilter);
       console.log('PKSI Response:', response);
       console.log('Total Elements:', response.total_elements);
       console.log('===========================');
 
+      // Store raw data for year filtering
+      setRawPksiData(response.content);
+      
       let transformedData = response.content.map(transformApiData);
       
       // Filter by user department if not Admin/Pengembang
@@ -563,7 +576,7 @@ function PksiDisetujui() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, page, rowsPerPage, userDepartment, userRoles, isAdminOrPengembang]);
+  }, [keyword, page, rowsPerPage, selectedYearFilter, userDepartment, userRoles, isAdminOrPengembang]);
 
   // Fetch data on mount and when dependencies change
   useEffect(() => {
@@ -715,6 +728,31 @@ function PksiDisetujui() {
     'Selesai',
   ];
 
+  // Generate year options from timeline data (tahap1_awal to tahap7_akhir)
+  const timelineYearOptions = useMemo(() => {
+    const years = new Set<string>();
+    const currentYear = new Date().getFullYear();
+    // Add current year and surrounding years as defaults
+    for (let y = currentYear - 2; y <= currentYear + 2; y++) {
+      years.add(y.toString());
+    }
+    // Extract years from raw PKSI timeline data
+    rawPksiData.forEach(item => {
+      const timelineFields = [
+        item.tahap1_awal, item.tahap1_akhir,
+        item.tahap5_awal, item.tahap5_akhir,
+        item.tahap7_awal, item.tahap7_akhir
+      ];
+      timelineFields.forEach(dateStr => {
+        if (dateStr) {
+          const year = new Date(dateStr).getFullYear();
+          if (!isNaN(year)) years.add(year.toString());
+        }
+      });
+    });
+    return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
+  }, [rawPksiData]);
+
   // Count active filters
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -731,8 +769,11 @@ function PksiDisetujui() {
   }, [selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa, selectedProgress, selectedIku, selectedInhouseOutsource, selectedBidang, selectedPic]);
 
   // Filter locally based on all filter criteria
+  // Note: Timeline year filter (selectedYearFilter) is now handled by backend
   const filteredPksi = useMemo(() => {
     let result = pksiData;
+    
+    // selectedYearFilter is now sent to backend, no need to filter client-side
     
     if (selectedJangkaWaktu.size > 0) {
       result = result.filter(item => {
@@ -1078,6 +1119,87 @@ function PksiDisetujui() {
                 },
               }}
             />
+            
+            {/* Year Filter Dropdown - Enhanced UI */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                bgcolor: selectedYearFilter ? 'rgba(49, 162, 76, 0.08)' : '#f5f5f7',
+                borderRadius: '12px',
+                px: 1.5,
+                py: 0.5,
+                border: selectedYearFilter ? '1.5px solid rgba(49, 162, 76, 0.3)' : '1.5px solid transparent',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  bgcolor: selectedYearFilter ? 'rgba(49, 162, 76, 0.12)' : '#eeeeef',
+                },
+              }}
+            >
+              <CalendarIcon sx={{ fontSize: 18, color: selectedYearFilter ? '#31A24C' : '#86868b' }} />
+              <FormControl size="small" variant="standard" sx={{ minWidth: 100 }}>
+                <Select
+                  value={selectedYearFilter}
+                  onChange={(e) => setSelectedYearFilter(e.target.value)}
+                  displayEmpty
+                  disableUnderline
+                  sx={{
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: selectedYearFilter ? '#31A24C' : '#1d1d1f',
+                    '& .MuiSelect-select': {
+                      py: 0.5,
+                      pr: 3,
+                    },
+                    '& .MuiSvgIcon-root': {
+                      color: selectedYearFilter ? '#31A24C' : '#86868b',
+                    },
+                  }}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        mt: 1,
+                        borderRadius: '12px',
+                        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+                        border: '1px solid rgba(0, 0, 0, 0.06)',
+                      },
+                    },
+                  }}
+                >
+                  <MenuItem value="" sx={{ fontSize: '0.875rem' }}>
+                    <em>Semua Tahun</em>
+                  </MenuItem>
+                  {timelineYearOptions.map((year) => (
+                    <MenuItem 
+                      key={year} 
+                      value={year}
+                      sx={{ 
+                        fontSize: '0.875rem',
+                        fontWeight: year === new Date().getFullYear().toString() ? 600 : 400,
+                        color: year === new Date().getFullYear().toString() ? '#31A24C' : 'inherit',
+                      }}
+                    >
+                      {year}
+                      {year === new Date().getFullYear().toString() && (
+                        <Chip 
+                          label="Now" 
+                          size="small" 
+                          sx={{ 
+                            ml: 1, 
+                            height: 18, 
+                            fontSize: '0.65rem',
+                            bgcolor: '#31A24C',
+                            color: 'white',
+                          }} 
+                        />
+                      )}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+            
             <Button
               variant="text"
               startIcon={<TuneRounded sx={{ fontSize: 18 }} />}
