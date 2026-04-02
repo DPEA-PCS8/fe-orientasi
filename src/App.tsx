@@ -11,6 +11,7 @@ import PksiList from './pages/PksiList';
 import PksiDisetujui from './pages/PksiDisetujui';
 import RbsiManagementPage from './pages/RbsiManagementPage';
 import RbsiArsitekturPage from './pages/RbsiArsitekturPage';
+import RbsiDashboardPage from './pages/RbsiDashboardPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import SmartLanding from './components/SmartLanding';
 import { isAuthenticated } from './api/authApi';
@@ -86,6 +87,16 @@ function App() {
               <ProtectedRoute requireMenuPermission="RBSI_ARCHITECTURE">
                 <Layout>
                   <RbsiArsitekturPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/rbsi-dashboard"
+            element={
+              <ProtectedRoute requireMenuPermission="RBSI_DASHBOARD">
+                <Layout>
+                  <RbsiDashboardPage />
                 </Layout>
               </ProtectedRoute>
             }

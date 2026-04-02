@@ -575,3 +575,88 @@ export async function getAnalytics(
 ): Promise<BaseApiResponse<RbsiAnalyticsResponse>> {
   return apiRequest<RbsiAnalyticsResponse>(`${BASE_URL}/rbsi/${rbsiId}/analytics`, 'POST', request);
 }
+
+// ==================== Dashboard API ====================
+
+export interface RbsiDashboardRequest {
+  rbsi_id?: string;
+  tahun?: number;
+  pksi_status?: string;
+  comparison_year?: number;
+}
+
+export interface DashboardSummary {
+  total_inisiatif: number;
+  inisiatif_with_pksi: number;
+  inisiatif_without_pksi: number;
+  percentage_with_pksi: number;
+  // KEP Progress Expected vs Actual
+  kep_expected_with_pksi: number;
+  kep_realized_with_pksi: number;
+  kep_missing_pksi: number;
+  kep_unexpected_pksi: number;
+  kep_compliance_percentage: number;
+}
+
+export interface PksiInfo {
+  id: string;
+  nama_pksi: string;
+  status: string;
+  tahun_pelaksanaan_awal: number | null;
+  tahun_pelaksanaan_akhir: number | null;
+  is_multiyear: boolean;
+}
+
+export interface YearlyKepStatus {
+  tahun: number;
+  kep_status: string;
+  has_pksi_in_year: boolean;
+  discrepancy_type: string | null;
+  discrepancy_message: string | null;
+  is_highlighted: boolean;
+}
+
+export interface KepProgressComparison {
+  yearly_status: Record<number, YearlyKepStatus>;
+}
+
+export interface InisiatifPksiDetail {
+  group_id: string;
+  nama_inisiatif: string;
+  nomor_inisiatif: string;
+  program_nama: string;
+  has_pksi: boolean;
+  pksi_list: PksiInfo[];
+  kep_progress_comparison: KepProgressComparison;
+}
+
+export interface RbsiDashboardResponse {
+  rbsi_id: string;
+  periode: string;
+  selected_tahun: number;
+  comparison_tahun: number;
+  summary: DashboardSummary;
+  initiatives: InisiatifPksiDetail[];
+  available_years: number[];
+}
+
+/**
+ * Get dashboard data - Initiative-PKSI relationship insights
+ */
+export async function getDashboardData(
+  rbsiId: string,
+  tahun?: number,
+  pksiStatus?: string,
+  comparisonYear?: number,
+  kepId?: string
+): Promise<BaseApiResponse<RbsiDashboardResponse>> {
+  const params = new URLSearchParams();
+  if (tahun) params.append('tahun', tahun.toString());
+  if (pksiStatus) params.append('pksi_status', pksiStatus);
+  if (comparisonYear) params.append('comparison_year', comparisonYear.toString());
+  if (kepId) params.append('kep_id', kepId);
+  
+  const queryString = params.toString();
+  const url = `${BASE_URL}/rbsi/${rbsiId}/dashboard${queryString ? `?${queryString}` : ''}`;
+  return apiRequest<RbsiDashboardResponse>(url, 'GET');
+}

@@ -441,6 +441,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
     try {
       const requestData: PksiDocumentRequest = {
         aplikasi_id: formData.aplikasiId || undefined,
+        inisiatif_group_id: selectedInisiatif?.group_id || undefined,
         nama_pksi: formData.namaPksi,
         tanggal_pengajuan: formData.tanggalPengajuan || undefined,
         deskripsi_pksi: formData.deskripsiPksi,

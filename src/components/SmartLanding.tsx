@@ -85,6 +85,7 @@ const SmartLanding = () => {
           { code: 'RBSI_MONITORING', path: '/rbsi' },
           { code: 'RBSI', path: '/rbsi' },
           { code: 'RBSI_ARCHITECTURE', path: '/rbsi-arsitektur' },
+          { code: 'RBSI_DASHBOARD', path: '/rbsi-dashboard' },
           { code: 'USER_MANAGEMENT', path: '/admin/user-roles' },
           { code: 'USER_ROLES', path: '/admin/user-roles' },
           { code: 'ROLE_PERMISSIONS', path: '/admin/role-permissions' },

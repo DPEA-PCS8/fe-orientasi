@@ -28,6 +28,7 @@ import {
   ExpandMore,
   ListAltRounded,
   PeopleRounded,
+  DashboardRounded,
   AssessmentRounded,
   MonitorHeartRounded,
   AccountTreeRounded,
@@ -185,6 +186,7 @@ const Sidebar = () => {
           subItems: [
             { label: 'RBSI Monitoring', icon: <MonitorHeartRounded />, href: '/rbsi', menuCode: 'RBSI_MONITORING' },
             { label: 'RBSI Arsitektur', icon: <AccountTreeRounded />, href: '/rbsi-arsitektur', menuCode: 'RBSI_ARCHITECTURE' },
+            { label: 'Dashboard RBSI', icon: <DashboardRounded />, href: '/rbsi-dashboard', menuCode: 'RBSI_DASHBOARD' },
           ],
         },
         {

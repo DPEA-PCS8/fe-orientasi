@@ -291,10 +291,6 @@ const AplikasiFormPage = () => {
       errors['status_aplikasi'] = 'Status Aplikasi wajib dipilih';
     }
 
-    if (!form.proses_data_pribadi) {
-      errors['proses_data_pribadi'] = 'Pilih apakah aplikasi memproses data pribadi';
-    }
-
     // Validate URLs
     if ((form.urls?.length || 0) === 0) {
       errors['urls'] = 'Minimal 1 URL aplikasi wajib diisi';
@@ -365,7 +361,6 @@ const AplikasiFormPage = () => {
       if (errors['kode_aplikasi']) errorMessages.push('• Kode Aplikasi');
       if (errors['nama_aplikasi']) errorMessages.push('• Nama Aplikasi');
       if (errors['status_aplikasi']) errorMessages.push('• Status Aplikasi');
-      if (errors['proses_data_pribadi']) errorMessages.push('• Proses Data Pribadi');
       if (errors['kategori_idle']) errorMessages.push('• Kategori Idle');
       if (errors['urls'] || errors['urls_validation']) errorMessages.push('• URL Aplikasi (ada yang kosong atau belum ditambahkan)');
       
@@ -642,23 +637,16 @@ const AplikasiFormPage = () => {
             </FormControl>
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <Box>
-              <FormControlLabel
-                control={
-                  <Switch
-                    name="proses_data_pribadi"
-                    checked={form.proses_data_pribadi}
-                    onChange={handleSwitchChange}
-                  />
-                }
-                label="Melakukan Pemrosesan Data Pribadi"
-              />
-              {fieldErrors['proses_data_pribadi'] && (
-                <Typography sx={{ fontSize: '0.75rem', color: '#d32f2f', ml: 1 }}>
-                  {fieldErrors['proses_data_pribadi']}
-                </Typography>
-              )}
-            </Box>
+            <FormControlLabel
+              control={
+                <Switch
+                  name="proses_data_pribadi"
+                  checked={form.proses_data_pribadi}
+                  onChange={handleSwitchChange}
+                />
+              }
+              label="Melakukan Pemrosesan Data Pribadi"
+            />
           </Grid>
           {form.proses_data_pribadi && (
             <Grid size={{ xs: 12 }}>

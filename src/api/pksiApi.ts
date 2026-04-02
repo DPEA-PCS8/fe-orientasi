@@ -104,6 +104,7 @@ export interface PksiSearchResponse {
 
 export interface PksiDocumentRequest {
   aplikasi_id?: string;
+  inisiatif_group_id?: string;
   nama_pksi: string;
   tanggal_pengajuan?: string;
   // Section 1
