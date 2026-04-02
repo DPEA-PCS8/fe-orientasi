@@ -15,53 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Run npm build inside Node.js container to avoid missing system libraries on self-hosted runner
-      - name: Build application in container
-        uses: docker://node:25.3.0-alpine
-        with:
-          entrypoint: /bin/sh
-          args: -c "npm ci && npm run build"
-
-      - name: Prepare build context
+      - name: Trigger OpenShift Build
         run: |
-          mkdir -p build-context
-          cp -r dist build-context/
-          cp Dockerfile build-context/
-          cp nginx.conf build-context/
-
-      - name: Start OpenShift Binary Build
-        run: |
-          BUILD=$(oc start-build frontend-app \
-            --from-dir=build-context \
-            -n ${{ env.NAMESPACE }} \
-            -o name)
-          echo "BUILD_NAME=$BUILD" >> $GITHUB_ENV
-
-      - name: Stream build logs
-        run: |
-          oc logs -f $BUILD_NAME -n ${{ env.NAMESPACE }}
-
-      - name: Verify build
-        run: |
-          for i in {1..12}; do
-            STATUS=$(oc get $BUILD_NAME -n ${{ env.NAMESPACE }} -o jsonpath='{.status.phase}')
-            echo "Build status (attempt $i): $STATUS"
-            
-            if [ "$STATUS" = "Complete" ] || [ "$STATUS" = "Succeeded" ]; then
-              echo "Build completed successfully!"
-              exit 0
-            fi
-            
-            if [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Error" ]; then
-              echo "Build failed!"
-              exit 1
-            fi
-            
-            sleep 5
-          done
-          
-          echo "Build status check timeout"
-          exit 1
+          oc start-build frontend-app -n ${{ env.NAMESPACE }} --follow --wait
 
       - name: Rollout restart
         run: |
