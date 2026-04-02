@@ -13,6 +13,7 @@ export interface PksiFileData {
   content_type: string;
   file_size: number;
   blob_url: string;
+  file_type?: string;
   created_at: string;
 }
 

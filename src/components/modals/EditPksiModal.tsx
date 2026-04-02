@@ -44,9 +44,9 @@ import {
   getPksiFiles,
   deletePksiFile,
   downloadPksiFile,
-  
   type PksiFileData,
 } from '../../api/pksiFileApi';
+import FilePreviewModal from './FilePreviewModal';
 
 // Styled TextField with glass effect
 const GlassTextField = styled(TextField)({
@@ -199,11 +199,17 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
   const [popoverWidth, setPopoverWidth] = useState<number>(0);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
-  // File upload state - for edit mode we use existing files directly
-  const [existingFiles, setExistingFiles] = useState<PksiFileData[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
+  // File upload state - separate for T01 and T11
+  const [filesT01, setFilesT01] = useState<PksiFileData[]>([]);
+  const [filesT11, setFilesT11] = useState<PksiFileData[]>([]);
+  const [isUploadingT01, setIsUploadingT01] = useState(false);
+  const [isUploadingT11, setIsUploadingT11] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+  
+  // Preview modal state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewFile, setPreviewFile] = useState<PksiFileData | null>(null);
 
   // Period years derived from selected RBSI
   const periodYears = useMemo(() => {
@@ -237,33 +243,62 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
     setExpandedSection(isExpanded ? panel : false);
   };
 
-  // File upload handler - for Edit mode, upload directly to PKSI
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // File upload handler for T01 (Rencana PKSI)
+  const handleFileUploadT01 = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0 && pksiData?.id) {
       const file = files[0];
       
-      setIsUploading(true);
+      setIsUploadingT01(true);
       setErrorMessage('');
       try {
-        await uploadPksiFiles(pksiData.id, [file]);
+        await uploadPksiFiles(pksiData.id, [file], 'T01');
         // Refresh existing files list
         const existingFilesData = await getPksiFiles(pksiData.id);
-        setExistingFiles(existingFilesData);
+        setFilesT01(existingFilesData.filter(f => f.file_type === 'T01' || !f.file_type));
+        setFilesT11(existingFilesData.filter(f => f.file_type === 'T11'));
       } catch (error) {
         console.error('Failed to upload file:', error);
-        setErrorMessage('Gagal mengupload file. Silakan coba lagi.');
+        setErrorMessage('Gagal mengupload file T01. Silakan coba lagi.');
       } finally {
-        setIsUploading(false);
+        setIsUploadingT01(false);
       }
     }
     event.target.value = '';
   };
 
-  const handleRemoveFile = async (fileId: string) => {
+  // File upload handler for T11 (Spesifikasi Kebutuhan)
+  const handleFileUploadT11 = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0 && pksiData?.id) {
+      const file = files[0];
+      
+      setIsUploadingT11(true);
+      setErrorMessage('');
+      try {
+        await uploadPksiFiles(pksiData.id, [file], 'T11');
+        // Refresh existing files list
+        const existingFilesData = await getPksiFiles(pksiData.id);
+        setFilesT01(existingFilesData.filter(f => f.file_type === 'T01' || !f.file_type));
+        setFilesT11(existingFilesData.filter(f => f.file_type === 'T11'));
+      } catch (error) {
+        console.error('Failed to upload file:', error);
+        setErrorMessage('Gagal mengupload file T11. Silakan coba lagi.');
+      } finally {
+        setIsUploadingT11(false);
+      }
+    }
+    event.target.value = '';
+  };
+
+  const handleRemoveFile = async (fileId: string, fileType: string) => {
     try {
       await deletePksiFile(fileId);
-      setExistingFiles((prev) => prev.filter((f) => f.id !== fileId));
+      if (fileType === 'T11') {
+        setFilesT11((prev) => prev.filter((f) => f.id !== fileId));
+      } else {
+        setFilesT01((prev) => prev.filter((f) => f.id !== fileId));
+      }
     } catch (error) {
       console.error('Failed to delete file:', error);
       setErrorMessage('Gagal menghapus file.');
@@ -282,9 +317,21 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
     }
   };
 
-  // Handle file preview in new tab
+  // Handle file preview in popup modal
   const handlePreview = (file: PksiFileData) => {
-    window.open(`/api/pksi/files/preview/${file.id}`, '_blank');
+    setPreviewFile(file);
+    setPreviewOpen(true);
+  };
+
+  const handlePreviewClose = () => {
+    setPreviewOpen(false);
+    setPreviewFile(null);
+  };
+
+  const handlePreviewDownload = async () => {
+    if (previewFile) {
+      await handleDownload(previewFile);
+    }
   };
 
   // Check if file is previewable
@@ -371,10 +418,11 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
           rencanaPengelolaan: data.rencana_pengelolaan || '',
         });
 
-        // Fetch existing files for this PKSI
+        // Fetch existing files for this PKSI and separate by type
         try {
           const existingFilesData = await getPksiFiles(pksiData.id);
-          setExistingFiles(existingFilesData);
+          setFilesT01(existingFilesData.filter(f => f.file_type === 'T01' || !f.file_type));
+          setFilesT11(existingFilesData.filter(f => f.file_type === 'T11'));
         } catch (fileError) {
           console.error('Error fetching PKSI files:', fileError);
         }
@@ -521,9 +569,13 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
     setErrors({});
     setExpandedSection('section1');
     // Reset file upload state
-    setExistingFiles([]);
-    setIsUploading(false);
+    setFilesT01([]);
+    setFilesT11([]);
+    setIsUploadingT01(false);
+    setIsUploadingT11(false);
     setErrorMessage('');
+    setPreviewOpen(false);
+    setPreviewFile(null);
     onClose();
   };
 
@@ -1467,125 +1519,250 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
                     letterSpacing: '-0.01em',
                   }}
                 >
-                  8. Upload Dokumen T.0.1
+                  8. Upload Dokumen
                 </Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
-                <Stack spacing={2}>
+                <Stack spacing={3}>
                   {errorMessage && (
                     <Typography color="error" variant="body2">{errorMessage}</Typography>
                   )}
-                  <Box
-                    sx={{
-                      border: '2px dashed #e5e5e7',
-                      borderRadius: 2,
-                      p: 3,
-                      textAlign: 'center',
-                      cursor: isUploading ? 'not-allowed' : 'pointer',
-                      opacity: isUploading ? 0.7 : 1,
-                      transition: 'all 0.2s ease-in-out',
-                      '&:hover': {
-                        borderColor: isUploading ? '#e5e5e7' : '#DA251C',
-                        bgcolor: isUploading ? 'transparent' : 'rgba(218, 37, 28, 0.04)',
-                      },
-                    }}
-                    onClick={() => !isUploading && document.getElementById('edit-pksi-file-upload-input')?.click()}
-                  >
-                    <input
-                      id="edit-pksi-file-upload-input"
-                      type="file"
-                      hidden
-                      onChange={handleFileUpload}
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-                      disabled={isUploading}
-                    />
-                    {isUploading ? (
-                      <>
-                        <CircularProgress size={48} sx={{ color: '#DA251C', mb: 1 }} />
-                        <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
-                          Mengupload file...
-                        </Typography>
-                      </>
-                    ) : (
-                      <>
-                        <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
-                        <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
-                          Klik untuk upload file
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
-                          atau drag & drop file di sini
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
-                          Format yang didukung: PDF, Word, Excel, Gambar (max 20MB)
-                        </Typography>
-                      </>
-                    )}
-                  </Box>
+                  
+                  {/* T01 - Rencana PKSI Section */}
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ mb: 1.5, fontWeight: 600, color: '#1d1d1f' }}>
+                      Rencana PKSI (T01/T02)
+                    </Typography>
+                    <Box
+                      sx={{
+                        border: '2px dashed #e5e5e7',
+                        borderRadius: 2,
+                        p: 3,
+                        textAlign: 'center',
+                        cursor: isUploadingT01 ? 'not-allowed' : 'pointer',
+                        opacity: isUploadingT01 ? 0.7 : 1,
+                        transition: 'all 0.2s ease-in-out',
+                        '&:hover': {
+                          borderColor: isUploadingT01 ? '#e5e5e7' : '#DA251C',
+                          bgcolor: isUploadingT01 ? 'transparent' : 'rgba(218, 37, 28, 0.04)',
+                        },
+                      }}
+                      onClick={() => !isUploadingT01 && document.getElementById('edit-pksi-file-upload-t01')?.click()}
+                    >
+                      <input
+                        id="edit-pksi-file-upload-t01"
+                        type="file"
+                        hidden
+                        onChange={handleFileUploadT01}
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                        disabled={isUploadingT01}
+                      />
+                      {isUploadingT01 ? (
+                        <>
+                          <CircularProgress size={48} sx={{ color: '#DA251C', mb: 1 }} />
+                          <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                            Mengupload file T01...
+                          </Typography>
+                        </>
+                      ) : (
+                        <>
+                          <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
+                          <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                            Klik untuk upload file Rencana PKSI
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
+                            atau drag & drop file di sini
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
+                            Format yang didukung: PDF, Word, Excel, Gambar (max 20MB)
+                          </Typography>
+                        </>
+                      )}
+                    </Box>
 
-                  {existingFiles.length > 0 && (
-                    <Box>
-                      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>
-                        File yang sudah diupload ({existingFiles.length})
-                      </Typography>
-                      <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px' }}>
-                        {existingFiles.map((file, index) => (
-                          <ListItem
-                            key={file.id}
-                            sx={{
-                              borderBottom: index < existingFiles.length - 1 ? '1px solid #e5e5e7' : 'none',
-                            }}
-                          >
-                            <ListItemIcon>
-                              <FileIcon sx={{ color: '#DA251C' }} />
-                            </ListItemIcon>
-                            <ListItemText
-                              primary={file.original_name}
-                              secondary={formatFileSize(file.file_size)}
-                              primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }}
-                              secondaryTypographyProps={{ sx: { color: '#86868b' } }}
-                            />
-                            <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
-                              {isPreviewable(file.content_type) && (
+                    {filesT01.length > 0 && (
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>
+                          File Rencana PKSI ({filesT01.length})
+                        </Typography>
+                        <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px' }}>
+                          {filesT01.map((file, index) => (
+                            <ListItem
+                              key={file.id}
+                              sx={{
+                                borderBottom: index < filesT01.length - 1 ? '1px solid #e5e5e7' : 'none',
+                              }}
+                            >
+                              <ListItemIcon>
+                                <FileIcon sx={{ color: '#DA251C' }} />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={file.original_name}
+                                secondary={formatFileSize(file.file_size)}
+                                primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }}
+                                secondaryTypographyProps={{ sx: { color: '#86868b' } }}
+                              />
+                              <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
+                                {isPreviewable(file.content_type) && (
+                                  <IconButton
+                                    edge="end"
+                                    size="small"
+                                    onClick={() => handlePreview(file)}
+                                    sx={{ color: '#0891B2', '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' } }}
+                                    title="Preview"
+                                  >
+                                    <VisibilityIcon fontSize="small" />
+                                  </IconButton>
+                                )}
                                 <IconButton
                                   edge="end"
                                   size="small"
-                                  onClick={() => handlePreview(file)}
-                                  sx={{ color: '#0891B2', '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' } }}
-                                  title="Preview"
+                                  onClick={() => handleDownload(file)}
+                                  disabled={downloadingFileId === file.id}
+                                  sx={{ color: '#059669', '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' } }}
+                                  title="Download"
                                 >
-                                  <VisibilityIcon fontSize="small" />
+                                  {downloadingFileId === file.id ? (
+                                    <CircularProgress size={18} sx={{ color: '#059669' }} />
+                                  ) : (
+                                    <DownloadIcon fontSize="small" />
+                                  )}
                                 </IconButton>
-                              )}
-                              <IconButton
-                                edge="end"
-                                size="small"
-                                onClick={() => handleDownload(file)}
-                                disabled={downloadingFileId === file.id}
-                                sx={{ color: '#059669', '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' } }}
-                                title="Download"
-                              >
-                                {downloadingFileId === file.id ? (
-                                  <CircularProgress size={18} sx={{ color: '#059669' }} />
-                                ) : (
-                                  <DownloadIcon fontSize="small" />
-                                )}
-                              </IconButton>
-                              <IconButton
-                                edge="end"
-                                size="small"
-                                onClick={() => handleRemoveFile(file.id)}
-                                disabled={isUploading}
-                                sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
-                                title="Hapus"
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </ListItemSecondaryAction>
-                          </ListItem>
-                        ))}
-                      </List>
+                                <IconButton
+                                  edge="end"
+                                  size="small"
+                                  onClick={() => handleRemoveFile(file.id, 'T01')}
+                                  disabled={isUploadingT01}
+                                  sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
+                                  title="Hapus"
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </ListItemSecondaryAction>
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Box>
+                    )}
+                  </Box>
+
+                  {/* T11 - Spesifikasi Kebutuhan Section */}
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ mb: 1.5, fontWeight: 600, color: '#1d1d1f' }}>
+                      Spesifikasi Kebutuhan (T11)
+                    </Typography>
+                    <Box
+                      sx={{
+                        border: '2px dashed #e5e5e7',
+                        borderRadius: 2,
+                        p: 3,
+                        textAlign: 'center',
+                        cursor: isUploadingT11 ? 'not-allowed' : 'pointer',
+                        opacity: isUploadingT11 ? 0.7 : 1,
+                        transition: 'all 0.2s ease-in-out',
+                        '&:hover': {
+                          borderColor: isUploadingT11 ? '#e5e5e7' : '#0891B2',
+                          bgcolor: isUploadingT11 ? 'transparent' : 'rgba(8, 145, 178, 0.04)',
+                        },
+                      }}
+                      onClick={() => !isUploadingT11 && document.getElementById('edit-pksi-file-upload-t11')?.click()}
+                    >
+                      <input
+                        id="edit-pksi-file-upload-t11"
+                        type="file"
+                        hidden
+                        onChange={handleFileUploadT11}
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                        disabled={isUploadingT11}
+                      />
+                      {isUploadingT11 ? (
+                        <>
+                          <CircularProgress size={48} sx={{ color: '#0891B2', mb: 1 }} />
+                          <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                            Mengupload file T11...
+                          </Typography>
+                        </>
+                      ) : (
+                        <>
+                          <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
+                          <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                            Klik untuk upload file Spesifikasi Kebutuhan
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
+                            atau drag & drop file di sini
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
+                            Format yang didukung: PDF, Word, Excel, Gambar (max 20MB)
+                          </Typography>
+                        </>
+                      )}
                     </Box>
-                  )}
+
+                    {filesT11.length > 0 && (
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>
+                          File Spesifikasi Kebutuhan ({filesT11.length})
+                        </Typography>
+                        <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px' }}>
+                          {filesT11.map((file, index) => (
+                            <ListItem
+                              key={file.id}
+                              sx={{
+                                borderBottom: index < filesT11.length - 1 ? '1px solid #e5e5e7' : 'none',
+                              }}
+                            >
+                              <ListItemIcon>
+                                <FileIcon sx={{ color: '#0891B2' }} />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={file.original_name}
+                                secondary={formatFileSize(file.file_size)}
+                                primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }}
+                                secondaryTypographyProps={{ sx: { color: '#86868b' } }}
+                              />
+                              <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
+                                {isPreviewable(file.content_type) && (
+                                  <IconButton
+                                    edge="end"
+                                    size="small"
+                                    onClick={() => handlePreview(file)}
+                                    sx={{ color: '#0891B2', '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' } }}
+                                    title="Preview"
+                                  >
+                                    <VisibilityIcon fontSize="small" />
+                                  </IconButton>
+                                )}
+                                <IconButton
+                                  edge="end"
+                                  size="small"
+                                  onClick={() => handleDownload(file)}
+                                  disabled={downloadingFileId === file.id}
+                                  sx={{ color: '#059669', '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' } }}
+                                  title="Download"
+                                >
+                                  {downloadingFileId === file.id ? (
+                                    <CircularProgress size={18} sx={{ color: '#059669' }} />
+                                  ) : (
+                                    <DownloadIcon fontSize="small" />
+                                  )}
+                                </IconButton>
+                                <IconButton
+                                  edge="end"
+                                  size="small"
+                                  onClick={() => handleRemoveFile(file.id, 'T11')}
+                                  disabled={isUploadingT11}
+                                  sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
+                                  title="Hapus"
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </ListItemSecondaryAction>
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Box>
+                    )}
+                  </Box>
                 </Stack>
               </AccordionDetails>
             </Accordion>
@@ -1642,6 +1819,17 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
           {isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
         </Button>
       </DialogActions>
+
+      {/* File Preview Modal */}
+      <FilePreviewModal
+        open={previewOpen}
+        onClose={handlePreviewClose}
+        fileId={previewFile?.id || null}
+        fileName={previewFile?.original_name || ''}
+        contentType={previewFile?.content_type || ''}
+        onDownload={handlePreviewDownload}
+        downloadUrl={previewFile ? `/api/pksi/files/download/${previewFile.id}` : undefined}
+      />
     </Dialog>
   );
 };
