@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, TextField, FormControl,
   InputLabel, Select, MenuItem, FormControlLabel, Switch, CircularProgress,
-  Alert, IconButton, Divider, Skeleton, Autocomplete
+  Alert, IconButton, Divider, Skeleton, Autocomplete, Chip
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import type { SelectChangeEvent } from '@mui/material/Select';
@@ -25,7 +25,6 @@ interface FormData extends Omit<AplikasiRequest, 'bidang_id' | 'skpa_id'> {
   bidang_id: string;
   skpa_id: string;
   akses_list: string[]; // For multi-select
-  akses_other_text: string; // For custom text when OTHER is selected
 }
 
 const initialForm: FormData = {
@@ -38,7 +37,6 @@ const initialForm: FormData = {
   tanggal_implementasi: '',
   akses: '',
   akses_list: [],
-  akses_other_text: '',
   proses_data_pribadi: false,
   data_pribadi_diproses: '',
   kategori_idle: '',
@@ -97,11 +95,15 @@ const AplikasiFormPage = () => {
       setError(null);
       try {
         const data = await getAplikasiById(id);
-        // Parse akses string to array and extract "other" text if present
+        // Parse akses string to array (keep custom text as-is)
         const aksesArray = data.akses ? data.akses.split(',').map(a => a.trim()) : [];
-        const otherItem = aksesArray.find(a => a.startsWith('OTHER:'));
-        const otherText = otherItem ? otherItem.substring(6) : '';
-        const cleanAksesArray = aksesArray.map(a => a.startsWith('OTHER:') ? 'OTHER' : a);
+        
+        // Parse URLs - keep tipe_akses as-is
+        const parsedUrls = data.urls?.map(u => ({
+          url: u.url,
+          tipe_akses: u.tipe_akses || '',
+          keterangan: u.keterangan || '',
+        })) || [];
         
         setForm({
           kode_aplikasi: data.kode_aplikasi,
@@ -112,19 +114,14 @@ const AplikasiFormPage = () => {
           skpa_id: data.skpa?.id || '',
           tanggal_implementasi: data.tanggal_implementasi || '',
           akses: data.akses || '',
-          akses_list: cleanAksesArray,
-          akses_other_text: otherText,
+          akses_list: aksesArray,
           proses_data_pribadi: data.proses_data_pribadi,
           data_pribadi_diproses: data.data_pribadi_diproses || '',
           kategori_idle: data.kategori_idle || '',
           alasan_idle: data.alasan_idle || '',
           rencana_pengakhiran: data.rencana_pengakhiran || '',
           alasan_belum_diakhiri: data.alasan_belum_diakhiri || '',
-          urls: data.urls?.map(u => ({
-            url: u.url,
-            tipe_akses: u.tipe_akses || '',
-            keterangan: u.keterangan || '',
-          })) || [],
+          urls: parsedUrls,
           satker_internals: data.satker_internals?.map(s => ({
             nama_satker: s.nama_satker,
             keterangan: s.keterangan || '',
@@ -303,11 +300,6 @@ const AplikasiFormPage = () => {
       errors['status_aplikasi'] = 'Status Aplikasi wajib dipilih';
     }
 
-    // Validate "Other" text if OTHER is selected
-    if (form.akses_list.includes('OTHER') && !form.akses_other_text?.trim()) {
-      errors['akses_other'] = 'Harap isi keterangan untuk pilihan "Lainnya"';
-    }
-
     // Validate URLs
     if ((form.urls?.length || 0) === 0) {
       errors['urls'] = 'Minimal 1 URL aplikasi wajib diisi';
@@ -408,14 +400,20 @@ const AplikasiFormPage = () => {
     setError(null);
 
     try {
-      // Build akses string from array
-      const aksesString = form.akses_list
-        .map(a => a === 'OTHER' && form.akses_other_text ? `OTHER:${form.akses_other_text}` : a)
-        .join(',');
+      // Build akses string from array - values are already in correct format from Autocomplete
+      const aksesString = form.akses_list.join(',');
+
+      // URLs already have tipe_akses in correct format
+      const urlsPayload = form.urls?.map(u => ({
+        url: u.url,
+        tipe_akses: u.tipe_akses || undefined,
+        keterangan: u.keterangan || undefined,
+      }));
 
       const payload: AplikasiRequest = {
         ...form,
         akses: aksesString || undefined,
+        urls: urlsPayload,
         bidang_id: form.bidang_id || undefined,
         skpa_id: form.skpa_id || undefined,
         tanggal_implementasi: form.tanggal_implementasi || undefined,
@@ -644,53 +642,48 @@ const AplikasiFormPage = () => {
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <FormControl fullWidth>
-              <InputLabel>Akses</InputLabel>
-              <Select
-                multiple
-                name="akses_list"
-                value={form.akses_list}
-                label="Akses"
-                onChange={(e) => {
-                  const value = e.target.value as string[];
-                  setForm(prev => ({ ...prev, akses_list: value }));
-                }}
-                renderValue={(selected) => {
-                  if (selected.length === 0) return '';
-                  return selected.map(s => ACCESS_TYPE_LABELS[s] || s).join(', ');
-                }}
-              >
-                {Object.entries(ACCESS_TYPE_LABELS).map(([key, label]) => (
-                  <MenuItem key={key} value={key}>
-                    <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <input
-                        type="checkbox"
-                        checked={form.akses_list.includes(key)}
-                        readOnly
-                        style={{ margin: 0 }}
-                      />
-                      {label}
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Autocomplete
+              multiple
+              freeSolo
+              options={Object.keys(ACCESS_TYPE_LABELS)}
+              value={form.akses_list}
+              onChange={(_, newValue) => {
+                setForm(prev => ({ ...prev, akses_list: newValue as string[] }));
+              }}
+              getOptionLabel={(option) => ACCESS_TYPE_LABELS[option] || option}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Akses"
+                  placeholder="Pilih dari daftar atau ketik sendiri..."
+                  helperText="Centang dari daftar atau ketik tipe akses lainnya"
+                />
+              )}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                  <Chip
+                    label={ACCESS_TYPE_LABELS[option] || option}
+                    {...getTagProps({ index })}
+                    size="small"
+                  />
+                ))
+              }
+              renderOption={(props, option) => (
+                <Box component="li" {...props}>
+                  <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                    <input
+                      type="checkbox"
+                      checked={form.akses_list.includes(option)}
+                      readOnly
+                      style={{ margin: 0 }}
+                    />
+                    {ACCESS_TYPE_LABELS[option]}
+                  </Box>
+                </Box>
+              )}
+              ChipProps={{ size: 'small' }}
+            />
           </Grid>
-          {form.akses_list.includes('OTHER') && (
-            <Grid size={{ xs: 12, md: 4 }}>
-              <TextField
-                fullWidth
-                required
-                label="Keterangan Lainnya"
-                name="akses_other_text"
-                value={form.akses_other_text}
-                onChange={handleTextChange}
-                placeholder="Sebutkan tipe akses lainnya..."
-                error={!!fieldErrors['akses_other']}
-                helperText={fieldErrors['akses_other']}
-              />
-            </Grid>
-          )}
           <Grid size={{ xs: 12, md: 4 }}>
             <FormControlLabel
               control={
@@ -812,19 +805,27 @@ const AplikasiFormPage = () => {
                 />
               </Grid>
               <Grid size={{ xs: 12, md: 2 }}>
-                <FormControl fullWidth>
-                  <InputLabel>Tipe Akses</InputLabel>
-                  <Select
-                    value={url.tipe_akses || ''}
-                    label="Tipe Akses"
-                    onChange={(e) => updateUrl(index, 'tipe_akses', e.target.value)}
-                  >
-                    <MenuItem value="">-</MenuItem>
-                    {Object.entries(ACCESS_TYPE_LABELS).map(([key, label]) => (
-                      <MenuItem key={key} value={key}>{label}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <Autocomplete
+                  freeSolo
+                  options={Object.keys(ACCESS_TYPE_LABELS)}
+                  value={url.tipe_akses || ''}
+                  onChange={(_, newValue) => updateUrl(index, 'tipe_akses', newValue || '')}
+                  onInputChange={(_, newInputValue) => updateUrl(index, 'tipe_akses', newInputValue)}
+                  getOptionLabel={(option) => ACCESS_TYPE_LABELS[option] || option}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Tipe Akses"
+                      placeholder="Pilih atau ketik..."
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <Box component="li" {...props}>
+                      {ACCESS_TYPE_LABELS[option]}
+                    </Box>
+                  )}
+                />
               </Grid>
               <Grid size={{ xs: 12, md: 4 }}>
                 <TextField

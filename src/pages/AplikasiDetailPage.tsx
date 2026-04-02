@@ -197,7 +197,12 @@ const AplikasiDetailPage = () => {
         });
         break;
       case 'urls':
-        setUrlsForm(aplikasi.urls?.map(u => ({ url: u.url, tipe_akses: u.tipe_akses, keterangan: u.keterangan })) || []);
+        // Keep tipe_akses as-is for Autocomplete
+        setUrlsForm(aplikasi.urls?.map(u => ({ 
+          url: u.url, 
+          tipe_akses: u.tipe_akses || '', 
+          keterangan: u.keterangan 
+        })) || []);
         break;
       case 'komunikasi':
         setKomunikasiForm(aplikasi.komunikasi_sistems?.map(k => ({
@@ -249,7 +254,11 @@ const AplikasiDetailPage = () => {
         alasan_idle: aplikasi.alasan_idle,
         rencana_pengakhiran: aplikasi.rencana_pengakhiran,
         alasan_belum_diakhiri: aplikasi.alasan_belum_diakhiri,
-        urls: aplikasi.urls?.map(u => ({ url: u.url, tipe_akses: u.tipe_akses, keterangan: u.keterangan })),
+        urls: aplikasi.urls?.map(u => ({ 
+          url: u.url, 
+          tipe_akses: u.tipe_akses || '', 
+          keterangan: u.keterangan 
+        })),
         satker_internals: aplikasi.satker_internals?.map(s => ({ nama_satker: s.nama_satker, keterangan: s.keterangan })),
         pengguna_eksternals: aplikasi.pengguna_eksternals?.map(p => ({ nama_pengguna: p.nama_pengguna, keterangan: p.keterangan })),
         komunikasi_sistems: aplikasi.komunikasi_sistems?.map(k => ({
@@ -643,18 +652,6 @@ const AplikasiDetailPage = () => {
                           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                             {aplikasi.akses.split(',').map((aksesItem, idx) => {
                               const trimmed = aksesItem.trim();
-                              // Handle OTHER:custom_text format
-                              if (trimmed.startsWith('OTHER:')) {
-                                const customText = trimmed.substring(6);
-                                return (
-                                  <Chip
-                                    key={idx}
-                                    label={`Lainnya: ${customText}`}
-                                    size="small"
-                                    sx={{ fontSize: '0.75rem' }}
-                                  />
-                                );
-                              }
                               return (
                                 <Chip
                                   key={idx}
@@ -753,23 +750,38 @@ const AplikasiDetailPage = () => {
                               }}
                             />
                           </Grid>
-                          <Grid size={{ xs: 12, sm: 3 }}>
-                            <FormControl fullWidth size="small">
-                              <InputLabel>Tipe Akses</InputLabel>
-                              <Select
-                                value={url.tipe_akses || ''}
-                                label="Tipe Akses"
-                                onChange={(e) => {
-                                  const newUrls = [...urlsForm];
-                                  newUrls[idx] = { ...newUrls[idx], tipe_akses: e.target.value };
-                                  setUrlsForm(newUrls);
-                                }}
-                              >
-                                {Object.entries(ACCESS_TYPE_LABELS).map(([key, label]) => (
-                                  <MenuItem key={key} value={key}>{label}</MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
+                          <Grid size={{ xs: 12, sm: 2 }}>
+                            <Autocomplete
+                              freeSolo
+                              options={Object.keys(ACCESS_TYPE_LABELS)}
+                              value={url.tipe_akses || ''}
+                              onChange={(_, newValue) => {
+                                const newUrls = [...urlsForm];
+                                newUrls[idx] = { ...newUrls[idx], tipe_akses: newValue || '' };
+                                setUrlsForm(newUrls);
+                              }}
+                              onInputChange={(_, newInputValue) => {
+                                const newUrls = [...urlsForm];
+                                newUrls[idx] = { ...newUrls[idx], tipe_akses: newInputValue };
+                                setUrlsForm(newUrls);
+                              }}
+                              getOptionLabel={(option) => ACCESS_TYPE_LABELS[option] || option}
+                              renderInput={(params) => (
+                                <TextField
+                                  {...params}
+                                  size="small"
+                                  label="Tipe Akses"
+                                  placeholder="Pilih atau ketik..."
+                                  helperText="Pilih atau ketik sendiri"
+                                  InputLabelProps={{ shrink: true }}
+                                />
+                              )}
+                              renderOption={(props, option) => (
+                                <Box component="li" {...props}>
+                                  {ACCESS_TYPE_LABELS[option]}
+                                </Box>
+                              )}
+                            />
                           </Grid>
                           <Grid size={{ xs: 12, sm: 3 }}>
                             <TextField
@@ -836,11 +848,13 @@ const AplikasiDetailPage = () => {
                             </Box>
                           </TableCell>
                           <TableCell>
-                            <Chip 
-                              label={ACCESS_TYPE_LABELS[url.tipe_akses || ''] || url.tipe_akses || '-'} 
-                              size="small" 
-                              variant="outlined"
-                            />
+                            {url.tipe_akses ? (
+                              <Chip 
+                                label={ACCESS_TYPE_LABELS[url.tipe_akses] || url.tipe_akses} 
+                                size="small" 
+                                variant="outlined"
+                              />
+                            ) : '-'}
                           </TableCell>
                           <TableCell>{url.keterangan || '-'}</TableCell>
                         </TableRow>
