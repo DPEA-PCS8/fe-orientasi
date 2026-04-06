@@ -148,7 +148,13 @@ const groupChangeLogsByDate = (logs: ChangeLogEntry[]): DateGroup[] => {
   const groups: Map<string, DateGroup> = new Map();
 
   logs.forEach((log) => {
+    // Skip if updated_at is invalid
+    if (!log.updated_at) return;
+    
     const date = new Date(log.updated_at);
+    // Check if date is valid
+    if (isNaN(date.getTime())) return;
+    
     const dateKey = date.toISOString().split('T')[0];
 
     if (!groups.has(dateKey)) {
