@@ -87,6 +87,18 @@ export const createSubKategori = async (request: SubKategoriRequest): Promise<Su
 };
 
 /**
+ * Bulk create multiple sub kategori at once
+ */
+export const bulkCreateSubKategori = async (requests: SubKategoriRequest[]): Promise<SubKategoriData[]> => {
+  const response = await apiRequest<SubKategoriData[]>(
+    `${BASE_URL}/arsitektur/sub-kategori/bulk`,
+    'POST',
+    requests
+  );
+  return response.data || [];
+};
+
+/**
  * Update existing sub kategori
  */
 export const updateSubKategori = async (id: string, request: SubKategoriRequest): Promise<SubKategoriData> => {

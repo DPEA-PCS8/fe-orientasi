@@ -6,10 +6,10 @@ import {
   Tabs, Tab, Chip, Accordion, AccordionSummary, AccordionDetails, Badge
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material/Select';
-import { Close, Save, Lock, Delete, Add, Edit, Search, History, Photo, ExpandMore } from '@mui/icons-material';
+import { Close, Save, Lock, Delete, Add, Edit, Search, History, Photo, ExpandMore, LibraryAdd } from '@mui/icons-material';
 import {
   getAllSubKategori, createSubKategori, updateSubKategori, deleteSubKategori,
-  getDistinctSnapshotYears, getSnapshotsByYear, createYearlySnapshot,
+  bulkCreateSubKategori, getDistinctSnapshotYears, getSnapshotsByYear, createYearlySnapshot,
   CATEGORY_CODE_OPTIONS,
   type SubKategoriData, type SubKategoriRequest, type SubKategoriSnapshotData
 } from '../api/subKategoriApi';
@@ -84,6 +84,13 @@ const KategoriRbsiPage = () => {
   const [form, setForm] = useState<FormData>(initialForm);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  
+  // Bulk insert state
+  const [openBulkDialog, setOpenBulkDialog] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [bulkCategory, setBulkCategory] = useState('CS');
+  const [bulkCategoryName, setBulkCategoryName] = useState('Core System');
+  const [bulkPreview, setBulkPreview] = useState<Array<{ kode: string; nama: string; valid: boolean; error?: string }>>([]);
 
   // Tab & Snapshot state
   const [tabValue, setTabValue] = useState(0);
@@ -183,6 +190,84 @@ const KategoriRbsiPage = () => {
   const handleDialogExited = () => {
     setForm(initialForm);
     setEditId(null);
+  };
+
+  // Bulk insert handlers
+  const handleOpenBulkDialog = () => {
+    setOpenBulkDialog(true);
+    setBulkText('');
+    setBulkCategory('CS');
+    setBulkCategoryName('Core System');
+    setBulkPreview([]);
+  };
+
+  const handleBulkCategoryChange = (categoryCode: string) => {
+    setBulkCategory(categoryCode);
+    const categoryName = CATEGORY_CODE_OPTIONS.find(c => c.code === categoryCode)?.name || '';
+    setBulkCategoryName(categoryName);
+    parseBulkText(bulkText); // Re-parse with new category
+  };
+
+  const parseBulkText = (text: string) => {
+    const lines = text.split('\n').filter(line => line.trim());
+    const preview = lines.map(line => {
+      const parts = line.split(',').map(p => p.trim());
+      if (parts.length < 2) {
+        return { kode: line, nama: '', valid: false, error: 'Format tidak valid. Gunakan: KODE,NAMA' };
+      }
+      const [kode, ...namaParts] = parts;
+      const nama = namaParts.join(',').trim();
+      
+      if (!kode) {
+        return { kode, nama, valid: false, error: 'Kode tidak boleh kosong' };
+      }
+      if (!nama) {
+        return { kode, nama, valid: false, error: 'Nama tidak boleh kosong' };
+      }
+      
+      return { kode, nama, valid: true };
+    });
+    setBulkPreview(preview);
+  };
+
+  const handleBulkTextChange = (text: string) => {
+    setBulkText(text);
+    parseBulkText(text);
+  };
+
+  const handleBulkSubmit = async () => {
+    const validItems = bulkPreview.filter(item => item.valid);
+    if (validItems.length === 0) {
+      setError('Tidak ada data valid untuk disimpan');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Prepare bulk request
+      const requests: SubKategoriRequest[] = validItems.map(item => ({
+        kode: item.kode,
+        nama: item.nama,
+        category_code: bulkCategory,
+        category_name: bulkCategoryName
+      }));
+
+      // Single API call for all items
+      const results = await bulkCreateSubKategori(requests);
+      
+      setLoading(false);
+      setSuccess(`Berhasil menambahkan ${results.length} sub kategori`);
+      await fetchData();
+      setOpenBulkDialog(false);
+      setBulkText('');
+      setBulkPreview([]);
+    } catch (err: unknown) {
+      setLoading(false);
+      const errorMessage = err instanceof Error ? err.message : 'Gagal menyimpan data bulk';
+      setError(errorMessage);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -391,9 +476,14 @@ const KategoriRbsiPage = () => {
             </FormControl>
           </Box>
           {canCreate && (
-            <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenDialog()} disabled={loading}>
-              Tambah Sub Kategori
-            </Button>
+            <Box display="flex" gap={1}>
+              <Button variant="outlined" startIcon={<LibraryAdd />} onClick={handleOpenBulkDialog} disabled={loading}>
+                Bulk Insert
+              </Button>
+              <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenDialog()} disabled={loading}>
+                Tambah Sub Kategori
+              </Button>
+            </Box>
           )}
         </Box>
 
@@ -811,6 +901,130 @@ const KategoriRbsiPage = () => {
               <Button onClick={handleCloseDialog}>Batal</Button>
               <Button variant="contained" onClick={handleSubmit} disabled={loading} startIcon={<Save />}>
                 {loading ? <CircularProgress size={20} /> : 'Simpan'}
+              </Button>
+            </Box>
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Insert Dialog */}
+      <Dialog open={openBulkDialog} onClose={() => setOpenBulkDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">Bulk Insert Sub Kategori</Typography>
+            <IconButton onClick={() => setOpenBulkDialog(false)}><Close /></IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Box display="flex" flexDirection="column" gap={2} mt={1}>
+            <Alert severity="info">
+              <Typography variant="body2" fontWeight={600} gutterBottom>Format Input:</Typography>
+              <Typography variant="body2" component="div">
+                • Satu baris = satu sub kategori<br />
+                • Format: <code>KODE,NAMA</code><br />
+                • Contoh: <code>CS1,Sistem Informasi Kepegawaian</code><br />
+                • Semua data akan masuk ke kategori yang dipilih di bawah
+              </Typography>
+            </Alert>
+
+            <FormControl fullWidth>
+              <InputLabel>Kategori Utama</InputLabel>
+              <Select
+                value={bulkCategory}
+                label="Kategori Utama"
+                onChange={(e) => handleBulkCategoryChange(e.target.value)}
+              >
+                {CATEGORY_CODE_OPTIONS.map(opt => (
+                  <MenuItem key={opt.code} value={opt.code}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Chip
+                        label={opt.code}
+                        size="small"
+                        sx={{
+                          bgcolor: CATEGORY_COLORS[opt.code as keyof typeof CATEGORY_COLORS]?.primary,
+                          color: 'white',
+                          fontWeight: 600,
+                          fontSize: '0.7rem'
+                        }}
+                      />
+                      <Typography>{opt.name}</Typography>
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <TextField
+              label="Data Sub Kategori"
+              multiline
+              rows={12}
+              value={bulkText}
+              onChange={(e) => handleBulkTextChange(e.target.value)}
+              placeholder="CS1,Sistem Informasi Kepegawaian&#10;CS2,Sistem Keuangan&#10;CS3,Sistem Perencanaan"
+              fullWidth
+              helperText={`${bulkPreview.length} baris terdeteksi, ${bulkPreview.filter(p => p.valid).length} valid`}
+            />
+
+            {/* Preview */}
+            {bulkPreview.length > 0 && (
+              <Box>
+                <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+                  Preview ({bulkPreview.filter(p => p.valid).length} dari {bulkPreview.length} valid):
+                </Typography>
+                <Paper variant="outlined" sx={{ maxHeight: 200, overflowY: 'auto', p: 1 }}>
+                  {bulkPreview.map((item, idx) => (
+                    <Box
+                      key={idx}
+                      display="flex"
+                      alignItems="center"
+                      gap={1}
+                      py={0.5}
+                      sx={{
+                        borderBottom: idx < bulkPreview.length - 1 ? '1px solid #eee' : 'none',
+                        bgcolor: item.valid ? 'transparent' : 'error.light',
+                        px: 1,
+                        borderRadius: 0.5
+                      }}
+                    >
+                      {item.valid ? (
+                        <>
+                          <Chip
+                            label={item.kode}
+                            size="small"
+                            sx={{
+                              bgcolor: CATEGORY_COLORS[bulkCategory as keyof typeof CATEGORY_COLORS]?.chip,
+                              color: 'white',
+                              fontWeight: 600,
+                              fontSize: '0.7rem',
+                              minWidth: 60
+                            }}
+                          />
+                          <Typography variant="body2" flex={1}>{item.nama}</Typography>
+                          <Chip label="✓" size="small" color="success" sx={{ height: 20, fontSize: '0.7rem' }} />
+                        </>
+                      ) : (
+                        <>
+                          <Typography variant="body2" color="error" flex={1}>
+                            {item.kode || '(kosong)'} - {item.error}
+                          </Typography>
+                          <Chip label="✗" size="small" color="error" sx={{ height: 20, fontSize: '0.7rem' }} />
+                        </>
+                      )}
+                    </Box>
+                  ))}
+                </Paper>
+              </Box>
+            )}
+
+            <Box display="flex" justifyContent="flex-end" gap={1}>
+              <Button onClick={() => setOpenBulkDialog(false)}>Batal</Button>
+              <Button
+                variant="contained"
+                onClick={handleBulkSubmit}
+                disabled={loading || bulkPreview.filter(p => p.valid).length === 0}
+                startIcon={loading ? <CircularProgress size={20} /> : <Save />}
+              >
+                {loading ? 'Menyimpan...' : `Simpan ${bulkPreview.filter(p => p.valid).length} Data`}
               </Button>
             </Box>
           </Box>
