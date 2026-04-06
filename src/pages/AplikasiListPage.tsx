@@ -8,9 +8,9 @@ import {
   TablePagination, Popover, Autocomplete
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material/Select';
-import { Add, Edit, Search, Delete, Visibility, Lock, Apps } from '@mui/icons-material';
+import { Add, Edit, Search, Delete, Visibility, Lock, Apps, Download } from '@mui/icons-material';
 import {
-  searchAplikasi, deleteAplikasi, updateAplikasiStatusWithDetails,
+  searchAplikasi, deleteAplikasi, updateAplikasiStatusWithDetails, downloadAplikasiExcel,
   type AplikasiData, type AplikasiSearchParams, type AplikasiStatusUpdateRequest,
   APPLICATION_STATUS_LABELS, KATEGORI_IDLE_LABELS
 } from '../api/aplikasiApi';
@@ -33,6 +33,10 @@ const AplikasiListPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Download states
+  const [showDownloadDialog, setShowDownloadDialog] = useState(false);
+  const [downloadLoading, setDownloadLoading] = useState(false);
 
   // Status popover
   const [statusAnchor, setStatusAnchor] = useState<{ el: HTMLElement; appId: string; currentStatus: string } | null>(null);
@@ -209,6 +213,20 @@ const AplikasiListPage = () => {
     });
   };
 
+  const handleDownload = async () => {
+    setDownloadLoading(true);
+    setError(null);
+    try {
+      await downloadAplikasiExcel();
+      setShowDownloadDialog(false);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Gagal mengunduh file Excel';
+      setError(errorMessage);
+    } finally {
+      setDownloadLoading(false);
+    }
+  };
+
   const getStatusChip = (status: string, isClickable: boolean = false, loading: boolean = false) => {
     const colorMap: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
       AKTIF: 'success',
@@ -272,15 +290,26 @@ const AplikasiListPage = () => {
             Manajemen Aplikasi
           </Typography>
         </Box>
-        {canCreate && (
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => navigate('/aplikasi/tambah')}
-          >
-            Tambah Aplikasi
-          </Button>
-        )}
+        <Box display="flex" gap={1}>
+          <Tooltip title="Download Excel">
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={() => setShowDownloadDialog(true)}
+            >
+              Download
+            </Button>
+          </Tooltip>
+          {canCreate && (
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => navigate('/aplikasi/tambah')}
+            >
+              Tambah Aplikasi
+            </Button>
+          )}
+        </Box>
       </Box>
 
       {/* Error Alert */}
@@ -626,6 +655,34 @@ const AplikasiListPage = () => {
             disabled={loading}
           >
             {loading ? <CircularProgress size={20} /> : 'Hapus'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Download Confirmation Dialog */}
+      <Dialog
+        open={showDownloadDialog}
+        onClose={() => !downloadLoading && setShowDownloadDialog(false)}
+      >
+        <DialogTitle>Download Daftar Aplikasi</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Apakah Anda ingin mengunduh daftar aplikasi dalam format Excel?
+            File akan berisi semua data aplikasi yang tersedia.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowDownloadDialog(false)} disabled={downloadLoading}>
+            Batal
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleDownload}
+            disabled={downloadLoading}
+            startIcon={downloadLoading ? <CircularProgress size={20} /> : <Download />}
+          >
+            {downloadLoading ? 'Mengunduh...' : 'Download'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,4 +1,5 @@
 import { apiRequest, type BaseApiResponse } from './apiClient';
+import { getAuthToken } from './authApi';
 
 const BASE_URL = '/api';
 
@@ -290,6 +291,68 @@ export async function updateAplikasiStatusWithDetails(id: string, request: Aplik
 
 export async function deleteAplikasi(id: string): Promise<void> {
   await apiRequest<void>(`${BASE_URL}/arsitektur/aplikasi/${id}`, 'DELETE');
+}
+
+/**
+ * Download aplikasi data as Excel file
+ */
+export async function downloadAplikasiExcel(): Promise<void> {
+  const token = getAuthToken();
+  const API_KEY = 'da39b92f-a1b8-46d5-a10c-d08b1cc92218';
+  
+  const response = await fetch(`${BASE_URL}/arsitektur/aplikasi/export`, {
+    method: 'GET',
+    headers: {
+      'APIKey': API_KEY,
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (response.status === 401) {
+    throw new Error('Sesi telah berakhir. Silakan login kembali.');
+  }
+
+  if (!response.ok) {
+    let errorMessage = 'Gagal mengunduh file Excel';
+    try {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      }
+    } catch {
+      // Ignore JSON parse error, use default message
+    }
+    throw new Error(errorMessage);
+  }
+
+  // Verify response is actually a file (not JSON error)
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Gagal mengunduh file Excel');
+  }
+
+  // Get filename from Content-Disposition header or use default
+  const contentDisposition = response.headers.get('Content-Disposition');
+  let filename = 'Daftar_Aplikasi.xlsx';
+  if (contentDisposition) {
+    const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+    if (filenameMatch && filenameMatch[1]) {
+      filename = filenameMatch[1].replace(/['"]/g, '');
+    }
+  }
+
+  // Create blob and trigger download
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 }
 
 // ==================== VARIABLE API ====================
