@@ -9,7 +9,7 @@ import {
 import { 
   HistoryRounded, FilterAlt, BarChart,
   Add, Lock, Edit, Delete, CompareArrows, TrendingUp, 
-  TrendingFlat, Close, Search
+  TrendingFlat, Close, Search, Download
 } from '@mui/icons-material';
 import {
   getHistorisByPeriode,
@@ -17,6 +17,8 @@ import {
   generateSnapshots,
   updateSnapshot,
   deleteSnapshot,
+  downloadHistorisAplikasiExcel,
+  getAvailableYears,
   type AplikasiHistorisListData,
   type AplikasiStatistikData,
   type UpdateSnapshotRequest,
@@ -107,6 +109,13 @@ const HistorisAplikasiPage = () => {
   const [statsAnchorEl, setStatsAnchorEl] = useState<HTMLButtonElement | null>(null);
   const statsOpen = Boolean(statsAnchorEl);
 
+  // Download states
+  const [showDownloadDialog, setShowDownloadDialog] = useState(false);
+  const [downloadYear, setDownloadYear] = useState<number>(new Date().getFullYear());
+  const [downloadLoading, setDownloadLoading] = useState(false);
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [loadingYears, setLoadingYears] = useState(false);
+
   const { getMenuPermissions, permissionsLoaded } = usePermissions();
   const permissions = getMenuPermissions(MENU_CODE);
   const aplikasiPermissions = getMenuPermissions('APLIKASI');
@@ -139,11 +148,31 @@ const HistorisAplikasiPage = () => {
     }
   }, [startYear, endYear]);
 
+  const fetchAvailableYears = useCallback(async () => {
+    setLoadingYears(true);
+    try {
+      const response = await getAvailableYears();
+      const years = response.data || [];
+      setAvailableYears(years);
+      // Set default download year to the latest available year
+      if (years.length > 0) {
+        setDownloadYear(Math.max(...years));
+      }
+    } catch (err: unknown) {
+      console.error('Failed to fetch available years:', err);
+      // Fallback to current year if API fails
+      setAvailableYears([new Date().getFullYear()]);
+    } finally {
+      setLoadingYears(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (permissionsLoaded && canView) {
       fetchData();
+      fetchAvailableYears();
     }
-  }, [permissionsLoaded, canView, fetchData]);
+  }, [permissionsLoaded, canView, fetchData, fetchAvailableYears]);
 
   // Group data by aplikasi
   const groupedData = useMemo(() => {
@@ -220,6 +249,7 @@ const HistorisAplikasiPage = () => {
       setSuccess(`Berhasil generate ${response.data?.total_generated || 0} snapshot untuk tahun ${generateYear}`);
       setShowGenerateDialog(false);
       await fetchData();
+      await fetchAvailableYears(); // Refresh available years after generating snapshots
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Gagal generate snapshots';
       setError(errorMessage);
@@ -346,6 +376,25 @@ const HistorisAplikasiPage = () => {
     }
   };
 
+  const handleOpenDownloadDialog = async () => {
+    setShowDownloadDialog(true);
+    await fetchAvailableYears();
+  };
+
+  const handleDownload = async () => {
+    setDownloadLoading(true);
+    setError(null);
+    try {
+      await downloadHistorisAplikasiExcel(downloadYear);
+      setShowDownloadDialog(false);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Gagal mengunduh file Excel';
+      setError(errorMessage);
+    } finally {
+      setDownloadLoading(false);
+    }
+  };
+
   const getStatusChip = (status: string, size: 'small' | 'medium' = 'small') => {
     const colorMap: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
       AKTIF: 'success',
@@ -416,6 +465,16 @@ const HistorisAplikasiPage = () => {
           </Typography>
         </Box>
         <Box display="flex" gap={1}>
+          <Tooltip title="Download Excel">
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Download />}
+              onClick={handleOpenDownloadDialog}
+            >
+              Download
+            </Button>
+          </Tooltip>
           <Badge badgeContent={totalStats} color="primary" max={999}>
             <Button
               variant="outlined"
@@ -1577,6 +1636,59 @@ const HistorisAplikasiPage = () => {
             startIcon={addingChangelog ? <CircularProgress size={16} /> : undefined}
           >
             {addingChangelog ? 'Menyimpan...' : 'Simpan'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Download Excel Dialog */}
+      <Dialog
+        open={showDownloadDialog}
+        onClose={() => !downloadLoading && setShowDownloadDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Download Historis Aplikasi</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Pilih tahun untuk mengunduh data historis aplikasi dalam format Excel.
+          </Typography>
+          {loadingYears ? (
+            <Box display="flex" justifyContent="center" py={3}>
+              <CircularProgress size={24} />
+            </Box>
+          ) : availableYears.length === 0 ? (
+            <Alert severity="info" sx={{ mt: 1 }}>
+              Tidak ada data historis yang tersedia untuk diunduh.
+            </Alert>
+          ) : (
+            <FormControl fullWidth sx={{ mt: 1 }}>
+              <InputLabel>Tahun</InputLabel>
+              <Select
+                value={downloadYear}
+                label="Tahun"
+                onChange={(e) => setDownloadYear(Number(e.target.value))}
+              >
+                {availableYears.sort((a, b) => b - a).map((year) => (
+                  <MenuItem key={year} value={year}>
+                    {year}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowDownloadDialog(false)} disabled={downloadLoading}>
+            Batal
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleDownload}
+            disabled={downloadLoading || availableYears.length === 0}
+            startIcon={downloadLoading ? <CircularProgress size={20} /> : <Download />}
+          >
+            {downloadLoading ? 'Mengunduh...' : 'Download'}
           </Button>
         </DialogActions>
       </Dialog>
