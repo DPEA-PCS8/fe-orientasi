@@ -28,7 +28,7 @@ export interface PksiFileResponse {
 /**
  * Upload files for a PKSI document
  */
-export async function uploadPksiFiles(pksiId: string, files: File[]): Promise<PksiFileData[]> {
+export async function uploadPksiFiles(pksiId: string, files: File[], fileType: string = 'T01'): Promise<PksiFileData[]> {
   const token = getAuthToken();
   
   if (!token) {
@@ -40,7 +40,7 @@ export async function uploadPksiFiles(pksiId: string, files: File[]): Promise<Pk
     formData.append('files', file);
   });
 
-  const response = await fetch(`${BASE_URL}/pksi/files/upload/${pksiId}`, {
+  const response = await fetch(`${BASE_URL}/pksi/files/upload/${pksiId}?fileType=${fileType}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -61,7 +61,7 @@ export async function uploadPksiFiles(pksiId: string, files: File[]): Promise<Pk
 /**
  * Upload files to temporary storage (before PKSI is created)
  */
-export async function uploadTempFiles(sessionId: string, files: File[]): Promise<PksiFileData[]> {
+export async function uploadTempFiles(sessionId: string, files: File[], fileType: string = 'T01'): Promise<PksiFileData[]> {
   const token = getAuthToken();
   
   if (!token) {
@@ -73,7 +73,7 @@ export async function uploadTempFiles(sessionId: string, files: File[]): Promise
     formData.append('files', file);
   });
 
-  const response = await fetch(`${BASE_URL}/pksi/files/temp/upload/${sessionId}`, {
+  const response = await fetch(`${BASE_URL}/pksi/files/temp/upload/${sessionId}?fileType=${fileType}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,

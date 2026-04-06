@@ -1127,6 +1127,7 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
         fileName={previewFile?.original_name || ''}
         contentType={previewFile?.content_type || ''}
         onDownload={handlePreviewDownload}
+        downloadUrl={`/api/pksi/files/download/${previewFile?.id}`}
       />
     </Dialog>
   );
