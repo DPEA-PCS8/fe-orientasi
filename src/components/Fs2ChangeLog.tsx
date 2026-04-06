@@ -62,7 +62,7 @@ const SectionHeader = styled(Box)({
   gap: '14px',
   marginBottom: '20px',
   paddingBottom: '16px',
-  borderBottom: '1px solid rgba(49, 162, 76, 0.15)',
+  borderBottom: '1px solid rgba(99, 102, 241, 0.15)',
 });
 
 const DateHeader = styled(Box)({
@@ -71,14 +71,14 @@ const DateHeader = styled(Box)({
   justifyContent: 'space-between',
   padding: '14px 18px',
   borderRadius: '14px',
-  background: 'linear-gradient(135deg, rgba(49, 162, 76, 0.08) 0%, rgba(34, 197, 94, 0.08) 100%)',
-  border: '1px solid rgba(49, 162, 76, 0.15)',
+  background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%)',
+  border: '1px solid rgba(99, 102, 241, 0.15)',
   cursor: 'pointer',
   transition: 'all 0.2s ease',
   '&:hover': {
-    background: 'linear-gradient(135deg, rgba(49, 162, 76, 0.12) 0%, rgba(34, 197, 94, 0.12) 100%)',
+    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.12) 100%)',
     transform: 'translateY(-1px)',
-    boxShadow: '0 4px 12px rgba(49, 162, 76, 0.15)',
+    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.15)',
   },
 });
 
@@ -92,7 +92,7 @@ const TimelineContainer = styled(Box)({
     top: '0',
     bottom: '0',
     width: '2px',
-    background: 'linear-gradient(180deg, rgba(49, 162, 76, 0.3) 0%, rgba(34, 197, 94, 0.1) 100%)',
+    background: 'linear-gradient(180deg, rgba(99, 102, 241, 0.3) 0%, rgba(139, 92, 246, 0.1) 100%)',
     borderRadius: '1px',
   },
 });
@@ -105,9 +105,9 @@ const TimelineDot = styled(Box)({
   width: '12px',
   height: '12px',
   borderRadius: '50%',
-  background: 'linear-gradient(135deg, #31A24C 0%, #22C55E 100%)',
+  background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
   border: '3px solid white',
-  boxShadow: '0 2px 8px rgba(49, 162, 76, 0.4)',
+  boxShadow: '0 2px 8px rgba(99, 102, 241, 0.4)',
 });
 
 const ChangeCard = styled(Box)({
@@ -224,7 +224,7 @@ const getInitials = (name: string): string => {
 // Generate avatar color based on name
 const getAvatarColor = (name: string): string => {
   const colors = [
-    'linear-gradient(135deg, #31A24C 0%, #22C55E 100%)',
+    'linear-gradient(135deg, #DA251C 0%, #FF6B6B 100%)',
     'linear-gradient(135deg, #0891B2 0%, #22D3EE 100%)',
     'linear-gradient(135deg, #059669 0%, #34D399 100%)',
     'linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%)',
@@ -301,11 +301,11 @@ const Fs2ChangeLog: React.FC<Fs2ChangeLogProps> = ({ fs2Id, changeLogs }) => {
               width: 42,
               height: 42,
               borderRadius: '12px',
-              background: 'linear-gradient(135deg, #31A24C 0%, #22C55E 100%)',
+              background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 14px rgba(49, 162, 76, 0.4)',
+              boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
             }}
           >
             <HistoryIcon sx={{ color: 'white', fontSize: 22 }} />
@@ -322,7 +322,7 @@ const Fs2ChangeLog: React.FC<Fs2ChangeLogProps> = ({ fs2Id, changeLogs }) => {
             alignItems: 'center',
           }}
         >
-          <CircularProgress sx={{ color: '#31A24C' }} />
+          <CircularProgress sx={{ color: '#6366F1' }} />
         </Box>
       </GlassCard>
     );
@@ -337,11 +337,11 @@ const Fs2ChangeLog: React.FC<Fs2ChangeLogProps> = ({ fs2Id, changeLogs }) => {
               width: 42,
               height: 42,
               borderRadius: '12px',
-              background: 'linear-gradient(135deg, #31A24C 0%, #22C55E 100%)',
+              background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 14px rgba(49, 162, 76, 0.4)',
+              boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
             }}
           >
             <HistoryIcon sx={{ color: 'white', fontSize: 22 }} />
@@ -355,8 +355,8 @@ const Fs2ChangeLog: React.FC<Fs2ChangeLogProps> = ({ fs2Id, changeLogs }) => {
             p: 4,
             textAlign: 'center',
             borderRadius: '16px',
-            bgcolor: 'rgba(49, 162, 76, 0.04)',
-            border: '1px dashed rgba(49, 162, 76, 0.2)',
+            bgcolor: 'rgba(99, 102, 241, 0.04)',
+            border: '1px dashed rgba(99, 102, 241, 0.2)',
           }}
         >
           <HistoryIcon sx={{ fontSize: 48, color: '#C7C7CC', mb: 2 }} />
@@ -379,11 +379,11 @@ const Fs2ChangeLog: React.FC<Fs2ChangeLogProps> = ({ fs2Id, changeLogs }) => {
             width: 42,
             height: 42,
             borderRadius: '12px',
-            background: 'linear-gradient(135deg, #31A24C 0%, #22C55E 100%)',
+            background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 14px rgba(49, 162, 76, 0.4)',
+            boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
           }}
         >
           <HistoryIcon sx={{ color: 'white', fontSize: 22 }} />
@@ -398,12 +398,12 @@ const Fs2ChangeLog: React.FC<Fs2ChangeLogProps> = ({ fs2Id, changeLogs }) => {
               icon={<EditIcon sx={{ fontSize: '14px !important' }} />}
               label={`${logs.length} perubahan`}
               sx={{
-                bgcolor: 'rgba(49, 162, 76, 0.1)',
-                color: '#31A24C',
+                bgcolor: 'rgba(99, 102, 241, 0.1)',
+                color: '#6366F1',
                 fontWeight: 600,
                 fontSize: '0.75rem',
                 height: 24,
-                '& .MuiChip-icon': { color: '#31A24C' },
+                '& .MuiChip-icon': { color: '#6366F1' },
               }}
             />
             <Chip
@@ -434,13 +434,13 @@ const Fs2ChangeLog: React.FC<Fs2ChangeLogProps> = ({ fs2Id, changeLogs }) => {
                     width: 36,
                     height: 36,
                     borderRadius: '10px',
-                    bgcolor: 'rgba(49, 162, 76, 0.15)',
+                    bgcolor: 'rgba(99, 102, 241, 0.15)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  <CalendarIcon sx={{ fontSize: 20, color: '#31A24C' }} />
+                  <CalendarIcon sx={{ fontSize: 20, color: '#6366F1' }} />
                 </Box>
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1d1d1f', lineHeight: 1.2 }}>
@@ -454,14 +454,14 @@ const Fs2ChangeLog: React.FC<Fs2ChangeLogProps> = ({ fs2Id, changeLogs }) => {
               <IconButton
                 size="small"
                 sx={{
-                  bgcolor: 'rgba(49, 162, 76, 0.1)',
-                  '&:hover': { bgcolor: 'rgba(49, 162, 76, 0.2)' },
+                  bgcolor: 'rgba(99, 102, 241, 0.1)',
+                  '&:hover': { bgcolor: 'rgba(99, 102, 241, 0.2)' },
                 }}
               >
                 {expandedDates.has(group.date) ? (
-                  <ArrowUpIcon sx={{ color: '#31A24C' }} />
+                  <ArrowUpIcon sx={{ color: '#6366F1' }} />
                 ) : (
-                  <ArrowDownIcon sx={{ color: '#31A24C' }} />
+                  <ArrowDownIcon sx={{ color: '#6366F1' }} />
                 )}
               </IconButton>
             </DateHeader>
@@ -567,11 +567,11 @@ const Fs2ChangeLog: React.FC<Fs2ChangeLogProps> = ({ fs2Id, changeLogs }) => {
                           width: 28,
                           height: 28,
                           borderRadius: '50%',
-                          bgcolor: 'rgba(49, 162, 76, 0.1)',
+                          bgcolor: 'rgba(99, 102, 241, 0.1)',
                           flexShrink: 0,
                         }}
                       >
-                        <TrendingFlatIcon sx={{ fontSize: 16, color: '#31A24C' }} />
+                        <TrendingFlatIcon sx={{ fontSize: 16, color: '#6366F1' }} />
                       </Box>
 
                       <ValuePill variant="new">
