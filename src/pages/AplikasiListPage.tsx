@@ -68,7 +68,6 @@ const AplikasiListPage = () => {
   // Pagination
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [totalElements, setTotalElements] = useState(0);
 
   // Permission hook
   const { getMenuPermissions, permissionsLoaded } = usePermissions();
@@ -93,17 +92,13 @@ const AplikasiListPage = () => {
     setLoading(true);
     setError(null);
     try {
+      // Load ALL data without pagination - client-side rendering
       const params: AplikasiSearchParams = {
-        search: search || undefined,
-        bidang_id: filterBidang || undefined,
-        skpa_id: filterSkpa || undefined,
-        status: filterStatus || undefined,
-        page,
-        size: rowsPerPage,
+        page: 0,
+        size: 9999, // Load all data
       };
       const response = await searchAplikasi(params);
       setAplikasiList(response.data?.content || []);
-      setTotalElements(response.data?.total_elements || 0);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Gagal mengambil data aplikasi';
       setError(errorMessage);
@@ -111,7 +106,7 @@ const AplikasiListPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [search, filterBidang, filterSkpa, filterStatus, page, rowsPerPage]);
+  }, []);
 
   useEffect(() => {
     fetchFilters();
@@ -125,7 +120,7 @@ const AplikasiListPage = () => {
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value);
-    setPage(0);
+    setPage(0); // Reset to first page
   };
 
   const handleFilterChange = (e: SelectChangeEvent) => {
@@ -133,7 +128,7 @@ const AplikasiListPage = () => {
     if (name === 'bidang') setFilterBidang(value);
     else if (name === 'skpa') setFilterSkpa(value);
     else if (name === 'status') setFilterStatus(value);
-    setPage(0);
+    setPage(0); // Reset to first page
   };
 
   const handleChangePage = (_: unknown, newPage: number) => {
@@ -142,7 +137,7 @@ const AplikasiListPage = () => {
 
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
+    setPage(0); // Reset to first page when rows per page changes
   };
 
   const handleDelete = async (id: string) => {
@@ -305,9 +300,34 @@ const AplikasiListPage = () => {
 
   // Apply frontend filtering for sub kategori
   const filteredAplikasiList = aplikasiList.filter(app => {
-    if (filterSubKategori.length === 0) return true;
-    return app.sub_kategori && filterSubKategori.includes(app.sub_kategori.id);
+    // Search filter
+    const searchLower = search.toLowerCase();
+    const matchesSearch = !search || 
+      app.nama_aplikasi.toLowerCase().includes(searchLower) ||
+      (app.kode_aplikasi && app.kode_aplikasi.toLowerCase().includes(searchLower));
+    
+    // Bidang filter
+    const matchesBidang = !filterBidang || (app.bidang && app.bidang.id === filterBidang);
+    
+    // SKPA filter
+    const matchesSkpa = !filterSkpa || (app.skpa && app.skpa.id === filterSkpa);
+    
+    // Status filter
+    const matchesStatus = !filterStatus || app.status_aplikasi === filterStatus;
+    
+    // Sub kategori filter
+    const matchesSubKategori = filterSubKategori.length === 0 || 
+      (app.sub_kategori && filterSubKategori.includes(app.sub_kategori.id));
+    
+    return matchesSearch && matchesBidang && matchesSkpa && matchesStatus && matchesSubKategori;
   });
+
+  // Client-side pagination
+  const totalElements = filteredAplikasiList.length;
+  const paginatedList = filteredAplikasiList.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
 
   const getStatusChip = (status: string, isClickable: boolean = false, loading: boolean = false) => {
     const colorMap: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
@@ -419,7 +439,10 @@ const AplikasiListPage = () => {
             options={bidangList}
             getOptionLabel={(option) => `${option.kode_bidang} - ${option.nama_bidang}`}
             value={bidangList.find(b => b.id === filterBidang) || null}
-            onChange={(_, newValue) => setFilterBidang(newValue?.id || '')}
+            onChange={(_, newValue) => {
+              setFilterBidang(newValue?.id || '');
+              setPage(0);
+            }}
             renderInput={(params) => (
               <TextField {...params} label="Bidang" placeholder="Cari bidang..." />
             )}
@@ -445,7 +468,10 @@ const AplikasiListPage = () => {
             options={skpaList}
             getOptionLabel={(option) => `${option.kode_skpa} - ${option.nama_skpa}`}
             value={skpaList.find(s => s.id === filterSkpa) || null}
-            onChange={(_, newValue) => setFilterSkpa(newValue?.id || '')}
+            onChange={(_, newValue) => {
+              setFilterSkpa(newValue?.id || '');
+              setPage(0);
+            }}
             renderInput={(params) => (
               <TextField {...params} label="SKPA" placeholder="Cari SKPA..." />
             )}
@@ -520,14 +546,14 @@ const AplikasiListPage = () => {
       {/* Data Count Display */}
       <Box sx={{ my: 2.5 }}>
         <DataCountDisplay
-          count={filterSubKategori.length > 0 ? filteredAplikasiList.length : totalElements}
+          count={totalElements}
           isLoading={loading}
           label="Total"
           unit="Aplikasi"
         />
-        {filterSubKategori.length > 0 && (
+        {(search || filterBidang || filterSkpa || filterStatus || filterSubKategori.length > 0) && (
           <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-            (Difilter dari {totalElements} aplikasi)
+            (Difilter dari {aplikasiList.length} aplikasi)
           </Typography>
         )}
       </Box>
@@ -552,16 +578,18 @@ const AplikasiListPage = () => {
                   <CircularProgress size={30} />
                 </TableCell>
               </TableRow>
-            ) : filteredAplikasiList.length === 0 ? (
+            ) : paginatedList.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">
-                    {filterSubKategori.length > 0 ? 'Tidak ada aplikasi dengan filter sub kategori yang dipilih' : 'Tidak ada data aplikasi'}
+                    {search || filterBidang || filterSkpa || filterStatus || filterSubKategori.length > 0 
+                      ? 'Tidak ada aplikasi yang sesuai dengan filter' 
+                      : 'Tidak ada data aplikasi'}
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
-              filteredAplikasiList.map((app) => (
+              paginatedList.map((app) => (
                 <TableRow key={app.id} hover>
                   <TableCell>
                     <Box>
