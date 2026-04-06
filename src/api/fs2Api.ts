@@ -319,3 +319,30 @@ export async function updateFs2Status(id: string, status: string): Promise<Fs2Do
 export async function deleteFs2Document(id: string): Promise<void> {
   await apiRequest<void>(`${BASE_URL}/fs2/${id}`, 'DELETE');
 }
+
+// ==================== CHANGELOG TYPES ====================
+
+export interface Fs2ChangelogEntry {
+  id: string;
+  field_name: string;
+  field_label: string;
+  old_value: string | null;
+  new_value: string | null;
+  updated_by: string;
+  updated_by_name: string;
+  updated_at: string;
+}
+
+export interface Fs2ChangelogsResponse {
+  changelogs: Fs2ChangelogEntry[];
+}
+
+/**
+ * Get changelogs for an F.S.2 document
+ */
+export async function getFs2Changelogs(fs2Id: string): Promise<Fs2ChangelogsResponse> {
+  const response = await apiRequest<Fs2ChangelogEntry[]>(
+    `${BASE_URL}/fs2/${fs2Id}/changelogs`
+  );
+  return { changelogs: response.data };
+}

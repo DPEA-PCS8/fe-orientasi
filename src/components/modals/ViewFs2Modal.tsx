@@ -41,6 +41,7 @@ import {
 import { getFs2DocumentById, type Fs2DocumentData } from '../../api/fs2Api';
 import { getFs2Files, downloadFs2File, type Fs2FileData } from '../../api/fs2FileApi';
 import FilePreviewModal from './FilePreviewModal';
+import Fs2ChangeLog from '../Fs2ChangeLog';
 
 // Glass Card Component - matching ViewPksiModal
 const GlassCard = styled(Box)({
@@ -1063,6 +1064,9 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                 </Box>
               </GlassCard>
             )}
+
+            {/* Section: Riwayat Perubahan */}
+            <Fs2ChangeLog fs2Id={fs2Id || ''} />
           </Box>
         ) : (
           <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
