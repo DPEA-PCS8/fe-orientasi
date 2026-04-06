@@ -5,10 +5,11 @@ import {
   TableContainer, TableHead, TableRow, Paper, IconButton, Dialog,
   DialogContent, DialogActions, DialogTitle, CircularProgress, Alert,
   Select, MenuItem, FormControl, InputLabel, Tooltip, Chip, Skeleton,
-  TablePagination, Popover, Autocomplete
+  TablePagination, Popover, Autocomplete, Checkbox,
+  Divider, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Collapse
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material/Select';
-import { Add, Edit, Search, Delete, Visibility, Lock, Apps, Download } from '@mui/icons-material';
+import { Add, Edit, Search, Delete, Visibility, Lock, Apps, Download, FilterList, ExpandMore, ExpandLess, CheckBoxOutlineBlank, CheckBox, IndeterminateCheckBox } from '@mui/icons-material';
 import {
   searchAplikasi, deleteAplikasi, updateAplikasiStatusWithDetails, downloadAplikasiExcel,
   type AplikasiData, type AplikasiSearchParams, type AplikasiStatusUpdateRequest,
@@ -16,20 +17,33 @@ import {
 } from '../api/aplikasiApi';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
+import { getAllSubKategori, type SubKategoriData } from '../api/subKategoriApi';
 import { usePermissions } from '../hooks/usePermissions';
 import { DataCountDisplay } from '../components/DataCountDisplay';
 
 const MENU_CODE = 'APLIKASI';
+
+// Category color mapping (consistent with KategoriRbsiPage)
+const CATEGORY_COLORS = {
+  CS: { primary: '#1976d2', light: '#e3f2fd', chip: '#5e35b1' },
+  SP: { primary: '#2e7d32', light: '#e8f5e9', chip: '#00897b' },
+  DA: { primary: '#ed6c02', light: '#fff3e0', chip: '#d84315' },
+  DM: { primary: '#d32f2f', light: '#ffebee', chip: '#c62828' },
+} as const;
 
 const AplikasiListPage = () => {
   const navigate = useNavigate();
   const [aplikasiList, setAplikasiList] = useState<AplikasiData[]>([]);
   const [bidangList, setBidangList] = useState<BidangData[]>([]);
   const [skpaList, setSkpaList] = useState<SkpaData[]>([]);
+  const [subKategoriList, setSubKategoriList] = useState<SubKategoriData[]>([]);
   const [search, setSearch] = useState('');
   const [filterBidang, setFilterBidang] = useState('');
   const [filterSkpa, setFilterSkpa] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterSubKategori, setFilterSubKategori] = useState<string[]>([]);
+  const [subKategoriFilterAnchor, setSubKategoriFilterAnchor] = useState<HTMLElement | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>(['CS', 'SP', 'DA', 'DM']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -62,12 +76,14 @@ const AplikasiListPage = () => {
 
   const fetchFilters = useCallback(async () => {
     try {
-      const [bidangRes, skpaRes] = await Promise.all([
+      const [bidangRes, skpaRes, subKategoriRes] = await Promise.all([
         getAllBidang(),
-        getAllSkpa()
+        getAllSkpa(),
+        getAllSubKategori()
       ]);
       setBidangList(bidangRes || []);
       setSkpaList(skpaRes.data || []);
+      setSubKategoriList(subKategoriRes || []);
     } catch (err) {
       console.error('Failed to load filter data:', err);
     }
@@ -226,6 +242,72 @@ const AplikasiListPage = () => {
       setDownloadLoading(false);
     }
   };
+
+  // Sub Kategori Hierarchical Filter Helpers
+  const groupedSubKategori = subKategoriList.reduce((acc, item) => {
+    if (!acc[item.category_code]) {
+      acc[item.category_code] = {
+        name: item.category_name,
+        code: item.category_code,
+        items: []
+      };
+    }
+    acc[item.category_code].items.push(item);
+    return acc;
+  }, {} as Record<string, { name: string; code: string; items: SubKategoriData[] }>);
+
+  const toggleCategory = (categoryCode: string) => {
+    setExpandedCategories(prev => 
+      prev.includes(categoryCode) 
+        ? prev.filter(c => c !== categoryCode)
+        : [...prev, categoryCode]
+    );
+  };
+
+  const handleCategoryCheckbox = (categoryCode: string, checked: boolean) => {
+    const categoryItems = groupedSubKategori[categoryCode]?.items || [];
+    const categoryItemIds = categoryItems.map(item => item.id);
+    
+    if (checked) {
+      setFilterSubKategori(prev => [...new Set([...prev, ...categoryItemIds])]);
+    } else {
+      setFilterSubKategori(prev => prev.filter(id => !categoryItemIds.includes(id)));
+    }
+    setPage(0);
+  };
+
+  const handleSubKategoriCheckbox = (subKategoriId: string, checked: boolean) => {
+    if (checked) {
+      setFilterSubKategori(prev => [...prev, subKategoriId]);
+    } else {
+      setFilterSubKategori(prev => prev.filter(id => id !== subKategoriId));
+    }
+    setPage(0);
+  };
+
+  const isCategoryChecked = (categoryCode: string) => {
+    const categoryItems = groupedSubKategori[categoryCode]?.items || [];
+    const categoryItemIds = categoryItems.map(item => item.id);
+    return categoryItemIds.length > 0 && categoryItemIds.every(id => filterSubKategori.includes(id));
+  };
+
+  const isCategoryIndeterminate = (categoryCode: string) => {
+    const categoryItems = groupedSubKategori[categoryCode]?.items || [];
+    const categoryItemIds = categoryItems.map(item => item.id);
+    const checkedCount = categoryItemIds.filter(id => filterSubKategori.includes(id)).length;
+    return checkedCount > 0 && checkedCount < categoryItemIds.length;
+  };
+
+  const clearSubKategoriFilter = () => {
+    setFilterSubKategori([]);
+    setPage(0);
+  };
+
+  // Apply frontend filtering for sub kategori
+  const filteredAplikasiList = aplikasiList.filter(app => {
+    if (filterSubKategori.length === 0) return true;
+    return app.sub_kategori && filterSubKategori.includes(app.sub_kategori.id);
+  });
 
   const getStatusChip = (status: string, isClickable: boolean = false, loading: boolean = false) => {
     const colorMap: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
@@ -400,17 +482,54 @@ const AplikasiListPage = () => {
               ))}
             </Select>
           </FormControl>
+          <Button
+            size="small"
+            variant={filterSubKategori.length > 0 ? "contained" : "outlined"}
+            startIcon={<FilterList />}
+            onClick={(e) => setSubKategoriFilterAnchor(e.currentTarget)}
+            sx={{ 
+              height: 40,
+              position: 'relative',
+              pr: filterSubKategori.length > 0 ? 5 : 2
+            }}
+          >
+            Sub Kategori
+            {filterSubKategori.length > 0 && (
+              <Chip
+                label={filterSubKategori.length}
+                size="small"
+                sx={{
+                  position: 'absolute',
+                  right: 8,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  height: 20,
+                  minWidth: 20,
+                  bgcolor: 'white',
+                  color: 'primary.main',
+                  fontWeight: 700,
+                  fontSize: '0.7rem',
+                  '& .MuiChip-label': { px: 0.5 }
+                }}
+              />
+            )}
+          </Button>
         </Box>
       </Paper>
 
       {/* Data Count Display */}
       <Box sx={{ my: 2.5 }}>
         <DataCountDisplay
-          count={totalElements}
+          count={filterSubKategori.length > 0 ? filteredAplikasiList.length : totalElements}
           isLoading={loading}
           label="Total"
           unit="Aplikasi"
         />
+        {filterSubKategori.length > 0 && (
+          <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+            (Difilter dari {totalElements} aplikasi)
+          </Typography>
+        )}
       </Box>
 
       {/* Table */}
@@ -421,6 +540,7 @@ const AplikasiListPage = () => {
               <TableCell><strong>Nama Aplikasi</strong></TableCell>
               <TableCell><strong>Bidang</strong></TableCell>
               <TableCell><strong>SKPA</strong></TableCell>
+              <TableCell><strong>Sub Kategori</strong></TableCell>
               <TableCell><strong>Status</strong></TableCell>
               <TableCell align="center"><strong>Aksi</strong></TableCell>
             </TableRow>
@@ -428,20 +548,20 @@ const AplikasiListPage = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                   <CircularProgress size={30} />
                 </TableCell>
               </TableRow>
-            ) : aplikasiList.length === 0 ? (
+            ) : filteredAplikasiList.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">
-                    Tidak ada data aplikasi
+                    {filterSubKategori.length > 0 ? 'Tidak ada aplikasi dengan filter sub kategori yang dipilih' : 'Tidak ada data aplikasi'}
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
-              aplikasiList.map((app) => (
+              filteredAplikasiList.map((app) => (
                 <TableRow key={app.id} hover>
                   <TableCell>
                     <Box>
@@ -469,6 +589,23 @@ const AplikasiListPage = () => {
                         <Typography variant="body2" fontWeight={600}>{app.skpa.kode_skpa}</Typography>
                         <Typography variant="caption" color="text.secondary">{app.skpa.nama_skpa}</Typography>
                       </Box>
+                    ) : '-'}
+                  </TableCell>
+                  <TableCell>
+                    {app.sub_kategori ? (
+                      <Tooltip title={app.sub_kategori.nama} arrow placement="top">
+                        <Chip
+                          label={app.sub_kategori.kode}
+                          size="small"
+                          sx={{
+                            bgcolor: CATEGORY_COLORS[app.sub_kategori.category_code as keyof typeof CATEGORY_COLORS]?.chip || '#666',
+                            color: 'white',
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                            cursor: 'help',
+                          }}
+                        />
+                      </Tooltip>
                     ) : '-'}
                   </TableCell>
                   <TableCell>
@@ -631,6 +768,193 @@ const AplikasiListPage = () => {
               </Box>
             </Box>
           )}
+        </Box>
+      </Popover>
+
+      {/* Sub Kategori Filter Popover */}
+      <Popover
+        open={Boolean(subKategoriFilterAnchor)}
+        anchorEl={subKategoriFilterAnchor}
+        onClose={() => setSubKategoriFilterAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        slotProps={{
+          paper: {
+            sx: {
+              mt: 1,
+              borderRadius: 2,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+              minWidth: 350,
+              maxWidth: 400
+            }
+          }
+        }}
+      >
+        <Box>
+          {/* Header */}
+          <Box sx={{ p: 2, pb: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="subtitle1" fontWeight={600}>
+              Filter Sub Kategori
+            </Typography>
+            {filterSubKategori.length > 0 && (
+              <Button 
+                size="small" 
+                onClick={clearSubKategoriFilter}
+                sx={{ minWidth: 'auto', fontSize: '0.75rem' }}
+              >
+                Clear ({filterSubKategori.length})
+              </Button>
+            )}
+          </Box>
+          <Divider />
+          
+          {/* Category List */}
+          <List sx={{ py: 0, maxHeight: 450, overflowY: 'auto' }}>
+            {Object.entries(groupedSubKategori).map(([categoryCode, categoryData]) => {
+              const color = CATEGORY_COLORS[categoryCode as keyof typeof CATEGORY_COLORS];
+              const isExpanded = expandedCategories.includes(categoryCode);
+              const isChecked = isCategoryChecked(categoryCode);
+              const isIndeterminate = isCategoryIndeterminate(categoryCode);
+              const selectedCount = categoryData.items.filter(item => filterSubKategori.includes(item.id)).length;
+              
+              return (
+                <Box key={categoryCode}>
+                  {/* Category Header */}
+                  <ListItem
+                    disablePadding
+                    sx={{
+                      bgcolor: color.light,
+                      borderBottom: `1px solid ${color.primary}20`
+                    }}
+                  >
+                    <ListItemButton
+                      onClick={() => toggleCategory(categoryCode)}
+                      sx={{ py: 1.5 }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 40 }}>
+                        <Checkbox
+                          edge="start"
+                          checked={isChecked}
+                          indeterminate={isIndeterminate}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleCategoryCheckbox(categoryCode, e.target.checked);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          icon={<CheckBoxOutlineBlank />}
+                          checkedIcon={<CheckBox />}
+                          indeterminateIcon={<IndeterminateCheckBox />}
+                          sx={{
+                            color: color.primary,
+                            '&.Mui-checked': { color: color.primary },
+                            '&.MuiCheckbox-indeterminate': { color: color.primary }
+                          }}
+                        />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <Chip
+                              label={categoryCode}
+                              size="small"
+                              sx={{
+                                bgcolor: color.primary,
+                                color: 'white',
+                                fontWeight: 700,
+                                fontSize: '0.75rem',
+                                height: 24,
+                                minWidth: 45
+                              }}
+                            />
+                            <Typography variant="body2" fontWeight={600}>
+                              {categoryData.name}
+                            </Typography>
+                            {selectedCount > 0 && (
+                              <Chip
+                                label={selectedCount}
+                                size="small"
+                                sx={{
+                                  bgcolor: color.chip,
+                                  color: 'white',
+                                  fontWeight: 600,
+                                  height: 20,
+                                  minWidth: 20,
+                                  '& .MuiChip-label': { px: 0.75, fontSize: '0.7rem' }
+                                }}
+                              />
+                            )}
+                          </Box>
+                        }
+                        secondary={
+                          <Typography variant="caption" color="text.secondary">
+                            {categoryData.items.length} item
+                          </Typography>
+                        }
+                      />
+                      {isExpanded ? <ExpandLess /> : <ExpandMore />}
+                    </ListItemButton>
+                  </ListItem>
+                  
+                  {/* Sub Items */}
+                  <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                    <List component="div" disablePadding>
+                      {categoryData.items.map((item) => (
+                        <ListItem
+                          key={item.id}
+                          disablePadding
+                          sx={{
+                            borderLeft: `3px solid ${color.chip}`,
+                            '&:hover': { bgcolor: color.light }
+                          }}
+                        >
+                          <ListItemButton
+                            dense
+                            onClick={() => handleSubKategoriCheckbox(item.id, !filterSubKategori.includes(item.id))}
+                            sx={{ pl: 4 }}
+                          >
+                            <ListItemIcon sx={{ minWidth: 36 }}>
+                              <Checkbox
+                                edge="start"
+                                checked={filterSubKategori.includes(item.id)}
+                                size="small"
+                                sx={{
+                                  color: color.chip,
+                                  '&.Mui-checked': { color: color.chip }
+                                }}
+                              />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={
+                                <Box display="flex" alignItems="center" gap={1}>
+                                  <Chip
+                                    label={item.kode}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{
+                                      borderColor: color.chip,
+                                      color: color.chip,
+                                      fontWeight: 600,
+                                      fontSize: '0.7rem',
+                                      height: 22,
+                                      minWidth: 45,
+                                      '& .MuiChip-label': { px: 0.75 }
+                                    }}
+                                  />
+                                  <Typography variant="body2" fontSize="0.85rem">
+                                    {item.nama}
+                                  </Typography>
+                                </Box>
+                              }
+                            />
+                          </ListItemButton>
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Collapse>
+                </Box>
+              );
+            })}
+          </List>
         </Box>
       </Popover>
 

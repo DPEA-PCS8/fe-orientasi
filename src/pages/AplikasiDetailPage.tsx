@@ -639,6 +639,23 @@ const AplikasiDetailPage = () => {
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <InfoItem 
+                      label="Sub Kategori RBSI" 
+                      value={
+                        aplikasi.sub_kategori ? (
+                          <Box>
+                            <Typography variant="body2" fontWeight={600}>{aplikasi.sub_kategori.kode}</Typography>
+                            <Typography variant="caption" color="text.secondary">{aplikasi.sub_kategori.nama}</Typography>
+                            <Typography variant="caption" display="block" sx={{ color: '#888', mt: 0.5 }}>
+                              {aplikasi.sub_kategori.category_code} - {aplikasi.sub_kategori.category_name}
+                            </Typography>
+                          </Box>
+                        ) : '-'
+                      }
+                      icon={<Category sx={{ fontSize: 18 }} />}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <InfoItem 
                       label="Tanggal Implementasi" 
                       value={aplikasi.tanggal_implementasi ? new Date(aplikasi.tanggal_implementasi).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
                       icon={<CalendarMonth sx={{ fontSize: 18 }} />}

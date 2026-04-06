@@ -21,6 +21,7 @@ import RolePermissions from './pages/RolePermissions';
 import TeamManagement from './pages/TeamManagement';
 import SkpaPage from './pages/SkpaPage';
 import BidangPage from './pages/BidangPage';
+import KategoriRbsiPage from './pages/KategoriRbsiPage';
 import AplikasiListPage from './pages/AplikasiListPage';
 import AplikasiDetailPage from './pages/AplikasiDetailPage';
 import AplikasiFormPage from './pages/AplikasiFormPage';
@@ -190,6 +191,16 @@ function App() {
             <ProtectedRoute requireMenuPermission='BIDANG'>
               <Layout>
                 <BidangPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/kategori-rbsi"
+          element={
+            <ProtectedRoute requireMenuPermission='KATEGORI_RBSI'>
+              <Layout>
+                <KategoriRbsiPage />
               </Layout>
             </ProtectedRoute>
           }
