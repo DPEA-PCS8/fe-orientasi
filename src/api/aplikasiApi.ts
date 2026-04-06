@@ -17,6 +17,14 @@ export interface SkpaInfo {
   nama_skpa: string;
 }
 
+export interface SubKategoriInfo {
+  id: string;
+  kode: string;
+  nama: string;
+  category_code: string;
+  category_name: string;
+}
+
 export interface UrlInfo {
   id?: string;
   url: string;
@@ -67,6 +75,7 @@ export interface AplikasiData {
   tanggal_status?: string;
   bidang?: BidangInfo | null;
   skpa?: SkpaInfo | null;
+  sub_kategori?: SubKategoriInfo | null;
   tanggal_implementasi?: string;
   akses?: string;
   proses_data_pribadi: boolean;
@@ -131,6 +140,7 @@ export interface AplikasiRequest {
   status_aplikasi: string;
   bidang_id?: string;
   skpa_id?: string;
+  sub_kategori_id?: string;
   tanggal_implementasi?: string;
   akses?: string;
   proses_data_pribadi: boolean;

@@ -17,13 +17,15 @@ import {
 } from '../api/aplikasiApi';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
+import { getAllSubKategori, type SubKategoriData } from '../api/subKategoriApi';
 import { usePermissions } from '../hooks/usePermissions';
 
 const MENU_CODE = 'APLIKASI';
 
-interface FormData extends Omit<AplikasiRequest, 'bidang_id' | 'skpa_id'> {
+interface FormData extends Omit<AplikasiRequest, 'bidang_id' | 'skpa_id' | 'sub_kategori_id'> {
   bidang_id: string;
   skpa_id: string;
+  sub_kategori_id: string;
   akses_list: string[]; // For multi-select
 }
 
@@ -34,6 +36,7 @@ const initialForm: FormData = {
   status_aplikasi: APPLICATION_STATUS.AKTIF,
   bidang_id: '',
   skpa_id: '',
+  sub_kategori_id: '',
   tanggal_implementasi: '',
   akses: '',
   akses_list: [],
@@ -58,6 +61,7 @@ const AplikasiFormPage = () => {
   const [form, setForm] = useState<FormData>(initialForm);
   const [bidangList, setBidangList] = useState<BidangData[]>([]);
   const [skpaList, setSkpaList] = useState<SkpaData[]>([]);
+  const [subKategoriList, setSubKategoriList] = useState<SubKategoriData[]>([]);
   const [kategoriPenghargaanList, setKategoriPenghargaanList] = useState<VariableData[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -71,14 +75,16 @@ const AplikasiFormPage = () => {
   useEffect(() => {
     const fetchFilters = async () => {
       try {
-        const [bidangRes, skpaRes, kategoriRes] = await Promise.all([
+        const [bidangRes, skpaRes, kategoriRes, subKategoriRes] = await Promise.all([
           getAllBidang(),
           getAllSkpa(),
-          getVariablesByKategori('KATEGORI_PENGHARGAAN')
+          getVariablesByKategori('KATEGORI_PENGHARGAAN'),
+          getAllSubKategori()
         ]);
         setBidangList(bidangRes || []);
         setSkpaList(skpaRes.data || []);
         setKategoriPenghargaanList(kategoriRes || []);
+        setSubKategoriList(subKategoriRes || []);
       } catch (err) {
         console.error('Failed to load filter data:', err);
       }
@@ -112,6 +118,7 @@ const AplikasiFormPage = () => {
           status_aplikasi: data.status_aplikasi,
           bidang_id: data.bidang?.id || '',
           skpa_id: data.skpa?.id || '',
+          sub_kategori_id: data.sub_kategori?.id || '',
           tanggal_implementasi: data.tanggal_implementasi || '',
           akses: data.akses || '',
           akses_list: aksesArray,
@@ -416,6 +423,7 @@ const AplikasiFormPage = () => {
         urls: urlsPayload,
         bidang_id: form.bidang_id || undefined,
         skpa_id: form.skpa_id || undefined,
+        sub_kategori_id: form.sub_kategori_id || undefined,
         tanggal_implementasi: form.tanggal_implementasi || undefined,
       };
 
@@ -627,6 +635,37 @@ const AplikasiFormPage = () => {
                   opt.nama_skpa.toLowerCase().includes(search)
                 );
               }}
+              fullWidth
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Autocomplete
+              options={subKategoriList}
+              getOptionLabel={(option) => `${option.kode} - ${option.nama}`}
+              value={subKategoriList.find(s => s.id === form.sub_kategori_id) || null}
+              onChange={(_, newValue) => setForm({ ...form, sub_kategori_id: newValue?.id || '' })}
+              renderInput={(params) => (
+                <TextField {...params} label="Sub Kategori RBSI" placeholder="Cari sub kategori..." />
+              )}
+              renderOption={(props, option) => (
+                <Box component="li" {...props}>
+                  <Box>
+                    <Typography sx={{ fontWeight: 600, fontSize: '0.85rem' }}>{option.kode}</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', color: '#86868b' }}>{option.nama}</Typography>
+                    <Typography sx={{ fontSize: '0.65rem', color: '#aaa' }}>{option.category_code} - {option.category_name}</Typography>
+                  </Box>
+                </Box>
+              )}
+              filterOptions={(options, { inputValue }) => {
+                const search = inputValue.toLowerCase();
+                return options.filter(opt => 
+                  opt.kode.toLowerCase().includes(search) ||
+                  opt.nama.toLowerCase().includes(search) ||
+                  opt.category_code.toLowerCase().includes(search) ||
+                  opt.category_name.toLowerCase().includes(search)
+                );
+              }}
+              groupBy={(option) => `${option.category_code} - ${option.category_name}`}
               fullWidth
             />
           </Grid>

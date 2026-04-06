@@ -227,6 +227,7 @@ const Sidebar = () => {
           subItems: [
             { label: 'SKPA', icon: <ListAltRounded />, href: '/skpa', menuCode: 'SKPA', isMasterData: true },
             { label: 'Bidang', icon: <ListAltRounded />, href: '/bidang', menuCode: 'BIDANG', isMasterData: true },
+            { label: 'Kategori RBSI', icon: <ListAltRounded />, href: '/kategori-rbsi', menuCode: 'KATEGORI_RBSI', isMasterData: true },
           ],
         },
       ],
