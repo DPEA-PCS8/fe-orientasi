@@ -30,6 +30,11 @@ import {
   Select,
   MenuItem,
   Autocomplete,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemSecondaryAction,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -44,6 +49,7 @@ import {
   AssessmentRounded,
   Download as DownloadIcon,
   CalendarMonth as CalendarIcon,
+  AttachFile as AttachFileIcon,
 } from '@mui/icons-material';
 import { searchPksiDocuments, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
@@ -367,6 +373,12 @@ function PksiDisetujui() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<PksiFileData | null>(null);
 
+  // File list dialog state (for View button in table)
+  const [fileDialogOpen, setFileDialogOpen] = useState(false);
+  const [fileDialogTitle, setFileDialogTitle] = useState('');
+  const [fileDialogFiles, setFileDialogFiles] = useState<PksiFileData[]>([]);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+
   // Eligible users for PIC/Anggota Tim (Admin + Pengembang)
   const [eligibleUsers, setEligibleUsers] = useState<UserSimple[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
@@ -440,15 +452,21 @@ function PksiDisetujui() {
     // setIsLoadingFiles(true);
     try {
       const files = await getPksiFiles(pksi.id);
+      console.log(`[Edit] Loaded ${files.length} files for PKSI ${pksi.id}:`, files);
       // Ensure files is an array and handle potential null/undefined response
       const fileArray = Array.isArray(files) ? files : [];
-      // Separate T01 and T11 files based on file naming convention or metadata
-      // For now, load all files as T01 files (can be enhanced later with file categorization)
-      setFilesT01Data(fileArray);
-      setFilesT11Data([]);
+      // Separate T01 and T11 files based on file_type field
+      const t01Files = fileArray.filter(f => f.file_type === 'T01' || !f.file_type);
+      const t11Files = fileArray.filter(f => f.file_type === 'T11');
+      console.log(`[Edit] T01 files: ${t01Files.length}, T11 files: ${t11Files.length}`);
+      setFilesT01Data(t01Files);
+      setFilesT11Data(t11Files);
       // Update status based on files
-      if (fileArray.length > 0) {
+      if (t01Files.length > 0) {
         setEditForm(prev => ({ ...prev, statusT01T02: 'Diterima' }));
+      }
+      if (t11Files.length > 0) {
+        setEditForm(prev => ({ ...prev, statusT11: 'Diterima' }));
       }
     } catch (error) {
       console.error('Failed to load existing files:', error);
@@ -875,7 +893,8 @@ function PksiDisetujui() {
     if (files && files.length > 0 && selectedPksiForEdit) {
       setIsUploadingT01(true);
       try {
-        const uploadedData = await uploadPksiFiles(selectedPksiForEdit.id, Array.from(files));
+        // Explicitly pass 'T01' as fileType for T01 documents
+        const uploadedData = await uploadPksiFiles(selectedPksiForEdit.id, Array.from(files), 'T01');
         console.log('[T01 Upload] Received data:', JSON.stringify(uploadedData, null, 2));
         const uploadArray = Array.isArray(uploadedData) ? uploadedData : [];
         console.log('[T01 Upload] Setting files state:', JSON.stringify(uploadArray, null, 2));
@@ -898,7 +917,8 @@ function PksiDisetujui() {
     if (files && files.length > 0 && selectedPksiForEdit) {
       setIsUploadingT01(true);
       try {
-        const uploadedData = await uploadPksiFiles(selectedPksiForEdit.id, Array.from(files));
+        // Explicitly pass 'T01' as fileType for T01 documents
+        const uploadedData = await uploadPksiFiles(selectedPksiForEdit.id, Array.from(files), 'T01');
         const uploadArray = Array.isArray(uploadedData) ? uploadedData : [];
         setFilesT01Data(prev => [...prev, ...uploadArray]);
         // Auto-update status based on files
@@ -970,7 +990,8 @@ function PksiDisetujui() {
     if (files && files.length > 0 && selectedPksiForEdit) {
       setIsUploadingT11(true);
       try {
-        const uploadedData = await uploadPksiFiles(selectedPksiForEdit.id, Array.from(files));
+        // Pass 'T11' as fileType for T11 documents
+        const uploadedData = await uploadPksiFiles(selectedPksiForEdit.id, Array.from(files), 'T11');
         const uploadArray = Array.isArray(uploadedData) ? uploadedData : [];
         setFilesT11Data(prev => [...prev, ...uploadArray]);
         // Auto-update status based on files
@@ -991,7 +1012,8 @@ function PksiDisetujui() {
     if (files && files.length > 0 && selectedPksiForEdit) {
       setIsUploadingT11(true);
       try {
-        const uploadedData = await uploadPksiFiles(selectedPksiForEdit.id, Array.from(files));
+        // Pass 'T11' as fileType for T11 documents
+        const uploadedData = await uploadPksiFiles(selectedPksiForEdit.id, Array.from(files), 'T11');
         const uploadArray = Array.isArray(uploadedData) ? uploadedData : [];
         setFilesT11Data(prev => [...prev, ...uploadArray]);
         // Auto-update status based on files
@@ -1030,6 +1052,62 @@ function PksiDisetujui() {
   const handlePreviewFileT11 = (file: PksiFileData) => {
     setPreviewFile(file);
     setPreviewOpen(true);
+  };
+
+  // Handler to view files directly from the table (without opening edit dialog)
+  const handleViewFileFromTable = async (pksiId: string, fileType: 'T01' | 'T11') => {
+    const title = fileType === 'T01' ? 'Rencana PKSI (T01/T02)' : 'Spesifikasi Kebutuhan (T11)';
+    setFileDialogTitle(title);
+    setFileDialogOpen(true);
+    setIsLoadingFiles(true);
+    
+    try {
+      const files = await getPksiFiles(pksiId);
+      console.log(`[View Files] Fetched ${files.length} files for PKSI ${pksiId}:`, files);
+      
+      // Filter files appropriately
+      // For T01: include files with file_type === 'T01' OR files without file_type set (legacy files)
+      // For T11: only include files with file_type === 'T11'
+      const filteredFiles = fileType === 'T01' 
+        ? files.filter(f => f.file_type === 'T01' || !f.file_type)
+        : files.filter(f => f.file_type === 'T11');
+      
+      console.log(`[View Files] Filtered to ${filteredFiles.length} ${fileType} files:`, filteredFiles);
+      
+      setFileDialogFiles(filteredFiles);
+    } catch (error) {
+      console.error('Failed to load files:', error);
+      setFileDialogFiles([]);
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  };
+
+  const handleCloseFileDialog = () => {
+    setFileDialogOpen(false);
+    setFileDialogTitle('');
+    setFileDialogFiles([]);
+  };
+
+  const handleFileDownloadFromDialog = async (file: PksiFileData) => {
+    setDownloadingFileId(file.id);
+    try {
+      await downloadPksiFile(file.id, file.original_name);
+    } catch (error) {
+      console.error('Failed to download file:', error);
+    } finally {
+      setDownloadingFileId(null);
+    }
+  };
+
+  const handleFilePreviewFromDialog = (file: PksiFileData) => {
+    setPreviewFile(file);
+    setPreviewOpen(true);
+  };
+
+  const isPreviewableFile = (contentType: string | undefined): boolean => {
+    if (!contentType) return false;
+    return contentType.startsWith('image/') || contentType === 'application/pdf';
   };
 
   // Format file size
@@ -2367,32 +2445,28 @@ function PksiDisetujui() {
                   </TableCell>
                   {/* Rencana PKSI - Berkas Terbaru T01/T02 */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.04)' }}>
-                    {item.berkasT01T02 && item.berkasT01T02 !== '-' ? (
-                      <Button
-                        size="small"
-                        startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
-                        onClick={() => alert(`View document: ${item.berkasT01T02}`)}
-                        sx={{
-                          textTransform: 'none',
-                          fontSize: '0.75rem',
-                          fontWeight: 500,
-                          color: '#D97706',
-                          borderRadius: '8px',
-                          px: 1.5,
-                          py: 0.5,
-                          background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.1) 0%, rgba(251, 191, 36, 0.08) 100%)',
-                          border: '1px solid rgba(217, 119, 6, 0.2)',
-                          '&:hover': {
-                            background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.15) 0%, rgba(251, 191, 36, 0.12) 100%)',
-                            boxShadow: '0 2px 8px rgba(217, 119, 6, 0.15)',
-                          },
-                        }}
-                      >
-                        View
-                      </Button>
-                    ) : (
-                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
-                    )}
+                    <Button
+                      size="small"
+                      startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                      onClick={() => handleViewFileFromTable(item.id, 'T01')}
+                      sx={{
+                        textTransform: 'none',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        color: '#D97706',
+                        borderRadius: '8px',
+                        px: 1.5,
+                        py: 0.5,
+                        background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.1) 0%, rgba(251, 191, 36, 0.08) 100%)',
+                        border: '1px solid rgba(217, 119, 6, 0.2)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.15) 0%, rgba(251, 191, 36, 0.12) 100%)',
+                          boxShadow: '0 2px 8px rgba(217, 119, 6, 0.15)',
+                        },
+                      }}
+                    >
+                      View
+                    </Button>
                   </TableCell>
                   {/* Spesifikasi Kebutuhan - Status T11 */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.04)' }}>
@@ -2402,32 +2476,28 @@ function PksiDisetujui() {
                   </TableCell>
                   {/* Spesifikasi Kebutuhan - Berkas Terbaru T11 */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.04)' }}>
-                    {item.berkasT11 && item.berkasT11 !== '-' ? (
-                      <Button
-                        size="small"
-                        startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
-                        onClick={() => alert(`View document: ${item.berkasT11}`)}
-                        sx={{
-                          textTransform: 'none',
-                          fontSize: '0.75rem',
-                          fontWeight: 500,
-                          color: '#059669',
-                          borderRadius: '8px',
-                          px: 1.5,
-                          py: 0.5,
-                          background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, rgba(52, 211, 153, 0.08) 100%)',
-                          border: '1px solid rgba(5, 150, 105, 0.2)',
-                          '&:hover': {
-                            background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.15) 0%, rgba(52, 211, 153, 0.12) 100%)',
-                            boxShadow: '0 2px 8px rgba(5, 150, 105, 0.15)',
-                          },
-                        }}
-                      >
-                        View
-                      </Button>
-                    ) : (
-                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
-                    )}
+                    <Button
+                      size="small"
+                      startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                      onClick={() => handleViewFileFromTable(item.id, 'T11')}
+                      sx={{
+                        textTransform: 'none',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        color: '#059669',
+                        borderRadius: '8px',
+                        px: 1.5,
+                        py: 0.5,
+                        background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, rgba(52, 211, 153, 0.08) 100%)',
+                        border: '1px solid rgba(5, 150, 105, 0.2)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.15) 0%, rgba(52, 211, 153, 0.12) 100%)',
+                          boxShadow: '0 2px 8px rgba(5, 150, 105, 0.15)',
+                        },
+                      }}
+                    >
+                      View
+                    </Button>
                   </TableCell>
                   {/* CD Prinsip - Nomor CD (only) */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(220, 38, 38, 0.04)' }}>
@@ -2565,7 +2635,152 @@ function PksiDisetujui() {
         fileName={previewFile?.original_name || ''}
         contentType={previewFile?.content_type || ''}
         onDownload={handlePreviewDownload}
+        downloadUrl={`/api/pksi/files/download/${previewFile?.id}`}
       />
+
+      {/* File List Dialog */}
+      <Dialog
+        open={fileDialogOpen}
+        onClose={handleCloseFileDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            bgcolor: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(40px)',
+            WebkitBackdropFilter: 'blur(40px)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+          pb: 2,
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: '12px',
+                background: fileDialogTitle.includes('T01') 
+                  ? 'linear-gradient(135deg, #D97706 0%, #F59E0B 100%)'
+                  : 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: fileDialogTitle.includes('T01')
+                  ? '0 4px 12px rgba(217, 119, 6, 0.25)'
+                  : '0 4px 12px rgba(5, 150, 105, 0.25)',
+              }}
+            >
+              <AttachFileIcon sx={{ color: 'white', fontSize: 20 }} />
+            </Box>
+            <Box>
+              <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '1rem' }}>
+                {fileDialogTitle}
+              </Typography>
+              <Typography sx={{ color: '#86868b', fontSize: '0.75rem' }}>
+                {fileDialogFiles.length} dokumen
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton onClick={handleCloseFileDialog} size="small" sx={{ color: '#86868b' }}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 2 }}>
+          {isLoadingFiles ? (
+            <Box display="flex" justifyContent="center" py={4}>
+              <CircularProgress size={32} sx={{ color: fileDialogTitle.includes('T01') ? '#D97706' : '#059669' }} />
+            </Box>
+          ) : fileDialogFiles.length > 0 ? (
+            <List dense sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px', p: 1 }}>
+              {fileDialogFiles.map((file, index) => (
+                <ListItem
+                  key={file.id}
+                  sx={{
+                    borderRadius: '8px',
+                    mb: index < fileDialogFiles.length - 1 ? 1 : 0,
+                    bgcolor: 'white',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                    '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.9)' },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <FileIcon sx={{ 
+                      color: fileDialogTitle.includes('T01') ? '#D97706' : '#059669', 
+                      fontSize: 24 
+                    }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={file.original_name || file.file_name || 'File'}
+                    secondary={formatFileSize(file.file_size)}
+                    primaryTypographyProps={{
+                      sx: { fontWeight: 500, color: '#1d1d1f', fontSize: '0.9rem' },
+                    }}
+                    secondaryTypographyProps={{
+                      sx: { color: '#86868b', fontSize: '0.75rem' },
+                    }}
+                  />
+                  <ListItemSecondaryAction>
+                    {isPreviewableFile(file.content_type) && (
+                      <IconButton
+                        edge="end"
+                        size="small"
+                        onClick={() => handleFilePreviewFromDialog(file)}
+                        sx={{
+                          color: '#0891B2',
+                          mr: 1,
+                          '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' },
+                        }}
+                        title="Preview"
+                      >
+                        <VisibilityIcon fontSize="small" />
+                      </IconButton>
+                    )}
+                    <IconButton
+                      edge="end"
+                      size="small"
+                      onClick={() => handleFileDownloadFromDialog(file)}
+                      disabled={downloadingFileId === file.id}
+                      sx={{
+                        color: '#059669',
+                        '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' },
+                      }}
+                      title="Download"
+                    >
+                      {downloadingFileId === file.id ? (
+                        <CircularProgress size={18} sx={{ color: '#059669' }} />
+                      ) : (
+                        <DownloadIcon fontSize="small" />
+                      )}
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Box
+              sx={{
+                p: 4,
+                textAlign: 'center',
+                borderRadius: '12px',
+                bgcolor: 'rgba(245, 245, 247, 0.8)',
+              }}
+            >
+              <AttachFileIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
+              <Typography sx={{ color: '#86868b' }}>
+                Belum ada dokumen yang diupload
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Approval Dialog - Apple Liquid Glass Style */}
       <Dialog
@@ -3339,7 +3554,7 @@ function PksiDisetujui() {
                   <CloudUploadIcon sx={{ fontSize: 26, color: '#D97706' }} />
                 </Box>
                 <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', mb: 0.5 }}>
-                  Drop dokumen T01/T02 di sini
+                  Drop dokumen T01,T02 dan ND Pendukung di sini
                 </Typography>
                 <Typography sx={{ color: '#86868b', fontSize: '0.75rem' }}>
                   atau klik untuk memilih file (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, Gambar)
@@ -3558,7 +3773,7 @@ function PksiDisetujui() {
                   <CloudUploadIcon sx={{ fontSize: 26, color: '#059669' }} />
                 </Box>
                 <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', mb: 0.5 }}>
-                  Drop dokumen T11 di sini
+                  Drop dokumen T11 dan ND Pendukung di sini
                 </Typography>
                 <Typography sx={{ color: '#86868b', fontSize: '0.75rem' }}>
                   atau klik untuk memilih file (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, Gambar)

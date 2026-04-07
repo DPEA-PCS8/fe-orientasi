@@ -504,6 +504,32 @@ export function getStatusColor(status: string): 'default' | 'primary' | 'seconda
   return colorMap[status] || 'default';
 }
 
+// ==================== CHANGELOG API ====================
+
+export interface PksiChangelogEntry {
+  id: string;
+  field_name: string;
+  field_label: string;
+  old_value: string | null;
+  new_value: string | null;
+  updated_by: string;
+  updated_by_name: string;
+  updated_at: string;
+}
+
+export interface PksiChangelogResponse {
+  changelogs: PksiChangelogEntry[];
+  total_count: number;
+}
+
+/**
+ * Get changelogs for a specific PKSI document
+ */
+export async function getPksiChangelogs(pksiId: string): Promise<PksiChangelogResponse> {
+  const response = await apiRequest<PksiChangelogResponse>(`${BASE_URL}/pksi/${pksiId}/changelogs`, 'GET');
+  return response.data;
+}
+
 // ==================== DASHBOARD TYPES ====================
 
 export interface PksiDashboardRequest {

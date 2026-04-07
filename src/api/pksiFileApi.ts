@@ -42,7 +42,6 @@ export async function uploadPksiFiles(pksiId: string, files: File[], fileType: s
   files.forEach((file) => {
     formData.append('files', file);
   });
-  formData.append('fileType', fileType);
 
   const response = await fetch(`${BASE_URL}/pksi/files/upload/${pksiId}?fileType=${fileType}`, {
     method: 'POST',

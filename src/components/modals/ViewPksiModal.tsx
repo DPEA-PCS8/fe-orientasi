@@ -43,6 +43,7 @@ import { getPksiDocumentById, type PksiDocumentData } from '../../api/pksiApi';
 import { getAllSkpa } from '../../api/skpaApi';
 import { getPksiFiles, downloadPksiFile, type PksiFileData } from '../../api/fileApi';
 import FilePreviewModal from './FilePreviewModal';
+import PksiChangeLog from '../PksiChangeLog';
 
 // Glass Card Component
 const GlassCard = styled(Box)({
@@ -1071,6 +1072,9 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
               )}
             </GlassCard>
 
+            {/* Section 10: Riwayat Perubahan */}
+            <PksiChangeLog pksiId={pksiId || ''} />
+
             {/* Metadata */}
             <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, pt: 1 }}>
               <Typography variant="caption" sx={{ color: '#86868b' }}>
@@ -1127,6 +1131,7 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
         fileName={previewFile?.original_name || ''}
         contentType={previewFile?.content_type || ''}
         onDownload={handlePreviewDownload}
+        downloadUrl={`/api/pksi/files/download/${previewFile?.id}`}
       />
     </Dialog>
   );
