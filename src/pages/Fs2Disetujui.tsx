@@ -31,6 +31,11 @@ import {
   Select,
   MenuItem,
   Autocomplete,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemSecondaryAction,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -41,6 +46,11 @@ import {
   PushPin as PushPinIcon,
   AssessmentRounded,
   CalendarMonth as CalendarIcon,
+  CloudUpload as CloudUploadIcon,
+  Delete as DeleteIcon,
+  InsertDriveFile as FileIcon,
+  Download as DownloadIcon,
+  AttachFile as AttachFileIcon,
 } from '@mui/icons-material';
 import { searchApprovedFs2Documents, updateFs2Document, type Fs2DocumentData, type Fs2DocumentRequest } from '../api/fs2Api';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
@@ -50,6 +60,13 @@ import { usePermissions } from '../hooks/usePermissions';
 import ViewFs2Modal from '../components/modals/ViewFs2Modal';
 import { FilePreviewModal } from '../components/modals';
 import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
+import {
+  uploadFs2Files,
+  getFs2Files,
+  deleteFs2File,
+  downloadFs2File,
+  type Fs2FileData,
+} from '../api/fs2FileApi';
 
 // Interface for transformed data
 interface Fs2DisetujuiData {
@@ -301,6 +318,47 @@ function Fs2Disetujui() {
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [previewFileName, setPreviewFileName] = useState<string>('');
 
+  // File upload state for Edit Modal - separate for each file type
+  const [filesND, setFilesND] = useState<Fs2FileData[]>([]);
+  const [filesFS2, setFilesFS2] = useState<Fs2FileData[]>([]);
+  const [filesCD, setFilesCD] = useState<Fs2FileData[]>([]);
+  const [filesFS2A, setFilesFS2A] = useState<Fs2FileData[]>([]);
+  const [filesFS2B, setFilesFS2B] = useState<Fs2FileData[]>([]);
+  const [filesF45, setFilesF45] = useState<Fs2FileData[]>([]);
+  const [filesF46, setFilesF46] = useState<Fs2FileData[]>([]);
+  const [filesNDBA, setFilesNDBA] = useState<Fs2FileData[]>([]);
+  
+  // Upload loading state for each file type
+  const [isUploadingND, setIsUploadingND] = useState(false);
+  const [isUploadingFS2, setIsUploadingFS2] = useState(false);
+  const [isUploadingCD, setIsUploadingCD] = useState(false);
+  const [isUploadingFS2A, setIsUploadingFS2A] = useState(false);
+  const [isUploadingFS2B, setIsUploadingFS2B] = useState(false);
+  const [isUploadingF45, setIsUploadingF45] = useState(false);
+  const [isUploadingF46, setIsUploadingF46] = useState(false);
+  const [isUploadingNDBA, setIsUploadingNDBA] = useState(false);
+  
+  // Drag & drop state for each file type
+  const [isDraggingND, setIsDraggingND] = useState(false);
+  const [isDraggingFS2, setIsDraggingFS2] = useState(false);
+  const [isDraggingCD, setIsDraggingCD] = useState(false);
+  const [isDraggingFS2A, setIsDraggingFS2A] = useState(false);
+  const [isDraggingFS2B, setIsDraggingFS2B] = useState(false);
+  const [isDraggingF45, setIsDraggingF45] = useState(false);
+  const [isDraggingF46, setIsDraggingF46] = useState(false);
+  const [isDraggingNDBA, setIsDraggingNDBA] = useState(false);
+  
+  // File operation state
+  const [fileErrorMessage, setFileErrorMessage] = useState('');
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<Fs2FileData | null>(null);
+  
+  // File list dialog state (for viewing files from table)
+  const [fileDialogOpen, setFileDialogOpen] = useState(false);
+  const [fileDialogTitle, setFileDialogTitle] = useState('');
+  const [fileDialogFiles, setFileDialogFiles] = useState<Fs2FileData[]>([]);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+
   // Fetch approved F.S.2 data
   const fetchFs2Data = useCallback(async () => {
     setIsLoading(true);
@@ -447,19 +505,6 @@ function Fs2Disetujui() {
     setSelectedFs2IdForView(null);
   };
 
-  // File preview handlers (for berkas links)
-  const handleOpenPreview = (url: string, fileName: string) => {
-    setPreviewUrl(url);
-    setPreviewFileName(fileName);
-    setPreviewOpen(true);
-  };
-
-  const handleClosePreview = () => {
-    setPreviewOpen(false);
-    setPreviewUrl('');
-    setPreviewFileName('');
-  };
-
   // Get content type from URL
   const getContentTypeFromUrl = (url: string): string => {
     const lowerUrl = url.toLowerCase();
@@ -470,8 +515,60 @@ function Fs2Disetujui() {
     return 'application/pdf'; // Default to PDF for preview
   };
 
+  // Handler to view files from table (shows file list dialog)
+  const handleViewFileFromTable = async (fs2Id: string, fileType: string) => {
+    const fileTypeMap: Record<string, string> = {
+      'ND': 'Berkas ND',
+      'FS2': 'Berkas F.S.2',
+      'CD': 'Berkas CD',
+      'FS2A': 'Berkas F.S.2A',
+      'FS2B': 'Berkas F.S.2B',
+      'F45': 'Berkas F45',
+      'F46': 'Berkas F46',
+      'NDBA': 'Berkas ND/BA Deployment',
+    };
+    
+    const title = fileTypeMap[fileType] || 'Dokumen';
+    setFileDialogTitle(title);
+    setFileDialogOpen(true);
+    setIsLoadingFiles(true);
+    
+    try {
+      const files = await getFs2Files(fs2Id);
+      const filteredFiles = files.filter(f => f.file_type === fileType);
+      setFileDialogFiles(filteredFiles);
+    } catch (error) {
+      console.error('Error fetching F.S.2 files:', error);
+      setFileDialogFiles([]);
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  };
+
+  const handleCloseFileDialog = () => {
+    setFileDialogOpen(false);
+    setFileDialogTitle('');
+    setFileDialogFiles([]);
+  };
+
+  const handleFilePreviewFromDialog = (file: Fs2FileData) => {
+    setPreviewFile(file);
+    setPreviewOpen(true);
+  };
+
+  const handleFileDownloadFromDialog = async (file: Fs2FileData) => {
+    try {
+      setDownloadingFileId(file.id);
+      await downloadFs2File(file.id, file.original_name);
+    } catch (error) {
+      console.error('Failed to download file:', error);
+    } finally {
+      setDownloadingFileId(null);
+    }
+  };
+
   // Edit modal handlers
-  const handleOpenEditModal = (fs2Id: string) => {
+  const handleOpenEditModal = async (fs2Id: string) => {
     const fs2 = rawData.find(item => item.id === fs2Id);
     if (fs2) {
       setSelectedFs2(fs2);
@@ -489,28 +586,36 @@ function Fs2Disetujui() {
         // Dokumen Pengajuan F.S.2
         nomor_nd: fs2.nomor_nd || '',
         tanggal_nd: fs2.tanggal_nd || '',
-        berkas_nd: fs2.berkas_nd || '',
-        berkas_fs2: fs2.berkas_fs2 || '',
         // CD Prinsip
         nomor_cd: fs2.nomor_cd || '',
         tanggal_cd: fs2.tanggal_cd || '',
-        berkas_cd: fs2.berkas_cd || '',
-        berkas_fs2a: fs2.berkas_fs2a || '',
-        berkas_fs2b: fs2.berkas_fs2b || '',
         // Pengujian
         target_pengujian: fs2.target_pengujian || '',
         realisasi_pengujian: fs2.realisasi_pengujian || '',
-        berkas_f45: fs2.berkas_f45 || '',
-        berkas_f46: fs2.berkas_f46 || '',
         // Deployment
         target_deployment: fs2.target_deployment || '',
         realisasi_deployment: fs2.realisasi_deployment || '',
-        berkas_nd_ba_deployment: fs2.berkas_nd_ba_deployment || '',
         // Go Live
         target_go_live: fs2.target_go_live || '',
         // Keterangan
         keterangan: fs2.keterangan || '',
       });
+      
+      // Load existing files for this F.S.2 document
+      try {
+        const existingFiles = await getFs2Files(fs2Id);
+        setFilesND(existingFiles.filter(f => f.file_type === 'ND'));
+        setFilesFS2(existingFiles.filter(f => f.file_type === 'FS2'));
+        setFilesCD(existingFiles.filter(f => f.file_type === 'CD'));
+        setFilesFS2A(existingFiles.filter(f => f.file_type === 'FS2A'));
+        setFilesFS2B(existingFiles.filter(f => f.file_type === 'FS2B'));
+        setFilesF45(existingFiles.filter(f => f.file_type === 'F45'));
+        setFilesF46(existingFiles.filter(f => f.file_type === 'F46'));
+        setFilesNDBA(existingFiles.filter(f => f.file_type === 'NDBA'));
+      } catch (error) {
+        console.error('Failed to load existing files:', error);
+      }
+      
       setOpenEditModal(true);
     }
   };
@@ -519,6 +624,213 @@ function Fs2Disetujui() {
     setOpenEditModal(false);
     setSelectedFs2(null);
     setEditFormData({});
+    // Clear file states
+    setFilesND([]);
+    setFilesFS2([]);
+    setFilesCD([]);
+    setFilesFS2A([]);
+    setFilesFS2B([]);
+    setFilesF45([]);
+    setFilesF46([]);
+    setFilesNDBA([]);
+    setFileErrorMessage('');
+  };
+
+  // Generic file upload handler
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+    fileType: string,
+    setUploading: (val: boolean) => void,
+    setFiles: React.Dispatch<React.SetStateAction<Fs2FileData[]>>
+  ) => {
+    const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8MB
+    const ALLOWED_FILE_TYPES = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx'];
+
+    const files = event.target.files;
+    if (files && files.length > 0 && selectedFs2?.id) {
+      const file = files[0];
+
+      // Validate file size (max 8MB)
+      console.log(`File validation [${fileType}] - Size:`, file.size, 'bytes, Max allowed:', MAX_FILE_SIZE, 'bytes');
+      if (!file.size || file.size <= 0) {
+        alert('File tidak valid. Silakan pilih file yang valid.');
+        event.target.value = '';
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        alert(`Ukuran file (${fileSizeMB} MB) melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.`);
+        event.target.value = '';
+        return;
+      }
+
+      // Validate file type (PDF and Word only)
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      if (!ALLOWED_FILE_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(fileExtension)) {
+        alert('Format file tidak didukung. Hanya file PDF dan Word (.pdf, .doc, .docx) yang diperbolehkan.');
+        event.target.value = '';
+        return;
+      }
+
+      setUploading(true);
+      setFileErrorMessage('');
+      try {
+        const uploaded = await uploadFs2Files(selectedFs2.id, [file], fileType);
+        setFiles(prev => [...prev, ...uploaded]);
+      } catch (error) {
+        console.error('Failed to upload file:', error);
+        setFileErrorMessage(`Gagal mengupload file ${fileType}. Silakan coba lagi.`);
+      } finally {
+        setUploading(false);
+      }
+    }
+    event.target.value = '';
+  };
+
+  // File upload handlers for each type
+  const handleFileUploadND = (e: React.ChangeEvent<HTMLInputElement>) => 
+    handleFileUpload(e, 'ND', setIsUploadingND, setFilesND);
+  const handleFileUploadFS2 = (e: React.ChangeEvent<HTMLInputElement>) => 
+    handleFileUpload(e, 'FS2', setIsUploadingFS2, setFilesFS2);
+  const handleFileUploadCD = (e: React.ChangeEvent<HTMLInputElement>) => 
+    handleFileUpload(e, 'CD', setIsUploadingCD, setFilesCD);
+  const handleFileUploadFS2A = (e: React.ChangeEvent<HTMLInputElement>) => 
+    handleFileUpload(e, 'FS2A', setIsUploadingFS2A, setFilesFS2A);
+  const handleFileUploadFS2B = (e: React.ChangeEvent<HTMLInputElement>) => 
+    handleFileUpload(e, 'FS2B', setIsUploadingFS2B, setFilesFS2B);
+  const handleFileUploadF45 = (e: React.ChangeEvent<HTMLInputElement>) => 
+    handleFileUpload(e, 'F45', setIsUploadingF45, setFilesF45);
+  const handleFileUploadF46 = (e: React.ChangeEvent<HTMLInputElement>) => 
+    handleFileUpload(e, 'F46', setIsUploadingF46, setFilesF46);
+  const handleFileUploadNDBA = (e: React.ChangeEvent<HTMLInputElement>) => 
+    handleFileUpload(e, 'NDBA', setIsUploadingNDBA, setFilesNDBA);
+
+  // Generic drag & drop handler
+  const handleFileDrop = async (
+    event: React.DragEvent<HTMLElement>,
+    fileType: string,
+    setDragging: (val: boolean) => void,
+    setUploading: (val: boolean) => void,
+    setFiles: React.Dispatch<React.SetStateAction<Fs2FileData[]>>
+  ) => {
+    event.preventDefault();
+    setDragging(false);
+    
+    const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8MB
+    const ALLOWED_FILE_TYPES = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx'];
+
+    const files = event.dataTransfer.files;
+    if (files && files.length > 0 && selectedFs2?.id) {
+      const file = files[0];
+
+      // Validate file size (max 8MB)
+      console.log(`File drop validation [${fileType}] - Size:`, file.size, 'bytes, Max allowed:', MAX_FILE_SIZE, 'bytes');
+      if (!file.size || file.size <= 0) {
+        alert('File tidak valid. Silakan pilih file yang valid.');
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        alert(`Ukuran file (${fileSizeMB} MB) melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.`);
+        return;
+      }
+
+      // Validate file type (PDF and Word only)
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      if (!ALLOWED_FILE_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(fileExtension)) {
+        alert('Format file tidak didukung. Hanya file PDF dan Word (.pdf, .doc, .docx) yang diperbolehkan.');
+        return;
+      }
+
+      setUploading(true);
+      setFileErrorMessage('');
+      try {
+        const uploaded = await uploadFs2Files(selectedFs2.id, [file], fileType);
+        setFiles(prev => [...prev, ...uploaded]);
+      } catch (error) {
+        console.error('Failed to upload file:', error);
+        setFileErrorMessage(`Gagal mengupload file ${fileType}. Silakan coba lagi.`);
+      } finally {
+        setUploading(false);
+      }
+    }
+  };
+
+  // File drop handlers for each type
+  const handleFileDropND = (e: React.DragEvent<HTMLElement>) => 
+    handleFileDrop(e, 'ND', setIsDraggingND, setIsUploadingND, setFilesND);
+  const handleFileDropFS2 = (e: React.DragEvent<HTMLElement>) => 
+    handleFileDrop(e, 'FS2', setIsDraggingFS2, setIsUploadingFS2, setFilesFS2);
+  const handleFileDropCD = (e: React.DragEvent<HTMLElement>) => 
+    handleFileDrop(e, 'CD', setIsDraggingCD, setIsUploadingCD, setFilesCD);
+  const handleFileDropFS2A = (e: React.DragEvent<HTMLElement>) => 
+    handleFileDrop(e, 'FS2A', setIsDraggingFS2A, setIsUploadingFS2A, setFilesFS2A);
+  const handleFileDropFS2B = (e: React.DragEvent<HTMLElement>) => 
+    handleFileDrop(e, 'FS2B', setIsDraggingFS2B, setIsUploadingFS2B, setFilesFS2B);
+  const handleFileDropF45 = (e: React.DragEvent<HTMLElement>) => 
+    handleFileDrop(e, 'F45', setIsDraggingF45, setIsUploadingF45, setFilesF45);
+  const handleFileDropF46 = (e: React.DragEvent<HTMLElement>) => 
+    handleFileDrop(e, 'F46', setIsDraggingF46, setIsUploadingF46, setFilesF46);
+  const handleFileDropNDBA = (e: React.DragEvent<HTMLElement>) => 
+    handleFileDrop(e, 'NDBA', setIsDraggingNDBA, setIsUploadingNDBA, setFilesNDBA);
+
+  // Generic remove file handler
+  const handleRemoveFile = async (
+    fileId: string,
+    fileType: string,
+    setFiles: React.Dispatch<React.SetStateAction<Fs2FileData[]>>
+  ) => {
+    try {
+      await deleteFs2File(fileId);
+      setFiles(prev => prev.filter(f => f.id !== fileId));
+    } catch (error) {
+      console.error('Failed to delete file:', error);
+      setFileErrorMessage(`Gagal menghapus file ${fileType}.`);
+    }
+  };
+
+  // Handle file download
+  const handleDownloadFile = async (file: Fs2FileData) => {
+    setDownloadingFileId(file.id);
+    try {
+      await downloadFs2File(file.id, file.original_name);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      setFileErrorMessage('Gagal mengunduh file.');
+    } finally {
+      setDownloadingFileId(null);
+    }
+  };
+
+  // Handle file preview
+  const handlePreviewFile = (file: Fs2FileData) => {
+    setPreviewFile(file);
+    setPreviewOpen(true);
+  };
+
+  // Check if file is previewable
+  const isPreviewable = (contentType: string): boolean => {
+    const previewableTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    return previewableTypes.includes(contentType);
+  };
+
+  // Format file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const handleEditSubmit = async () => {
@@ -1453,7 +1765,7 @@ function Fs2Disetujui() {
                       {row.berkasNd ? (
                         <Button
                           size="small"
-                          onClick={() => handleOpenPreview(row.berkasNd, 'Berkas ND')}
+                          onClick={() => handleViewFileFromTable(row.id, 'ND')}
                           startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
                           sx={{
                             textTransform: 'none',
@@ -1480,7 +1792,7 @@ function Fs2Disetujui() {
                       {row.berkasFs2 ? (
                         <Button
                           size="small"
-                          onClick={() => handleOpenPreview(row.berkasFs2, 'Berkas F.S.2')}
+                          onClick={() => handleViewFileFromTable(row.id, 'FS2')}
                           startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
                           sx={{
                             textTransform: 'none',
@@ -1511,7 +1823,7 @@ function Fs2Disetujui() {
                       {row.berkasCd ? (
                         <Button
                           size="small"
-                          onClick={() => handleOpenPreview(row.berkasCd, 'Berkas CD')}
+                          onClick={() => handleViewFileFromTable(row.id, 'CD')}
                           startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
                           sx={{
                             textTransform: 'none',
@@ -1538,7 +1850,7 @@ function Fs2Disetujui() {
                       {row.berkasFs2a ? (
                         <Button
                           size="small"
-                          onClick={() => handleOpenPreview(row.berkasFs2a, 'Berkas F.S.2A')}
+                          onClick={() => handleViewFileFromTable(row.id, 'FS2A')}
                           startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
                           sx={{
                             textTransform: 'none',
@@ -1565,7 +1877,7 @@ function Fs2Disetujui() {
                       {row.berkasFs2b ? (
                         <Button
                           size="small"
-                          onClick={() => handleOpenPreview(row.berkasFs2b, 'Berkas F.S.2B')}
+                          onClick={() => handleViewFileFromTable(row.id, 'FS2B')}
                           startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
                           sx={{
                             textTransform: 'none',
@@ -1596,7 +1908,7 @@ function Fs2Disetujui() {
                       {row.berkasF45 ? (
                         <Button
                           size="small"
-                          onClick={() => handleOpenPreview(row.berkasF45, 'Berkas F45')}
+                          onClick={() => handleViewFileFromTable(row.id, 'F45')}
                           startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
                           sx={{
                             textTransform: 'none',
@@ -1623,7 +1935,7 @@ function Fs2Disetujui() {
                       {row.berkasF46 ? (
                         <Button
                           size="small"
-                          onClick={() => handleOpenPreview(row.berkasF46, 'Berkas F46')}
+                          onClick={() => handleViewFileFromTable(row.id, 'F46')}
                           startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
                           sx={{
                             textTransform: 'none',
@@ -1654,7 +1966,7 @@ function Fs2Disetujui() {
                       {row.berkasNdBaDeployment ? (
                         <Button
                           size="small"
-                          onClick={() => handleOpenPreview(row.berkasNdBaDeployment, 'Berkas ND/BA Deployment')}
+                          onClick={() => handleViewFileFromTable(row.id, 'NDBA')}
                           startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
                           sx={{
                             textTransform: 'none',
@@ -1679,8 +1991,8 @@ function Fs2Disetujui() {
                     {/* Go Live - Target */}
                     <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(5, 150, 105, 0.02)' }}>{row.targetGoLive}</TableCell>
                     {/* Keterangan */}
-                    <TableCell align="center" sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 150 }}>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' }} title={row.keterangan}>
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 150 }}>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.keterangan}>
                         {row.keterangan}
                       </Typography>
                     </TableCell>
@@ -2145,38 +2457,157 @@ function Fs2Disetujui() {
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#31A24C' }} />
               Dokumen Pengajuan F.S.2
             </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-            <TextField
-              label="Nomor ND"
-              size="small"
-              value={editFormData.nomor_nd || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, nomor_nd: e.target.value })}
-              fullWidth
-            />
-            <TextField
-              label="Tanggal ND"
-              type="date"
-              size="small"
-              value={editFormData.tanggal_nd || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, tanggal_nd: e.target.value })}
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-            <TextField
-              label="Berkas ND (URL)"
-              size="small"
-              value={editFormData.berkas_nd || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, berkas_nd: e.target.value })}
-              fullWidth
-            />
-            <TextField
-              label="Berkas F.S.2 (URL)"
-              size="small"
-              value={editFormData.berkas_fs2 || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, berkas_fs2: e.target.value })}
-              fullWidth
-            />
-          </Box>
+            {fileErrorMessage && (
+              <Typography color="error" variant="body2" sx={{ mb: 2 }}>{fileErrorMessage}</Typography>
+            )}
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
+              <TextField
+                label="Nomor ND"
+                size="small"
+                value={editFormData.nomor_nd || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, nomor_nd: e.target.value })}
+                fullWidth
+              />
+              <TextField
+                label="Tanggal ND"
+                type="date"
+                size="small"
+                value={editFormData.tanggal_nd || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, tanggal_nd: e.target.value })}
+                fullWidth
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+            </Box>
+            
+            {/* Berkas ND Dropzone */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas ND</Typography>
+              <Box
+                sx={{
+                  border: isDraggingND ? '2px dashed #31A24C' : '2px dashed #e5e5e7',
+                  borderRadius: 2,
+                  p: 2,
+                  textAlign: 'center',
+                  cursor: isUploadingND ? 'not-allowed' : 'pointer',
+                  opacity: isUploadingND ? 0.7 : 1,
+                  transition: 'all 0.2s ease-in-out',
+                  bgcolor: isDraggingND ? 'rgba(49, 162, 76, 0.08)' : 'transparent',
+                  '&:hover': {
+                    borderColor: isUploadingND ? '#e5e5e7' : '#31A24C',
+                    bgcolor: isUploadingND ? 'transparent' : 'rgba(49, 162, 76, 0.04)',
+                  },
+                }}
+                onClick={() => !isUploadingND && document.getElementById('fs2-edit-file-upload-nd')?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingND(true); }}
+                onDragLeave={() => setIsDraggingND(false)}
+                onDrop={handleFileDropND}
+              >
+                <input
+                  id="fs2-edit-file-upload-nd"
+                  type="file"
+                  hidden
+                  onChange={handleFileUploadND}
+                  accept=".pdf,.doc,.docx"
+                  disabled={isUploadingND}
+                />
+                {isUploadingND ? (
+                  <>
+                    <CircularProgress size={32} sx={{ color: '#31A24C', mb: 1 }} />
+                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>Mengupload file...</Typography>
+                  </>
+                ) : (
+                  <>
+                    <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingND ? '#31A24C' : '#86868b', mb: 0.5 }} />
+                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingND ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
+                    <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
+                  </>
+                )}
+              </Box>
+              {filesND.length > 0 && (
+                <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '8px', mt: 1 }}>
+                  {filesND.map((file) => (
+                    <ListItem key={file.id} sx={{ py: 0.5 }}>
+                      <ListItemIcon sx={{ minWidth: 36 }}><FileIcon sx={{ color: '#31A24C', fontSize: 20 }} /></ListItemIcon>
+                      <ListItemText primary={file.original_name} secondary={formatFileSize(file.file_size)} primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }} secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }} />
+                      <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
+                        {isPreviewable(file.content_type) && (
+                          <IconButton size="small" onClick={() => handlePreviewFile(file)} sx={{ color: '#0891B2' }}><VisibilityIcon fontSize="small" /></IconButton>
+                        )}
+                        <IconButton size="small" onClick={() => handleDownloadFile(file)} disabled={downloadingFileId === file.id} sx={{ color: '#059669' }}>
+                          {downloadingFileId === file.id ? <CircularProgress size={16} /> : <DownloadIcon fontSize="small" />}
+                        </IconButton>
+                        <IconButton size="small" onClick={() => handleRemoveFile(file.id, 'ND', setFilesND)} sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}><DeleteIcon fontSize="small" /></IconButton>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </Box>
+
+            {/* Berkas F.S.2 Dropzone */}
+            <Box>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas F.S.2</Typography>
+              <Box
+                sx={{
+                  border: isDraggingFS2 ? '2px dashed #31A24C' : '2px dashed #e5e5e7',
+                  borderRadius: 2,
+                  p: 2,
+                  textAlign: 'center',
+                  cursor: isUploadingFS2 ? 'not-allowed' : 'pointer',
+                  opacity: isUploadingFS2 ? 0.7 : 1,
+                  transition: 'all 0.2s ease-in-out',
+                  bgcolor: isDraggingFS2 ? 'rgba(49, 162, 76, 0.08)' : 'transparent',
+                  '&:hover': {
+                    borderColor: isUploadingFS2 ? '#e5e5e7' : '#31A24C',
+                    bgcolor: isUploadingFS2 ? 'transparent' : 'rgba(49, 162, 76, 0.04)',
+                  },
+                }}
+                onClick={() => !isUploadingFS2 && document.getElementById('fs2-edit-file-upload-fs2')?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingFS2(true); }}
+                onDragLeave={() => setIsDraggingFS2(false)}
+                onDrop={handleFileDropFS2}
+              >
+                <input
+                  id="fs2-edit-file-upload-fs2"
+                  type="file"
+                  hidden
+                  onChange={handleFileUploadFS2}
+                  accept=".pdf,.doc,.docx"
+                  disabled={isUploadingFS2}
+                />
+                {isUploadingFS2 ? (
+                  <>
+                    <CircularProgress size={32} sx={{ color: '#31A24C', mb: 1 }} />
+                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>Mengupload file...</Typography>
+                  </>
+                ) : (
+                  <>
+                    <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingFS2 ? '#31A24C' : '#86868b', mb: 0.5 }} />
+                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingFS2 ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
+                    <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
+                  </>
+                )}
+              </Box>
+              {filesFS2.length > 0 && (
+                <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '8px', mt: 1 }}>
+                  {filesFS2.map((file) => (
+                    <ListItem key={file.id} sx={{ py: 0.5 }}>
+                      <ListItemIcon sx={{ minWidth: 36 }}><FileIcon sx={{ color: '#31A24C', fontSize: 20 }} /></ListItemIcon>
+                      <ListItemText primary={file.original_name} secondary={formatFileSize(file.file_size)} primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }} secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }} />
+                      <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
+                        {isPreviewable(file.content_type) && (
+                          <IconButton size="small" onClick={() => handlePreviewFile(file)} sx={{ color: '#0891B2' }}><VisibilityIcon fontSize="small" /></IconButton>
+                        )}
+                        <IconButton size="small" onClick={() => handleDownloadFile(file)} disabled={downloadingFileId === file.id} sx={{ color: '#059669' }}>
+                          {downloadingFileId === file.id ? <CircularProgress size={16} /> : <DownloadIcon fontSize="small" />}
+                        </IconButton>
+                        <IconButton size="small" onClick={() => handleRemoveFile(file.id, 'FS2', setFilesFS2)} sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}><DeleteIcon fontSize="small" /></IconButton>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </Box>
           </Box>
 
           {/* CD Prinsip Section */}
@@ -2185,45 +2616,219 @@ function Fs2Disetujui() {
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#2563EB' }} />
               CD Prinsip
             </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-            <TextField
-              label="Nomor CD"
-              size="small"
-              value={editFormData.nomor_cd || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, nomor_cd: e.target.value })}
-              fullWidth
-            />
-            <TextField
-              label="Tanggal CD"
-              type="date"
-              size="small"
-              value={editFormData.tanggal_cd || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, tanggal_cd: e.target.value })}
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-            <TextField
-              label="Berkas CD (URL)"
-              size="small"
-              value={editFormData.berkas_cd || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, berkas_cd: e.target.value })}
-              fullWidth
-            />
-            <TextField
-              label="Berkas F.S.2A (URL)"
-              size="small"
-              value={editFormData.berkas_fs2a || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, berkas_fs2a: e.target.value })}
-              fullWidth
-            />
-            <TextField
-              label="Berkas F.S.2B (URL)"
-              size="small"
-              value={editFormData.berkas_fs2b || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, berkas_fs2b: e.target.value })}
-              fullWidth
-            />
-          </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
+              <TextField
+                label="Nomor CD"
+                size="small"
+                value={editFormData.nomor_cd || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, nomor_cd: e.target.value })}
+                fullWidth
+              />
+              <TextField
+                label="Tanggal CD"
+                type="date"
+                size="small"
+                value={editFormData.tanggal_cd || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, tanggal_cd: e.target.value })}
+                fullWidth
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+            </Box>
+            
+            {/* Berkas CD Dropzone */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas CD</Typography>
+              <Box
+                sx={{
+                  border: isDraggingCD ? '2px dashed #2563EB' : '2px dashed #e5e5e7',
+                  borderRadius: 2,
+                  p: 2,
+                  textAlign: 'center',
+                  cursor: isUploadingCD ? 'not-allowed' : 'pointer',
+                  opacity: isUploadingCD ? 0.7 : 1,
+                  transition: 'all 0.2s ease-in-out',
+                  bgcolor: isDraggingCD ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
+                  '&:hover': {
+                    borderColor: isUploadingCD ? '#e5e5e7' : '#2563EB',
+                    bgcolor: isUploadingCD ? 'transparent' : 'rgba(37, 99, 235, 0.04)',
+                  },
+                }}
+                onClick={() => !isUploadingCD && document.getElementById('fs2-edit-file-upload-cd')?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingCD(true); }}
+                onDragLeave={() => setIsDraggingCD(false)}
+                onDrop={handleFileDropCD}
+              >
+                <input
+                  id="fs2-edit-file-upload-cd"
+                  type="file"
+                  hidden
+                  onChange={handleFileUploadCD}
+                  accept=".pdf,.doc,.docx"
+                  disabled={isUploadingCD}
+                />
+                {isUploadingCD ? (
+                  <>
+                    <CircularProgress size={32} sx={{ color: '#2563EB', mb: 1 }} />
+                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>Mengupload file...</Typography>
+                  </>
+                ) : (
+                  <>
+                    <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingCD ? '#2563EB' : '#86868b', mb: 0.5 }} />
+                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingCD ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
+                    <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
+                  </>
+                )}
+              </Box>
+              {filesCD.length > 0 && (
+                <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '8px', mt: 1 }}>
+                  {filesCD.map((file) => (
+                    <ListItem key={file.id} sx={{ py: 0.5 }}>
+                      <ListItemIcon sx={{ minWidth: 36 }}><FileIcon sx={{ color: '#2563EB', fontSize: 20 }} /></ListItemIcon>
+                      <ListItemText primary={file.original_name} secondary={formatFileSize(file.file_size)} primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }} secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }} />
+                      <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
+                        {isPreviewable(file.content_type) && (
+                          <IconButton size="small" onClick={() => handlePreviewFile(file)} sx={{ color: '#0891B2' }}><VisibilityIcon fontSize="small" /></IconButton>
+                        )}
+                        <IconButton size="small" onClick={() => handleDownloadFile(file)} disabled={downloadingFileId === file.id} sx={{ color: '#059669' }}>
+                          {downloadingFileId === file.id ? <CircularProgress size={16} /> : <DownloadIcon fontSize="small" />}
+                        </IconButton>
+                        <IconButton size="small" onClick={() => handleRemoveFile(file.id, 'CD', setFilesCD)} sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}><DeleteIcon fontSize="small" /></IconButton>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </Box>
+
+            {/* Berkas F.S.2A Dropzone */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas F.S.2A</Typography>
+              <Box
+                sx={{
+                  border: isDraggingFS2A ? '2px dashed #2563EB' : '2px dashed #e5e5e7',
+                  borderRadius: 2,
+                  p: 2,
+                  textAlign: 'center',
+                  cursor: isUploadingFS2A ? 'not-allowed' : 'pointer',
+                  opacity: isUploadingFS2A ? 0.7 : 1,
+                  transition: 'all 0.2s ease-in-out',
+                  bgcolor: isDraggingFS2A ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
+                  '&:hover': {
+                    borderColor: isUploadingFS2A ? '#e5e5e7' : '#2563EB',
+                    bgcolor: isUploadingFS2A ? 'transparent' : 'rgba(37, 99, 235, 0.04)',
+                  },
+                }}
+                onClick={() => !isUploadingFS2A && document.getElementById('fs2-edit-file-upload-fs2a')?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingFS2A(true); }}
+                onDragLeave={() => setIsDraggingFS2A(false)}
+                onDrop={handleFileDropFS2A}
+              >
+                <input
+                  id="fs2-edit-file-upload-fs2a"
+                  type="file"
+                  hidden
+                  onChange={handleFileUploadFS2A}
+                  accept=".pdf,.doc,.docx"
+                  disabled={isUploadingFS2A}
+                />
+                {isUploadingFS2A ? (
+                  <>
+                    <CircularProgress size={32} sx={{ color: '#2563EB', mb: 1 }} />
+                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>Mengupload file...</Typography>
+                  </>
+                ) : (
+                  <>
+                    <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingFS2A ? '#2563EB' : '#86868b', mb: 0.5 }} />
+                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingFS2A ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
+                    <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
+                  </>
+                )}
+              </Box>
+              {filesFS2A.length > 0 && (
+                <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '8px', mt: 1 }}>
+                  {filesFS2A.map((file) => (
+                    <ListItem key={file.id} sx={{ py: 0.5 }}>
+                      <ListItemIcon sx={{ minWidth: 36 }}><FileIcon sx={{ color: '#2563EB', fontSize: 20 }} /></ListItemIcon>
+                      <ListItemText primary={file.original_name} secondary={formatFileSize(file.file_size)} primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }} secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }} />
+                      <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
+                        {isPreviewable(file.content_type) && (
+                          <IconButton size="small" onClick={() => handlePreviewFile(file)} sx={{ color: '#0891B2' }}><VisibilityIcon fontSize="small" /></IconButton>
+                        )}
+                        <IconButton size="small" onClick={() => handleDownloadFile(file)} disabled={downloadingFileId === file.id} sx={{ color: '#059669' }}>
+                          {downloadingFileId === file.id ? <CircularProgress size={16} /> : <DownloadIcon fontSize="small" />}
+                        </IconButton>
+                        <IconButton size="small" onClick={() => handleRemoveFile(file.id, 'FS2A', setFilesFS2A)} sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}><DeleteIcon fontSize="small" /></IconButton>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </Box>
+
+            {/* Berkas F.S.2B Dropzone */}
+            <Box>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas F.S.2B</Typography>
+              <Box
+                sx={{
+                  border: isDraggingFS2B ? '2px dashed #2563EB' : '2px dashed #e5e5e7',
+                  borderRadius: 2,
+                  p: 2,
+                  textAlign: 'center',
+                  cursor: isUploadingFS2B ? 'not-allowed' : 'pointer',
+                  opacity: isUploadingFS2B ? 0.7 : 1,
+                  transition: 'all 0.2s ease-in-out',
+                  bgcolor: isDraggingFS2B ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
+                  '&:hover': {
+                    borderColor: isUploadingFS2B ? '#e5e5e7' : '#2563EB',
+                    bgcolor: isUploadingFS2B ? 'transparent' : 'rgba(37, 99, 235, 0.04)',
+                  },
+                }}
+                onClick={() => !isUploadingFS2B && document.getElementById('fs2-edit-file-upload-fs2b')?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingFS2B(true); }}
+                onDragLeave={() => setIsDraggingFS2B(false)}
+                onDrop={handleFileDropFS2B}
+              >
+                <input
+                  id="fs2-edit-file-upload-fs2b"
+                  type="file"
+                  hidden
+                  onChange={handleFileUploadFS2B}
+                  accept=".pdf,.doc,.docx"
+                  disabled={isUploadingFS2B}
+                />
+                {isUploadingFS2B ? (
+                  <>
+                    <CircularProgress size={32} sx={{ color: '#2563EB', mb: 1 }} />
+                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>Mengupload file...</Typography>
+                  </>
+                ) : (
+                  <>
+                    <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingFS2B ? '#2563EB' : '#86868b', mb: 0.5 }} />
+                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingFS2B ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
+                    <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
+                  </>
+                )}
+              </Box>
+              {filesFS2B.length > 0 && (
+                <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '8px', mt: 1 }}>
+                  {filesFS2B.map((file) => (
+                    <ListItem key={file.id} sx={{ py: 0.5 }}>
+                      <ListItemIcon sx={{ minWidth: 36 }}><FileIcon sx={{ color: '#2563EB', fontSize: 20 }} /></ListItemIcon>
+                      <ListItemText primary={file.original_name} secondary={formatFileSize(file.file_size)} primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }} secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }} />
+                      <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
+                        {isPreviewable(file.content_type) && (
+                          <IconButton size="small" onClick={() => handlePreviewFile(file)} sx={{ color: '#0891B2' }}><VisibilityIcon fontSize="small" /></IconButton>
+                        )}
+                        <IconButton size="small" onClick={() => handleDownloadFile(file)} disabled={downloadingFileId === file.id} sx={{ color: '#059669' }}>
+                          {downloadingFileId === file.id ? <CircularProgress size={16} /> : <DownloadIcon fontSize="small" />}
+                        </IconButton>
+                        <IconButton size="small" onClick={() => handleRemoveFile(file.id, 'FS2B', setFilesFS2B)} sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}><DeleteIcon fontSize="small" /></IconButton>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </Box>
           </Box>
 
           {/* Pengujian Section */}
@@ -2232,40 +2837,156 @@ function Fs2Disetujui() {
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#D97706' }} />
               Pengujian
             </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-            <TextField
-              label="Target Pengujian"
-              type="date"
-              size="small"
-              value={editFormData.target_pengujian || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, target_pengujian: e.target.value })}
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-            <TextField
-              label="Realisasi Pengujian"
-              type="date"
-              size="small"
-              value={editFormData.realisasi_pengujian || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, realisasi_pengujian: e.target.value })}
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-            <TextField
-              label="Berkas F45 (URL)"
-              size="small"
-              value={editFormData.berkas_f45 || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, berkas_f45: e.target.value })}
-              fullWidth
-            />
-            <TextField
-              label="Berkas F46 (URL)"
-              size="small"
-              value={editFormData.berkas_f46 || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, berkas_f46: e.target.value })}
-              fullWidth
-            />
-          </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
+              <TextField
+                label="Target Pengujian"
+                type="date"
+                size="small"
+                value={editFormData.target_pengujian || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, target_pengujian: e.target.value })}
+                fullWidth
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <TextField
+                label="Realisasi Pengujian"
+                type="date"
+                size="small"
+                value={editFormData.realisasi_pengujian || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, realisasi_pengujian: e.target.value })}
+                fullWidth
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+            </Box>
+            
+            {/* Berkas F45 Dropzone */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas F45</Typography>
+              <Box
+                sx={{
+                  border: isDraggingF45 ? '2px dashed #D97706' : '2px dashed #e5e5e7',
+                  borderRadius: 2,
+                  p: 2,
+                  textAlign: 'center',
+                  cursor: isUploadingF45 ? 'not-allowed' : 'pointer',
+                  opacity: isUploadingF45 ? 0.7 : 1,
+                  transition: 'all 0.2s ease-in-out',
+                  bgcolor: isDraggingF45 ? 'rgba(217, 119, 6, 0.08)' : 'transparent',
+                  '&:hover': {
+                    borderColor: isUploadingF45 ? '#e5e5e7' : '#D97706',
+                    bgcolor: isUploadingF45 ? 'transparent' : 'rgba(217, 119, 6, 0.04)',
+                  },
+                }}
+                onClick={() => !isUploadingF45 && document.getElementById('fs2-edit-file-upload-f45')?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingF45(true); }}
+                onDragLeave={() => setIsDraggingF45(false)}
+                onDrop={handleFileDropF45}
+              >
+                <input
+                  id="fs2-edit-file-upload-f45"
+                  type="file"
+                  hidden
+                  onChange={handleFileUploadF45}
+                  accept=".pdf,.doc,.docx"
+                  disabled={isUploadingF45}
+                />
+                {isUploadingF45 ? (
+                  <>
+                    <CircularProgress size={32} sx={{ color: '#D97706', mb: 1 }} />
+                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>Mengupload file...</Typography>
+                  </>
+                ) : (
+                  <>
+                    <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingF45 ? '#D97706' : '#86868b', mb: 0.5 }} />
+                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingF45 ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
+                    <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
+                  </>
+                )}
+              </Box>
+              {filesF45.length > 0 && (
+                <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '8px', mt: 1 }}>
+                  {filesF45.map((file) => (
+                    <ListItem key={file.id} sx={{ py: 0.5 }}>
+                      <ListItemIcon sx={{ minWidth: 36 }}><FileIcon sx={{ color: '#D97706', fontSize: 20 }} /></ListItemIcon>
+                      <ListItemText primary={file.original_name} secondary={formatFileSize(file.file_size)} primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }} secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }} />
+                      <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
+                        {isPreviewable(file.content_type) && (
+                          <IconButton size="small" onClick={() => handlePreviewFile(file)} sx={{ color: '#0891B2' }}><VisibilityIcon fontSize="small" /></IconButton>
+                        )}
+                        <IconButton size="small" onClick={() => handleDownloadFile(file)} disabled={downloadingFileId === file.id} sx={{ color: '#059669' }}>
+                          {downloadingFileId === file.id ? <CircularProgress size={16} /> : <DownloadIcon fontSize="small" />}
+                        </IconButton>
+                        <IconButton size="small" onClick={() => handleRemoveFile(file.id, 'F45', setFilesF45)} sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}><DeleteIcon fontSize="small" /></IconButton>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </Box>
+
+            {/* Berkas F46 Dropzone */}
+            <Box>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas F46</Typography>
+              <Box
+                sx={{
+                  border: isDraggingF46 ? '2px dashed #D97706' : '2px dashed #e5e5e7',
+                  borderRadius: 2,
+                  p: 2,
+                  textAlign: 'center',
+                  cursor: isUploadingF46 ? 'not-allowed' : 'pointer',
+                  opacity: isUploadingF46 ? 0.7 : 1,
+                  transition: 'all 0.2s ease-in-out',
+                  bgcolor: isDraggingF46 ? 'rgba(217, 119, 6, 0.08)' : 'transparent',
+                  '&:hover': {
+                    borderColor: isUploadingF46 ? '#e5e5e7' : '#D97706',
+                    bgcolor: isUploadingF46 ? 'transparent' : 'rgba(217, 119, 6, 0.04)',
+                  },
+                }}
+                onClick={() => !isUploadingF46 && document.getElementById('fs2-edit-file-upload-f46')?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingF46(true); }}
+                onDragLeave={() => setIsDraggingF46(false)}
+                onDrop={handleFileDropF46}
+              >
+                <input
+                  id="fs2-edit-file-upload-f46"
+                  type="file"
+                  hidden
+                  onChange={handleFileUploadF46}
+                  accept=".pdf,.doc,.docx"
+                  disabled={isUploadingF46}
+                />
+                {isUploadingF46 ? (
+                  <>
+                    <CircularProgress size={32} sx={{ color: '#D97706', mb: 1 }} />
+                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>Mengupload file...</Typography>
+                  </>
+                ) : (
+                  <>
+                    <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingF46 ? '#D97706' : '#86868b', mb: 0.5 }} />
+                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingF46 ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
+                    <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
+                  </>
+                )}
+              </Box>
+              {filesF46.length > 0 && (
+                <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '8px', mt: 1 }}>
+                  {filesF46.map((file) => (
+                    <ListItem key={file.id} sx={{ py: 0.5 }}>
+                      <ListItemIcon sx={{ minWidth: 36 }}><FileIcon sx={{ color: '#D97706', fontSize: 20 }} /></ListItemIcon>
+                      <ListItemText primary={file.original_name} secondary={formatFileSize(file.file_size)} primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }} secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }} />
+                      <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
+                        {isPreviewable(file.content_type) && (
+                          <IconButton size="small" onClick={() => handlePreviewFile(file)} sx={{ color: '#0891B2' }}><VisibilityIcon fontSize="small" /></IconButton>
+                        )}
+                        <IconButton size="small" onClick={() => handleDownloadFile(file)} disabled={downloadingFileId === file.id} sx={{ color: '#059669' }}>
+                          {downloadingFileId === file.id ? <CircularProgress size={16} /> : <DownloadIcon fontSize="small" />}
+                        </IconButton>
+                        <IconButton size="small" onClick={() => handleRemoveFile(file.id, 'F46', setFilesF46)} sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}><DeleteIcon fontSize="small" /></IconButton>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </Box>
           </Box>
 
           {/* Deployment Section */}
@@ -2274,34 +2995,91 @@ function Fs2Disetujui() {
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#7C3AED' }} />
               Deployment
             </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-            <TextField
-              label="Target Deployment"
-              type="date"
-              size="small"
-              value={editFormData.target_deployment || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, target_deployment: e.target.value })}
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-            <TextField
-              label="Realisasi Deployment"
-              type="date"
-              size="small"
-              value={editFormData.realisasi_deployment || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, realisasi_deployment: e.target.value })}
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-            <TextField
-              label="Berkas ND/BA Deployment (URL)"
-              size="small"
-              value={editFormData.berkas_nd_ba_deployment || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, berkas_nd_ba_deployment: e.target.value })}
-              fullWidth
-              sx={{ gridColumn: 'span 2' }}
-            />
-          </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
+              <TextField
+                label="Target Deployment"
+                type="date"
+                size="small"
+                value={editFormData.target_deployment || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, target_deployment: e.target.value })}
+                fullWidth
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <TextField
+                label="Realisasi Deployment"
+                type="date"
+                size="small"
+                value={editFormData.realisasi_deployment || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, realisasi_deployment: e.target.value })}
+                fullWidth
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+            </Box>
+            
+            {/* Berkas ND/BA Deployment Dropzone */}
+            <Box>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas ND/BA Deployment</Typography>
+              <Box
+                sx={{
+                  border: isDraggingNDBA ? '2px dashed #7C3AED' : '2px dashed #e5e5e7',
+                  borderRadius: 2,
+                  p: 2,
+                  textAlign: 'center',
+                  cursor: isUploadingNDBA ? 'not-allowed' : 'pointer',
+                  opacity: isUploadingNDBA ? 0.7 : 1,
+                  transition: 'all 0.2s ease-in-out',
+                  bgcolor: isDraggingNDBA ? 'rgba(124, 58, 237, 0.08)' : 'transparent',
+                  '&:hover': {
+                    borderColor: isUploadingNDBA ? '#e5e5e7' : '#7C3AED',
+                    bgcolor: isUploadingNDBA ? 'transparent' : 'rgba(124, 58, 237, 0.04)',
+                  },
+                }}
+                onClick={() => !isUploadingNDBA && document.getElementById('fs2-edit-file-upload-ndba')?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingNDBA(true); }}
+                onDragLeave={() => setIsDraggingNDBA(false)}
+                onDrop={handleFileDropNDBA}
+              >
+                <input
+                  id="fs2-edit-file-upload-ndba"
+                  type="file"
+                  hidden
+                  onChange={handleFileUploadNDBA}
+                  accept=".pdf,.doc,.docx"
+                  disabled={isUploadingNDBA}
+                />
+                {isUploadingNDBA ? (
+                  <>
+                    <CircularProgress size={32} sx={{ color: '#7C3AED', mb: 1 }} />
+                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>Mengupload file...</Typography>
+                  </>
+                ) : (
+                  <>
+                    <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingNDBA ? '#7C3AED' : '#86868b', mb: 0.5 }} />
+                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingNDBA ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
+                    <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
+                  </>
+                )}
+              </Box>
+              {filesNDBA.length > 0 && (
+                <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '8px', mt: 1 }}>
+                  {filesNDBA.map((file) => (
+                    <ListItem key={file.id} sx={{ py: 0.5 }}>
+                      <ListItemIcon sx={{ minWidth: 36 }}><FileIcon sx={{ color: '#7C3AED', fontSize: 20 }} /></ListItemIcon>
+                      <ListItemText primary={file.original_name} secondary={formatFileSize(file.file_size)} primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }} secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }} />
+                      <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
+                        {isPreviewable(file.content_type) && (
+                          <IconButton size="small" onClick={() => handlePreviewFile(file)} sx={{ color: '#0891B2' }}><VisibilityIcon fontSize="small" /></IconButton>
+                        )}
+                        <IconButton size="small" onClick={() => handleDownloadFile(file)} disabled={downloadingFileId === file.id} sx={{ color: '#059669' }}>
+                          {downloadingFileId === file.id ? <CircularProgress size={16} /> : <DownloadIcon fontSize="small" />}
+                        </IconButton>
+                        <IconButton size="small" onClick={() => handleRemoveFile(file.id, 'NDBA', setFilesNDBA)} sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}><DeleteIcon fontSize="small" /></IconButton>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </Box>
           </Box>
 
           {/* Go Live & Keterangan Section */}
@@ -2310,25 +3088,27 @@ function Fs2Disetujui() {
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#059669' }} />
               Go Live & Keterangan
             </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-            <TextField
-              label="Target Go Live"
-              type="date"
-              size="small"
-              value={editFormData.target_go_live || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, target_go_live: e.target.value })}
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-            <TextField
-              label="Keterangan"
-              size="small"
-              multiline
-              rows={2}
-              value={editFormData.keterangan || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, keterangan: e.target.value })}
-              fullWidth
-            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <TextField
+                label="Target Go Live"
+                type="date"
+                size="small"
+                value={editFormData.target_go_live || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, target_go_live: e.target.value })}
+                fullWidth
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <TextField
+                label="Keterangan (Text dan/atau Link URL)"
+                size="small"
+                multiline
+                rows={3}
+                value={editFormData.keterangan || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, keterangan: e.target.value })}
+                fullWidth
+                placeholder="Masukkan keterangan atau link URL..."
+                helperText="Anda dapat memasukkan teks biasa atau link URL"
+              />
             </Box>
           </Box>
         </DialogContent>
@@ -2338,14 +3118,157 @@ function Fs2Disetujui() {
         </DialogActions>
       </Dialog>
 
-      {/* File Preview Modal for external berkas URLs */}
+      {/* File List Dialog */}
+      <Dialog
+        open={fileDialogOpen}
+        onClose={handleCloseFileDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            bgcolor: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(40px)',
+            WebkitBackdropFilter: 'blur(40px)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+          pb: 2,
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #31A24C 0%, #059669 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(49, 162, 76, 0.25)',
+              }}
+            >
+              <AttachFileIcon sx={{ color: 'white', fontSize: 20 }} />
+            </Box>
+            <Box>
+              <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '1rem' }}>
+                {fileDialogTitle}
+              </Typography>
+              <Typography sx={{ color: '#86868b', fontSize: '0.75rem' }}>
+                {fileDialogFiles.length} dokumen
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton onClick={handleCloseFileDialog} size="small" sx={{ color: '#86868b' }}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 2 }}>
+          {isLoadingFiles ? (
+            <Box display="flex" justifyContent="center" py={4}>
+              <CircularProgress size={32} sx={{ color: '#31A24C' }} />
+            </Box>
+          ) : fileDialogFiles.length > 0 ? (
+            <List dense sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px', p: 1 }}>
+              {fileDialogFiles.map((file, index) => (
+                <ListItem
+                  key={file.id}
+                  sx={{
+                    borderRadius: '8px',
+                    mb: index < fileDialogFiles.length - 1 ? 1 : 0,
+                    bgcolor: 'white',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                    '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.9)' },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <FileIcon sx={{ color: '#31A24C', fontSize: 24 }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={file.original_name || file.file_name || 'File'}
+                    secondary={file.file_size ? formatFileSize(file.file_size) : '-'}
+                    primaryTypographyProps={{
+                      sx: { fontWeight: 500, color: '#1d1d1f', fontSize: '0.9rem' },
+                    }}
+                    secondaryTypographyProps={{
+                      sx: { color: '#86868b', fontSize: '0.75rem' },
+                    }}
+                  />
+                  <ListItemSecondaryAction>
+                    {file.content_type && isPreviewable(file.content_type) && (
+                      <IconButton
+                        edge="end"
+                        size="small"
+                        onClick={() => handleFilePreviewFromDialog(file)}
+                        sx={{
+                          color: '#0891B2',
+                          mr: 1,
+                          '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' },
+                        }}
+                        title="Preview"
+                      >
+                        <VisibilityIcon fontSize="small" />
+                      </IconButton>
+                    )}
+                    <IconButton
+                      edge="end"
+                      size="small"
+                      onClick={() => handleFileDownloadFromDialog(file)}
+                      disabled={downloadingFileId === file.id}
+                      sx={{
+                        color: '#059669',
+                        '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' },
+                      }}
+                      title="Download"
+                    >
+                      {downloadingFileId === file.id ? (
+                        <CircularProgress size={18} sx={{ color: '#059669' }} />
+                      ) : (
+                        <DownloadIcon fontSize="small" />
+                      )}
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Box
+              sx={{
+                p: 4,
+                textAlign: 'center',
+                borderRadius: '12px',
+                bgcolor: 'rgba(245, 245, 247, 0.8)',
+              }}
+            >
+              <AttachFileIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
+              <Typography sx={{ color: '#86868b' }}>
+                Belum ada dokumen yang diupload
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* File Preview Modal - handles both external URLs and uploaded files */}
       <FilePreviewModal
         open={previewOpen}
-        onClose={handleClosePreview}
-        fileId={null}
-        fileName={previewFileName}
-        contentType={getContentTypeFromUrl(previewUrl)}
-        directUrl={previewUrl}
+        onClose={() => {
+          setPreviewOpen(false);
+          setPreviewUrl('');
+          setPreviewFileName('');
+          setPreviewFile(null);
+        }}
+        fileId={previewFile?.id || null}
+        fileName={previewFile?.original_name || previewFileName}
+        contentType={previewFile?.content_type || getContentTypeFromUrl(previewUrl)}
+        directUrl={previewFile ? undefined : previewUrl}
+        downloadUrl={previewFile ? `/api/fs2/files/download/${previewFile.id}` : undefined}
       />
     </Box>
   );
