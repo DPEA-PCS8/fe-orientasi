@@ -2526,21 +2526,27 @@ function PksiDisetujui() {
                   {/* BA Deploy */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
                     {item.baDeploy && item.baDeploy !== '-' ? (
-                      <a
+                      <Button
+                        size="small"
+                        variant="outlined"
                         href={item.baDeploy.startsWith('http') ? item.baDeploy : `https://${item.baDeploy}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{
+                        startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                        sx={{
+                          textTransform: 'none',
+                          fontSize: '0.75rem',
                           color: '#7C3AED',
-                          textDecoration: 'none',
-                          fontSize: '0.8rem',
-                          fontWeight: 500,
+                          borderColor: 'rgba(124, 58, 237, 0.3)',
+                          bgcolor: 'rgba(124, 58, 237, 0.05)',
+                          '&:hover': {
+                            bgcolor: 'rgba(124, 58, 237, 0.1)',
+                            borderColor: '#7C3AED',
+                          },
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                        onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
                       >
-                        Lihat BA Deploy
-                      </a>
+                        Lihat BA
+                      </Button>
                     ) : (
                       <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
                     )}
