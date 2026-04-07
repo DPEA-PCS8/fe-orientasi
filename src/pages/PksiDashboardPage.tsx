@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Typography,
-  Paper,
   Card,
   CardContent,
   Select,
@@ -137,7 +136,7 @@ const DonutChart = ({ data, size = 180, strokeWidth = 24, title }: DonutChartPro
   );
 };
 
-// Stat Card Component
+// Stat Card Component with Apple Liquid Glass Style
 interface StatCardProps {
   title: string;
   value: number | string;
@@ -149,45 +148,81 @@ interface StatCardProps {
 }
 
 const StatCard = ({ title, value, subtitle, icon, color, bgColor, onClick }: StatCardProps) => (
-  <Card 
+  <Box 
     sx={{ 
       height: '100%', 
-      borderLeft: `4px solid ${color}`,
+      p: 3,
+      borderRadius: '24px',
+      background: 'rgba(255, 255, 255, 0.8)',
+      backdropFilter: 'blur(24px)',
+      WebkitBackdropFilter: 'blur(24px)',
+      border: '1px solid rgba(255, 255, 255, 0.95)',
+      boxShadow: '0 4px 24px rgba(129, 140, 248, 0.08), inset 0 1px 0 rgba(255, 255, 255, 1)',
       cursor: onClick ? 'pointer' : 'default',
-      '&:hover': onClick ? { boxShadow: 3 } : {}
+      transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+      '&:hover': onClick ? { 
+        transform: 'translateY(-6px)',
+        boxShadow: '0 12px 40px rgba(129, 140, 248, 0.15), inset 0 1px 0 rgba(255, 255, 255, 1)',
+        borderColor: 'rgba(165, 180, 252, 0.6)',
+      } : {}
     }}
     onClick={onClick}
   >
-    <CardContent>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <Box>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            {title}
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <Box>
+        <Typography 
+          variant="body2" 
+          sx={{ 
+            color: '#6B7280', 
+            fontWeight: 500,
+            fontSize: '0.85rem',
+            letterSpacing: '-0.01em',
+            mb: 1,
+          }}
+        >
+          {title}
+        </Typography>
+        <Typography 
+          variant="h3" 
+          sx={{ 
+            fontWeight: 700, 
+            color: '#374151',
+            letterSpacing: '-0.03em',
+            lineHeight: 1.1,
+          }}
+        >
+          {value}
+        </Typography>
+        {subtitle && (
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              color: '#6B7280',
+              fontSize: '0.75rem',
+              mt: 0.5,
+              display: 'block',
+            }}
+          >
+            {subtitle}
           </Typography>
-          <Typography variant="h4" fontWeight={700} sx={{ color }}>
-            {value}
-          </Typography>
-          {subtitle && (
-            <Typography variant="caption" color="text.secondary">
-              {subtitle}
-            </Typography>
-          )}
-        </Box>
-        <Box sx={{
-          width: 48,
-          height: 48,
-          borderRadius: '12px',
-          bgcolor: bgColor,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: color
-        }}>
-          {icon}
-        </Box>
+        )}
       </Box>
-    </CardContent>
-  </Card>
+      <Box sx={{
+        width: 52,
+        height: 52,
+        borderRadius: '16px',
+        background: `linear-gradient(135deg, ${bgColor}60 0%, ${bgColor}30 100%)`,
+        backdropFilter: 'blur(10px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: color,
+        boxShadow: `0 4px 16px ${bgColor}40`,
+      }}>
+        {icon}
+      </Box>
+    </Box>
+  </Box>
 );
 
 // Phase Insight Card Component with Progress Breakdown
@@ -209,80 +244,93 @@ const PhaseInsightCard = ({ title, icon, color, bgGradient, progressItems, total
   return (
     <Card sx={{ 
       height: '100%',
-      background: bgGradient,
-      border: 'none',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+      background: '#FFFFFF',
+      border: '1px solid rgba(239, 68, 68, 0.22)',
+      boxShadow: '0 10px 26px rgba(239, 68, 68, 0.12)',
+      borderRadius: '20px',
+      overflow: 'hidden',
+      position: 'relative',
+      '&:before': {
+        content: '""',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: '4px',
+        background: '#DC2626',
+      },
     }}>
-      <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+      <CardContent sx={{ p: 2.5, position: 'relative', zIndex: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
           <Box sx={{
-            width: 40,
-            height: 40,
-            borderRadius: '10px',
-            bgcolor: 'rgba(255,255,255,0.9)',
+            width: 44,
+            height: 44,
+            borderRadius: '12px',
+            bgcolor: 'rgba(239, 68, 68, 0.14)',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: color,
+            boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
           }}>
             {icon}
           </Box>
-          <Typography variant="subtitle1" fontWeight={600} color="white">
+          <Typography variant="h6" color="#111827" fontWeight={700}>
             {title}
           </Typography>
         </Box>
         
-        <Typography variant="h3" fontWeight={700} color="white" sx={{ mb: 1 }}>
+        <Typography variant="h3" color="#0F172A" fontWeight={800} sx={{ mb: 0.5 }}>
           {totalCount}
         </Typography>
+        <Typography variant="body2" sx={{ color: '#4B5563', mb: 2 }}>
+          {percentage.toFixed(1)}% dari total PKSI
+        </Typography>
         
-        <Box sx={{ mb: 2 }}>
-          <LinearProgress 
-            variant="determinate" 
-            value={percentage} 
-            sx={{ 
-              height: 8, 
-              borderRadius: 4,
-              bgcolor: 'rgba(255,255,255,0.3)',
-              '& .MuiLinearProgress-bar': {
-                bgcolor: 'white',
-                borderRadius: 4,
-              } 
-            }}
-          />
-          <Typography variant="caption" color="rgba(255,255,255,0.8)" sx={{ mt: 0.5, display: 'block' }}>
-            {percentage.toFixed(1)}% dari total PKSI
-          </Typography>
-        </Box>
-
+        <LinearProgress 
+          variant="determinate" 
+          value={percentage} 
+          sx={{ 
+            height: 6, 
+            borderRadius: 3,
+            bgcolor: 'rgba(239, 68, 68, 0.16)',
+            '& .MuiLinearProgress-bar': {
+              bgcolor: color,
+              borderRadius: 3,
+            },
+          }} 
+        />
+        
         {progressItems.length > 0 && (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="caption" color="rgba(255,255,255,0.8)" sx={{ mb: 1.5, display: 'block', fontWeight: 600 }}>
-              Detail Progress:
+          <Box sx={{ mt: 2.5 }}>
+            <Typography variant="caption" sx={{ color: '#4B5563', fontWeight: 600, mb: 1, display: 'block' }}>
+              Breakdown Progress
             </Typography>
-            {progressItems.map((item, idx) => (
+            {progressItems.map((item, index) => (
               <Box 
-                key={idx} 
+                key={index}
                 onClick={() => onProgressClick?.(item.progress)}
                 sx={{ 
                   display: 'flex', 
                   justifyContent: 'space-between', 
                   alignItems: 'center', 
                   mb: 1,
-                  p: 1,
-                  borderRadius: 1,
-                  bgcolor: expandedProgress === item.progress ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)',
+                  p: 1.25,
+                  borderRadius: '10px',
+                  bgcolor: expandedProgress === item.progress ? 'rgba(239, 68, 68, 0.16)' : 'rgba(239, 68, 68, 0.08)',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                   '&:hover': {
-                    bgcolor: 'rgba(255,255,255,0.25)',
+                    bgcolor: 'rgba(239, 68, 68, 0.18)',
+                    transform: 'translateX(4px)',
                   },
                 }}
               >
-                <Typography variant="body2" color="rgba(255,255,255,0.95)" fontWeight={500}>
+                <Typography variant="body2" color="#1F2937" fontWeight={600}>
                   {item.progress}
                 </Typography>
-                <Typography variant="h6" color="white" fontWeight={700}>
+                <Typography variant="h6" color="#0F172A" fontWeight={800}>
                   {item.count}
                 </Typography>
               </Box>
@@ -302,33 +350,43 @@ interface DeadlineInsightCardProps {
 
 const DeadlineInsightCard = ({ insight, isPrimary = false }: DeadlineInsightCardProps) => (
   <Box sx={{
-    p: 2,
-    borderRadius: 2,
-    bgcolor: isPrimary ? '#E8F5E9' : '#FFF3E0',
-    border: `2px solid ${isPrimary ? '#4CAF50' : '#FF9800'}`,
+    p: 2.5,
+    borderRadius: '20px',
+    background: isPrimary 
+      ? 'linear-gradient(135deg, rgba(165, 180, 252, 0.25) 0%, rgba(199, 210, 254, 0.25) 100%)' 
+      : 'linear-gradient(135deg, rgba(196, 181, 253, 0.25) 0%, rgba(221, 214, 254, 0.25) 100%)',
+    backdropFilter: 'blur(10px)',
+    border: `1.5px solid ${isPrimary ? 'rgba(129, 140, 248, 0.3)' : 'rgba(167, 139, 250, 0.3)'}`,
+    boxShadow: isPrimary 
+      ? '0 4px 20px rgba(129, 140, 248, 0.1)' 
+      : '0 4px 20px rgba(167, 139, 250, 0.1)',
   }}>
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-      <ScheduleIcon sx={{ color: isPrimary ? '#4CAF50' : '#FF9800' }} />
-      <Typography variant="subtitle2" fontWeight={600}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+      <ScheduleIcon sx={{ color: isPrimary ? '#818CF8' : '#A78BFA', fontSize: 22 }} />
+      <Typography variant="subtitle2" fontWeight={600} sx={{ color: '#4B5563' }}>
         {insight.label}
       </Typography>
     </Box>
-    <Typography variant="h4" fontWeight={700} sx={{ color: isPrimary ? '#2E7D32' : '#E65100' }}>
+    <Typography variant="h4" fontWeight={700} sx={{ color: isPrimary ? '#6366F1' : '#8B5CF6', mb: 0.5 }}>
       {insight.total}
     </Typography>
-    <Typography variant="caption" color="text.secondary">
+    <Typography variant="caption" sx={{ color: '#6B7280' }}>
       PKSI dengan target selesai {insight.year}
     </Typography>
     
     {insight.progress_breakdown.length > 0 && (
-      <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+      <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
         {insight.progress_breakdown.map((pb, idx) => (
           <Chip 
             key={idx}
             label={`${pb.progress}: ${pb.count}`}
             size="small"
             variant="outlined"
-            sx={{ fontSize: '0.7rem' }}
+            sx={{ 
+              fontSize: '0.7rem',
+              borderColor: isPrimary ? 'rgba(129, 140, 248, 0.4)' : 'rgba(167, 139, 250, 0.4)',
+              color: '#4B5563',
+            }}
           />
         ))}
       </Box>
@@ -404,19 +462,19 @@ function PksiDashboardPage() {
   const jenisPksiChartData = useMemo(() => {
     if (!dashboardData?.jenis_pksi_stats) return [];
     return [
-      { label: 'Single Year', value: dashboardData.jenis_pksi_stats.single_year, color: '#2196F3' },
-      { label: 'Multiyears', value: dashboardData.jenis_pksi_stats.multiyears, color: '#FF9800' },
+      { label: 'Single Year', value: dashboardData.jenis_pksi_stats.single_year, color: '#EF4444' },
+      { label: 'Multiyears', value: dashboardData.jenis_pksi_stats.multiyears, color: '#1D4ED8' },
     ];
   }, [dashboardData?.jenis_pksi_stats]);
 
   const pelaksanaChartData = useMemo(() => {
     if (!dashboardData?.pelaksana_stats) return [];
     const data = [
-      { label: 'Inhouse', value: dashboardData.pelaksana_stats.inhouse, color: '#4CAF50' },
-      { label: 'Outsource', value: dashboardData.pelaksana_stats.outsource, color: '#9C27B0' },
+      { label: 'Inhouse', value: dashboardData.pelaksana_stats.inhouse, color: '#EF4444' },
+      { label: 'Outsource', value: dashboardData.pelaksana_stats.outsource, color: '#1D4ED8' },
     ];
     if (dashboardData.pelaksana_stats.unknown > 0) {
-      data.push({ label: 'Belum Ditentukan', value: dashboardData.pelaksana_stats.unknown, color: '#9E9E9E' });
+      data.push({ label: 'Belum Ditentukan', value: dashboardData.pelaksana_stats.unknown, color: '#94A3B8' });
     }
     return data;
   }, [dashboardData?.pelaksana_stats]);
@@ -424,15 +482,15 @@ function PksiDashboardPage() {
   const approvalBreakdownChartData = useMemo(() => {
     if (!dashboardData?.approval_breakdown) return [];
     return [
-      { label: 'Tahun Ini', value: dashboardData.approval_breakdown.disetujui_tahun_ini, color: '#4CAF50' },
-      { label: 'Multiyears Sebelumnya', value: dashboardData.approval_breakdown.disetujui_multiyears_sebelumnya, color: '#FF9800' },
+      { label: 'Tahun Ini', value: dashboardData.approval_breakdown.disetujui_tahun_ini, color: '#EF4444' },
+      { label: 'Multiyears Sebelumnya', value: dashboardData.approval_breakdown.disetujui_multiyears_sebelumnya, color: '#1D4ED8' },
     ];
   }, [dashboardData?.approval_breakdown]);
 
   const bidangChartData = useMemo(() => {
     if (!dashboardData?.bidang_stats || dashboardData.bidang_stats.length === 0) return [];
     
-    const colors = ['#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#F44336', '#00BCD4', '#FFEB3B', '#795548', '#E91E63'];
+    const colors = ['#EF4444', '#1D4ED8'];
     
     return dashboardData.bidang_stats.map((stat, index) => ({
       label: stat.bidang_kode,
@@ -453,17 +511,17 @@ function PksiDashboardPage() {
 
   const getProgressColor = (progress: string): string => {
     const colorMap: Record<string, string> = {
-      'Penyusunan Usreq': '#E3F2FD',
-      'Pengadaan': '#FFF3E0',
-      'Desain': '#F3E5F5',
-      'Coding': '#E8F5E9',
-      'Unit Test': '#E0F7FA',
-      'SIT': '#FFF8E1',
-      'UAT': '#FCE4EC',
-      'Deployment': '#E8EAF6',
-      'Selesai': '#C8E6C9',
+      'Penyusunan Usreq': 'rgba(239, 68, 68, 0.15)',
+      'Pengadaan': 'rgba(248, 113, 113, 0.18)',
+      'Desain': 'rgba(252, 165, 165, 0.18)',
+      'Coding': 'rgba(254, 202, 202, 0.2)',
+      'Unit Test': 'rgba(254, 226, 226, 0.22)',
+      'SIT': 'rgba(252, 213, 213, 0.2)',
+      'UAT': 'rgba(251, 191, 36, 0.12)',
+      'Deployment': 'rgba(225, 29, 72, 0.12)',
+      'Selesai': 'rgba(244, 114, 182, 0.12)',
     };
-    return colorMap[progress] || '#F5F5F5';
+    return colorMap[progress] || 'rgba(229, 231, 235, 0.2)';
   };
 
   return (
@@ -474,24 +532,58 @@ function PksiDashboardPage() {
         p: 3,
         width: '100%',
         transition: 'margin-left 0.3s, width 0.3s',
-        bgcolor: '#f5f7fa',
+        background: 'linear-gradient(180deg, #f8fafc 0%, #f0f4f8 50%, #e8f0f8 100%)',
         minHeight: '100vh',
       }}
     >
       {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
+      <Box sx={{ mb: 4 }}>
+        <Typography 
+          variant="h4" 
+          sx={{ 
+            fontWeight: 700, 
+            color: '#111827',
+            letterSpacing: '-0.03em',
+            mb: 1,
+          }}
+        >
           Dashboard PKSI
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography 
+          variant="body2" 
+          sx={{ 
+            color: '#6B7280',
+            fontSize: '0.95rem',
+          }}
+        >
           Monitoring dan analisis data Permintaan Kebutuhan Sistem Informasi
         </Typography>
       </Box>
 
       {/* Filters */}
-      <Paper sx={{ p: 2, mb: 3, borderRadius: 2 }}>
+      <Box 
+        sx={{ 
+          p: 2.5, 
+          mb: 3, 
+          borderRadius: '20px',
+          background: 'rgba(255, 255, 255, 0.8)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          border: '1px solid rgba(255, 255, 255, 0.95)',
+          boxShadow: '0 4px 20px rgba(129, 140, 248, 0.06), inset 0 1px 0 rgba(255, 255, 255, 1)',
+        }}
+      >
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-          <FormControl size="small" sx={{ minWidth: 120 }}>
+          <FormControl 
+            size="small" 
+            sx={{ 
+              minWidth: 120,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '12px',
+                bgcolor: 'rgba(255, 255, 255, 0.8)',
+              }
+            }}
+          >
             <InputLabel>Tahun</InputLabel>
             <Select
               value={selectedTahun}
@@ -504,7 +596,16 @@ function PksiDashboardPage() {
             </Select>
           </FormControl>
 
-          <FormControl size="small" sx={{ minWidth: 150 }}>
+          <FormControl 
+            size="small" 
+            sx={{ 
+              minWidth: 150,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '12px',
+                bgcolor: 'rgba(255, 255, 255, 0.8)',
+              }
+            }}
+          >
             <InputLabel>Bulan</InputLabel>
             <Select
               value={selectedBulan}
@@ -531,15 +632,15 @@ function PksiDashboardPage() {
           </FormControl>
 
           {dashboardData?.snapshot_date && (
-            <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
-              <InfoIcon fontSize="small" color="info" />
-              <Typography variant="body2" color="text.secondary">
-                Data snapshot per: <strong>{dashboardData.snapshot_date}</strong>
+            <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderRadius: '12px', bgcolor: 'rgba(239, 68, 68, 0.12)' }}>
+              <InfoIcon fontSize="small" sx={{ color: '#EF4444' }} />
+              <Typography variant="body2" sx={{ color: '#4B5563', fontSize: '0.85rem' }}>
+                Snapshot: <strong style={{ color: '#374151' }}>{dashboardData.snapshot_date}</strong>
               </Typography>
             </Box>
           )}
         </Box>
-      </Paper>
+      </Box>
 
       {/* Loading & Error States */}
       {loading && (
@@ -569,8 +670,8 @@ function PksiDashboardPage() {
               value={dashboardData.summary.total_pksi}
               subtitle={`Tahun ${selectedTahun}`}
               icon={<DescriptionIcon />}
-              color="#1976D2"
-              bgColor="#E3F2FD"
+              color="#EF4444"
+              bgColor="#FEE2E2"
               onClick={() => handleStatCardClick('all')}
             />
             <StatCard
@@ -578,8 +679,8 @@ function PksiDashboardPage() {
               value={dashboardData.summary.total_disetujui}
               subtitle={`${dashboardData.summary.percentage_disetujui.toFixed(1)}% dari total`}
               icon={<CheckCircleIcon />}
-              color="#4CAF50"
-              bgColor="#E8F5E9"
+              color="#F87171"
+              bgColor="#FEE2E2"
               onClick={() => handleStatCardClick('disetujui')}
             />
             <StatCard
@@ -587,43 +688,59 @@ function PksiDashboardPage() {
               value={dashboardData.summary.total_pending}
               subtitle="Menunggu persetujuan"
               icon={<HourglassEmptyIcon />}
-              color="#FF9800"
-              bgColor="#FFF3E0"
+              color="#FCA5A5"
+              bgColor="#FEF2F2"
               onClick={() => handleStatCardClick('pending')}
             />
             <StatCard
               title="Ditolak"
               value={dashboardData.summary.total_ditolak}
               icon={<CancelIcon />}
-              color="#F44336"
-              bgColor="#FFEBEE"
+              color="#FECACA"
+              bgColor="#FEF2F2"
               onClick={() => handleStatCardClick('ditolak')}
             />
           </Box>
 
           {/* PKSI List Table (shown when stat card is clicked) */}
           {showPksiTable && (
-            <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+            <Box 
+              sx={{ 
+                p: 3, 
+                mb: 3, 
+                borderRadius: '24px',
+                background: 'rgba(255, 255, 255, 0.75)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.9)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              }}
+            >
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6" fontWeight={600}>
+                <Typography variant="h6" sx={{ fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.02em' }}>
                   Daftar PKSI {showPksiTable === 'all' ? '' : `- ${showPksiTable.charAt(0).toUpperCase() + showPksiTable.slice(1)}`}
                 </Typography>
                 <Chip 
                   label="Tutup" 
                   size="small" 
                   onClick={() => setShowPksiTable(null)}
-                  sx={{ cursor: 'pointer' }}
+                  sx={{ 
+                    cursor: 'pointer',
+                    bgcolor: 'rgba(0, 0, 0, 0.04)',
+                    '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.08)' },
+                    fontWeight: 500,
+                  }}
                 />
               </Box>
-              <TableContainer sx={{ maxHeight: 400 }}>
+              <TableContainer sx={{ maxHeight: 400, borderRadius: '16px', overflow: 'hidden' }}>
                 <Table stickyHeader size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: 600 }}>Nama PKSI</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Inisiatif</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Progress</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Jenis</TableCell>
+                      <TableCell sx={{ fontWeight: 600, bgcolor: 'rgba(248, 250, 252, 0.95)', color: '#374151' }}>Nama PKSI</TableCell>
+                      <TableCell sx={{ fontWeight: 600, bgcolor: 'rgba(248, 250, 252, 0.95)', color: '#374151' }}>Inisiatif</TableCell>
+                      <TableCell sx={{ fontWeight: 600, bgcolor: 'rgba(248, 250, 252, 0.95)', color: '#374151' }}>Status</TableCell>
+                      <TableCell sx={{ fontWeight: 600, bgcolor: 'rgba(248, 250, 252, 0.95)', color: '#374151' }}>Progress</TableCell>
+                      <TableCell sx={{ fontWeight: 600, bgcolor: 'rgba(248, 250, 252, 0.95)', color: '#374151' }}>Jenis</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -642,10 +759,13 @@ function PksiDashboardPage() {
                           <Chip 
                             size="small"
                             label={pksi.status}
-                            color={
-                              pksi.status === 'DISETUJUI' ? 'success' : 
-                              pksi.status === 'PENDING' ? 'warning' : 'error'
-                            }
+                            variant="outlined"
+                            sx={{
+                              borderColor: 'rgba(239, 68, 68, 0.45)',
+                              color: '#4B5563',
+                              bgcolor: 'rgba(239, 68, 68, 0.08)',
+                              fontWeight: 500,
+                            }}
                           />
                         </TableCell>
                         <TableCell>{pksi.progress || '-'}</TableCell>
@@ -654,7 +774,12 @@ function PksiDashboardPage() {
                             size="small"
                             label={pksi.is_multiyear ? 'Multiyears' : 'Single Year'}
                             variant="outlined"
-                            color={pksi.is_multiyear ? 'warning' : 'info'}
+                            sx={{
+                              borderColor: 'rgba(239, 68, 68, 0.45)',
+                              color: '#4B5563',
+                              bgcolor: 'rgba(239, 68, 68, 0.08)',
+                              fontWeight: 500,
+                            }}
                           />
                         </TableCell>
                       </TableRow>
@@ -669,27 +794,67 @@ function PksiDashboardPage() {
                   </TableBody>
                 </Table>
               </TableContainer>
-            </Paper>
+            </Box>
           )}
 
           {/* Progress Insights - Grouped Progress Cards */}
           {dashboardData.progress_by_bidang && dashboardData.progress_by_bidang.length > 0 && (
-            <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
-              <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-                <AssessmentIcon color="primary" />
+            <Box 
+              sx={{ 
+                p: 3, 
+                mb: 3, 
+                borderRadius: '24px',
+                background: '#FFFFFF',
+                border: '1px solid rgba(239, 68, 68, 0.28)',
+                boxShadow: '0 10px 30px rgba(239, 68, 68, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.95)',
+                position: 'relative',
+                overflow: 'hidden',
+                '&:before': {
+                  content: '""',
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(248, 113, 113, 0.0) 45%)',
+                  pointerEvents: 'none',
+                },
+              }}
+            >
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  fontWeight: 700, 
+                  color: '#111827',
+                  letterSpacing: '-0.02em',
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 1.5, 
+                  mb: 3,
+                  position: 'relative',
+                  zIndex: 1,
+                }}
+              >
+                <Box sx={{ 
+                  p: 1, 
+                  borderRadius: '10px', 
+                  background: 'rgba(239, 68, 68, 0.16)',
+                  border: '1px solid rgba(239, 68, 68, 0.28)',
+                }}>
+                  <AssessmentIcon sx={{ color: '#B91C1C', fontSize: 22 }} />
+                </Box>
                 Progress Overview
               </Typography>
               <Box sx={{ 
                 display: 'grid', 
                 gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, 
-                gap: 3 
+                gap: 3,
+                position: 'relative',
+                zIndex: 1,
               }}>
                 {/* Early Stage */}
                 <PhaseInsightCard 
                   title="Early Stage"
                   icon={<PlayArrowIcon />}
-                  color="#667eea"
-                  bgGradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                  color="#F87171"
+                  bgGradient="linear-gradient(135deg, rgba(248, 113, 113, 0.88) 0%, rgba(252, 165, 165, 0.88) 100%)"
                   progressItems={dashboardData.progress_by_bidang
                     .filter(row => ['Penyusunan Usreq', 'Pengadaan'].includes(row.progress))
                     .map(row => ({ progress: row.progress_label, count: row.total }))}
@@ -702,8 +867,8 @@ function PksiDashboardPage() {
                 <PhaseInsightCard 
                   title="Development"
                   icon={<CodeIcon />}
-                  color="#2196F3"
-                  bgGradient="linear-gradient(135deg, #2196F3 0%, #21CBF3 100%)"
+                  color="#EF4444"
+                  bgGradient="linear-gradient(135deg, rgba(239, 68, 68, 0.88) 0%, rgba(248, 113, 113, 0.88) 100%)"
                   progressItems={dashboardData.progress_by_bidang
                     .filter(row => ['Desain', 'Coding', 'Unit Test'].includes(row.progress))
                     .map(row => ({ progress: row.progress_label, count: row.total }))}
@@ -716,8 +881,8 @@ function PksiDashboardPage() {
                 <PhaseInsightCard 
                   title="Testing"
                   icon={<BugReportIcon />}
-                  color="#FF9800"
-                  bgGradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
+                  color="#FCA5A5"
+                  bgGradient="linear-gradient(135deg, rgba(252, 165, 165, 0.88) 0%, rgba(254, 202, 202, 0.88) 100%)"
                   progressItems={dashboardData.progress_by_bidang
                     .filter(row => ['SIT', 'UAT'].includes(row.progress))
                     .map(row => ({ progress: row.progress_label, count: row.total }))}
@@ -730,8 +895,8 @@ function PksiDashboardPage() {
                 <PhaseInsightCard 
                   title="Deployment"
                   icon={<RocketIcon />}
-                  color="#4CAF50"
-                  bgGradient="linear-gradient(135deg, #11998e 0%, #38ef7d 100%)"
+                  color="#FECACA"
+                  bgGradient="linear-gradient(135deg, rgba(254, 202, 202, 0.88) 0%, rgba(254, 226, 226, 0.88) 100%)"
                   progressItems={dashboardData.progress_by_bidang
                     .filter(row => ['Deployment', 'Selesai'].includes(row.progress))
                     .map(row => ({ progress: row.progress_label, count: row.total }))}
@@ -740,12 +905,23 @@ function PksiDashboardPage() {
                   expandedProgress={expandedProgress}
                 />
               </Box>
-            </Paper>
+            </Box>
           )}
 
           {/* Progress Detail - PKSI List */}
           {expandedProgress && dashboardData?.pksi_list && (
-            <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+            <Box 
+              sx={{ 
+                p: 3, 
+                mb: 3, 
+                borderRadius: '24px',
+                background: 'rgba(255, 255, 255, 0.75)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.9)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              }}
+            >
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                 <Typography variant="h6" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <AssignmentIcon color="primary" />
@@ -769,7 +945,7 @@ function PksiDashboardPage() {
                   <TableContainer sx={{ maxWidth: '100%' }}>
                     <Table size="small">
                       <TableHead>
-                        <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                        <TableRow sx={{ bgcolor: 'rgba(129, 140, 248, 0.08)' }}>
                           <TableCell sx={{ fontWeight: 600 }}>Nama PKSI</TableCell>
                           <TableCell sx={{ fontWeight: 600 }}>Inisiatif</TableCell>
                           <TableCell sx={{ fontWeight: 600 }}>Bidang</TableCell>
@@ -825,14 +1001,25 @@ function PksiDashboardPage() {
                   </Box>
                 );
               })()}
-            </Paper>
+            </Box>
           )}
 
           {/* Deadline Insights */}
           {dashboardData.progress_insights && (
-            <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }}>
-              <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-                <ScheduleIcon color="primary" />
+            <Box 
+              sx={{ 
+                p: 3, 
+                mb: 3, 
+                borderRadius: '24px',
+                background: 'rgba(255, 255, 255, 0.75)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.9)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              }}
+            >
+              <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, color: '#4B5563' }}>
+                <ScheduleIcon sx={{ color: '#EF4444' }} />
                 Target Penyelesaian
               </Typography>
               <Box sx={{ 
@@ -849,7 +1036,7 @@ function PksiDashboardPage() {
                   isPrimary={false}
                 />
               </Box>
-            </Paper>
+            </Box>
           )}
 
           {/* Approval Breakdown & Charts */}
@@ -860,9 +1047,20 @@ function PksiDashboardPage() {
             mb: 3 
           }}>
             {/* Approval Breakdown */}
-            <Paper sx={{ p: 3, borderRadius: 2, height: '100%' }}>
-              <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CalendarMonthIcon color="primary" />
+            <Box 
+              sx={{ 
+                p: 3, 
+                borderRadius: '24px', 
+                height: '100%',
+                background: 'rgba(255, 255, 255, 0.75)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.9)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              }}
+            >
+              <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#4B5563' }}>
+                <CalendarMonthIcon sx={{ color: '#EF4444' }} />
                 Breakdown PKSI Disetujui
               </Typography>
               <DonutChart 
@@ -871,12 +1069,23 @@ function PksiDashboardPage() {
                 size={160}
                 strokeWidth={20}
               />
-            </Paper>
+            </Box>
 
             {/* Jenis PKSI Chart */}
-            <Paper sx={{ p: 3, borderRadius: 2, height: '100%' }}>
-              <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <TrendingUpIcon color="primary" />
+            <Box 
+              sx={{ 
+                p: 3, 
+                borderRadius: '24px', 
+                height: '100%',
+                background: 'rgba(255, 255, 255, 0.75)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.9)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              }}
+            >
+              <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#4B5563' }}>
+                <TrendingUpIcon sx={{ color: '#F87171' }} />
                 Jenis PKSI
               </Typography>
               <DonutChart 
@@ -885,12 +1094,23 @@ function PksiDashboardPage() {
                 size={160}
                 strokeWidth={20}
               />
-            </Paper>
+            </Box>
 
             {/* Pelaksana Chart */}
-            <Paper sx={{ p: 3, borderRadius: 2, height: '100%' }}>
-              <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CodeIcon color="primary" />
+            <Box 
+              sx={{ 
+                p: 3, 
+                borderRadius: '24px', 
+                height: '100%',
+                background: 'rgba(255, 255, 255, 0.75)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.9)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              }}
+            >
+              <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#4B5563' }}>
+                <CodeIcon sx={{ color: '#FCA5A5' }} />
                 Pelaksana
               </Typography>
               <DonutChart 
@@ -899,12 +1119,23 @@ function PksiDashboardPage() {
                 size={160}
                 strokeWidth={20}
               />
-            </Paper>
+            </Box>
 
             {/* Bidang Chart */}
-            <Paper sx={{ p: 3, borderRadius: 2, height: '100%' }}>
-              <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <BusinessIcon color="primary" />
+            <Box 
+              sx={{ 
+                p: 3, 
+                borderRadius: '24px', 
+                height: '100%',
+                background: 'rgba(255, 255, 255, 0.75)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.9)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+              }}
+            >
+              <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#4B5563' }}>
+                <BusinessIcon sx={{ color: '#FECACA' }} />
                 PKSI per Bidang
               </Typography>
               <DonutChart 
@@ -913,20 +1144,30 @@ function PksiDashboardPage() {
                 size={160}
                 strokeWidth={20}
               />
-            </Paper>
+            </Box>
           </Box>
 
           {/* Progress by Bidang Matrix */}
-          <Paper sx={{ p: 3, borderRadius: 2 }}>
-            <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <BusinessIcon color="primary" />
+          <Box 
+            sx={{ 
+              p: 3, 
+              borderRadius: '24px',
+              background: 'rgba(255, 255, 255, 0.75)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.9)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+            }}
+          >
+            <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#4B5563' }}>
+              <BusinessIcon sx={{ color: '#EF4444' }} />
               Progress PKSI per Bidang
             </Typography>
             <TableContainer sx={{ maxWidth: '100%', overflowX: 'auto' }}>
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 600, minWidth: 150, position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 1 }}>
+                    <TableCell sx={{ fontWeight: 600, minWidth: 150, position: 'sticky', left: 0, bgcolor: 'rgba(255, 255, 255, 0.9)', zIndex: 1 }}>
                       Progress
                     </TableCell>
                     {dashboardData.bidang_list.map((bidang) => (
@@ -963,8 +1204,12 @@ function PksiDashboardPage() {
                               <Chip 
                                 label={row.counts_by_bidang[bidang.kode_bidang]} 
                                 size="small"
-                                color="primary"
                                 variant="outlined"
+                                sx={{
+                                  borderColor: 'rgba(239, 68, 68, 0.45)',
+                                  color: '#4B5563',
+                                  bgcolor: 'rgba(239, 68, 68, 0.08)',
+                                }}
                               />
                             ) : (
                               <Typography color="text.disabled">-</Typography>
@@ -975,7 +1220,12 @@ function PksiDashboardPage() {
                           <Chip 
                             label={row.total} 
                             size="small"
-                            color={row.total > 0 ? 'primary' : 'default'}
+                            variant="outlined"
+                            sx={{
+                              borderColor: 'rgba(239, 68, 68, 0.45)',
+                              color: '#4B5563',
+                              bgcolor: row.total > 0 ? 'rgba(239, 68, 68, 0.08)' : 'rgba(148, 163, 184, 0.08)',
+                            }}
                           />
                         </TableCell>
                         <TableCell>
@@ -987,7 +1237,7 @@ function PksiDashboardPage() {
                       <TableRow>
                         <TableCell colSpan={dashboardData.bidang_list.length + 3} sx={{ p: 0 }}>
                           <Collapse in={expandedProgress === row.progress} timeout="auto" unmountOnExit>
-                            <Box sx={{ p: 2, bgcolor: '#FAFAFA' }}>
+                            <Box sx={{ p: 2, bgcolor: 'rgba(249, 250, 251, 0.8)' }}>
                               <Typography variant="subtitle2" gutterBottom>
                                 PKSI dalam tahap {row.progress_label}:
                               </Typography>
@@ -1012,8 +1262,8 @@ function PksiDashboardPage() {
                     </>
                   ))}
                   {/* Grand Total Row */}
-                  <TableRow sx={{ bgcolor: '#E3F2FD' }}>
-                    <TableCell sx={{ fontWeight: 700, position: 'sticky', left: 0, bgcolor: '#E3F2FD', zIndex: 1 }}>
+                  <TableRow sx={{ bgcolor: 'rgba(165, 180, 252, 0.15)' }}>
+                    <TableCell sx={{ fontWeight: 700, position: 'sticky', left: 0, bgcolor: 'rgba(165, 180, 252, 0.25)', zIndex: 1 }}>
                       Grand Total
                     </TableCell>
                     {dashboardData.bidang_list.map((bidang) => {
@@ -1036,7 +1286,7 @@ function PksiDashboardPage() {
                 </TableBody>
               </Table>
             </TableContainer>
-          </Paper>
+          </Box>
         </>
       )}
     </Box>
