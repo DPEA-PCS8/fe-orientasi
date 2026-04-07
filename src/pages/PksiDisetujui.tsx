@@ -4078,7 +4078,7 @@ function PksiDisetujui() {
           </Button>
           <Button
             onClick={handleEditSubmit}
-            disabled={!editForm.pic || editForm.anggotaTim.length === 0 || isSubmittingEdit}
+            disabled={!editForm.teamId || isSubmittingEdit}
             variant="contained"
             startIcon={isSubmittingEdit ? <CircularProgress size={16} color="inherit" /> : null}
             sx={{
