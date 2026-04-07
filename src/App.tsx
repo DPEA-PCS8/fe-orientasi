@@ -9,6 +9,7 @@ import AddProgram from './pages/AddProgram';
 import AddInisiatif from './pages/AddInisiatif';
 import PksiList from './pages/PksiList';
 import PksiDisetujui from './pages/PksiDisetujui';
+import PksiDashboardPage from './pages/PksiDashboardPage';
 import RbsiManagementPage from './pages/RbsiManagementPage';
 import RbsiArsitekturPage from './pages/RbsiArsitekturPage';
 import RbsiDashboardPage from './pages/RbsiDashboardPage';
@@ -68,6 +69,16 @@ function App() {
               <ProtectedRoute requireMenuPermission="PKSI_APPROVED">
                 <Layout>
                   <PksiDisetujui />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/pksi-dashboard" 
+            element={
+              <ProtectedRoute requireMenuPermission="PKSI_DASHBOARD">
+                <Layout>
+                  <PksiDashboardPage />
                 </Layout>
               </ProtectedRoute>
             } 
