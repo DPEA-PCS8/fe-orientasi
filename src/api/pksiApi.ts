@@ -88,6 +88,9 @@ export interface PksiDocumentData {
   kontrak_jumlah_termin?: string;
   kontrak_detail_pembayaran?: string;
   ba_deploy?: string;
+  // Team
+  team_id?: string;
+  team_name?: string;
   // Legacy
   tujuan_pengajuan?: string;
   kapan_diselesaikan?: string;
@@ -290,6 +293,7 @@ export interface UpdateApprovalRequest {
   anggota_tim?: string;
   anggota_tim_names?: string;
   progress?: string;
+  team_id?: string;
   // New fields
   program_rbsi?: string;
   inisiatif_rbsi?: string;
@@ -526,8 +530,12 @@ export interface PksiChangelogResponse {
  * Get changelogs for a specific PKSI document
  */
 export async function getPksiChangelogs(pksiId: string): Promise<PksiChangelogResponse> {
-  const response = await apiRequest<PksiChangelogResponse>(`${BASE_URL}/pksi/${pksiId}/changelogs`, 'GET');
-  return response.data;
+  const response = await apiRequest<PksiChangelogEntry[]>(`${BASE_URL}/pksi/${pksiId}/changelogs`, 'GET');
+  // Backend returns array directly, wrap it in expected format
+  return {
+    changelogs: response.data || [],
+    total_count: response.data?.length || 0,
+  };
 }
 
 // ==================== DASHBOARD TYPES ====================
