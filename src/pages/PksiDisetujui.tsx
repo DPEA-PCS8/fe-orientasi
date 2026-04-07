@@ -64,6 +64,7 @@ import {
   downloadPksiFile,
   type PksiFileData 
 } from '../api/pksiFileApi';
+import { getAllTeams, type Team } from '../api/teamApi';
 
 // Interface untuk data PKSI (transformed from API)
 interface PksiData {
@@ -77,6 +78,8 @@ interface PksiData {
   picUuid: string;
   anggotaTim: string;
   anggotaTimUuids: string;
+  teamId: string;
+  teamName: string;
   iku: string;
   inhouseOutsource: string;
   jangkaWaktu: string;
@@ -168,6 +171,8 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     picUuid: apiData.pic_approval || '',
     anggotaTim: apiData.anggota_tim_names || apiData.anggota_tim || apiData.pengguna_aplikasi || '-',
     anggotaTimUuids: apiData.anggota_tim || '',
+    teamId: apiData.team_id || '',
+    teamName: apiData.team_name || '',
     iku: apiData.iku || '-',
     inhouseOutsource: apiData.inhouse_outsource || '-',
     jangkaWaktu: jangkaWaktu,
@@ -328,10 +333,7 @@ function PksiDisetujui() {
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [selectedPksiForEdit, setSelectedPksiForEdit] = useState<PksiData | null>(null);
   const [editForm, setEditForm] = useState({
-    pic: '',
-    picName: '',
-    anggotaTim: [] as string[],
-    anggotaTimNames: [] as string[],
+    teamId: '',
     iku: 'ya',
     inhouseOutsource: 'inhouse',
     progress: 'Penyusunan Usreq',
@@ -383,7 +385,11 @@ function PksiDisetujui() {
   const [eligibleUsers, setEligibleUsers] = useState<UserSimple[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
-  // Fetch eligible users on mount
+  // Teams for selection
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [isLoadingTeams, setIsLoadingTeams] = useState(false);
+
+  // Fetch eligible users and teams on mount
   useEffect(() => {
     const fetchEligibleUsers = async () => {
       setIsLoadingUsers(true);
@@ -397,7 +403,22 @@ function PksiDisetujui() {
         setIsLoadingUsers(false);
       }
     };
+    
+    const fetchTeams = async () => {
+      setIsLoadingTeams(true);
+      try {
+        const teamList = await getAllTeams();
+        setTeams(teamList);
+      } catch (error) {
+        console.error('Failed to fetch teams:', error);
+        setTeams([]);
+      } finally {
+        setIsLoadingTeams(false);
+      }
+    };
+    
     fetchEligibleUsers();
+    fetchTeams();
   }, []);
 
   const handleViewClick = (pksiId: string) => {
@@ -408,19 +429,8 @@ function PksiDisetujui() {
   const handleEditClick = async (pksi: PksiData) => {
     setSelectedPksiForEdit(pksi);
     
-    // Parse existing anggota tim UUIDs and names
-    const existingUuids = pksi.anggotaTimUuids && pksi.anggotaTimUuids !== '-' 
-      ? pksi.anggotaTimUuids.split(',').map(s => s.trim()).filter(Boolean)
-      : [];
-    const existingNames = pksi.anggotaTim && pksi.anggotaTim !== '-'
-      ? pksi.anggotaTim.split(',').map(s => s.trim()).filter(Boolean)
-      : [];
-    
     setEditForm({
-      pic: pksi.picUuid || '',
-      picName: pksi.pic !== '-' ? pksi.pic : '',
-      anggotaTim: existingUuids,
-      anggotaTimNames: existingNames,
+      teamId: pksi.teamId || '',
       iku: pksi.iku !== '-' ? pksi.iku : 'ya',
       inhouseOutsource: pksi.inhouseOutsource !== '-' ? pksi.inhouseOutsource : 'inhouse',
       progress: pksi.progress || 'Penyusunan Usreq',
@@ -487,10 +497,7 @@ function PksiDisetujui() {
       await updatePksiApproval(selectedPksiForEdit.id, {
         iku: editForm.iku,
         inhouse_outsource: editForm.inhouseOutsource,
-        pic_approval: editForm.pic,
-        pic_approval_name: editForm.picName,
-        anggota_tim: editForm.anggotaTim.join(', '),
-        anggota_tim_names: editForm.anggotaTimNames.join(', '),
+        team_id: editForm.teamId || undefined,
         progress: editForm.progress,
         // New fields (removed program_rbsi, inisiatif_rbsi is read-only)
         anggaran_total: editForm.anggaranTotal || undefined,
@@ -3040,29 +3047,27 @@ function PksiDisetujui() {
             Informasi Persetujuan
           </Typography>
 
-          {/* PIC Field - Liquid Glass Style */}
+          {/* Tim Field - Liquid Glass Style */}
           <FormControl fullWidth sx={{ mb: 2 }}>
             <InputLabel 
-              id="edit-pic-label"
+              id="edit-team-label"
               sx={{
                 '&.Mui-focused': { color: '#D97706' },
               }}
             >
-              PIC *
+              Tim *
             </InputLabel>
             <Select
-              labelId="edit-pic-label"
-              value={editForm.pic}
-              label="PIC *"
+              labelId="edit-team-label"
+              value={editForm.teamId}
+              label="Tim *"
               onChange={(e) => {
-                const selectedUser = eligibleUsers.find(u => u.uuid === e.target.value);
                 setEditForm({ 
                   ...editForm, 
-                  pic: e.target.value,
-                  picName: selectedUser?.full_name || '',
+                  teamId: e.target.value,
                 });
               }}
-              disabled={isLoadingUsers}
+              disabled={isLoadingTeams}
               sx={{
                 borderRadius: '14px',
                 backgroundColor: 'rgba(255, 255, 255, 0.7)',
@@ -3088,97 +3093,71 @@ function PksiDisetujui() {
                 },
               }}
             >
-              <MenuItem value=""><em>Pilih PIC</em></MenuItem>
-              {eligibleUsers.map((user) => (
-                <MenuItem key={user.uuid} value={user.uuid}>
-                  {user.full_name} ({user.department || 'No Dept'})
+              <MenuItem value=""><em>Pilih Tim</em></MenuItem>
+              {teams.map((team) => (
+                <MenuItem key={team.id} value={team.id}>
+                  {team.name} {team.pic ? `(PIC: ${team.pic.fullName})` : ''}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
 
-          {/* Anggota Tim Field - Liquid Glass Style */}
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <Autocomplete
-              multiple
-              options={eligibleUsers}
-              getOptionLabel={(option) => typeof option === 'string' ? option : option.full_name}
-              value={eligibleUsers.filter(u => editForm.anggotaTim.includes(u.uuid))}
-              onChange={(_, newValue) => {
-                const users = newValue as UserSimple[];
-                setEditForm({ 
-                  ...editForm, 
-                  anggotaTim: users.map(u => u.uuid),
-                  anggotaTimNames: users.map(u => u.full_name),
-                });
-              }}
-              loading={isLoadingUsers}
-              isOptionEqualToValue={(option, value) => option.uuid === value.uuid}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Anggota Tim *"
-                  placeholder="Pilih anggota tim"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: '14px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                      backdropFilter: 'blur(10px)',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '& fieldset': {
-                        borderColor: 'rgba(0, 0, 0, 0.08)',
-                        transition: 'all 0.3s ease',
-                      },
-                      '&:hover': {
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        '& fieldset': {
-                          borderColor: 'rgba(217, 119, 6, 0.3)',
-                        },
-                      },
-                      '&.Mui-focused': {
-                        backgroundColor: 'rgba(255, 255, 255, 1)',
-                        boxShadow: '0 4px 20px rgba(217, 119, 6, 0.12)',
-                        '& fieldset': {
-                          borderColor: '#D97706',
-                          borderWidth: '1.5px',
-                        },
-                      },
-                    },
-                    '& .MuiInputLabel-root.Mui-focused': {
-                      color: '#D97706',
-                    },
-                  }}
-                />
-              )}
-              renderTags={(value, getTagProps) =>
-                value.map((option, index) => {
-                  const { key, ...tagProps } = getTagProps({ index });
-                  return (
-                    <Chip
-                      key={key}
-                      label={option.full_name}
-                      size="small"
-                      {...tagProps}
-                      sx={{ 
-                        background: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)',
-                        color: 'white',
-                        fontWeight: 500,
-                        fontSize: '0.75rem',
-                        borderRadius: '8px',
-                        boxShadow: '0 2px 8px rgba(217, 119, 6, 0.25)',
-                        '& .MuiChip-deleteIcon': {
-                          color: 'rgba(255, 255, 255, 0.8)',
-                          '&:hover': {
-                            color: 'white',
-                          },
-                        },
-                      }}
-                    />
-                  );
-                })
-              }
-            />
-          </FormControl>
+          {/* Display selected team info */}
+          {editForm.teamId && teams.find(t => t.id === editForm.teamId) && (
+            <Box sx={{ 
+              mb: 2, 
+              p: 2, 
+              borderRadius: '12px', 
+              bgcolor: 'rgba(217, 119, 6, 0.05)',
+              border: '1px solid rgba(217, 119, 6, 0.1)',
+            }}>
+              <Typography sx={{ fontSize: '0.75rem', color: '#86868b', mb: 1, fontWeight: 600, textTransform: 'uppercase' }}>
+                Info Tim
+              </Typography>
+              {(() => {
+                const selectedTeam = teams.find(t => t.id === editForm.teamId);
+                return (
+                  <>
+                    <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography sx={{ fontSize: '0.7rem', color: '#86868b' }}>PIC</Typography>
+                        <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: '#1d1d1f' }}>
+                          {selectedTeam?.pic?.fullName || '-'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography sx={{ fontSize: '0.7rem', color: '#86868b' }}>Jumlah Anggota</Typography>
+                        <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: '#1d1d1f' }}>
+                          {selectedTeam?.members?.length || 0} orang
+                        </Typography>
+                      </Box>
+                    </Box>
+                    {selectedTeam?.members && selectedTeam.members.length > 0 && (
+                      <Box>
+                        <Typography sx={{ fontSize: '0.7rem', color: '#86868b', mb: 0.5 }}>Anggota</Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {selectedTeam.members.map((member) => (
+                            <Chip
+                              key={member.uuid}
+                              label={member.fullName}
+                              size="small"
+                              sx={{
+                                bgcolor: 'rgba(217, 119, 6, 0.1)',
+                                color: '#D97706',
+                                fontWeight: 500,
+                                fontSize: '0.7rem',
+                                height: 24,
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      </Box>
+                    )}
+                  </>
+                );
+              })()}
+            </Box>
+          )}
 
           {/* IKU & Inhouse/Outsource - Side by Side */}
           <Box sx={{ display: 'flex', gap: 2 }}>

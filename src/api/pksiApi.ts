@@ -88,6 +88,9 @@ export interface PksiDocumentData {
   kontrak_jumlah_termin?: string;
   kontrak_detail_pembayaran?: string;
   ba_deploy?: string;
+  // Team
+  team_id?: string;
+  team_name?: string;
   // Legacy
   tujuan_pengajuan?: string;
   kapan_diselesaikan?: string;
@@ -290,6 +293,7 @@ export interface UpdateApprovalRequest {
   anggota_tim?: string;
   anggota_tim_names?: string;
   progress?: string;
+  team_id?: string;
   // New fields
   program_rbsi?: string;
   inisiatif_rbsi?: string;
