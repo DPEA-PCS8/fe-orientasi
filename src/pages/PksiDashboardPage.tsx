@@ -82,34 +82,41 @@ const DonutChart = ({ data, size = 180, strokeWidth = 24, title }: DonutChartPro
 
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  let currentOffset = 0;
+  const segments = data.reduce(
+    (acc, item) => {
+      const percentage = item.value / total;
+      const strokeDasharray = `${percentage * circumference} ${circumference}`;
+      const strokeDashoffset = -acc.currentOffset;
+      acc.currentOffset += percentage * circumference;
+      acc.items.push({
+        ...item,
+        strokeDasharray,
+        strokeDashoffset,
+      });
+      return acc;
+    },
+    { currentOffset: 0, items: [] as Array<{ label: string; value: number; color: string; strokeDasharray: string; strokeDashoffset: number }> }
+  ).items;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
       {title && <Typography variant="subtitle1" fontWeight={600}>{title}</Typography>}
       <Box sx={{ position: 'relative', width: size, height: size }}>
         <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-          {data.map((item, index) => {
-            const percentage = item.value / total;
-            const strokeDasharray = `${percentage * circumference} ${circumference}`;
-            const strokeDashoffset = -currentOffset;
-            currentOffset += percentage * circumference;
-
-            return (
-              <circle
-                key={index}
-                cx={size / 2}
-                cy={size / 2}
-                r={radius}
-                fill="none"
-                stroke={item.color}
-                strokeWidth={strokeWidth}
-                strokeDasharray={strokeDasharray}
-                strokeDashoffset={strokeDashoffset}
-                style={{ transition: 'all 0.5s ease-in-out' }}
-              />
-            );
-          })}
+          {segments.map((item, index) => (
+            <circle
+              key={index}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke={item.color}
+              strokeWidth={strokeWidth}
+              strokeDasharray={item.strokeDasharray}
+              strokeDashoffset={item.strokeDashoffset}
+              style={{ transition: 'all 0.5s ease-in-out' }}
+            />
+          ))}
         </svg>
         <Box sx={{
           position: 'absolute',
@@ -230,14 +237,13 @@ interface PhaseInsightCardProps {
   title: string;
   icon: React.ReactNode;
   color: string;
-  bgGradient: string;
   progressItems: Array<{ progress: string; count: number }>;
   totalPksi: number;
   onProgressClick?: (progress: string) => void;
   expandedProgress?: string | null;
 }
 
-const PhaseInsightCard = ({ title, icon, color, bgGradient, progressItems, totalPksi, onProgressClick, expandedProgress }: PhaseInsightCardProps) => {
+const PhaseInsightCard = ({ title, icon, color, progressItems, totalPksi, onProgressClick, expandedProgress }: PhaseInsightCardProps) => {
   const totalCount = progressItems.reduce((sum, item) => sum + item.count, 0);
   const percentage = totalPksi > 0 ? (totalCount / totalPksi) * 100 : 0;
   
@@ -854,7 +860,6 @@ function PksiDashboardPage() {
                   title="Early Stage"
                   icon={<PlayArrowIcon />}
                   color="#F87171"
-                  bgGradient="linear-gradient(135deg, rgba(248, 113, 113, 0.88) 0%, rgba(252, 165, 165, 0.88) 100%)"
                   progressItems={dashboardData.progress_by_bidang
                     .filter(row => ['Penyusunan Usreq', 'Pengadaan'].includes(row.progress))
                     .map(row => ({ progress: row.progress_label, count: row.total }))}
@@ -868,7 +873,6 @@ function PksiDashboardPage() {
                   title="Development"
                   icon={<CodeIcon />}
                   color="#EF4444"
-                  bgGradient="linear-gradient(135deg, rgba(239, 68, 68, 0.88) 0%, rgba(248, 113, 113, 0.88) 100%)"
                   progressItems={dashboardData.progress_by_bidang
                     .filter(row => ['Desain', 'Coding', 'Unit Test'].includes(row.progress))
                     .map(row => ({ progress: row.progress_label, count: row.total }))}
@@ -882,7 +886,6 @@ function PksiDashboardPage() {
                   title="Testing"
                   icon={<BugReportIcon />}
                   color="#FCA5A5"
-                  bgGradient="linear-gradient(135deg, rgba(252, 165, 165, 0.88) 0%, rgba(254, 202, 202, 0.88) 100%)"
                   progressItems={dashboardData.progress_by_bidang
                     .filter(row => ['SIT', 'UAT'].includes(row.progress))
                     .map(row => ({ progress: row.progress_label, count: row.total }))}
@@ -896,7 +899,6 @@ function PksiDashboardPage() {
                   title="Deployment"
                   icon={<RocketIcon />}
                   color="#FECACA"
-                  bgGradient="linear-gradient(135deg, rgba(254, 202, 202, 0.88) 0%, rgba(254, 226, 226, 0.88) 100%)"
                   progressItems={dashboardData.progress_by_bidang
                     .filter(row => ['Deployment', 'Selesai'].includes(row.progress))
                     .map(row => ({ progress: row.progress_label, count: row.total }))}
