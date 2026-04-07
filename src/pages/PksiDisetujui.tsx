@@ -2525,9 +2525,25 @@ function PksiDisetujui() {
                   </TableCell>
                   {/* BA Deploy */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.baDeploy || '-'}
-                    </Typography>
+                    {item.baDeploy && item.baDeploy !== '-' ? (
+                      <a
+                        href={item.baDeploy.startsWith('http') ? item.baDeploy : `https://${item.baDeploy}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: '#7C3AED',
+                          textDecoration: 'none',
+                          fontSize: '0.8rem',
+                          fontWeight: 500,
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                        onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                      >
+                        Lihat BA Deploy
+                      </a>
+                    ) : (
+                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
+                    )}
                   </TableCell>
                   {/* Aksi */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
@@ -4017,16 +4033,17 @@ function PksiDisetujui() {
 
           <TextField
             fullWidth
-            label="BA Deploy"
+            label="Link BA Deploy"
             value={editForm.baDeploy}
             onChange={(e) => setEditForm({ ...editForm, baDeploy: e.target.value })}
-            placeholder="Link atau nama dokumen BA Deploy"
+            placeholder="https://example.com/ba-deploy.pdf atau nama dokumen"
+            helperText="Masukkan URL lengkap untuk dokumen BA Deploy"
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: '14px',
                 backgroundColor: 'rgba(255, 255, 255, 0.7)',
                 '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.08)' },
-                '&:hover fieldset': { borderColor: 'rgba(217, 119, 6, 0.3)' },
+                '&:hover fieldset': { borderColor: 'rgba(124, 58, 237, 0.3)' },
                 '&.Mui-focused fieldset': { borderColor: '#D97706' },
               },
               '& .MuiInputLabel-root.Mui-focused': { color: '#D97706' },
