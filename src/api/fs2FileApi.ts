@@ -13,6 +13,7 @@ export interface Fs2FileData {
   content_type: string;
   file_size: number;
   blob_url: string;
+  file_type: string; // ND, FS2, CD, FS2A, FS2B, F45, F46, NDBA
   created_at: string;
 }
 
@@ -26,8 +27,11 @@ export interface Fs2FileResponse {
 
 /**
  * Upload files for a F.S.2 document
+ * @param fs2Id - The F.S.2 document ID
+ * @param files - The files to upload
+ * @param fileType - The file type: ND, FS2, CD, FS2A, FS2B, F45, F46, NDBA
  */
-export async function uploadFs2Files(fs2Id: string, files: File[]): Promise<Fs2FileData[]> {
+export async function uploadFs2Files(fs2Id: string, files: File[], fileType: string = 'FS2'): Promise<Fs2FileData[]> {
   const token = getAuthToken();
   
   if (!token) {
@@ -39,7 +43,7 @@ export async function uploadFs2Files(fs2Id: string, files: File[]): Promise<Fs2F
     formData.append('files', file);
   });
 
-  const response = await fetch(`${BASE_URL}/fs2/files/upload/${fs2Id}`, {
+  const response = await fetch(`${BASE_URL}/fs2/files/upload/${fs2Id}?fileType=${fileType}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -59,8 +63,11 @@ export async function uploadFs2Files(fs2Id: string, files: File[]): Promise<Fs2F
 
 /**
  * Upload files to temporary storage (before F.S.2 is created)
+ * @param sessionId - The session ID for temp files
+ * @param files - The files to upload
+ * @param fileType - The file type: ND, FS2, CD, FS2A, FS2B, F45, F46, NDBA
  */
-export async function uploadFs2TempFiles(sessionId: string, files: File[]): Promise<Fs2FileData[]> {
+export async function uploadFs2TempFiles(sessionId: string, files: File[], fileType: string = 'FS2'): Promise<Fs2FileData[]> {
   const token = getAuthToken();
   
   if (!token) {
@@ -72,7 +79,7 @@ export async function uploadFs2TempFiles(sessionId: string, files: File[]): Prom
     formData.append('files', file);
   });
 
-  const response = await fetch(`${BASE_URL}/fs2/files/temp/upload/${sessionId}`, {
+  const response = await fetch(`${BASE_URL}/fs2/files/temp/upload/${sessionId}?fileType=${fileType}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -197,9 +204,9 @@ export async function getFs2FileById(fileId: string): Promise<Fs2FileData> {
 }
 
 /**
- * Download file - returns blob URL for download
+ * Download file - triggers browser download
  */
-export async function downloadFs2File(fileId: string): Promise<Blob> {
+export async function downloadFs2File(fileId: string, fileName?: string): Promise<void> {
   const token = getAuthToken();
   
   if (!token) {
@@ -219,7 +226,17 @@ export async function downloadFs2File(fileId: string): Promise<Blob> {
     throw new Error(errorData.message || `Download failed: ${response.statusText}`);
   }
 
-  return response.blob();
+  const blob = await response.blob();
+  
+  // Create download link
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName || 'download';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 }
 
 /**

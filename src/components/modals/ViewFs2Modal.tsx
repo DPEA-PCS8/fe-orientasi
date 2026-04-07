@@ -33,7 +33,6 @@ import {
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
   MonitorHeart as MonitorHeartIcon,
-  AttachFile as AttachFileIcon,
   InsertDriveFile as FileIcon,
   Download as DownloadIcon,
   Visibility as VisibilityIcon,
@@ -85,6 +84,7 @@ interface ViewFs2ModalProps {
   onClose: () => void;
   fs2Id: string | null;
   showMonitoringSection?: boolean;
+  showDocumentSection?: boolean;
 }
 
 // Constants for labels (matching those in Fs2List and Fs2Disetujui)
@@ -124,11 +124,10 @@ const PELAKSANAAN_LABELS: Record<string, string> = {
   MULTIYEARS: 'Multiyears',
 };
 
-const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showMonitoringSection = false }) => {
+const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showMonitoringSection = false, showDocumentSection = false }) => {
   const [fs2Data, setFs2Data] = useState<Fs2DocumentData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [fs2Files, setFs2Files] = useState<Fs2FileData[]>([]);
-  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
   
   // File preview state
@@ -159,15 +158,12 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
     const fetchFiles = async () => {
       if (!fs2Id || !open) return;
 
-      setIsLoadingFiles(true);
       try {
         const files = await getFs2Files(fs2Id);
         setFs2Files(files);
       } catch (error) {
         console.error('Error fetching F.S.2 files:', error);
         setFs2Files([]);
-      } finally {
-        setIsLoadingFiles(false);
       }
     };
 
@@ -184,15 +180,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
   const handleDownload = async (file: Fs2FileData) => {
     setDownloadingFileId(file.id);
     try {
-      const blob = await downloadFs2File(file.id);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = file.original_name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      await downloadFs2File(file.id, file.original_name);
     } catch (error) {
       console.error('Error downloading file:', error);
     } finally {
@@ -289,6 +277,111 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
       </Typography>
     </Box>
   );
+
+  // Render file list section
+  const renderFileListSection = (
+    files: Fs2FileData[],
+    title: string,
+    fileTypes: string[],
+    iconColor: string,
+    emptyMessage: string
+  ) => {
+    const filteredFiles = files.filter(f => fileTypes.includes(f.file_type || ''));
+    
+    return (
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="body2" sx={{ mb: 1, fontWeight: 600, color: iconColor }}>{title}</Typography>
+        {filteredFiles.length > 0 ? (
+          <List dense sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '10px', p: 0.5 }}>
+            {filteredFiles.map((file, index) => (
+              <ListItem
+                key={file.id}
+                sx={{
+                  borderRadius: '8px',
+                  mb: index < filteredFiles.length - 1 ? 0.5 : 0,
+                  bgcolor: 'white',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                  py: 0.75,
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 36 }}>
+                  <FileIcon sx={{ color: iconColor, fontSize: 20 }} />
+                </ListItemIcon>
+                <ListItemText
+                  primary={file.original_name}
+                  secondary={formatFileSize(file.file_size)}
+                  primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem' } }}
+                  secondaryTypographyProps={{ sx: { color: '#86868b', fontSize: '0.7rem' } }}
+                />
+                <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
+                  {isPreviewable(file.content_type) && (
+                    <IconButton
+                      size="small"
+                      onClick={() => handleViewFile(file)}
+                      sx={{ color: '#0891B2', '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' } }}
+                      title="Lihat"
+                    >
+                      <VisibilityIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  )}
+                  <IconButton
+                    size="small"
+                    onClick={() => handleDownload(file)}
+                    disabled={downloadingFileId === file.id}
+                    sx={{ color: '#059669', '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' } }}
+                    title="Download"
+                  >
+                    {downloadingFileId === file.id ? (
+                      <CircularProgress size={16} sx={{ color: '#059669' }} />
+                    ) : (
+                      <DownloadIcon sx={{ fontSize: 18 }} />
+                    )}
+                  </IconButton>
+                </ListItemSecondaryAction>
+              </ListItem>
+            ))}
+          </List>
+        ) : (
+          <Typography variant="body2" sx={{ color: '#86868b', fontStyle: 'italic', fontSize: '0.85rem' }}>
+            {emptyMessage}
+          </Typography>
+        )}
+      </Box>
+    );
+  };
+
+  // Render text with clickable URLs
+  const renderTextWithLinks = (text: string) => {
+    if (!text) return '-';
+    
+    // URL regex pattern
+    const urlPattern = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlPattern);
+    
+    return parts.map((part, index) => {
+      // Check if part is a URL (starts with http or https)
+      if (part.startsWith('http://') || part.startsWith('https://')) {
+        return (
+          <Typography
+            key={index}
+            component="a"
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              color: '#2563EB',
+              textDecoration: 'none',
+              '&:hover': { textDecoration: 'underline' },
+              wordBreak: 'break-all',
+            }}
+          >
+            {part}
+          </Typography>
+        );
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
 
   // Get pelaksanaan display text
   const getPelaksanaanDisplay = () => {
@@ -761,96 +854,82 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
               </Box>
             </GlassCard>
 
-            {/* Section 8: Dokumen F.S.2 */}
-            <GlassCard>
-              <SectionHeader>
-                <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(49, 162, 76, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <AttachFileIcon sx={{ color: '#31A24C', fontSize: 20 }} />
-                </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                  8. Dokumen F.S.2
-                </Typography>
-              </SectionHeader>
+            {/* Section 8: Dokumen F.S.2 (Only when showDocumentSection is true) */}
+            {showDocumentSection && (
+              <GlassCard>
+                <SectionHeader>
+                  <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(37, 99, 235, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <FileIcon sx={{ color: '#2563EB', fontSize: 20 }} />
+                  </Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                    8. Dokumen F.S.2
+                  </Typography>
+                </SectionHeader>
 
-              {isLoadingFiles ? (
-                <Box display="flex" justifyContent="center" py={2}>
-                  <CircularProgress size={24} sx={{ color: '#31A24C' }} />
-                </Box>
-              ) : fs2Files.length > 0 ? (
-                <List dense sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px', p: 1 }}>
-                  {fs2Files.map((file, index) => (
-                    <ListItem
-                      key={file.id}
-                      sx={{
-                        borderRadius: '8px',
-                        mb: index < fs2Files.length - 1 ? 1 : 0,
-                        bgcolor: 'white',
-                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-                        '&:hover': {
-                          bgcolor: 'rgba(255, 255, 255, 0.9)',
-                        },
-                      }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 40 }}>
-                        <FileIcon sx={{ color: '#31A24C', fontSize: 24 }} />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={file.original_name}
-                        secondary={formatFileSize(file.file_size)}
-                        primaryTypographyProps={{
-                          sx: {
-                            fontWeight: 500,
-                            color: '#1d1d1f',
-                            fontSize: '0.9rem',
-                          },
-                        }}
-                        secondaryTypographyProps={{
-                          sx: { color: '#86868b', fontSize: '0.75rem' },
-                        }}
-                      />
-                      <ListItemSecondaryAction>
-                        <Box sx={{ display: 'flex', gap: 0.5 }}>
-                          {isPreviewable(file.content_type) && (
-                            <IconButton
-                              size="small"
-                              onClick={() => handleViewFile(file)}
-                              sx={{
-                                color: '#31A24C',
-                                '&:hover': { bgcolor: 'rgba(49, 162, 76, 0.1)' },
-                              }}
-                            >
-                              <VisibilityIcon fontSize="small" />
-                            </IconButton>
-                          )}
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDownload(file)}
-                            disabled={downloadingFileId === file.id}
+                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(37, 99, 235, 0.03)', border: '1px solid rgba(37, 99, 235, 0.1)' }}>
+                  {(() => {
+                    const fs2DocumentFiles = fs2Files.filter(f => !f.file_type || f.file_type === 'FS2');
+                    return fs2DocumentFiles.length > 0 ? (
+                      <List dense sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '10px', p: 0.5 }}>
+                        {fs2DocumentFiles.map((file, index) => (
+                          <ListItem
+                            key={file.id}
                             sx={{
-                              color: '#31A24C',
-                              '&:hover': { bgcolor: 'rgba(49, 162, 76, 0.1)' },
+                              borderRadius: '8px',
+                              mb: index < fs2DocumentFiles.length - 1 ? 0.5 : 0,
+                              bgcolor: 'white',
+                              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                              py: 0.75,
                             }}
                           >
-                            {downloadingFileId === file.id ? (
-                              <CircularProgress size={16} sx={{ color: '#31A24C' }} />
-                            ) : (
-                              <DownloadIcon fontSize="small" />
-                            )}
-                          </IconButton>
-                        </Box>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  ))}
-                </List>
-              ) : (
-                <Box sx={{ textAlign: 'center', py: 3, color: '#86868b' }}>
-                  <AttachFileIcon sx={{ fontSize: 40, mb: 1, opacity: 0.5 }} />
-                  <Typography variant="body2">Tidak ada dokumen yang diunggah</Typography>
+                            <ListItemIcon sx={{ minWidth: 36 }}>
+                              <FileIcon sx={{ color: '#2563EB', fontSize: 20 }} />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={file.original_name}
+                              secondary={formatFileSize(file.file_size)}
+                              primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem' } }}
+                              secondaryTypographyProps={{ sx: { color: '#86868b', fontSize: '0.7rem' } }}
+                            />
+                            <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
+                              {isPreviewable(file.content_type) && (
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleViewFile(file)}
+                                  sx={{ color: '#0891B2', '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' } }}
+                                  title="Lihat"
+                                >
+                                  <VisibilityIcon sx={{ fontSize: 18 }} />
+                                </IconButton>
+                              )}
+                              <IconButton
+                                size="small"
+                                onClick={() => handleDownload(file)}
+                                disabled={downloadingFileId === file.id}
+                                sx={{ color: '#059669', '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' } }}
+                                title="Download"
+                              >
+                                {downloadingFileId === file.id ? (
+                                  <CircularProgress size={16} sx={{ color: '#059669' }} />
+                                ) : (
+                                  <DownloadIcon sx={{ fontSize: 18 }} />
+                                )}
+                              </IconButton>
+                            </ListItemSecondaryAction>
+                          </ListItem>
+                        ))}
+                      </List>
+                    ) : (
+                      <Typography variant="body2" sx={{ color: '#86868b', fontStyle: 'italic', fontSize: '0.85rem' }}>
+                        Belum ada dokumen F.S.2 yang diunggah
+                      </Typography>
+                    );
+                  })()}
                 </Box>
-              )}
-            </GlassCard>
+              </GlassCard>
+            )}
 
-            {/* Section 9: Monitoring & Tracking (Only for approved FS2 and when showMonitoringSection is true) */}
+            {/* Section 8/9: Monitoring & Tracking (Only for approved FS2 and when showMonitoringSection is true) */}
             {showMonitoringSection && fs2Data.status === 'DISETUJUI' && (
               <GlassCard>
                 <SectionHeader>
@@ -858,7 +937,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                     <MonitorHeartIcon sx={{ color: '#31A24C', fontSize: 20 }} />
                   </Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                    9. Monitoring & Tracking
+                    {showDocumentSection ? '9' : '8'}. Monitoring & Tracking
                   </Typography>
                 </SectionHeader>
 
@@ -907,7 +986,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                 {/* Dokumen Pengajuan F.S.2 */}
                 <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(49, 162, 76, 0.03)', border: '1px solid rgba(49, 162, 76, 0.1)', mb: 2 }}>
                   <Typography variant="body2" sx={{ fontWeight: 600, color: '#31A24C', mb: 1.5 }}>Dokumen Pengajuan F.S.2</Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mb: 2 }}>
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Nomor ND</Typography>
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.nomor_nd || '-'}</Typography>
@@ -916,33 +995,15 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal</Typography>
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_nd)}</Typography>
                     </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Berkas ND</Typography>
-                      {fs2Data.berkas_nd ? (
-                        <Typography variant="body2" sx={{ color: '#31A24C', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => window.open(fs2Data.berkas_nd, '_blank')}>
-                          Lihat Berkas
-                        </Typography>
-                      ) : (
-                        <Typography variant="body2" sx={{ color: '#86868b' }}>-</Typography>
-                      )}
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Berkas F.S.2</Typography>
-                      {fs2Data.berkas_fs2 ? (
-                        <Typography variant="body2" sx={{ color: '#31A24C', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => window.open(fs2Data.berkas_fs2, '_blank')}>
-                          Lihat Berkas
-                        </Typography>
-                      ) : (
-                        <Typography variant="body2" sx={{ color: '#86868b' }}>-</Typography>
-                      )}
-                    </InfoRow>
                   </Box>
+                  {renderFileListSection(fs2Files, 'Berkas ND', ['ND'], '#31A24C', 'Belum ada file')}
+                  {renderFileListSection(fs2Files, 'Berkas F.S.2', ['FS2'], '#31A24C', 'Belum ada file')}
                 </Box>
 
                 {/* CD Prinsip */}
                 <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(37, 99, 235, 0.03)', border: '1px solid rgba(37, 99, 235, 0.1)', mb: 2 }}>
                   <Typography variant="body2" sx={{ fontWeight: 600, color: '#2563EB', mb: 1.5 }}>CD Prinsip</Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mb: 2 }}>
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Nomor CD</Typography>
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.nomor_cd || '-'}</Typography>
@@ -951,43 +1012,16 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal</Typography>
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_cd)}</Typography>
                     </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Berkas CD</Typography>
-                      {fs2Data.berkas_cd ? (
-                        <Typography variant="body2" sx={{ color: '#2563EB', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => window.open(fs2Data.berkas_cd, '_blank')}>
-                          Lihat Berkas
-                        </Typography>
-                      ) : (
-                        <Typography variant="body2" sx={{ color: '#86868b' }}>-</Typography>
-                      )}
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Berkas F.S.2A</Typography>
-                      {fs2Data.berkas_fs2a ? (
-                        <Typography variant="body2" sx={{ color: '#2563EB', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => window.open(fs2Data.berkas_fs2a, '_blank')}>
-                          Lihat Berkas
-                        </Typography>
-                      ) : (
-                        <Typography variant="body2" sx={{ color: '#86868b' }}>-</Typography>
-                      )}
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Berkas F.S.2B</Typography>
-                      {fs2Data.berkas_fs2b ? (
-                        <Typography variant="body2" sx={{ color: '#2563EB', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => window.open(fs2Data.berkas_fs2b, '_blank')}>
-                          Lihat Berkas
-                        </Typography>
-                      ) : (
-                        <Typography variant="body2" sx={{ color: '#86868b' }}>-</Typography>
-                      )}
-                    </InfoRow>
                   </Box>
+                  {renderFileListSection(fs2Files, 'Berkas CD', ['CD'], '#2563EB', 'Belum ada file')}
+                  {renderFileListSection(fs2Files, 'Berkas F.S.2A', ['FS2A'], '#2563EB', 'Belum ada file')}
+                  {renderFileListSection(fs2Files, 'Berkas F.S.2B', ['FS2B'], '#2563EB', 'Belum ada file')}
                 </Box>
 
                 {/* Pengujian */}
                 <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(217, 119, 6, 0.03)', border: '1px solid rgba(217, 119, 6, 0.1)', mb: 2 }}>
                   <Typography variant="body2" sx={{ fontWeight: 600, color: '#D97706', mb: 1.5 }}>Pengujian</Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mb: 2 }}>
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target</Typography>
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.target_pengujian)}</Typography>
@@ -996,33 +1030,15 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Realisasi</Typography>
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.realisasi_pengujian)}</Typography>
                     </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Berkas F45</Typography>
-                      {fs2Data.berkas_f45 ? (
-                        <Typography variant="body2" sx={{ color: '#D97706', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => window.open(fs2Data.berkas_f45, '_blank')}>
-                          Lihat Berkas
-                        </Typography>
-                      ) : (
-                        <Typography variant="body2" sx={{ color: '#86868b' }}>-</Typography>
-                      )}
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Berkas F46</Typography>
-                      {fs2Data.berkas_f46 ? (
-                        <Typography variant="body2" sx={{ color: '#D97706', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => window.open(fs2Data.berkas_f46, '_blank')}>
-                          Lihat Berkas
-                        </Typography>
-                      ) : (
-                        <Typography variant="body2" sx={{ color: '#86868b' }}>-</Typography>
-                      )}
-                    </InfoRow>
                   </Box>
+                  {renderFileListSection(fs2Files, 'Berkas F45', ['F45'], '#D97706', 'Belum ada file')}
+                  {renderFileListSection(fs2Files, 'Berkas F46', ['F46'], '#D97706', 'Belum ada file')}
                 </Box>
 
                 {/* Deployment */}
                 <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(124, 58, 237, 0.03)', border: '1px solid rgba(124, 58, 237, 0.1)', mb: 2 }}>
                   <Typography variant="body2" sx={{ fontWeight: 600, color: '#7C3AED', mb: 1.5 }}>Deployment</Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mb: 2 }}>
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target</Typography>
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.target_deployment)}</Typography>
@@ -1031,17 +1047,8 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Realisasi</Typography>
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.realisasi_deployment)}</Typography>
                     </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Berkas ND/BA Deployment</Typography>
-                      {fs2Data.berkas_nd_ba_deployment ? (
-                        <Typography variant="body2" sx={{ color: '#7C3AED', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => window.open(fs2Data.berkas_nd_ba_deployment, '_blank')}>
-                          Lihat Berkas
-                        </Typography>
-                      ) : (
-                        <Typography variant="body2" sx={{ color: '#86868b' }}>-</Typography>
-                      )}
-                    </InfoRow>
                   </Box>
+                  {renderFileListSection(fs2Files, 'Berkas ND/BA Deployment', ['NDBA'], '#7C3AED', 'Belum ada file')}
                 </Box>
 
                 {/* Go Live */}
@@ -1059,7 +1066,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                 <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(107, 114, 128, 0.03)', border: '1px solid rgba(107, 114, 128, 0.1)' }}>
                   <Typography variant="body2" sx={{ fontWeight: 600, color: '#6B7280', mb: 1.5 }}>Keterangan</Typography>
                   <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
-                    {fs2Data.keterangan || '-'}
+                    {renderTextWithLinks(fs2Data.keterangan || '')}
                   </Typography>
                 </Box>
               </GlassCard>

@@ -44,6 +44,8 @@ import {
   ListItemIcon,
   ListItemText,
   ListItemSecondaryAction,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -93,7 +95,7 @@ import { FilePreviewModal } from '../components/modals';
 interface Fs2Data {
   id: string;
   namaAplikasi: string;
-  bidang: string;
+  statusTahapan: string;
   skpa: string;
   urgensi: string;
   tanggalPengajuan: string;
@@ -112,7 +114,7 @@ const transformApiData = (apiData: Fs2DocumentData): Fs2Data => {
   return {
     id: apiData.id,
     namaAplikasi: apiData.nama_aplikasi || '-',
-    bidang: apiData.nama_bidang || '-',
+    statusTahapan: apiData.status_tahapan || '-',
     skpa: apiData.kode_skpa || apiData.nama_skpa || '-',
     urgensi: apiData.urgensi || '-',
     tanggalPengajuan: apiData.tanggal_pengajuan || '',
@@ -127,6 +129,12 @@ const STATUS_LABELS: Record<Fs2Data['status'], string> = {
   pending: 'Pending',
   disetujui: 'Disetujui',
   tidak_disetujui: 'Tidak Disetujui',
+};
+
+// Status Tahapan label mapping
+const STATUS_TAHAPAN_LABELS: Record<string, string> = {
+  DESAIN: 'Desain',
+  PEMELIHARAAN: 'Pemeliharaan',
 };
 
 const getStatusColor = (status: Fs2Data['status']) => {
@@ -244,7 +252,7 @@ function Fs2List() {
   const COLUMN_OPTIONS = useMemo(() => [
     { id: 'no', label: 'No', width: 50 },
     { id: 'namaAplikasi', label: 'Nama Aplikasi', width: 150 },
-    { id: 'bidang', label: 'Bidang', width: 120 },
+    { id: 'statusTahapan', label: 'Status Tahapan Aplikasi', width: 180 },
     { id: 'skpa', label: 'SKPA', width: 100 },
     { id: 'urgensi', label: 'Urgensi', width: 100 },
     { id: 'tanggalPengajuan', label: 'Tanggal Pengajuan', width: 150 },
@@ -331,6 +339,7 @@ function Fs2List() {
   const [uploadedFileData, setUploadedFileData] = useState<Fs2FileData[]>([]);
   const [sessionId, setSessionId] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Existing files state for Edit modal
   const [existingFs2Files, setExistingFs2Files] = useState<Fs2FileData[]>([]);
@@ -339,6 +348,18 @@ function Fs2List() {
   // Delete confirmation dialog
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [fs2ToDelete, setFs2ToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Snackbar notifications
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'info' | 'warning';
+  }>({
+    open: false,
+    message: '',
+    severity: 'info',
+  });
 
   // File preview dialog state
   const [openFilePreviewDialog, setOpenFilePreviewDialog] = useState(false);
@@ -349,6 +370,14 @@ function Fs2List() {
   // File preview modal state (popup preview)
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<Fs2FileData | null>(null);
+
+  // Form validation state
+  interface FormErrors {
+    [key: string]: string | undefined;
+  }
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   // Fetch F.S.2 data from API
   const fetchFs2Data = useCallback(async () => {
@@ -519,8 +548,15 @@ function Fs2List() {
       const file = files[0];
 
       // Validate file size (max 8MB)
+      console.log('File size:', file.size, 'bytes', 'Max allowed:', MAX_FILE_SIZE, 'bytes');
+      if (!file.size || file.size <= 0) {
+        alert('File tidak valid. Silakan pilih file yang valid.');
+        event.target.value = '';
+        return;
+      }
       if (file.size > MAX_FILE_SIZE) {
-        alert('Ukuran file melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.');
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        alert(`Ukuran file (${fileSizeMB} MB) melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.`);
         event.target.value = '';
         return;
       }
@@ -558,6 +594,57 @@ function Fs2List() {
     }
     // Reset input value to allow uploading same file again
     event.target.value = '';
+  };
+
+  const handleFileDrop = async (event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
+    const files = event.dataTransfer.files;
+    if (files && files.length > 0 && sessionId) {
+      const file = files[0];
+
+      // Validate file size (max 8MB)
+      console.log('File size (drop):', file.size, 'bytes', 'Max allowed:', MAX_FILE_SIZE, 'bytes');
+      if (!file.size || file.size <= 0) {
+        alert('File tidak valid. Silakan pilih file yang valid.');
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        alert(`Ukuran file (${fileSizeMB} MB) melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.`);
+        return;
+      }
+
+      // Validate file type (PDF and Word only)
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      if (!ALLOWED_FILE_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(fileExtension)) {
+        alert('Format file tidak didukung. Hanya file PDF dan Word (.pdf, .doc, .docx) yang diperbolehkan.');
+        return;
+      }
+      
+      // Delete existing file if any
+      if (uploadedFileData.length > 0 && uploadedFileData[0]?.id) {
+        try {
+          await deleteFs2File(uploadedFileData[0].id);
+        } catch (error) {
+          console.error('Failed to delete existing file:', error);
+        }
+      }
+      
+      setIsUploading(true);
+      try {
+        // Upload to temp storage
+        const uploadedData = await uploadFs2TempFiles(sessionId, [file]);
+        setUploadedFiles([file]);
+        setUploadedFileData(uploadedData);
+      } catch (error) {
+        console.error('Failed to upload file:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Gagal mengupload file. Silakan coba lagi.';
+        alert(errorMessage);
+      } finally {
+        setIsUploading(false);
+      }
+    }
   };
 
   const handleRemoveFile = async (index: number) => {
@@ -621,6 +708,10 @@ function Fs2List() {
     setSessionId(newSessionId);
     setUploadedFiles([]);
     setUploadedFileData([]);
+    setErrors({});
+    setErrorMessage('');
+    setSuccessMessage('');
+    setExpandedSection('section0');
     setFormData({
       aplikasi_id: '',
       bidang_id: '',
@@ -668,10 +759,112 @@ function Fs2List() {
     }
     setUploadedFiles([]);
     setUploadedFileData([]);
+    setErrors({});
+    setErrorMessage('');
+    setSuccessMessage('');
     setOpenAddModal(false);
   };
 
+  // Handle input change and clear errors
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+    // Clear error for this field
+    if (errors[name]) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: undefined,
+      }));
+    }
+  };
+
+  // Handle select/autocomplete change and clear errors
+  const handleSelectChange = (fieldName: string, value: any) => {
+    setFormData((prev) => ({
+      ...prev,
+      [fieldName]: value,
+    }));
+    // Clear error for this field
+    if (errors[fieldName]) {
+      setErrors((prev) => ({
+        ...prev,
+        [fieldName]: undefined,
+      }));
+    }
+  };
+
+  // Validation function
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+
+    // Section 1: Informasi Dasar
+    if (!formData.aplikasi_id) newErrors.aplikasi_id = "Nama Aplikasi wajib dipilih";
+    if (!formData.status_tahapan) newErrors.status_tahapan = "Status Tahapan wajib dipilih";
+    if (!formData.skpa_id) newErrors.skpa_id = "SKPA wajib dipilih";
+    if (!formData.urgensi) newErrors.urgensi = "Urgensi wajib dipilih";
+    if (!formData.deskripsi_pengubahan) newErrors.deskripsi_pengubahan = "Deskripsi Pengubahan wajib diisi";
+    if (!formData.alasan_pengubahan) newErrors.alasan_pengubahan = "Alasan Pengubahan wajib diisi";
+
+    // Section 2: Kesesuaian Kriteria - SEMUA HARUS TERCENTANG
+    if (!formData.kriteria_1 || !formData.kriteria_2 || !formData.kriteria_3 || !formData.kriteria_4) {
+      newErrors.kriteria = "Semua kriteria pengubahan aplikasi wajib dicentang";
+    }
+
+    // Section 3: Aspek Perubahan
+    if (!formData.aspek_sistem_ada) newErrors.aspek_sistem_ada = "Aspek terhadap sistem yang ada wajib diisi";
+    if (!formData.aspek_sistem_terkait) newErrors.aspek_sistem_terkait = "Aspek terhadap sistem terkait wajib diisi";
+    if (!formData.aspek_alur_kerja) newErrors.aspek_alur_kerja = "Aspek terhadap alur kerja bisnis wajib diisi";
+    if (!formData.aspek_struktur_organisasi) newErrors.aspek_struktur_organisasi = "Aspek terhadap struktur organisasi wajib diisi";
+
+    // Section 4: Aspek Perubahan Terhadap Dokumentasi
+    if (!formData.dok_t01_sebelum) newErrors.dok_t01_sebelum = "Dokumen T.0.1 sebelum pengubahan wajib diisi";
+    if (!formData.dok_t01_sesudah) newErrors.dok_t01_sesudah = "Dokumen T.0.1 sesudah pengubahan wajib diisi";
+    if (!formData.dok_t11_sebelum) newErrors.dok_t11_sebelum = "Dokumen T.1.1 sebelum pengubahan wajib diisi";
+    if (!formData.dok_t11_sesudah) newErrors.dok_t11_sesudah = "Dokumen T.1.1 sesudah pengubahan wajib diisi";
+
+    // Section 5: Aspek Perubahan Terhadap Penggunaan Sistem
+    if (!formData.pengguna_sebelum) newErrors.pengguna_sebelum = "Jumlah pengguna sebelum pengubahan wajib diisi";
+    if (!formData.pengguna_sesudah) newErrors.pengguna_sesudah = "Jumlah pengguna sesudah pengubahan wajib diisi";
+    if (!formData.akses_bersamaan_sebelum) newErrors.akses_bersamaan_sebelum = "Jumlah akses bersamaan sebelum pengubahan wajib diisi";
+    if (!formData.akses_bersamaan_sesudah) newErrors.akses_bersamaan_sesudah = "Jumlah akses bersamaan sesudah pengubahan wajib diisi";
+    if (!formData.pertumbuhan_data_sebelum) newErrors.pertumbuhan_data_sebelum = "Pertumbuhan data sebelum pengubahan wajib diisi";
+    if (!formData.pertumbuhan_data_sesudah) newErrors.pertumbuhan_data_sesudah = "Pertumbuhan data sesudah pengubahan wajib diisi";
+
+    // Section 6: Jadwal Pelaksanaan
+    if (!formData.target_pengujian) newErrors.target_pengujian = "Target Pengujian wajib diisi";
+    if (!formData.target_deployment) newErrors.target_deployment = "Target Deployment wajib diisi";
+    if (!formData.target_go_live) newErrors.target_go_live = "Target Go Live wajib diisi";
+
+    // Section 7: Pernyataan - DIKECUALIKAN dari validasi required
+    // pernyataan_1 dan pernyataan_2 tidak wajib diisi
+
+    // Section 8: Upload Dokumen F.S.2 - WAJIB UPLOAD MINIMAL 1 FILE
+    if (uploadedFiles.length === 0 && uploadedFileData.length === 0) {
+      newErrors.upload_dokumen = "Dokumen F.S.2 wajib diupload!";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleAddFs2 = async () => {
+    // Validate form before submitting
+    if (!validateForm()) {
+      setErrorMessage('Mohon lengkapi semua kolom yang wajib diisi');
+      // Scroll to top to show error message
+      const dialogContent = document.querySelector('.MuiDialogContent-root');
+      if (dialogContent) {
+        dialogContent.scrollTop = 0;
+      }
+      return;
+    }
+
+    setErrorMessage('');
+    setSuccessMessage('');
+
     try {
       const createdFs2 = await createFs2Document(formData);
       
@@ -680,10 +873,18 @@ function Fs2List() {
         await moveFs2TempFilesToPermanent(createdFs2.id, sessionId);
       }
       
-      setOpenAddModal(false);
-      fetchFs2Data();
+      setSuccessMessage('F.S.2 berhasil ditambahkan!');
+      setTimeout(() => {
+        setOpenAddModal(false);
+        fetchFs2Data();
+        setSuccessMessage('');
+        setErrorMessage('');
+        setErrors({});
+      }, 1500);
     } catch (error) {
       console.error('Failed to create F.S.2:', error);
+      const errMsg = error instanceof Error ? error.message : 'Gagal menambahkan F.S.2';
+      setErrorMessage(errMsg);
     }
   };
 
@@ -730,7 +931,9 @@ function Fs2List() {
       setIsLoadingExistingFiles(true);
       try {
         const files = await getFs2Files(fs2Id);
-        setExistingFs2Files(files);
+        // Filter to only show base FS2 document files (not monitoring files like ND, CD, F45, etc.)
+        const fs2DocFiles = files.filter(f => !f.file_type || f.file_type === 'FS2');
+        setExistingFs2Files(fs2DocFiles);
       } catch (error) {
         console.error('Failed to fetch existing files:', error);
         setExistingFs2Files([]);
@@ -750,6 +953,13 @@ function Fs2List() {
 
   const handleEditFs2 = async () => {
     if (!selectedFs2ForEdit) return;
+    
+    // Validate: check if there are existing files
+    if (existingFs2Files.length === 0) {
+      setErrors(prev => ({ ...prev, upload_dokumen: "Dokumen F.S.2 wajib diupload!" }));
+      return;
+    }
+    
     try {
       await updateFs2Document(selectedFs2ForEdit.id, formData);
       setOpenEditModal(false);
@@ -768,8 +978,15 @@ function Fs2List() {
       const file = files[0];
 
       // Validate file size (max 8MB)
+      console.log('File size (edit):', file.size, 'bytes', 'Max allowed:', MAX_FILE_SIZE, 'bytes');
+      if (!file.size || file.size <= 0) {
+        alert('File tidak valid. Silakan pilih file yang valid.');
+        event.target.value = '';
+        return;
+      }
       if (file.size > MAX_FILE_SIZE) {
-        alert('Ukuran file melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.');
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        alert(`Ukuran file (${fileSizeMB} MB) melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.`);
         event.target.value = '';
         return;
       }
@@ -799,6 +1016,48 @@ function Fs2List() {
     event.target.value = '';
   };
 
+  const handleEditFileDrop = async (event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
+    const files = event.dataTransfer.files;
+    if (files && files.length > 0 && selectedFs2ForEdit) {
+      const file = files[0];
+
+      // Validate file size (max 8MB)
+      console.log('File size (edit drop):', file.size, 'bytes', 'Max allowed:', MAX_FILE_SIZE, 'bytes');
+      if (!file.size || file.size <= 0) {
+        alert('File tidak valid. Silakan pilih file yang valid.');
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        alert(`Ukuran file (${fileSizeMB} MB) melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.`);
+        return;
+      }
+
+      // Validate file type (PDF and Word only)
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      if (!ALLOWED_FILE_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(fileExtension)) {
+        alert('Format file tidak didukung. Hanya file PDF dan Word (.pdf, .doc, .docx) yang diperbolehkan.');
+        return;
+      }
+
+      setIsUploading(true);
+      try {
+        // Upload directly to the F.S.2 document
+        const uploadedData = await uploadFs2Files(selectedFs2ForEdit.id, [file]);
+        // Add to existing files list
+        setExistingFs2Files(prev => [...prev, ...uploadedData]);
+      } catch (error) {
+        console.error('Failed to upload file:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Gagal mengupload file. Silakan coba lagi.';
+        alert(errorMessage);
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  };
+
   const handleDeleteExistingFile = async (fileId: string) => {
     try {
       await deleteFs2File(fileId);
@@ -811,15 +1070,7 @@ function Fs2List() {
 
   const handleDownloadExistingFile = async (file: Fs2FileData) => {
     try {
-      const blob = await downloadFs2File(file.id);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file.original_name || file.file_name;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      await downloadFs2File(file.id, file.original_name || file.file_name);
     } catch (error) {
       console.error('Failed to download file:', error);
       alert('Gagal mengunduh file. Silakan coba lagi.');
@@ -854,7 +1105,9 @@ function Fs2List() {
     setIsLoadingFilePreview(true);
     try {
       const files = await getFs2Files(fs2Id);
-      setFilePreviewFiles(files);
+      // Filter to only show base FS2 document files (not monitoring files like ND, CD, F45, etc.)
+      const fs2DocFiles = files.filter(f => !f.file_type || f.file_type === 'FS2');
+      setFilePreviewFiles(fs2DocFiles);
     } catch (error) {
       console.error('Failed to load files:', error);
       setFilePreviewFiles([]);
@@ -895,15 +1148,7 @@ function Fs2List() {
   const handleDownloadFilePreview = async (file: Fs2FileData) => {
     setFilePreviewDownloadingId(file.id);
     try {
-      const blob = await downloadFs2File(file.id);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file.original_name || file.file_name;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      await downloadFs2File(file.id, file.original_name || file.file_name);
     } catch (error) {
       console.error('Failed to download file:', error);
       alert('Gagal mengunduh file. Silakan coba lagi.');
@@ -914,12 +1159,26 @@ function Fs2List() {
 
   const handleDeleteFs2 = async () => {
     if (!fs2ToDelete) return;
+    setIsDeleting(true);
     try {
       await deleteFs2Document(fs2ToDelete);
       handleCloseDeleteDialog();
+      setSnackbar({
+        open: true,
+        message: 'F.S.2 berhasil dihapus',
+        severity: 'success',
+      });
       fetchFs2Data();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete F.S.2:', error);
+      const errorMessage = error?.message || 'Gagal menghapus F.S.2. Silakan coba lagi.';
+      setSnackbar({
+        open: true,
+        message: errorMessage,
+        severity: 'error',
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -1481,10 +1740,10 @@ function Fs2List() {
                 fontWeight: 600, 
                 color: '#1d1d1f', 
                 py: 2, 
-                minWidth: 120,
-                ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 3, bgcolor: '#f5f5f7' }),
-                ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
-              }}>Bidang</TableCell>
+                minWidth: 180,
+                ...(stickyColumns.has('statusTahapan') && { position: 'sticky', left: getStickyLeft('statusTahapan'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                ...(isLastStickyColumn('statusTahapan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+              }}>Status Tahapan Aplikasi</TableCell>
               <TableCell sx={{ 
                 fontWeight: 600, 
                 color: '#1d1d1f', 
@@ -1608,12 +1867,12 @@ function Fs2List() {
                     </TableCell>
                     <TableCell sx={{ 
                       py: 2,
-                      minWidth: 120,
-                      ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 1, bgcolor: '#fff' }),
-                      ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+                      minWidth: 180,
+                      ...(stickyColumns.has('statusTahapan') && { position: 'sticky', left: getStickyLeft('statusTahapan'), zIndex: 1, bgcolor: '#fff' }),
+                      ...(isLastStickyColumn('statusTahapan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                     }}>
                       <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.85rem' }}>
-                        {row.bidang}
+                        {STATUS_TAHAPAN_LABELS[row.statusTahapan] || row.statusTahapan}
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ 
@@ -1911,6 +2170,17 @@ function Fs2List() {
             background: 'linear-gradient(135deg, rgba(245, 245, 247, 0.9) 0%, rgba(250, 250, 250, 0.95) 100%)',
           }}
         >
+          {/* Success/Error Messages */}
+          {successMessage && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {successMessage}
+            </Alert>
+          )}
+          {errorMessage && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {errorMessage}
+            </Alert>
+          )}
           <Stack spacing={2} sx={{ mt: 1 }}>
             {/* Section 1: Informasi Dasar */}
             <Accordion
@@ -1957,18 +2227,25 @@ function Fs2List() {
                     options={aplikasiList}
                     getOptionLabel={(option) => `${option.kode_aplikasi} - ${option.nama_aplikasi}`}
                     value={aplikasiList.find(a => a.id === formData.aplikasi_id) || null}
-                    onChange={(_, newValue) => setFormData({ ...formData, aplikasi_id: newValue?.id || '' })}
+                    onChange={(_, newValue) => handleSelectChange('aplikasi_id', newValue?.id || '')}
                     renderInput={(params) => (
-                      <GlassTextField {...params} label="1.1 Nama Aplikasi" required size="small" />
+                      <GlassTextField 
+                        {...params} 
+                        label="1.1 Nama Aplikasi" 
+                        required 
+                        size="small"
+                        error={!!errors.aplikasi_id}
+                        helperText={errors.aplikasi_id}
+                      />
                     )}
                     size="small"
                   />
-                <FormControl fullWidth size="small">
-                  <InputLabel>1.2 Status Tahapan Aplikasi</InputLabel>
+                <FormControl fullWidth size="small" error={!!errors.status_tahapan}>
+                  <InputLabel>1.2 Status Tahapan Aplikasi *</InputLabel>
                   <Select
                     value={formData.status_tahapan}
-                    label="1.2 Status Tahapan Aplikasi"
-                    onChange={(e) => setFormData({ ...formData, status_tahapan: e.target.value })}
+                    label="1.2 Status Tahapan Aplikasi *"
+                    onChange={(e) => handleSelectChange('status_tahapan', e.target.value)}
                     sx={{
                       borderRadius: '12px',
                       bgcolor: 'rgba(255, 255, 255, 0.6)',
@@ -1986,23 +2263,35 @@ function Fs2List() {
                     <MenuItem value="DESAIN">Desain</MenuItem>
                     <MenuItem value="PEMELIHARAAN">Pemeliharaan</MenuItem>
                   </Select>
+                  {errors.status_tahapan && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                      {errors.status_tahapan}
+                    </Typography>
+                  )}
                 </FormControl>
                 <Autocomplete
                   options={skpaList}
                   getOptionLabel={(option) => `${option.kode_skpa} - ${option.nama_skpa}`}
                   value={skpaList.find(s => s.id === formData.skpa_id) || null}
-                  onChange={(_, newValue) => setFormData({ ...formData, skpa_id: newValue?.id || '' })}
+                  onChange={(_, newValue) => handleSelectChange('skpa_id', newValue?.id || '')}
                   renderInput={(params) => (
-                    <GlassTextField {...params} label="1.3 Satuan Kerja Pemilik Aplikasi (SKPA)" required size="small" />
+                    <GlassTextField 
+                      {...params} 
+                      label="1.3 Satuan Kerja Pemilik Aplikasi (SKPA)" 
+                      required 
+                      size="small"
+                      error={!!errors.skpa_id}
+                      helperText={errors.skpa_id}
+                    />
                   )}
                   size="small"
                 />
-                <FormControl fullWidth size="small">
-                  <InputLabel>1.4 Urgensi</InputLabel>
+                <FormControl fullWidth size="small" error={!!errors.urgensi}>
+                  <InputLabel>1.4 Urgensi *</InputLabel>
                   <Select
                     value={formData.urgensi}
-                    label="1.4 Urgensi"
-                    onChange={(e) => setFormData({ ...formData, urgensi: e.target.value })}
+                    label="1.4 Urgensi *"
+                    onChange={(e) => handleSelectChange('urgensi', e.target.value)}
                     sx={{
                       borderRadius: '12px',
                       bgcolor: 'rgba(255, 255, 255, 0.6)',
@@ -2021,24 +2310,37 @@ function Fs2List() {
                     <MenuItem value="SEDANG">Sedang</MenuItem>
                     <MenuItem value="TINGGI">Tinggi</MenuItem>
                   </Select>
+                  {errors.urgensi && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                      {errors.urgensi}
+                    </Typography>
+                  )}
                 </FormControl>
                 <GlassTextField
                   label="1.5 Deskripsi Pengubahan"
+                  name="deskripsi_pengubahan"
                   value={formData.deskripsi_pengubahan}
-                  onChange={(e) => setFormData({ ...formData, deskripsi_pengubahan: e.target.value })}
+                  onChange={handleInputChange}
                   fullWidth
+                  required
                   multiline
                   rows={3}
                   size="small"
+                  error={!!errors.deskripsi_pengubahan}
+                  helperText={errors.deskripsi_pengubahan}
                 />
                 <GlassTextField
                   label="1.6 Alasan Pengubahan"
+                  name="alasan_pengubahan"
                   value={formData.alasan_pengubahan}
-                  onChange={(e) => setFormData({ ...formData, alasan_pengubahan: e.target.value })}
+                  onChange={handleInputChange}
                   fullWidth
+                  required
                   multiline
                   rows={3}
                   size="small"
+                  error={!!errors.alasan_pengubahan}
+                  helperText={errors.alasan_pengubahan}
                 />
                 </Stack>
               </AccordionDetails>
@@ -2133,6 +2435,18 @@ function Fs2List() {
                     label="2.4 Tidak mengubah alur kerja Aplikasi"
                   />
                 </FormGroup>
+                {errors.kriteria && (
+                  <Alert 
+                    severity="warning" 
+                    sx={{ 
+                      mt: 2, 
+                      borderRadius: '12px',
+                      '& .MuiAlert-icon': { color: '#FF9500' }
+                    }}
+                  >
+                    {errors.kriteria}
+                  </Alert>
+                )}
               </AccordionDetails>
             </Accordion>
 
@@ -2185,36 +2499,48 @@ function Fs2List() {
                     value={formData.aspek_sistem_ada}
                     onChange={(e) => setFormData({ ...formData, aspek_sistem_ada: e.target.value })}
                     fullWidth
+                    required
                     multiline
                     rows={2}
                     size="small"
+                    error={!!errors.aspek_sistem_ada}
+                    helperText={errors.aspek_sistem_ada}
                   />
                   <GlassTextField
                     label="3.2 Terhadap sistem terkait"
                     value={formData.aspek_sistem_terkait}
                     onChange={(e) => setFormData({ ...formData, aspek_sistem_terkait: e.target.value })}
                     fullWidth
+                    required
                     multiline
                     rows={2}
                     size="small"
+                    error={!!errors.aspek_sistem_terkait}
+                    helperText={errors.aspek_sistem_terkait}
                   />
                   <GlassTextField
                     label="3.3 Terhadap alur kerja bisnis"
                     value={formData.aspek_alur_kerja}
                     onChange={(e) => setFormData({ ...formData, aspek_alur_kerja: e.target.value })}
                     fullWidth
+                    required
                     multiline
                     rows={2}
                     size="small"
+                    error={!!errors.aspek_alur_kerja}
+                    helperText={errors.aspek_alur_kerja}
                   />
                   <GlassTextField
                     label="3.4 Terhadap struktur organisasi"
                     value={formData.aspek_struktur_organisasi}
                     onChange={(e) => setFormData({ ...formData, aspek_struktur_organisasi: e.target.value })}
                     fullWidth
+                    required
                     multiline
                     rows={2}
                     size="small"
+                    error={!!errors.aspek_struktur_organisasi}
+                    helperText={errors.aspek_struktur_organisasi}
                   />
                 </Stack>
               </AccordionDetails>
@@ -2271,9 +2597,12 @@ function Fs2List() {
                         value={formData.dok_t01_sebelum}
                         onChange={(e) => setFormData({ ...formData, dok_t01_sebelum: e.target.value })}
                         fullWidth
+                        required
                         multiline
                         rows={2}
                         size="small"
+                        error={!!errors.dok_t01_sebelum}
+                        helperText={errors.dok_t01_sebelum}
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
@@ -2282,9 +2611,12 @@ function Fs2List() {
                         value={formData.dok_t01_sesudah}
                         onChange={(e) => setFormData({ ...formData, dok_t01_sesudah: e.target.value })}
                         fullWidth
+                        required
                         multiline
                         rows={2}
                         size="small"
+                        error={!!errors.dok_t01_sesudah}
+                        helperText={errors.dok_t01_sesudah}
                       />
                     </Grid>
                   </Grid>
@@ -2299,9 +2631,12 @@ function Fs2List() {
                         value={formData.dok_t11_sebelum}
                         onChange={(e) => setFormData({ ...formData, dok_t11_sebelum: e.target.value })}
                         fullWidth
+                        required
                         multiline
                         rows={2}
                         size="small"
+                        error={!!errors.dok_t11_sebelum}
+                        helperText={errors.dok_t11_sebelum}
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
@@ -2310,9 +2645,12 @@ function Fs2List() {
                         value={formData.dok_t11_sesudah}
                         onChange={(e) => setFormData({ ...formData, dok_t11_sesudah: e.target.value })}
                         fullWidth
+                        required
                         multiline
                         rows={2}
                         size="small"
+                        error={!!errors.dok_t11_sesudah}
+                        helperText={errors.dok_t11_sesudah}
                       />
                     </Grid>
                   </Grid>
@@ -2371,7 +2709,10 @@ function Fs2List() {
                         value={formData.pengguna_sebelum}
                         onChange={(e) => setFormData({ ...formData, pengguna_sebelum: e.target.value })}
                         fullWidth
+                        required
                         size="small"
+                        error={!!errors.pengguna_sebelum}
+                        helperText={errors.pengguna_sebelum}
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
@@ -2380,7 +2721,10 @@ function Fs2List() {
                         value={formData.pengguna_sesudah}
                         onChange={(e) => setFormData({ ...formData, pengguna_sesudah: e.target.value })}
                         fullWidth
+                        required
                         size="small"
+                        error={!!errors.pengguna_sesudah}
+                        helperText={errors.pengguna_sesudah}
                       />
                     </Grid>
                   </Grid>
@@ -2395,7 +2739,10 @@ function Fs2List() {
                         value={formData.akses_bersamaan_sebelum}
                         onChange={(e) => setFormData({ ...formData, akses_bersamaan_sebelum: e.target.value })}
                         fullWidth
+                        required
                         size="small"
+                        error={!!errors.akses_bersamaan_sebelum}
+                        helperText={errors.akses_bersamaan_sebelum}
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
@@ -2404,7 +2751,10 @@ function Fs2List() {
                         value={formData.akses_bersamaan_sesudah}
                         onChange={(e) => setFormData({ ...formData, akses_bersamaan_sesudah: e.target.value })}
                         fullWidth
+                        required
                         size="small"
+                        error={!!errors.akses_bersamaan_sesudah}
+                        helperText={errors.akses_bersamaan_sesudah}
                       />
                     </Grid>
                   </Grid>
@@ -2419,7 +2769,10 @@ function Fs2List() {
                         value={formData.pertumbuhan_data_sebelum}
                         onChange={(e) => setFormData({ ...formData, pertumbuhan_data_sebelum: e.target.value })}
                         fullWidth
+                        required
                         size="small"
+                        error={!!errors.pertumbuhan_data_sebelum}
+                        helperText={errors.pertumbuhan_data_sebelum}
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
@@ -2428,7 +2781,10 @@ function Fs2List() {
                         value={formData.pertumbuhan_data_sesudah}
                         onChange={(e) => setFormData({ ...formData, pertumbuhan_data_sesudah: e.target.value })}
                         fullWidth
+                        required
                         size="small"
+                        error={!!errors.pertumbuhan_data_sesudah}
+                        helperText={errors.pertumbuhan_data_sesudah}
                       />
                     </Grid>
                   </Grid>
@@ -2487,8 +2843,11 @@ function Fs2List() {
                       value={formData.target_pengujian}
                       onChange={(e) => setFormData({ ...formData, target_pengujian: e.target.value })}
                       fullWidth
+                      required
                       InputLabelProps={{ shrink: true }}
                       size="small"
+                      error={!!errors.target_pengujian}
+                      helperText={errors.target_pengujian}
                     />
                   </Grid>
                   <Grid size={{ xs: 4 }}>
@@ -2498,8 +2857,11 @@ function Fs2List() {
                       value={formData.target_deployment}
                       onChange={(e) => setFormData({ ...formData, target_deployment: e.target.value })}
                       fullWidth
+                      required
                       InputLabelProps={{ shrink: true }}
                       size="small"
+                      error={!!errors.target_deployment}
+                      helperText={errors.target_deployment}
                     />
                   </Grid>
                   <Grid size={{ xs: 4 }}>
@@ -2509,8 +2871,11 @@ function Fs2List() {
                       value={formData.target_go_live}
                       onChange={(e) => setFormData({ ...formData, target_go_live: e.target.value })}
                       fullWidth
+                      required
                       InputLabelProps={{ shrink: true }}
                       size="small"
+                      error={!!errors.target_go_live}
+                      helperText={errors.target_go_live}
                     />
                   </Grid>
                 </Grid>
@@ -2634,14 +2999,20 @@ function Fs2List() {
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
                 <Stack spacing={2}>
                   <Box
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={handleFileDrop}
                     sx={{
-                      border: '2px dashed #e5e5e7',
+                      border: isDragging ? '2px solid #DA251C' : '2px dashed #e5e5e7',
                       borderRadius: 2,
                       p: 3,
                       textAlign: 'center',
                       cursor: isUploading ? 'not-allowed' : 'pointer',
                       opacity: isUploading ? 0.7 : 1,
                       transition: 'all 0.2s ease-in-out',
+                      background: isDragging
+                        ? 'rgba(218, 37, 28, 0.08)'
+                        : 'transparent',
                       '&:hover': {
                         borderColor: isUploading ? '#e5e5e7' : '#DA251C',
                         bgcolor: isUploading ? 'transparent' : 'rgba(218, 37, 28, 0.04)',
@@ -2716,6 +3087,18 @@ function Fs2List() {
                         ))}
                       </List>
                     </Box>
+                  )}
+                  {errors.upload_dokumen && (
+                    <Alert 
+                      severity="warning" 
+                      sx={{ 
+                        mt: 2, 
+                        borderRadius: '12px',
+                        '& .MuiAlert-icon': { color: '#FF9500' }
+                      }}
+                    >
+                      {errors.upload_dokumen}
+                    </Alert>
                   )}
                 </Stack>
               </AccordionDetails>
@@ -3037,6 +3420,18 @@ function Fs2List() {
                     label="2.4 Tidak mengubah alur kerja Aplikasi"
                   />
                 </FormGroup>
+                {errors.kriteria && (
+                  <Alert 
+                    severity="warning" 
+                    sx={{ 
+                      mt: 2, 
+                      borderRadius: '12px',
+                      '& .MuiAlert-icon': { color: '#FF9500' }
+                    }}
+                  >
+                    {errors.kriteria}
+                  </Alert>
+                )}
               </AccordionDetails>
             </Accordion>
 
@@ -3089,36 +3484,48 @@ function Fs2List() {
                     value={formData.aspek_sistem_ada}
                     onChange={(e) => setFormData({ ...formData, aspek_sistem_ada: e.target.value })}
                     fullWidth
+                    required
                     multiline
                     rows={2}
                     size="small"
+                    error={!!errors.aspek_sistem_ada}
+                    helperText={errors.aspek_sistem_ada}
                   />
                   <GlassTextField
                     label="3.2 Terhadap sistem terkait"
                     value={formData.aspek_sistem_terkait}
                     onChange={(e) => setFormData({ ...formData, aspek_sistem_terkait: e.target.value })}
                     fullWidth
+                    required
                     multiline
                     rows={2}
                     size="small"
+                    error={!!errors.aspek_sistem_terkait}
+                    helperText={errors.aspek_sistem_terkait}
                   />
                   <GlassTextField
                     label="3.3 Terhadap alur kerja bisnis"
                     value={formData.aspek_alur_kerja}
                     onChange={(e) => setFormData({ ...formData, aspek_alur_kerja: e.target.value })}
                     fullWidth
+                    required
                     multiline
                     rows={2}
                     size="small"
+                    error={!!errors.aspek_alur_kerja}
+                    helperText={errors.aspek_alur_kerja}
                   />
                   <GlassTextField
                     label="3.4 Terhadap struktur organisasi"
                     value={formData.aspek_struktur_organisasi}
                     onChange={(e) => setFormData({ ...formData, aspek_struktur_organisasi: e.target.value })}
                     fullWidth
+                    required
                     multiline
                     rows={2}
                     size="small"
+                    error={!!errors.aspek_struktur_organisasi}
+                    helperText={errors.aspek_struktur_organisasi}
                   />
                 </Stack>
               </AccordionDetails>
@@ -3175,9 +3582,12 @@ function Fs2List() {
                         value={formData.dok_t01_sebelum}
                         onChange={(e) => setFormData({ ...formData, dok_t01_sebelum: e.target.value })}
                         fullWidth
+                        required
                         multiline
                         rows={2}
                         size="small"
+                        error={!!errors.dok_t01_sebelum}
+                        helperText={errors.dok_t01_sebelum}
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
@@ -3186,9 +3596,12 @@ function Fs2List() {
                         value={formData.dok_t01_sesudah}
                         onChange={(e) => setFormData({ ...formData, dok_t01_sesudah: e.target.value })}
                         fullWidth
+                        required
                         multiline
                         rows={2}
                         size="small"
+                        error={!!errors.dok_t01_sesudah}
+                        helperText={errors.dok_t01_sesudah}
                       />
                     </Grid>
                   </Grid>
@@ -3203,9 +3616,12 @@ function Fs2List() {
                         value={formData.dok_t11_sebelum}
                         onChange={(e) => setFormData({ ...formData, dok_t11_sebelum: e.target.value })}
                         fullWidth
+                        required
                         multiline
                         rows={2}
                         size="small"
+                        error={!!errors.dok_t11_sebelum}
+                        helperText={errors.dok_t11_sebelum}
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
@@ -3214,9 +3630,12 @@ function Fs2List() {
                         value={formData.dok_t11_sesudah}
                         onChange={(e) => setFormData({ ...formData, dok_t11_sesudah: e.target.value })}
                         fullWidth
+                        required
                         multiline
                         rows={2}
                         size="small"
+                        error={!!errors.dok_t11_sesudah}
+                        helperText={errors.dok_t11_sesudah}
                       />
                     </Grid>
                   </Grid>
@@ -3275,7 +3694,10 @@ function Fs2List() {
                         value={formData.pengguna_sebelum}
                         onChange={(e) => setFormData({ ...formData, pengguna_sebelum: e.target.value })}
                         fullWidth
+                        required
                         size="small"
+                        error={!!errors.pengguna_sebelum}
+                        helperText={errors.pengguna_sebelum}
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
@@ -3284,7 +3706,10 @@ function Fs2List() {
                         value={formData.pengguna_sesudah}
                         onChange={(e) => setFormData({ ...formData, pengguna_sesudah: e.target.value })}
                         fullWidth
+                        required
                         size="small"
+                        error={!!errors.pengguna_sesudah}
+                        helperText={errors.pengguna_sesudah}
                       />
                     </Grid>
                   </Grid>
@@ -3299,7 +3724,10 @@ function Fs2List() {
                         value={formData.akses_bersamaan_sebelum}
                         onChange={(e) => setFormData({ ...formData, akses_bersamaan_sebelum: e.target.value })}
                         fullWidth
+                        required
                         size="small"
+                        error={!!errors.akses_bersamaan_sebelum}
+                        helperText={errors.akses_bersamaan_sebelum}
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
@@ -3308,7 +3736,10 @@ function Fs2List() {
                         value={formData.akses_bersamaan_sesudah}
                         onChange={(e) => setFormData({ ...formData, akses_bersamaan_sesudah: e.target.value })}
                         fullWidth
+                        required
                         size="small"
+                        error={!!errors.akses_bersamaan_sesudah}
+                        helperText={errors.akses_bersamaan_sesudah}
                       />
                     </Grid>
                   </Grid>
@@ -3323,7 +3754,10 @@ function Fs2List() {
                         value={formData.pertumbuhan_data_sebelum}
                         onChange={(e) => setFormData({ ...formData, pertumbuhan_data_sebelum: e.target.value })}
                         fullWidth
+                        required
                         size="small"
+                        error={!!errors.pertumbuhan_data_sebelum}
+                        helperText={errors.pertumbuhan_data_sebelum}
                       />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
@@ -3332,7 +3766,10 @@ function Fs2List() {
                         value={formData.pertumbuhan_data_sesudah}
                         onChange={(e) => setFormData({ ...formData, pertumbuhan_data_sesudah: e.target.value })}
                         fullWidth
+                        required
                         size="small"
+                        error={!!errors.pertumbuhan_data_sesudah}
+                        helperText={errors.pertumbuhan_data_sesudah}
                       />
                     </Grid>
                   </Grid>
@@ -3391,8 +3828,11 @@ function Fs2List() {
                       value={formData.target_pengujian}
                       onChange={(e) => setFormData({ ...formData, target_pengujian: e.target.value })}
                       fullWidth
+                      required
                       InputLabelProps={{ shrink: true }}
                       size="small"
+                      error={!!errors.target_pengujian}
+                      helperText={errors.target_pengujian}
                     />
                   </Grid>
                   <Grid size={{ xs: 4 }}>
@@ -3402,8 +3842,11 @@ function Fs2List() {
                       value={formData.target_deployment}
                       onChange={(e) => setFormData({ ...formData, target_deployment: e.target.value })}
                       fullWidth
+                      required
                       InputLabelProps={{ shrink: true }}
                       size="small"
+                      error={!!errors.target_deployment}
+                      helperText={errors.target_deployment}
                     />
                   </Grid>
                   <Grid size={{ xs: 4 }}>
@@ -3413,8 +3856,11 @@ function Fs2List() {
                       value={formData.target_go_live}
                       onChange={(e) => setFormData({ ...formData, target_go_live: e.target.value })}
                       fullWidth
+                      required
                       InputLabelProps={{ shrink: true }}
                       size="small"
+                      error={!!errors.target_go_live}
+                      helperText={errors.target_go_live}
                     />
                   </Grid>
                 </Grid>
@@ -3596,14 +4042,20 @@ function Fs2List() {
 
                   {/* Upload New File Section */}
                   <Box
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={handleEditFileDrop}
                     sx={{
-                      border: '2px dashed #e5e5e7',
+                      border: isDragging ? '2px solid #DA251C' : '2px dashed #e5e5e7',
                       borderRadius: 2,
                       p: 3,
                       textAlign: 'center',
                       cursor: isUploading ? 'not-allowed' : 'pointer',
                       opacity: isUploading ? 0.7 : 1,
                       transition: 'all 0.2s ease-in-out',
+                      background: isDragging
+                        ? 'rgba(218, 37, 28, 0.08)'
+                        : 'transparent',
                       '&:hover': {
                         borderColor: isUploading ? '#e5e5e7' : '#DA251C',
                         bgcolor: isUploading ? 'transparent' : 'rgba(218, 37, 28, 0.04)',
@@ -3641,6 +4093,18 @@ function Fs2List() {
                       </>
                     )}
                   </Box>
+                  {errors.upload_dokumen && existingFs2Files.length === 0 && (
+                    <Alert 
+                      severity="warning" 
+                      sx={{ 
+                        mt: 2, 
+                        borderRadius: '12px',
+                        '& .MuiAlert-icon': { color: '#FF9500' }
+                      }}
+                    >
+                      {errors.upload_dokumen}
+                    </Alert>
+                  )}
                 </Stack>
               </AccordionDetails>
             </Accordion>
@@ -3680,6 +4144,7 @@ function Fs2List() {
         open={openViewModal}
         onClose={handleCloseViewModal}
         fs2Id={selectedFs2IdForView}
+        showDocumentSection={true}
       />
 
       {/* Delete Confirmation Dialog */}
@@ -3708,6 +4173,7 @@ function Fs2List() {
         <DialogActions sx={{ p: 2.5, pt: 1 }}>
           <Button 
             onClick={handleCloseDeleteDialog}
+            disabled={isDeleting}
             sx={{
               color: '#86868b',
               '&:hover': {
@@ -3720,6 +4186,7 @@ function Fs2List() {
           <Button 
             variant="contained" 
             onClick={handleDeleteFs2}
+            disabled={isDeleting}
             sx={{
               bgcolor: '#DC2626',
               '&:hover': {
@@ -3727,7 +4194,7 @@ function Fs2List() {
               },
             }}
           >
-            Hapus
+            {isDeleting ? 'Menghapus...' : 'Hapus'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -3855,6 +4322,22 @@ function Fs2List() {
         onDownload={handlePreviewDownload}
         downloadUrl={`/api/fs2/files/download/${previewFile?.id}`}
       />
+
+      {/* Snackbar Notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
