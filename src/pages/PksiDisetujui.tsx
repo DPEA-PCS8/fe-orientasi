@@ -53,7 +53,6 @@ import {
 } from '@mui/icons-material';
 import { searchPksiDocuments, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
-import { getUsersByRole, type UserSimple } from '../api/userApi';
 import { getUserRoles } from '../api/authApi';
 import { ViewPksiModal, FilePreviewModal } from '../components/modals';
 import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
@@ -381,29 +380,12 @@ function PksiDisetujui() {
   const [fileDialogFiles, setFileDialogFiles] = useState<PksiFileData[]>([]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
 
-  // Eligible users for PIC/Anggota Tim (Admin + Pengembang)
-  const [eligibleUsers, setEligibleUsers] = useState<UserSimple[]>([]);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-
   // Teams for selection
   const [teams, setTeams] = useState<Team[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
 
-  // Fetch eligible users and teams on mount
+  // Fetch teams on mount
   useEffect(() => {
-    const fetchEligibleUsers = async () => {
-      setIsLoadingUsers(true);
-      try {
-        const users = await getUsersByRole('Admin,Pengembang');
-        setEligibleUsers(users);
-      } catch (error) {
-        console.error('Failed to fetch eligible users:', error);
-        setEligibleUsers([]);
-      } finally {
-        setIsLoadingUsers(false);
-      }
-    };
-    
     const fetchTeams = async () => {
       setIsLoadingTeams(true);
       try {
@@ -417,7 +399,6 @@ function PksiDisetujui() {
       }
     };
     
-    fetchEligibleUsers();
     fetchTeams();
   }, []);
 
