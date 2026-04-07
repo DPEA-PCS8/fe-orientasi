@@ -530,6 +530,10 @@ export interface PksiChangelogResponse {
  * Get changelogs for a specific PKSI document
  */
 export async function getPksiChangelogs(pksiId: string): Promise<PksiChangelogResponse> {
-  const response = await apiRequest<PksiChangelogResponse>(`${BASE_URL}/pksi/${pksiId}/changelogs`, 'GET');
-  return response.data;
+  const response = await apiRequest<PksiChangelogEntry[]>(`${BASE_URL}/pksi/${pksiId}/changelogs`, 'GET');
+  // Backend returns array directly, wrap it in expected format
+  return {
+    changelogs: response.data || [],
+    total_count: response.data?.length || 0,
+  };
 }
