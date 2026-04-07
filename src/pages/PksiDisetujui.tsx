@@ -2525,9 +2525,31 @@ function PksiDisetujui() {
                   </TableCell>
                   {/* BA Deploy */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.baDeploy || '-'}
-                    </Typography>
+                    {item.baDeploy && item.baDeploy !== '-' ? (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        href={item.baDeploy.startsWith('http') ? item.baDeploy : `https://${item.baDeploy}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                        sx={{
+                          textTransform: 'none',
+                          fontSize: '0.75rem',
+                          color: '#7C3AED',
+                          borderColor: 'rgba(124, 58, 237, 0.3)',
+                          bgcolor: 'rgba(124, 58, 237, 0.05)',
+                          '&:hover': {
+                            bgcolor: 'rgba(124, 58, 237, 0.1)',
+                            borderColor: '#7C3AED',
+                          },
+                        }}
+                      >
+                        Lihat BA
+                      </Button>
+                    ) : (
+                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
+                    )}
                   </TableCell>
                   {/* Aksi */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
@@ -4017,16 +4039,17 @@ function PksiDisetujui() {
 
           <TextField
             fullWidth
-            label="BA Deploy"
+            label="Link BA Deploy"
             value={editForm.baDeploy}
             onChange={(e) => setEditForm({ ...editForm, baDeploy: e.target.value })}
-            placeholder="Link atau nama dokumen BA Deploy"
+            placeholder="https://example.com/ba-deploy.pdf atau nama dokumen"
+            helperText="Masukkan URL lengkap untuk dokumen BA Deploy"
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: '14px',
                 backgroundColor: 'rgba(255, 255, 255, 0.7)',
                 '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.08)' },
-                '&:hover fieldset': { borderColor: 'rgba(217, 119, 6, 0.3)' },
+                '&:hover fieldset': { borderColor: 'rgba(124, 58, 237, 0.3)' },
                 '&.Mui-focused fieldset': { borderColor: '#D97706' },
               },
               '& .MuiInputLabel-root.Mui-focused': { color: '#D97706' },
