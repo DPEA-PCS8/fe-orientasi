@@ -529,3 +529,147 @@ export async function getPksiChangelogs(pksiId: string): Promise<PksiChangelogRe
   const response = await apiRequest<PksiChangelogResponse>(`${BASE_URL}/pksi/${pksiId}/changelogs`, 'GET');
   return response.data;
 }
+
+// ==================== DASHBOARD TYPES ====================
+
+export interface PksiDashboardRequest {
+  tahun?: number;
+  bulan?: number;
+  status?: string;
+}
+
+export interface MonthOption {
+  value: number;
+  label: string;
+}
+
+export interface PksiDashboardResponse {
+  selected_tahun: number;
+  selected_bulan: number;
+  available_years: number[];
+  available_months: MonthOption[];
+  snapshot_date: string;
+  summary: DashboardSummary;
+  approval_breakdown: ApprovalBreakdown;
+  progress_by_bidang: ProgressByBidangRow[];
+  bidang_list: BidangItem[];
+  progress_insights: ProgressInsights;
+  jenis_pksi_stats: JenisPksiStats;
+  pelaksana_stats: PelaksanaStats;
+  bidang_stats: BidangStat[];
+  pksi_list: PksiListItem[];
+  monthly_progress_trend: MonthlyProgressTrend[];
+}
+
+export interface DashboardSummary {
+  total_pksi: number;
+  total_disetujui: number;
+  total_pending: number;
+  total_ditolak: number;
+  percentage_disetujui: number;
+}
+
+export interface ApprovalBreakdown {
+  disetujui_tahun_ini: number;
+  disetujui_multiyears_sebelumnya: number;
+}
+
+export interface ProgressByBidangRow {
+  progress: string;
+  progress_label: string;
+  counts_by_bidang: Record<string, number>;
+  total: number;
+}
+
+export interface BidangItem {
+  id: string;
+  kode_bidang: string;
+  nama_bidang: string;
+}
+
+export interface ProgressInsights {
+  early_stage: PhaseDetail;
+  development_stage: PhaseDetail;
+  testing_stage: PhaseDetail;
+  deployment_stage: PhaseDetail;
+  deadline_current_year: DeadlineInsight;
+  deadline_next_year: DeadlineInsight;
+}
+
+export interface PhaseDetail {
+  label: string;
+  total: number;
+  percentage: number;
+  progress_breakdown: ProgressCount[];
+}
+
+export interface ProgressCount {
+  progress: string;
+  count: number;
+}
+
+export interface DeadlineInsight {
+  year: number;
+  total: number;
+  label: string;
+  progress_breakdown: ProgressCount[];
+}
+
+export interface JenisPksiStats {
+  single_year: number;
+  multiyears: number;
+}
+
+export interface PelaksanaStats {
+  inhouse: number;
+  outsource: number;
+  unknown: number;
+}
+
+export interface BidangStat {
+  bidang_kode: string;
+  bidang_nama: string;
+  count: number;
+}
+
+export interface PksiListItem {
+  id: string;
+  nama_pksi: string;
+  inisiatif_nomor?: string;
+  inisiatif_nama?: string;
+  status: string;
+  progress?: string;
+  bidang_nama?: string;
+  tahap7_awal?: string;
+  tahap7_akhir?: string;
+  is_multiyear: boolean;
+  inhouse_outsource?: string;
+}
+
+export interface MonthlyProgressTrend {
+  month: number;
+  month_label: string;
+  early_stage: number;
+  development_stage: number;
+  testing_stage: number;
+  completed: number;
+}
+
+// ==================== DASHBOARD API ====================
+
+/**
+ * Get PKSI Dashboard data with analytics and insights
+ */
+export async function getPksiDashboardData(params?: PksiDashboardRequest): Promise<PksiDashboardResponse> {
+  const queryParams = new URLSearchParams();
+  
+  if (params?.tahun !== undefined) queryParams.append('tahun', params.tahun.toString());
+  if (params?.bulan !== undefined) queryParams.append('bulan', params.bulan.toString());
+  if (params?.status) queryParams.append('status', params.status);
+  
+  const queryString = queryParams.toString();
+  const url = queryString ? `${BASE_URL}/pksi/dashboard?${queryString}` : `${BASE_URL}/pksi/dashboard`;
+  
+  const response = await apiRequest<PksiDashboardResponse>(url, 'GET');
+  return response.data;
+}
