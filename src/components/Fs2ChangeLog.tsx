@@ -112,16 +112,17 @@ const TimelineDot = styled(Box)({
 
 const ChangeCard = styled(Box)({
   position: 'relative',
-  padding: '16px',
-  borderRadius: '14px',
-  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-  border: '1px solid rgba(0, 0, 0, 0.06)',
-  marginBottom: '12px',
-  transition: 'all 0.2s ease',
+  padding: '18px 20px',
+  borderRadius: '16px',
+  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+  border: '1px solid rgba(0, 0, 0, 0.08)',
+  marginBottom: '16px',
+  transition: 'all 0.25s ease',
   '&:hover': {
     backgroundColor: 'white',
-    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
-    transform: 'translateX(4px)',
+    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.1)',
+    transform: 'translateX(6px)',
+    borderColor: 'rgba(99, 102, 241, 0.2)',
   },
   '&:last-child': {
     marginBottom: 0,
@@ -129,17 +130,16 @@ const ChangeCard = styled(Box)({
 });
 
 const ValuePill = styled(Box)<{ variant: 'old' | 'new' }>(({ variant }) => ({
-  display: 'inline-flex',
-  alignItems: 'center',
-  padding: '8px 14px',
-  borderRadius: '10px',
+  display: 'flex',
+  flexDirection: 'column',
+  padding: '12px 16px',
+  borderRadius: '12px',
   backgroundColor: variant === 'old' 
     ? alpha('#EF4444', 0.08)
     : alpha('#10B981', 0.08),
   border: `1px solid ${variant === 'old' ? alpha('#EF4444', 0.2) : alpha('#10B981', 0.2)}`,
-  flex: '1 1 auto',
+  flex: 1,
   minWidth: 0,
-  maxWidth: 'calc(50% - 24px)',
   overflow: 'hidden',
 }));
 
@@ -267,18 +267,6 @@ const Fs2ChangeLog: React.FC<Fs2ChangeLogProps> = ({ fs2Id, changeLogs }) => {
   }, [fs2Id, changeLogs]);
 
   const groupedLogs = groupChangeLogsByDate(logs);
-
-  // Expand first date by default
-  React.useEffect(() => {
-    if (groupedLogs.length > 0) {
-      setExpandedDates(prev => {
-        if (prev.size === 0) {
-          return new Set([groupedLogs[0].date]);
-        }
-        return prev;
-      });
-    }
-  }, [groupedLogs]);
 
   const toggleDate = (date: string) => {
     setExpandedDates(prev => {
@@ -517,46 +505,43 @@ const Fs2ChangeLog: React.FC<Fs2ChangeLogProps> = ({ fs2Id, changeLogs }) => {
                     {/* Values */}
                     <Box sx={{ 
                       display: 'flex', 
-                      alignItems: 'stretch', 
-                      gap: 1.5, 
-                      flexWrap: 'nowrap',
-                      minWidth: 0,
+                      alignItems: 'center', 
+                      gap: 2,
+                      mt: 2,
                     }}>
                       <ValuePill variant="old">
-                        <Box sx={{ minWidth: 0, width: '100%' }}>
-                          <Typography
-                            variant="caption"
-                            sx={{ 
-                              color: '#EF4444', 
-                              fontWeight: 600, 
-                              display: 'block',
-                              fontSize: '0.65rem',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.5px',
-                              mb: 0.25,
-                            }}
-                          >
-                            Sebelum
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            title={entry.old_value || '(kosong)'}
-                            sx={{
-                              color: entry.old_value ? '#B91C1C' : '#9CA3AF',
-                              fontWeight: 500,
-                              wordBreak: 'break-word',
-                              fontStyle: entry.old_value ? 'normal' : 'italic',
-                              fontSize: '0.85rem',
-                              display: '-webkit-box',
-                              WebkitLineClamp: 3,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {entry.old_value || '(kosong)'}
-                          </Typography>
-                        </Box>
+                        <Typography
+                          variant="caption"
+                          sx={{ 
+                            color: '#EF4444', 
+                            fontWeight: 700, 
+                            fontSize: '0.65rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.8px',
+                            mb: 1,
+                          }}
+                        >
+                          Sebelum
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          title={entry.old_value || '(kosong)'}
+                          sx={{
+                            color: entry.old_value ? '#B91C1C' : '#9CA3AF',
+                            fontWeight: 500,
+                            wordBreak: 'break-word',
+                            fontStyle: entry.old_value ? 'normal' : 'italic',
+                            fontSize: '0.875rem',
+                            lineHeight: 1.5,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 4,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {entry.old_value || '(kosong)'}
+                        </Typography>
                       </ValuePill>
 
                       <Box
@@ -564,51 +549,49 @@ const Fs2ChangeLog: React.FC<Fs2ChangeLogProps> = ({ fs2Id, changeLogs }) => {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          width: 28,
-                          height: 28,
+                          width: 32,
+                          height: 32,
                           borderRadius: '50%',
-                          bgcolor: 'rgba(99, 102, 241, 0.1)',
+                          bgcolor: 'rgba(99, 102, 241, 0.12)',
                           flexShrink: 0,
                         }}
                       >
-                        <TrendingFlatIcon sx={{ fontSize: 16, color: '#6366F1' }} />
+                        <TrendingFlatIcon sx={{ fontSize: 18, color: '#6366F1' }} />
                       </Box>
 
                       <ValuePill variant="new">
-                        <Box sx={{ minWidth: 0, width: '100%' }}>
-                          <Typography
-                            variant="caption"
-                            sx={{ 
-                              color: '#10B981', 
-                              fontWeight: 600, 
-                              display: 'block',
-                              fontSize: '0.65rem',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.5px',
-                              mb: 0.25,
-                            }}
-                          >
-                            Sesudah
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            title={entry.new_value || '(kosong)'}
-                            sx={{
-                              color: entry.new_value ? '#047857' : '#9CA3AF',
-                              fontWeight: 500,
-                              wordBreak: 'break-word',
-                              fontStyle: entry.new_value ? 'normal' : 'italic',
-                              fontSize: '0.85rem',
-                              display: '-webkit-box',
-                              WebkitLineClamp: 3,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {entry.new_value || '(kosong)'}
-                          </Typography>
-                        </Box>
+                        <Typography
+                          variant="caption"
+                          sx={{ 
+                            color: '#10B981', 
+                            fontWeight: 700, 
+                            fontSize: '0.65rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.8px',
+                            mb: 1,
+                          }}
+                        >
+                          Sesudah
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          title={entry.new_value || '(kosong)'}
+                          sx={{
+                            color: entry.new_value ? '#047857' : '#9CA3AF',
+                            fontWeight: 500,
+                            wordBreak: 'break-word',
+                            fontStyle: entry.new_value ? 'normal' : 'italic',
+                            fontSize: '0.875rem',
+                            lineHeight: 1.5,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 4,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {entry.new_value || '(kosong)'}
+                        </Typography>
                       </ValuePill>
                     </Box>
                   </ChangeCard>
