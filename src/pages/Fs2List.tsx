@@ -243,6 +243,10 @@ function Fs2List() {
   
   // Year filter (exposed in toolbar) - default to current year, filters by tanggal_pengajuan
   const [selectedYearFilter, setSelectedYearFilter] = useState<string>(new Date().getFullYear().toString());
+  
+  // Month range filter (exposed in toolbar) - filters by tanggal_pengajuan month
+  const [selectedStartMonth, setSelectedStartMonth] = useState<string>('');
+  const [selectedEndMonth, setSelectedEndMonth] = useState<string>('');
 
   // Sticky columns configuration
   const [stickyColumnsAnchorEl, setStickyColumnsAnchorEl] = useState<null | HTMLElement>(null);
@@ -394,6 +398,10 @@ function Fs2List() {
 
       // Parse year filter for backend API
       const yearFilter = selectedYearFilter ? parseInt(selectedYearFilter, 10) : undefined;
+      
+      // Parse month filters for backend API
+      const startMonthFilter = selectedStartMonth ? parseInt(selectedStartMonth, 10) : undefined;
+      const endMonthFilter = selectedEndMonth ? parseInt(selectedEndMonth, 10) : undefined;
 
       const response = await searchFs2Documents({
         search: keyword || undefined,
@@ -401,6 +409,8 @@ function Fs2List() {
         bidang_id: selectedBidangFilter || undefined,
         skpa_id: selectedSkpaFilter || undefined,
         year: yearFilter,
+        start_month: startMonthFilter,
+        end_month: endMonthFilter,
         page: page,
         size: rowsPerPage,
       });
@@ -417,7 +427,7 @@ function Fs2List() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, page, rowsPerPage, selectedStatus, selectedBidangFilter, selectedSkpaFilter, selectedYearFilter]);
+  }, [keyword, page, rowsPerPage, selectedStatus, selectedBidangFilter, selectedSkpaFilter, selectedYearFilter, selectedStartMonth, selectedEndMonth]);
 
   // Fetch reference data
   useEffect(() => {
@@ -685,6 +695,22 @@ function Fs2List() {
     });
     return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
   }, [rawData]);
+
+  // Month options for filtering
+  const monthOptions = useMemo(() => [
+    { value: '1', label: 'Januari' },
+    { value: '2', label: 'Februari' },
+    { value: '3', label: 'Maret' },
+    { value: '4', label: 'April' },
+    { value: '5', label: 'Mei' },
+    { value: '6', label: 'Juni' },
+    { value: '7', label: 'Juli' },
+    { value: '8', label: 'Agustus' },
+    { value: '9', label: 'September' },
+    { value: '10', label: 'Oktober' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'Desember' },
+  ], []);
 
   // Filter fs2Data by selected year (tanggal_pengajuan)
   // Note: Year filter is now handled by backend, this is kept for compatibility
@@ -1348,6 +1374,145 @@ function Fs2List() {
                       )}
                     </MenuItem>
                   ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Month Range Filter - Start Month */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                bgcolor: selectedStartMonth ? 'rgba(218, 37, 28, 0.08)' : '#f5f5f7',
+                borderRadius: '12px',
+                px: 1.5,
+                py: 0.5,
+                border: selectedStartMonth ? '1.5px solid rgba(218, 37, 28, 0.3)' : '1.5px solid transparent',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  bgcolor: selectedStartMonth ? 'rgba(218, 37, 28, 0.12)' : '#eeeeef',
+                },
+              }}
+            >
+              <FormControl size="small" variant="standard" sx={{ minWidth: 110 }}>
+                <Select
+                  value={selectedStartMonth}
+                  onChange={(e) => {
+                    setSelectedStartMonth(e.target.value);
+                    // Auto-adjust end month if it's less than start month
+                    if (selectedEndMonth && parseInt(e.target.value) > parseInt(selectedEndMonth)) {
+                      setSelectedEndMonth(e.target.value);
+                    }
+                  }}
+                  displayEmpty
+                  disableUnderline
+                  sx={{
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: selectedStartMonth ? '#DA251C' : '#1d1d1f',
+                    '& .MuiSelect-select': {
+                      py: 0.5,
+                      pr: 3,
+                    },
+                    '& .MuiSvgIcon-root': {
+                      color: selectedStartMonth ? '#DA251C' : '#86868b',
+                    },
+                  }}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        mt: 1,
+                        borderRadius: '12px',
+                        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+                        border: '1px solid rgba(0, 0, 0, 0.06)',
+                        maxHeight: 300,
+                      },
+                    },
+                  }}
+                >
+                  <MenuItem value="" sx={{ fontSize: '0.875rem' }}>
+                    <em>Bulan Mulai</em>
+                  </MenuItem>
+                  {monthOptions.map((month) => (
+                    <MenuItem 
+                      key={month.value} 
+                      value={month.value}
+                      sx={{ fontSize: '0.875rem' }}
+                    >
+                      {month.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Month Range Separator */}
+            <Typography sx={{ color: '#86868b', fontSize: '0.875rem', fontWeight: 500 }}>
+              s/d
+            </Typography>
+
+            {/* Month Range Filter - End Month */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                bgcolor: selectedEndMonth ? 'rgba(218, 37, 28, 0.08)' : '#f5f5f7',
+                borderRadius: '12px',
+                px: 1.5,
+                py: 0.5,
+                border: selectedEndMonth ? '1.5px solid rgba(218, 37, 28, 0.3)' : '1.5px solid transparent',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  bgcolor: selectedEndMonth ? 'rgba(218, 37, 28, 0.12)' : '#eeeeef',
+                },
+              }}
+            >
+              <FormControl size="small" variant="standard" sx={{ minWidth: 120 }}>
+                <Select
+                  value={selectedEndMonth}
+                  onChange={(e) => setSelectedEndMonth(e.target.value)}
+                  displayEmpty
+                  disableUnderline
+                  sx={{
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: selectedEndMonth ? '#DA251C' : '#1d1d1f',
+                    '& .MuiSelect-select': {
+                      py: 0.5,
+                      pr: 3,
+                    },
+                    '& .MuiSvgIcon-root': {
+                      color: selectedEndMonth ? '#DA251C' : '#86868b',
+                    },
+                  }}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        mt: 1,
+                        borderRadius: '12px',
+                        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+                        border: '1px solid rgba(0, 0, 0, 0.06)',
+                        maxHeight: 300,
+                      },
+                    },
+                  }}
+                >
+                  <MenuItem value="" sx={{ fontSize: '0.875rem' }}>
+                    <em>Bulan Selesai</em>
+                  </MenuItem>
+                  {monthOptions
+                    .filter(month => !selectedStartMonth || parseInt(month.value) >= parseInt(selectedStartMonth))
+                    .map((month) => (
+                      <MenuItem 
+                        key={month.value} 
+                        value={month.value}
+                        sx={{ fontSize: '0.875rem' }}
+                      >
+                        {month.label}
+                      </MenuItem>
+                    ))}
                 </Select>
               </FormControl>
             </Box>
