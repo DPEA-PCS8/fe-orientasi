@@ -4005,7 +4005,24 @@ function Fs2List() {
                               <FileIcon sx={{ color: '#DA251C' }} />
                             </ListItemIcon>
                             <ListItemText
-                              primary={file.original_name || file.file_name}
+                              primary={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <span>{file.display_name || file.original_name || file.file_name}</span>
+                                  {file.version && file.version > 1 && (
+                                    <Chip
+                                      label={`V${file.version}`}
+                                      size="small"
+                                      sx={{
+                                        height: 18,
+                                        fontSize: '0.7rem',
+                                        fontWeight: 600,
+                                        bgcolor: '#31A24C',
+                                        color: 'white',
+                                      }}
+                                    />
+                                  )}
+                                </Box>
+                              }
                               secondary={formatFileSize(file.file_size)}
                               primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }}
                               secondaryTypographyProps={{ sx: { color: '#86868b' } }}
@@ -4252,7 +4269,24 @@ function Fs2List() {
                     <FileIcon sx={{ color: '#DA251C', fontSize: 24 }} />
                   </ListItemIcon>
                   <ListItemText
-                    primary={file.original_name}
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <span>{file.display_name || file.original_name}</span>
+                        {file.version && file.version > 1 && (
+                          <Chip
+                            label={`V${file.version}`}
+                            size="small"
+                            sx={{
+                              height: 18,
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              bgcolor: '#31A24C',
+                              color: 'white',
+                            }}
+                          />
+                        )}
+                      </Box>
+                    }
                     secondary={formatFileSize(file.file_size)}
                     primaryTypographyProps={{
                       sx: {

@@ -36,11 +36,13 @@ import {
   InsertDriveFile as FileIcon,
   Download as DownloadIcon,
   Visibility as VisibilityIcon,
+  History as HistoryIcon,
 } from '@mui/icons-material';
 import { getFs2DocumentById, type Fs2DocumentData } from '../../api/fs2Api';
 import { getFs2Files, downloadFs2File, type Fs2FileData } from '../../api/fs2FileApi';
 import FilePreviewModal from './FilePreviewModal';
 import Fs2ChangeLog from '../Fs2ChangeLog';
+import { FileVersionHistory } from '../FileVersionHistory';
 
 // Glass Card Component - matching ViewPksiModal
 const GlassCard = styled(Box)({
@@ -278,7 +280,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
     </Box>
   );
 
-  // Render file list section
+  // Render file list section with versioning support
   const renderFileListSection = (
     files: Fs2FileData[],
     title: string,
@@ -287,18 +289,31 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
     emptyMessage: string
   ) => {
     const filteredFiles = files.filter(f => fileTypes.includes(f.file_type || ''));
+    // Get only the latest version of each file type
+    const latestFiles = filteredFiles.filter(f => f.is_latest_version !== false);
+    // Check if any file has more than one version
+    const hasHistory = filteredFiles.some(f => (f.version || 1) > 1);
     
     return (
       <Box sx={{ mb: 2 }}>
-        <Typography variant="body2" sx={{ mb: 1, fontWeight: 600, color: iconColor }}>{title}</Typography>
-        {filteredFiles.length > 0 ? (
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, color: iconColor }}>{title}</Typography>
+          {hasHistory && fs2Id && (
+            <FileHistoryButtonInline 
+              documentId={fs2Id} 
+              fileType={fileTypes[0]} 
+              documentType="fs2" 
+            />
+          )}
+        </Box>
+        {latestFiles.length > 0 ? (
           <List dense sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '10px', p: 0.5 }}>
-            {filteredFiles.map((file, index) => (
+            {latestFiles.map((file, index) => (
               <ListItem
                 key={file.id}
                 sx={{
                   borderRadius: '8px',
-                  mb: index < filteredFiles.length - 1 ? 0.5 : 0,
+                  mb: index < latestFiles.length - 1 ? 0.5 : 0,
                   bgcolor: 'white',
                   boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
                   py: 0.75,
@@ -308,7 +323,24 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                   <FileIcon sx={{ color: iconColor, fontSize: 20 }} />
                 </ListItemIcon>
                 <ListItemText
-                  primary={file.original_name}
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <span>{file.display_name || file.original_name}</span>
+                      {file.version && file.version > 0 && (
+                        <Chip 
+                          label={`V${file.version}`} 
+                          size="small" 
+                          sx={{ 
+                            height: 18, 
+                            fontSize: '0.65rem', 
+                            bgcolor: iconColor, 
+                            color: 'white',
+                            fontWeight: 600,
+                          }} 
+                        />
+                      )}
+                    </Box>
+                  }
                   secondary={formatFileSize(file.file_size)}
                   primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem' } }}
                   secondaryTypographyProps={{ sx: { color: '#86868b', fontSize: '0.7rem' } }}
@@ -347,6 +379,35 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
           </Typography>
         )}
       </Box>
+    );
+  };
+
+  // Inline FileHistoryButton component
+  const FileHistoryButtonInline: React.FC<{
+    documentId: string;
+    fileType: string;
+    documentType: 'pksi' | 'fs2';
+  }> = ({ documentId, fileType, documentType }) => {
+    const [isModalOpen, setIsModalOpen] = React.useState(false);
+    
+    return (
+      <>
+        <IconButton
+          size="small"
+          onClick={() => setIsModalOpen(true)}
+          sx={{ color: '#6b7280', '&:hover': { bgcolor: 'rgba(107, 114, 128, 0.1)' } }}
+          title="Lihat Riwayat Versi"
+        >
+          <HistoryIcon sx={{ fontSize: 18 }} />
+        </IconButton>
+        <FileVersionHistory
+          documentId={documentId}
+          fileType={fileType}
+          documentType={documentType}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+        />
+      </>
     );
   };
 

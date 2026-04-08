@@ -2528,7 +2528,19 @@ function Fs2Disetujui() {
                   {filesND.map((file) => (
                     <ListItem key={file.id} sx={{ py: 0.5 }}>
                       <ListItemIcon sx={{ minWidth: 36 }}><FileIcon sx={{ color: '#31A24C', fontSize: 20 }} /></ListItemIcon>
-                      <ListItemText primary={file.original_name} secondary={formatFileSize(file.file_size)} primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }} secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }} />
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <span>{file.display_name || file.original_name}</span>
+                            {file.version && file.version > 1 && (
+                              <Chip label={`V${file.version}`} size="small" sx={{ height: 16, fontSize: '0.65rem', fontWeight: 600, bgcolor: '#31A24C', color: 'white' }} />
+                            )}
+                          </Box>
+                        }
+                        secondary={formatFileSize(file.file_size)}
+                        primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
+                        secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
+                      />
                       <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
                         {isPreviewable(file.content_type) && (
                           <IconButton size="small" onClick={() => handlePreviewFile(file)} sx={{ color: '#0891B2' }}><VisibilityIcon fontSize="small" /></IconButton>
@@ -2593,7 +2605,19 @@ function Fs2Disetujui() {
                   {filesFS2.map((file) => (
                     <ListItem key={file.id} sx={{ py: 0.5 }}>
                       <ListItemIcon sx={{ minWidth: 36 }}><FileIcon sx={{ color: '#31A24C', fontSize: 20 }} /></ListItemIcon>
-                      <ListItemText primary={file.original_name} secondary={formatFileSize(file.file_size)} primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }} secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }} />
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <span>{file.display_name || file.original_name}</span>
+                            {file.version && file.version > 1 && (
+                              <Chip label={`V${file.version}`} size="small" sx={{ height: 16, fontSize: '0.65rem', fontWeight: 600, bgcolor: '#31A24C', color: 'white' }} />
+                            )}
+                          </Box>
+                        }
+                        secondary={formatFileSize(file.file_size)}
+                        primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
+                        secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
+                      />
                       <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
                         {isPreviewable(file.content_type) && (
                           <IconButton size="small" onClick={() => handlePreviewFile(file)} sx={{ color: '#0891B2' }}><VisibilityIcon fontSize="small" /></IconButton>
@@ -2684,7 +2708,19 @@ function Fs2Disetujui() {
                   {filesCD.map((file) => (
                     <ListItem key={file.id} sx={{ py: 0.5 }}>
                       <ListItemIcon sx={{ minWidth: 36 }}><FileIcon sx={{ color: '#2563EB', fontSize: 20 }} /></ListItemIcon>
-                      <ListItemText primary={file.original_name} secondary={formatFileSize(file.file_size)} primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }} secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }} />
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <span>{file.display_name || file.original_name}</span>
+                            {file.version && file.version > 1 && (
+                              <Chip label={`V${file.version}`} size="small" sx={{ height: 16, fontSize: '0.65rem', fontWeight: 600, bgcolor: '#2563EB', color: 'white' }} />
+                            )}
+                          </Box>
+                        }
+                        secondary={formatFileSize(file.file_size)}
+                        primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
+                        secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
+                      />
                       <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
                         {isPreviewable(file.content_type) && (
                           <IconButton size="small" onClick={() => handlePreviewFile(file)} sx={{ color: '#0891B2' }}><VisibilityIcon fontSize="small" /></IconButton>
@@ -2749,7 +2785,19 @@ function Fs2Disetujui() {
                   {filesFS2A.map((file) => (
                     <ListItem key={file.id} sx={{ py: 0.5 }}>
                       <ListItemIcon sx={{ minWidth: 36 }}><FileIcon sx={{ color: '#2563EB', fontSize: 20 }} /></ListItemIcon>
-                      <ListItemText primary={file.original_name} secondary={formatFileSize(file.file_size)} primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }} secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }} />
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <span>{file.display_name || file.original_name}</span>
+                            {file.version && file.version > 1 && (
+                              <Chip label={`V${file.version}`} size="small" sx={{ height: 16, fontSize: '0.65rem', fontWeight: 600, bgcolor: '#2563EB', color: 'white' }} />
+                            )}
+                          </Box>
+                        }
+                        secondary={formatFileSize(file.file_size)}
+                        primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
+                        secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
+                      />
                       <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
                         {isPreviewable(file.content_type) && (
                           <IconButton size="small" onClick={() => handlePreviewFile(file)} sx={{ color: '#0891B2' }}><VisibilityIcon fontSize="small" /></IconButton>
@@ -2814,7 +2862,19 @@ function Fs2Disetujui() {
                   {filesFS2B.map((file) => (
                     <ListItem key={file.id} sx={{ py: 0.5 }}>
                       <ListItemIcon sx={{ minWidth: 36 }}><FileIcon sx={{ color: '#2563EB', fontSize: 20 }} /></ListItemIcon>
-                      <ListItemText primary={file.original_name} secondary={formatFileSize(file.file_size)} primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }} secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }} />
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <span>{file.display_name || file.original_name}</span>
+                            {file.version && file.version > 1 && (
+                              <Chip label={`V${file.version}`} size="small" sx={{ height: 16, fontSize: '0.65rem', fontWeight: 600, bgcolor: '#2563EB', color: 'white' }} />
+                            )}
+                          </Box>
+                        }
+                        secondary={formatFileSize(file.file_size)}
+                        primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
+                        secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
+                      />
                       <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
                         {isPreviewable(file.content_type) && (
                           <IconButton size="small" onClick={() => handlePreviewFile(file)} sx={{ color: '#0891B2' }}><VisibilityIcon fontSize="small" /></IconButton>
@@ -2907,7 +2967,19 @@ function Fs2Disetujui() {
                   {filesF45.map((file) => (
                     <ListItem key={file.id} sx={{ py: 0.5 }}>
                       <ListItemIcon sx={{ minWidth: 36 }}><FileIcon sx={{ color: '#D97706', fontSize: 20 }} /></ListItemIcon>
-                      <ListItemText primary={file.original_name} secondary={formatFileSize(file.file_size)} primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }} secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }} />
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <span>{file.display_name || file.original_name}</span>
+                            {file.version && file.version > 1 && (
+                              <Chip label={`V${file.version}`} size="small" sx={{ height: 16, fontSize: '0.65rem', fontWeight: 600, bgcolor: '#D97706', color: 'white' }} />
+                            )}
+                          </Box>
+                        }
+                        secondary={formatFileSize(file.file_size)}
+                        primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
+                        secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
+                      />
                       <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
                         {isPreviewable(file.content_type) && (
                           <IconButton size="small" onClick={() => handlePreviewFile(file)} sx={{ color: '#0891B2' }}><VisibilityIcon fontSize="small" /></IconButton>
@@ -2972,7 +3044,19 @@ function Fs2Disetujui() {
                   {filesF46.map((file) => (
                     <ListItem key={file.id} sx={{ py: 0.5 }}>
                       <ListItemIcon sx={{ minWidth: 36 }}><FileIcon sx={{ color: '#D97706', fontSize: 20 }} /></ListItemIcon>
-                      <ListItemText primary={file.original_name} secondary={formatFileSize(file.file_size)} primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }} secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }} />
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <span>{file.display_name || file.original_name}</span>
+                            {file.version && file.version > 1 && (
+                              <Chip label={`V${file.version}`} size="small" sx={{ height: 16, fontSize: '0.65rem', fontWeight: 600, bgcolor: '#D97706', color: 'white' }} />
+                            )}
+                          </Box>
+                        }
+                        secondary={formatFileSize(file.file_size)}
+                        primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
+                        secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
+                      />
                       <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
                         {isPreviewable(file.content_type) && (
                           <IconButton size="small" onClick={() => handlePreviewFile(file)} sx={{ color: '#0891B2' }}><VisibilityIcon fontSize="small" /></IconButton>
@@ -3065,7 +3149,19 @@ function Fs2Disetujui() {
                   {filesNDBA.map((file) => (
                     <ListItem key={file.id} sx={{ py: 0.5 }}>
                       <ListItemIcon sx={{ minWidth: 36 }}><FileIcon sx={{ color: '#7C3AED', fontSize: 20 }} /></ListItemIcon>
-                      <ListItemText primary={file.original_name} secondary={formatFileSize(file.file_size)} primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }} secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }} />
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <span>{file.display_name || file.original_name}</span>
+                            {file.version && file.version > 1 && (
+                              <Chip label={`V${file.version}`} size="small" sx={{ height: 16, fontSize: '0.65rem', fontWeight: 600, bgcolor: '#7C3AED', color: 'white' }} />
+                            )}
+                          </Box>
+                        }
+                        secondary={formatFileSize(file.file_size)}
+                        primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
+                        secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
+                      />
                       <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
                         {isPreviewable(file.content_type) && (
                           <IconButton size="small" onClick={() => handlePreviewFile(file)} sx={{ color: '#0891B2' }}><VisibilityIcon fontSize="small" /></IconButton>
@@ -3191,7 +3287,24 @@ function Fs2Disetujui() {
                     <FileIcon sx={{ color: '#31A24C', fontSize: 24 }} />
                   </ListItemIcon>
                   <ListItemText
-                    primary={file.original_name || file.file_name || 'File'}
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <span>{file.display_name || file.original_name || file.file_name || 'File'}</span>
+                        {file.version && file.version > 1 && (
+                          <Chip
+                            label={`V${file.version}`}
+                            size="small"
+                            sx={{
+                              height: 18,
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              bgcolor: '#31A24C',
+                              color: 'white',
+                            }}
+                          />
+                        )}
+                      </Box>
+                    }
                     secondary={file.file_size ? formatFileSize(file.file_size) : '-'}
                     primaryTypographyProps={{
                       sx: { fontWeight: 500, color: '#1d1d1f', fontSize: '0.9rem' },
