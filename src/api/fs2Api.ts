@@ -239,6 +239,8 @@ export async function searchFs2Documents(params: {
   skpa_id?: string;
   status?: string;
   year?: number;
+  start_month?: number;
+  end_month?: number;
   page?: number;
   size?: number;
 }): Promise<Fs2SearchResponse> {
@@ -248,6 +250,8 @@ export async function searchFs2Documents(params: {
   if (params.skpa_id) queryParams.append('skpa_id', params.skpa_id);
   if (params.status) queryParams.append('status', params.status);
   if (params.year !== undefined) queryParams.append('year', params.year.toString());
+  if (params.start_month !== undefined) queryParams.append('start_month', params.start_month.toString());
+  if (params.end_month !== undefined) queryParams.append('end_month', params.end_month.toString());
   if (params.page !== undefined) queryParams.append('page', params.page.toString());
   if (params.size !== undefined) queryParams.append('size', params.size.toString());
 
@@ -269,6 +273,8 @@ export async function searchApprovedFs2Documents(params: {
   mekanisme?: string;
   pelaksanaan?: string;
   year?: number;
+  start_month?: number;
+  end_month?: number;
   page?: number;
   size?: number;
 }): Promise<Fs2SearchResponse> {
@@ -281,6 +287,8 @@ export async function searchApprovedFs2Documents(params: {
   if (params.mekanisme) queryParams.append('mekanisme', params.mekanisme);
   if (params.pelaksanaan) queryParams.append('pelaksanaan', params.pelaksanaan);
   if (params.year !== undefined) queryParams.append('year', params.year.toString());
+  if (params.start_month !== undefined) queryParams.append('start_month', params.start_month.toString());
+  if (params.end_month !== undefined) queryParams.append('end_month', params.end_month.toString());
   if (params.page !== undefined) queryParams.append('page', params.page.toString());
   if (params.size !== undefined) queryParams.append('size', params.size.toString());
 
