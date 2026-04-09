@@ -1505,7 +1505,24 @@ function PksiList() {
                       <FileIcon sx={{ color: '#DA251C', fontSize: 24 }} />
                     </ListItemIcon>
                     <ListItemText
-                      primary={file.original_name || file.file_name || 'File'}
+                      primary={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <span>{file.display_name || file.original_name || file.file_name || 'File'}</span>
+                          {file.version && file.version > 1 && (
+                            <Chip
+                              label={`V${file.version}`}
+                              size="small"
+                              sx={{
+                                height: 18,
+                                fontSize: '0.7rem',
+                                fontWeight: 600,
+                                bgcolor: '#DA251C',
+                                color: 'white',
+                              }}
+                            />
+                          )}
+                        </Box>
+                      }
                       secondary={formatFileSize(file.file_size)}
                       primaryTypographyProps={{
                         sx: { fontWeight: 500, color: '#1d1d1f', fontSize: '0.9rem' },

@@ -15,6 +15,10 @@ export interface Fs2FileData {
   blob_url: string;
   file_type: string; // ND, FS2, CD, FS2A, FS2B, F45, F46, NDBA
   created_at: string;
+  version: number;
+  file_group_id: string | null;
+  display_name: string | null;
+  is_latest_version: boolean;
 }
 
 export interface Fs2FileResponse {
@@ -285,4 +289,157 @@ export async function deleteFs2FilesByFs2Id(fs2Id: string): Promise<void> {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || `Delete failed: ${response.statusText}`);
   }
+}
+
+// ==================== VERSIONING API FUNCTIONS ====================
+
+/**
+ * Upload a new version of a file
+ * @param fs2Id - The F.S.2 document ID
+ * @param file - The file to upload
+ * @param fileType - The file type: ND, FS2, CD, FS2A, FS2B, F45, F46, NDBA
+ */
+export async function uploadFs2FileVersion(fs2Id: string, file: File, fileType: string): Promise<Fs2FileData> {
+  const token = getAuthToken();
+  
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${BASE_URL}/fs2/files/version/${fs2Id}?fileType=${fileType}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'APIKey': API_KEY,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Upload version failed: ${response.statusText}`);
+  }
+
+  const result: Fs2FileResponse = await response.json();
+  return result.data as Fs2FileData;
+}
+
+/**
+ * Get latest version files for a F.S.2 document (one per file type)
+ */
+export async function getFs2LatestFiles(fs2Id: string): Promise<Fs2FileData[]> {
+  const token = getAuthToken();
+  
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(`${BASE_URL}/fs2/files/latest/${fs2Id}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'APIKey': API_KEY,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Get latest files failed: ${response.statusText}`);
+  }
+
+  const result: Fs2FileResponse = await response.json();
+  return Array.isArray(result.data) ? result.data : [];
+}
+
+/**
+ * Get file version history for a specific file type
+ */
+export async function getFs2FileHistory(fs2Id: string, fileType: string): Promise<Fs2FileData[]> {
+  const token = getAuthToken();
+  
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(`${BASE_URL}/fs2/files/history/${fs2Id}/${fileType}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'APIKey': API_KEY,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Get history failed: ${response.statusText}`);
+  }
+
+  const result: Fs2FileResponse = await response.json();
+  return Array.isArray(result.data) ? result.data : [];
+}
+
+/**
+ * Get all versions of a file by file group ID
+ */
+export async function getFs2FilesByGroupId(fileGroupId: string): Promise<Fs2FileData[]> {
+  const token = getAuthToken();
+  
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(`${BASE_URL}/fs2/files/group/${fileGroupId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'APIKey': API_KEY,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Get files by group failed: ${response.statusText}`);
+  }
+
+  const result: Fs2FileResponse = await response.json();
+  return Array.isArray(result.data) ? result.data : [];
+}
+
+/**
+ * Download a specific version of a file
+ */
+export async function downloadFs2FileVersion(fs2Id: string, fileType: string, version: number, fileName?: string): Promise<void> {
+  const token = getAuthToken();
+  
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(`${BASE_URL}/fs2/files/download/${fs2Id}/${fileType}/${version}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'APIKey': API_KEY,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Download version failed: ${response.statusText}`);
+  }
+
+  const blob = await response.blob();
+  
+  // Create download link
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName || `file_v${version}`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 }

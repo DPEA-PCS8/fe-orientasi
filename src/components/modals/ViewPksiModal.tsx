@@ -41,9 +41,10 @@ import {
 } from '@mui/icons-material';
 import { getPksiDocumentById, type PksiDocumentData } from '../../api/pksiApi';
 import { getAllSkpa } from '../../api/skpaApi';
-import { getPksiFiles, downloadPksiFile, type PksiFileData } from '../../api/fileApi';
+import { getPksiFiles, downloadPksiFile, type PksiFileData } from '../../api/pksiFileApi';
 import FilePreviewModal from './FilePreviewModal';
 import PksiChangeLog from '../PksiChangeLog';
+import { FileVersionHistory } from '../FileVersionHistory';
 
 // Glass Card Component
 const GlassCard = styled(Box)({
@@ -891,12 +892,23 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   {/* T01 - Rencana PKSI */}
                   <Box>
-                    <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600, color: '#1d1d1f' }}>
-                      Rencana PKSI (T01/T02)
-                    </Typography>
-                    {pksiFiles.filter(f => f.file_type === 'T01' || !f.file_type).length > 0 ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                        Rencana PKSI (T01/T02)
+                      </Typography>
+                      {pksiFiles.filter(f => f.file_type === 'T01' || !f.file_type).some(f => (f.version || 1) > 1) && (
+                        <FileVersionHistory
+                          documentId={pksiId || ''}
+                          fileType="T01"
+                          documentType="pksi"
+                          isOpen={false}
+                          onClose={() => {}}
+                        />
+                      )}
+                    </Box>
+                    {pksiFiles.filter(f => (f.file_type === 'T01' || !f.file_type) && f.is_latest_version !== false).length > 0 ? (
                       <List dense sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px', p: 1 }}>
-                        {pksiFiles.filter(f => f.file_type === 'T01' || !f.file_type).map((file, index, arr) => (
+                        {pksiFiles.filter(f => (f.file_type === 'T01' || !f.file_type) && f.is_latest_version !== false).map((file, index, arr) => (
                           <ListItem
                             key={file.id}
                             sx={{
@@ -913,7 +925,24 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                               <FileIcon sx={{ color: '#DA251C', fontSize: 24 }} />
                             </ListItemIcon>
                             <ListItemText
-                              primary={file.original_name}
+                              primary={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <span>{file.display_name || file.original_name}</span>
+                                  {file.version && file.version > 1 && (
+                                    <Chip
+                                      label={`V${file.version}`}
+                                      size="small"
+                                      sx={{
+                                        height: 18,
+                                        fontSize: '0.7rem',
+                                        fontWeight: 600,
+                                        bgcolor: '#059669',
+                                        color: 'white',
+                                      }}
+                                    />
+                                  )}
+                                </Box>
+                              }
                               secondary={formatFileSize(file.file_size)}
                               primaryTypographyProps={{
                                 sx: {
@@ -981,12 +1010,23 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
 
                   {/* T11 - Spesifikasi Kebutuhan */}
                   <Box>
-                    <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600, color: '#1d1d1f' }}>
-                      Spesifikasi Kebutuhan (T11)
-                    </Typography>
-                    {pksiFiles.filter(f => f.file_type === 'T11').length > 0 ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                        Spesifikasi Kebutuhan (T11)
+                      </Typography>
+                      {pksiFiles.filter(f => f.file_type === 'T11').some(f => (f.version || 1) > 1) && (
+                        <FileVersionHistory
+                          documentId={pksiId || ''}
+                          fileType="T11"
+                          documentType="pksi"
+                          isOpen={false}
+                          onClose={() => {}}
+                        />
+                      )}
+                    </Box>
+                    {pksiFiles.filter(f => f.file_type === 'T11' && f.is_latest_version !== false).length > 0 ? (
                       <List dense sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px', p: 1 }}>
-                        {pksiFiles.filter(f => f.file_type === 'T11').map((file, index, arr) => (
+                        {pksiFiles.filter(f => f.file_type === 'T11' && f.is_latest_version !== false).map((file, index, arr) => (
                           <ListItem
                             key={file.id}
                             sx={{
@@ -1003,7 +1043,24 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                               <FileIcon sx={{ color: '#0891B2', fontSize: 24 }} />
                             </ListItemIcon>
                             <ListItemText
-                              primary={file.original_name}
+                              primary={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <span>{file.display_name || file.original_name}</span>
+                                  {file.version && file.version > 1 && (
+                                    <Chip
+                                      label={`V${file.version}`}
+                                      size="small"
+                                      sx={{
+                                        height: 18,
+                                        fontSize: '0.7rem',
+                                        fontWeight: 600,
+                                        bgcolor: '#0891B2',
+                                        color: 'white',
+                                      }}
+                                    />
+                                  )}
+                                </Box>
+                              }
                               secondary={formatFileSize(file.file_size)}
                               primaryTypographyProps={{
                                 sx: {

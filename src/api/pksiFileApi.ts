@@ -13,8 +13,12 @@ export interface PksiFileData {
   content_type: string;
   file_size: number;
   blob_url: string;
-  file_type: string; // T01 = Rencana PKSI, T11 = Spesifikasi Kebutuhan
+  file_type: string; // T01 = Rencana PKSI, T11 = Spesifikasi Kebutuhan, T01_ND, T11_ND
   created_at: string;
+  version: number;
+  file_group_id: string | null;
+  display_name: string | null;
+  is_latest_version: boolean;
 }
 
 export interface PksiFileResponse {
@@ -313,4 +317,157 @@ export async function deletePksiFilesByPksiId(pksiId: string): Promise<void> {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || `Delete failed: ${response.statusText}`);
   }
+}
+
+// ==================== VERSIONING API FUNCTIONS ====================
+
+/**
+ * Upload a new version of a file
+ * @param pksiId - The PKSI document ID
+ * @param file - The file to upload
+ * @param fileType - The file type: T01, T11, T01_ND, T11_ND
+ */
+export async function uploadPksiFileVersion(pksiId: string, file: File, fileType: string): Promise<PksiFileData> {
+  const token = getAuthToken();
+  
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${BASE_URL}/pksi/files/version/${pksiId}?fileType=${fileType}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'APIKey': API_KEY,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Upload version failed: ${response.statusText}`);
+  }
+
+  const result: PksiFileResponse = await response.json();
+  return result.data as PksiFileData;
+}
+
+/**
+ * Get latest version files for a PKSI document (one per file type)
+ */
+export async function getPksiLatestFiles(pksiId: string): Promise<PksiFileData[]> {
+  const token = getAuthToken();
+  
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(`${BASE_URL}/pksi/files/latest/${pksiId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'APIKey': API_KEY,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Get latest files failed: ${response.statusText}`);
+  }
+
+  const result: PksiFileResponse = await response.json();
+  return Array.isArray(result.data) ? result.data : [];
+}
+
+/**
+ * Get file version history for a specific file type
+ */
+export async function getPksiFileHistory(pksiId: string, fileType: string): Promise<PksiFileData[]> {
+  const token = getAuthToken();
+  
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(`${BASE_URL}/pksi/files/history/${pksiId}/${fileType}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'APIKey': API_KEY,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Get history failed: ${response.statusText}`);
+  }
+
+  const result: PksiFileResponse = await response.json();
+  return Array.isArray(result.data) ? result.data : [];
+}
+
+/**
+ * Get all versions of a file by file group ID
+ */
+export async function getPksiFilesByGroupId(fileGroupId: string): Promise<PksiFileData[]> {
+  const token = getAuthToken();
+  
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(`${BASE_URL}/pksi/files/group/${fileGroupId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'APIKey': API_KEY,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Get files by group failed: ${response.statusText}`);
+  }
+
+  const result: PksiFileResponse = await response.json();
+  return Array.isArray(result.data) ? result.data : [];
+}
+
+/**
+ * Download a specific version of a file
+ */
+export async function downloadPksiFileVersion(pksiId: string, fileType: string, version: number, fileName?: string): Promise<void> {
+  const token = getAuthToken();
+  
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(`${BASE_URL}/pksi/files/download/${pksiId}/${fileType}/${version}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'APIKey': API_KEY,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Download version failed: ${response.statusText}`);
+  }
+
+  const blob = await response.blob();
+  
+  // Create download link
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName || `file_v${version}`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 }
