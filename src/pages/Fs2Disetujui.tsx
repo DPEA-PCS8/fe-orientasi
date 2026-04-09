@@ -36,6 +36,8 @@ import {
   ListItemIcon,
   ListItemText,
   ListItemSecondaryAction,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -246,6 +248,9 @@ function Fs2Disetujui() {
   const [selectedStartMonth, setSelectedStartMonth] = useState<string>('');
   const [selectedEndMonth, setSelectedEndMonth] = useState<string>('');
 
+  // Snackbar notification
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' | 'warning' }>({ open: false, message: '', severity: 'info' });
+
   // Sticky columns configuration
   const [stickyColumnsAnchorEl, setStickyColumnsAnchorEl] = useState<null | HTMLElement>(null);
   const [stickyColumns, setStickyColumns] = useState<Set<string>>(new Set(['no', 'namaAplikasi']));
@@ -263,7 +268,7 @@ function Fs2Disetujui() {
     { id: 'pelaksanaan', label: 'Pelaksanaan', width: 140 },
     { id: 'pic', label: 'PIC', width: 120 },
     { id: 'dokumenPengajuan', label: 'Dokumen Pengajuan F.S.2', width: 360 },
-    { id: 'cdPrinsip', label: 'CD Prinsip', width: 440 },
+    { id: 'cdPrinsip', label: 'CD Prinsip Persetujuan FS2', width: 440 },
     { id: 'pengujian', label: 'Pengujian', width: 360 },
     { id: 'deployment', label: 'Deployment', width: 300 },
     { id: 'goLive', label: 'Go Live', width: 100 },
@@ -548,7 +553,7 @@ function Fs2Disetujui() {
     const fileTypeMap: Record<string, string> = {
       'ND': 'Berkas ND',
       'FS2': 'Berkas F.S.2',
-      'CD': 'Berkas CD',
+      'CD': 'Berkas CD Prinsip',
       'FS2A': 'Berkas F.S.2A',
       'FS2B': 'Berkas F.S.2B',
       'F45': 'Berkas F45',
@@ -867,10 +872,13 @@ function Fs2Disetujui() {
       await updateFs2Document(selectedFs2.id, {
         ...editFormData,
       } as Fs2DocumentRequest);
+      setSnackbar({ open: true, message: 'F.S.2 berhasil diperbarui', severity: 'success' });
       handleCloseEditModal();
       fetchFs2Data();
     } catch (error) {
       console.error('Failed to update F.S.2:', error);
+      const errMsg = error instanceof Error ? error.message : 'Gagal memperbarui F.S.2';
+      setSnackbar({ open: true, message: errMsg, severity: 'error' });
     }
   };
 
@@ -1825,7 +1833,7 @@ function Fs2Disetujui() {
               {/* Dokumen Pengajuan F.S.2 - grouped */}
               <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(49, 162, 76, 0.08)' }}>Dokumen Pengajuan F.S.2</TableCell>
               {/* CD Prinsip - grouped */}
-              <TableCell colSpan={5} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(37, 99, 235, 0.08)' }}>CD Prinsip</TableCell>
+              <TableCell colSpan={5} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(37, 99, 235, 0.08)' }}>CD Prinsip Persetujuan FS2</TableCell>
               {/* Pengujian - grouped */}
               <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(217, 119, 6, 0.08)' }}>Pengujian</TableCell>
               {/* Deployment - grouped */}
@@ -1843,9 +1851,9 @@ function Fs2Disetujui() {
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(49, 162, 76, 0.04)' }}>Berkas ND</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(49, 162, 76, 0.04)' }}>Berkas F.S.2</TableCell>
               {/* CD Prinsip sub-headers */}
-              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Nomor CD</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Nomor CD Prinsip</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Tanggal</TableCell>
-              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Berkas CD</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Berkas CD Prinsip</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Berkas F.S.2A</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Berkas F.S.2B</TableCell>
               {/* Pengujian sub-headers */}
@@ -2801,15 +2809,15 @@ function Fs2Disetujui() {
             </Box>
           </Box>
 
-          {/* CD Prinsip Section */}
+          {/* CD Prinsip Persetujuan FS2 Section */}
           <Box sx={{ p: 2.5, borderRadius: '16px', bgcolor: 'rgba(37, 99, 235, 0.04)', border: '1px solid rgba(37, 99, 235, 0.12)', mb: 3 }}>
             <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#2563EB', display: 'flex', alignItems: 'center', gap: 1 }}>
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#2563EB' }} />
-              CD Prinsip
+              CD Prinsip Persetujuan FS2
             </Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
               <TextField
-                label="Nomor CD"
+                label="Nomor CD Prinsip Persetujuan FS2"
                 size="small"
                 value={editFormData.nomor_cd || ''}
                 onChange={(e) => setEditFormData({ ...editFormData, nomor_cd: e.target.value })}
@@ -2828,7 +2836,7 @@ function Fs2Disetujui() {
             
             {/* Berkas CD Dropzone */}
             <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas CD</Typography>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas CD Prinsip Persetujuan FS2</Typography>
               <Box
                 sx={{
                   border: isDraggingCD ? '2px dashed #2563EB' : '2px dashed #e5e5e7',
@@ -3550,6 +3558,21 @@ function Fs2Disetujui() {
         directUrl={previewFile ? undefined : previewUrl}
         downloadUrl={previewFile ? `/api/fs2/files/download/${previewFile.id}` : undefined}
       />
+      {/* Snackbar Notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
