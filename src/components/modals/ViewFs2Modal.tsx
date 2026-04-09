@@ -649,222 +649,14 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
               )}
             </GlassCard>
 
-            {/* Section 1: Deskripsi Pengubahan */}
-            <GlassCard>
-              <SectionHeader>
-                <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(49, 162, 76, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <AssignmentIcon sx={{ color: '#31A24C', fontSize: 20 }} />
-                </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                  1. Deskripsi Pengubahan
-                </Typography>
-              </SectionHeader>
-
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <InfoRow>
-                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Deskripsi Pengubahan</Typography>
-                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
-                    {fs2Data.deskripsi_pengubahan || '-'}
-                  </Typography>
-                </InfoRow>
-                <InfoRow>
-                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Alasan Pengubahan</Typography>
-                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
-                    {fs2Data.alasan_pengubahan || '-'}
-                  </Typography>
-                </InfoRow>
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-                  <InfoRow>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Status Tahapan Aplikasi</Typography>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
-                      {STATUS_TAHAPAN_LABELS[fs2Data.status_tahapan || ''] || fs2Data.status_tahapan || '-'}
-                    </Typography>
-                  </InfoRow>
-                  <InfoRow>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Urgensi</Typography>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
-                      {URGENSI_LABELS[fs2Data.urgensi || ''] || fs2Data.urgensi || '-'}
-                    </Typography>
-                  </InfoRow>
-                </Box>
-              </Box>
-            </GlassCard>
-
-            {/* Section 2: Kesesuaian Kriteria */}
-            <GlassCard>
-              <SectionHeader>
-                <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(37, 99, 235, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <GavelIcon sx={{ color: '#2563EB', fontSize: 20 }} />
-                </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                  2. Kesesuaian Kriteria Pengubahan Aplikasi
-                </Typography>
-              </SectionHeader>
-
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {renderCriteria(fs2Data.kriteria_1, '1. Tidak menambah fungsi baru')}
-                {renderCriteria(fs2Data.kriteria_2, '2. Tidak menambah sumber data baru')}
-                {renderCriteria(fs2Data.kriteria_3, '3. Tidak mengubah sumber data')}
-                {renderCriteria(fs2Data.kriteria_4, '4. Tidak mengubah alur kerja')}
-              </Box>
-            </GlassCard>
-
-            {/* Section 3: Aspek Perubahan */}
-            <GlassCard>
-              <SectionHeader>
-                <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(5, 150, 105, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <CompareArrowsIcon sx={{ color: '#059669', fontSize: 20 }} />
-                </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                  3. Aspek Perubahan
-                </Typography>
-              </SectionHeader>
-
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <InfoRow>
-                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>3.1 Terhadap Sistem yang Ada</Typography>
-                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
-                    {fs2Data.aspek_sistem_ada || '-'}
-                  </Typography>
-                </InfoRow>
-                <InfoRow>
-                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>3.2 Terhadap Sistem Terkait</Typography>
-                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
-                    {fs2Data.aspek_sistem_terkait || '-'}
-                  </Typography>
-                </InfoRow>
-                <InfoRow>
-                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>3.3 Terhadap Alur Kerja Bisnis</Typography>
-                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
-                    {fs2Data.aspek_alur_kerja || '-'}
-                  </Typography>
-                </InfoRow>
-                <InfoRow>
-                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>3.4 Terhadap Struktur Organisasi</Typography>
-                  <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'pre-wrap' }}>
-                    {fs2Data.aspek_struktur_organisasi || '-'}
-                  </Typography>
-                </InfoRow>
-              </Box>
-            </GlassCard>
-
-            {/* Section 4: Dokumentasi */}
-            <GlassCard>
-              <SectionHeader>
-                <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(124, 58, 237, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <SettingsIcon sx={{ color: '#7C3AED', fontSize: 20 }} />
-                </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                  4. Perubahan Dokumentasi
-                </Typography>
-              </SectionHeader>
-
-              {/* T.01 */}
-              <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(124, 58, 237, 0.03)', border: '1px solid rgba(124, 58, 237, 0.1)', mb: 2 }}>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#7C3AED', mb: 1.5 }}>
-                  4.1 Dokumen T.0.1
-                </Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                  <InfoRow>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Sebelum</Typography>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.dok_t01_sebelum || '-'}</Typography>
-                  </InfoRow>
-                  <InfoRow>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Sesudah</Typography>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.dok_t01_sesudah || '-'}</Typography>
-                  </InfoRow>
-                </Box>
-              </Box>
-
-              {/* T.11 */}
-              <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(37, 99, 235, 0.03)', border: '1px solid rgba(37, 99, 235, 0.1)' }}>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#2563EB', mb: 1.5 }}>
-                  4.2 Dokumen T.1.1
-                </Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                  <InfoRow>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Sebelum</Typography>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.dok_t11_sebelum || '-'}</Typography>
-                  </InfoRow>
-                  <InfoRow>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Sesudah</Typography>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.dok_t11_sesudah || '-'}</Typography>
-                  </InfoRow>
-                </Box>
-              </Box>
-            </GlassCard>
-
-            {/* Section 5: Penggunaan Sistem */}
-            <GlassCard>
-              <SectionHeader>
-                <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(220, 38, 38, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <WarningIcon sx={{ color: '#DC2626', fontSize: 20 }} />
-                </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                  5. Terhadap Penggunaan Sistem
-                </Typography>
-              </SectionHeader>
-
-              {/* Jumlah Pengguna */}
-              <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(220, 38, 38, 0.03)', border: '1px solid rgba(220, 38, 38, 0.1)', mb: 2 }}>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#DC2626', mb: 1.5 }}>
-                  5.1 Jumlah Pengguna
-                </Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                  <InfoRow>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Sebelum</Typography>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.pengguna_sebelum || '-'}</Typography>
-                  </InfoRow>
-                  <InfoRow>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Sesudah</Typography>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.pengguna_sesudah || '-'}</Typography>
-                  </InfoRow>
-                </Box>
-              </Box>
-
-              {/* Jumlah Akses Bersamaan */}
-              <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(217, 119, 6, 0.03)', border: '1px solid rgba(217, 119, 6, 0.1)', mb: 2 }}>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#D97706', mb: 1.5 }}>
-                  5.2 Jumlah Akses Bersamaan
-                </Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                  <InfoRow>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Sebelum</Typography>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.akses_bersamaan_sebelum || '-'}</Typography>
-                  </InfoRow>
-                  <InfoRow>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Sesudah</Typography>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.akses_bersamaan_sesudah || '-'}</Typography>
-                  </InfoRow>
-                </Box>
-              </Box>
-
-              {/* Pertumbuhan Data */}
-              <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(8, 145, 178, 0.03)', border: '1px solid rgba(8, 145, 178, 0.1)' }}>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#0891B2', mb: 1.5 }}>
-                  5.3 Pertumbuhan Data
-                </Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                  <InfoRow>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Sebelum</Typography>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.pertumbuhan_data_sebelum || '-'}</Typography>
-                  </InfoRow>
-                  <InfoRow>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Sesudah</Typography>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.pertumbuhan_data_sesudah || '-'}</Typography>
-                  </InfoRow>
-                </Box>
-              </Box>
-            </GlassCard>
-
-            {/* Section 6: Jadwal Pelaksanaan */}
+            {/* Section 1: Jadwal Pelaksanaan */}
             <GlassCard>
               <SectionHeader>
                 <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(217, 119, 6, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <ScheduleIcon sx={{ color: '#D97706', fontSize: 20 }} />
                 </Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                  6. Jadwal Pelaksanaan
+                  1. Jadwal Pelaksanaan
                 </Typography>
               </SectionHeader>
 
@@ -898,24 +690,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
               </Box>
             </GlassCard>
 
-            {/* Section 7: Pernyataan */}
-            <GlassCard>
-              <SectionHeader>
-                <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(8, 145, 178, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <BusinessIcon sx={{ color: '#0891B2', fontSize: 20 }} />
-                </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                  7. Pernyataan
-                </Typography>
-              </SectionHeader>
-
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {renderCriteria(fs2Data.pernyataan_1, '1. Bersedia menerima konsekuensi dari pengubahan')}
-                {renderCriteria(fs2Data.pernyataan_2, '2. Satuan kerja terdampak telah menyetujui pengubahan')}
-              </Box>
-            </GlassCard>
-
-            {/* Section 8: Dokumen F.S.2 (Only when showDocumentSection is true) */}
+            {/* Section 2: Dokumen F.S.2 (Only when showDocumentSection is true) */}
             {showDocumentSection && (
               <GlassCard>
                 <SectionHeader>
@@ -923,7 +698,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                     <FileIcon sx={{ color: '#2563EB', fontSize: 20 }} />
                   </Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                    8. Dokumen F.S.2
+                    2. Dokumen F.S.2
                   </Typography>
                 </SectionHeader>
 
@@ -990,7 +765,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
               </GlassCard>
             )}
 
-            {/* Section 8/9: Monitoring & Tracking (Only for approved FS2 and when showMonitoringSection is true) */}
+            {/* Section 2/3: Monitoring & Tracking (Only for approved FS2 and when showMonitoringSection is true) */}
             {showMonitoringSection && fs2Data.status === 'DISETUJUI' && (
               <GlassCard>
                 <SectionHeader>
@@ -998,7 +773,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                     <MonitorHeartIcon sx={{ color: '#31A24C', fontSize: 20 }} />
                   </Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                    {showDocumentSection ? '9' : '8'}. Monitoring & Tracking
+                    {showDocumentSection ? '3' : '2'}. Monitoring & Tracking
                   </Typography>
                 </SectionHeader>
 
@@ -1061,12 +836,12 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                   {renderFileListSection(fs2Files, 'Berkas F.S.2', ['FS2'], '#31A24C', 'Belum ada file')}
                 </Box>
 
-                {/* CD Prinsip */}
+                {/* CD Prinsip Persetujuan FS2 */}
                 <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(37, 99, 235, 0.03)', border: '1px solid rgba(37, 99, 235, 0.1)', mb: 2 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#2563EB', mb: 1.5 }}>CD Prinsip</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#2563EB', mb: 1.5 }}>CD Prinsip Persetujuan FS2</Typography>
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mb: 2 }}>
                     <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Nomor CD</Typography>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Nomor CD Prinsip Persetujuan FS2</Typography>
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.nomor_cd || '-'}</Typography>
                     </InfoRow>
                     <InfoRow>
@@ -1074,7 +849,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_cd)}</Typography>
                     </InfoRow>
                   </Box>
-                  {renderFileListSection(fs2Files, 'Berkas CD', ['CD'], '#2563EB', 'Belum ada file')}
+                  {renderFileListSection(fs2Files, 'Berkas CD Prinsip Persetujuan FS2', ['CD'], '#2563EB', 'Belum ada file')}
                   {renderFileListSection(fs2Files, 'Berkas F.S.2A', ['FS2A'], '#2563EB', 'Belum ada file')}
                   {renderFileListSection(fs2Files, 'Berkas F.S.2B', ['FS2B'], '#2563EB', 'Belum ada file')}
                 </Box>

@@ -90,6 +90,7 @@ import {
 } from '../api/fs2FileApi';
 import ViewFs2Modal from '../components/modals/ViewFs2Modal';
 import { FilePreviewModal } from '../components/modals';
+import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
 
 // Interface for transformed data
 interface Fs2Data {
@@ -227,6 +228,8 @@ function Fs2List() {
   const [isLoading, setIsLoading] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedFs2Id, setSelectedFs2Id] = useState<string | null>(null);
+
+  const { isCollapsed } = useSidebar();
 
   // Permission check for FS2 menu
   const { getMenuPermissions } = usePermissions();
@@ -826,48 +829,18 @@ function Fs2List() {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    // Section 1: Informasi Dasar
+    // Section 1: Informasi Dasar (only validate 1.1-1.4)
     if (!formData.aplikasi_id) newErrors.aplikasi_id = "Nama Aplikasi wajib dipilih";
     if (!formData.status_tahapan) newErrors.status_tahapan = "Status Tahapan wajib dipilih";
     if (!formData.skpa_id) newErrors.skpa_id = "SKPA wajib dipilih";
     if (!formData.urgensi) newErrors.urgensi = "Urgensi wajib dipilih";
-    if (!formData.deskripsi_pengubahan) newErrors.deskripsi_pengubahan = "Deskripsi Pengubahan wajib diisi";
-    if (!formData.alasan_pengubahan) newErrors.alasan_pengubahan = "Alasan Pengubahan wajib diisi";
 
-    // Section 2: Kesesuaian Kriteria - SEMUA HARUS TERCENTANG
-    if (!formData.kriteria_1 || !formData.kriteria_2 || !formData.kriteria_3 || !formData.kriteria_4) {
-      newErrors.kriteria = "Semua kriteria pengubahan aplikasi wajib dicentang";
-    }
-
-    // Section 3: Aspek Perubahan
-    if (!formData.aspek_sistem_ada) newErrors.aspek_sistem_ada = "Aspek terhadap sistem yang ada wajib diisi";
-    if (!formData.aspek_sistem_terkait) newErrors.aspek_sistem_terkait = "Aspek terhadap sistem terkait wajib diisi";
-    if (!formData.aspek_alur_kerja) newErrors.aspek_alur_kerja = "Aspek terhadap alur kerja bisnis wajib diisi";
-    if (!formData.aspek_struktur_organisasi) newErrors.aspek_struktur_organisasi = "Aspek terhadap struktur organisasi wajib diisi";
-
-    // Section 4: Aspek Perubahan Terhadap Dokumentasi
-    if (!formData.dok_t01_sebelum) newErrors.dok_t01_sebelum = "Dokumen T.0.1 sebelum pengubahan wajib diisi";
-    if (!formData.dok_t01_sesudah) newErrors.dok_t01_sesudah = "Dokumen T.0.1 sesudah pengubahan wajib diisi";
-    if (!formData.dok_t11_sebelum) newErrors.dok_t11_sebelum = "Dokumen T.1.1 sebelum pengubahan wajib diisi";
-    if (!formData.dok_t11_sesudah) newErrors.dok_t11_sesudah = "Dokumen T.1.1 sesudah pengubahan wajib diisi";
-
-    // Section 5: Aspek Perubahan Terhadap Penggunaan Sistem
-    if (!formData.pengguna_sebelum) newErrors.pengguna_sebelum = "Jumlah pengguna sebelum pengubahan wajib diisi";
-    if (!formData.pengguna_sesudah) newErrors.pengguna_sesudah = "Jumlah pengguna sesudah pengubahan wajib diisi";
-    if (!formData.akses_bersamaan_sebelum) newErrors.akses_bersamaan_sebelum = "Jumlah akses bersamaan sebelum pengubahan wajib diisi";
-    if (!formData.akses_bersamaan_sesudah) newErrors.akses_bersamaan_sesudah = "Jumlah akses bersamaan sesudah pengubahan wajib diisi";
-    if (!formData.pertumbuhan_data_sebelum) newErrors.pertumbuhan_data_sebelum = "Pertumbuhan data sebelum pengubahan wajib diisi";
-    if (!formData.pertumbuhan_data_sesudah) newErrors.pertumbuhan_data_sesudah = "Pertumbuhan data sesudah pengubahan wajib diisi";
-
-    // Section 6: Jadwal Pelaksanaan
+    // Section 2: Jadwal Pelaksanaan
     if (!formData.target_pengujian) newErrors.target_pengujian = "Target Pengujian wajib diisi";
     if (!formData.target_deployment) newErrors.target_deployment = "Target Deployment wajib diisi";
     if (!formData.target_go_live) newErrors.target_go_live = "Target Go Live wajib diisi";
 
-    // Section 7: Pernyataan - DIKECUALIKAN dari validasi required
-    // pernyataan_1 dan pernyataan_2 tidak wajib diisi
-
-    // Section 8: Upload Dokumen F.S.2 - WAJIB UPLOAD MINIMAL 1 FILE
+    // Section 3: Upload Dokumen F.S.2 - WAJIB UPLOAD MINIMAL 1 FILE
     if (uploadedFiles.length === 0 && uploadedFileData.length === 0) {
       newErrors.upload_dokumen = "Dokumen F.S.2 wajib diupload!";
     }
@@ -899,18 +872,16 @@ function Fs2List() {
         await moveFs2TempFilesToPermanent(createdFs2.id, sessionId);
       }
       
-      setSuccessMessage('F.S.2 berhasil ditambahkan!');
-      setTimeout(() => {
-        setOpenAddModal(false);
-        fetchFs2Data();
-        setSuccessMessage('');
-        setErrorMessage('');
-        setErrors({});
-      }, 1500);
+      setSnackbar({ open: true, message: 'F.S.2 berhasil ditambahkan!', severity: 'success' });
+      setOpenAddModal(false);
+      fetchFs2Data();
+      setSuccessMessage('');
+      setErrorMessage('');
+      setErrors({});
     } catch (error) {
       console.error('Failed to create F.S.2:', error);
       const errMsg = error instanceof Error ? error.message : 'Gagal menambahkan F.S.2';
-      setErrorMessage(errMsg);
+      setSnackbar({ open: true, message: errMsg, severity: 'error' });
     }
   };
 
@@ -988,12 +959,15 @@ function Fs2List() {
     
     try {
       await updateFs2Document(selectedFs2ForEdit.id, formData);
+      setSnackbar({ open: true, message: 'F.S.2 berhasil diperbarui', severity: 'success' });
       setOpenEditModal(false);
       setSelectedFs2ForEdit(null);
       setExistingFs2Files([]);
       fetchFs2Data();
     } catch (error) {
       console.error('Failed to update F.S.2:', error);
+      const errMsg = error instanceof Error ? error.message : 'Gagal memperbarui F.S.2';
+      setSnackbar({ open: true, message: errMsg, severity: 'error' });
     }
   };
 
@@ -1224,6 +1198,7 @@ function Fs2List() {
       p: 3.5,
       background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
       minHeight: '100vh',
+      overflowX: 'hidden',
     }}>
       {/* Header */}
       <Box sx={{ mb: 3 }}>
@@ -1247,10 +1222,16 @@ function Fs2List() {
       <Paper
         elevation={0}
         sx={{
-          width: '100%',
+          width: isCollapsed
+            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)`
+            : '80vw',
+          maxWidth: isCollapsed
+            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)`
+            : '80vw',
           borderRadius: 2,
           border: '1px solid rgba(0, 0, 0, 0.08)',
           overflow: 'hidden',
+          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         {/* Toolbar */}
@@ -1865,7 +1846,7 @@ function Fs2List() {
           },
         },
       }}>
-        <Table sx={{ minWidth: 1000 }}>
+        <Table sx={{ minWidth: 1400 }}>
           <TableHead>
             <TableRow sx={{ bgcolor: '#f5f5f7' }}>
               <TableCell 
@@ -2481,37 +2462,11 @@ function Fs2List() {
                     </Typography>
                   )}
                 </FormControl>
-                <GlassTextField
-                  label="1.5 Deskripsi Pengubahan"
-                  name="deskripsi_pengubahan"
-                  value={formData.deskripsi_pengubahan}
-                  onChange={handleInputChange}
-                  fullWidth
-                  required
-                  multiline
-                  rows={3}
-                  size="small"
-                  error={!!errors.deskripsi_pengubahan}
-                  helperText={errors.deskripsi_pengubahan}
-                />
-                <GlassTextField
-                  label="1.6 Alasan Pengubahan"
-                  name="alasan_pengubahan"
-                  value={formData.alasan_pengubahan}
-                  onChange={handleInputChange}
-                  fullWidth
-                  required
-                  multiline
-                  rows={3}
-                  size="small"
-                  error={!!errors.alasan_pengubahan}
-                  helperText={errors.alasan_pengubahan}
-                />
                 </Stack>
               </AccordionDetails>
             </Accordion>
 
-            {/* Section 2: Kesesuaian Kriteria Pengubahan Aplikasi */}
+            {/* Section 2: Jadwal Pelaksanaan */}
             <Accordion
               expanded={expandedSection === 'section1'}
               onChange={handleAccordionChange('section1')}
@@ -2547,75 +2502,58 @@ function Fs2List() {
                     letterSpacing: '-0.01em',
                   }}
                 >
-                  2. Kesesuaian Kriteria Pengubahan Aplikasi
+                  2. Jadwal Pelaksanaan
                 </Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Pengubahan ini telah dipastikan memenuhi Kriteria Pengajuan berikut:
-                  <br />
-                  <em style={{ fontSize: '0.85rem' }}>
-                    *Jika salah satu kriteria tidak terpenuhi, pengubahan Aplikasi tidak dapat diajukan melalui F.S.2
-                  </em>
-                </Typography>
-                <FormGroup sx={{ '& .MuiFormControlLabel-root': { mb: 1.5, alignItems: 'flex-start' }, '& .MuiCheckbox-root': { pt: 0.5 } }}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formData.kriteria_1 || false}
-                        onChange={(e) => setFormData({ ...formData, kriteria_1: e.target.checked })}
-                        sx={{ '&.Mui-checked': { color: '#DA251C' } }}
-                      />
-                    }
-                    label="2.1 Tidak menambah fungsi baru dan/atau tidak mengubah fungsi yang sudah ada, yang berdampak struktural terhadap Aplikasi dan/atau dengan cakupan besar"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formData.kriteria_2 || false}
-                        onChange={(e) => setFormData({ ...formData, kriteria_2: e.target.checked })}
-                        sx={{ '&.Mui-checked': { color: '#DA251C' } }}
-                      />
-                    }
-                    label="2.2 Tidak menambah sumber data baru dari sistem lainnya, kecuali pengubahan untuk Aplikasi Reference Management, Aplikasi Data Master Management dan Aplikasi Convertion Engine"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formData.kriteria_3 || false}
-                        onChange={(e) => setFormData({ ...formData, kriteria_3: e.target.checked })}
-                        sx={{ '&.Mui-checked': { color: '#DA251C' } }}
-                      />
-                    }
-                    label="2.3 Tidak mengubah sumber data yang berdampak struktural terhadap Aplikasi atau Database dan/atau dengan cakupan besar"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formData.kriteria_4 || false}
-                        onChange={(e) => setFormData({ ...formData, kriteria_4: e.target.checked })}
-                        sx={{ '&.Mui-checked': { color: '#DA251C' } }}
-                      />
-                    }
-                    label="2.4 Tidak mengubah alur kerja Aplikasi"
-                  />
-                </FormGroup>
-                {errors.kriteria && (
-                  <Alert 
-                    severity="warning" 
-                    sx={{ 
-                      mt: 2, 
-                      borderRadius: '12px',
-                      '& .MuiAlert-icon': { color: '#FF9500' }
-                    }}
-                  >
-                    {errors.kriteria}
-                  </Alert>
-                )}
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 4 }}>
+                    <GlassTextField
+                      label="2.1 Target Pengujian"
+                      type="date"
+                      value={formData.target_pengujian}
+                      onChange={(e) => setFormData({ ...formData, target_pengujian: e.target.value })}
+                      fullWidth
+                      required
+                      InputLabelProps={{ shrink: true }}
+                      size="small"
+                      error={!!errors.target_pengujian}
+                      helperText={errors.target_pengujian}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 4 }}>
+                    <GlassTextField
+                      label="2.2 Target Deployment"
+                      type="date"
+                      value={formData.target_deployment}
+                      onChange={(e) => setFormData({ ...formData, target_deployment: e.target.value })}
+                      fullWidth
+                      required
+                      InputLabelProps={{ shrink: true }}
+                      size="small"
+                      error={!!errors.target_deployment}
+                      helperText={errors.target_deployment}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 4 }}>
+                    <GlassTextField
+                      label="2.3 Target Go Live"
+                      type="date"
+                      value={formData.target_go_live}
+                      onChange={(e) => setFormData({ ...formData, target_go_live: e.target.value })}
+                      fullWidth
+                      required
+                      InputLabelProps={{ shrink: true }}
+                      size="small"
+                      error={!!errors.target_go_live}
+                      helperText={errors.target_go_live}
+                    />
+                  </Grid>
+                </Grid>
               </AccordionDetails>
             </Accordion>
 
-            {/* Section 3: Aspek Perubahan */}
+            {/* Section 3: Upload Dokumen F.S.2 */}
             <Accordion
               expanded={expandedSection === 'section2'}
               onChange={handleAccordionChange('section2')}
@@ -2651,514 +2589,7 @@ function Fs2List() {
                     letterSpacing: '-0.01em',
                   }}
                 >
-                  3. Aspek Perubahan
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
-                  *Apa saja aspek perubahan yang terjadi yang diakibatkannya
-                </Typography>
-                <Stack spacing={2}>
-                  <GlassTextField
-                    label="3.1 Terhadap sistem yang ada"
-                    value={formData.aspek_sistem_ada}
-                    onChange={(e) => setFormData({ ...formData, aspek_sistem_ada: e.target.value })}
-                    fullWidth
-                    required
-                    multiline
-                    rows={2}
-                    size="small"
-                    error={!!errors.aspek_sistem_ada}
-                    helperText={errors.aspek_sistem_ada}
-                  />
-                  <GlassTextField
-                    label="3.2 Terhadap sistem terkait"
-                    value={formData.aspek_sistem_terkait}
-                    onChange={(e) => setFormData({ ...formData, aspek_sistem_terkait: e.target.value })}
-                    fullWidth
-                    required
-                    multiline
-                    rows={2}
-                    size="small"
-                    error={!!errors.aspek_sistem_terkait}
-                    helperText={errors.aspek_sistem_terkait}
-                  />
-                  <GlassTextField
-                    label="3.3 Terhadap alur kerja bisnis"
-                    value={formData.aspek_alur_kerja}
-                    onChange={(e) => setFormData({ ...formData, aspek_alur_kerja: e.target.value })}
-                    fullWidth
-                    required
-                    multiline
-                    rows={2}
-                    size="small"
-                    error={!!errors.aspek_alur_kerja}
-                    helperText={errors.aspek_alur_kerja}
-                  />
-                  <GlassTextField
-                    label="3.4 Terhadap struktur organisasi"
-                    value={formData.aspek_struktur_organisasi}
-                    onChange={(e) => setFormData({ ...formData, aspek_struktur_organisasi: e.target.value })}
-                    fullWidth
-                    required
-                    multiline
-                    rows={2}
-                    size="small"
-                    error={!!errors.aspek_struktur_organisasi}
-                    helperText={errors.aspek_struktur_organisasi}
-                  />
-                </Stack>
-              </AccordionDetails>
-            </Accordion>
-
-            {/* Section 4: Aspek Perubahan Terhadap Dokumentasi */}
-            <Accordion
-              expanded={expandedSection === 'section3'}
-              onChange={handleAccordionChange('section3')}
-              sx={{
-                borderRadius: '20px !important',
-                bgcolor: 'rgba(255, 255, 255, 0.6)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.8)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-                '&::before': { display: 'none' },
-                '&.Mui-expanded': { margin: '0 !important' },
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
-                },
-              }}
-            >
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
-                sx={{
-                  borderRadius: '20px',
-                  px: 2.5,
-                  '&.Mui-expanded': { minHeight: 56 },
-                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontWeight: 600,
-                    color: '#1d1d1f',
-                    fontSize: '0.95rem',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  4. Aspek Perubahan Terhadap Dokumentasi
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
-                <Stack spacing={2}>
-                  <Typography variant="body2" fontWeight={500}>
-                    4.1 Dokumen T.0.1
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sebelum Pengubahan"
-                        value={formData.dok_t01_sebelum}
-                        onChange={(e) => setFormData({ ...formData, dok_t01_sebelum: e.target.value })}
-                        fullWidth
-                        required
-                        multiline
-                        rows={2}
-                        size="small"
-                        error={!!errors.dok_t01_sebelum}
-                        helperText={errors.dok_t01_sebelum}
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sesudah Pengubahan"
-                        value={formData.dok_t01_sesudah}
-                        onChange={(e) => setFormData({ ...formData, dok_t01_sesudah: e.target.value })}
-                        fullWidth
-                        required
-                        multiline
-                        rows={2}
-                        size="small"
-                        error={!!errors.dok_t01_sesudah}
-                        helperText={errors.dok_t01_sesudah}
-                      />
-                    </Grid>
-                  </Grid>
-
-                  <Typography variant="body2" fontWeight={500}>
-                    4.2 Dokumen T.1.1
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sebelum Pengubahan"
-                        value={formData.dok_t11_sebelum}
-                        onChange={(e) => setFormData({ ...formData, dok_t11_sebelum: e.target.value })}
-                        fullWidth
-                        required
-                        multiline
-                        rows={2}
-                        size="small"
-                        error={!!errors.dok_t11_sebelum}
-                        helperText={errors.dok_t11_sebelum}
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sesudah Pengubahan"
-                        value={formData.dok_t11_sesudah}
-                        onChange={(e) => setFormData({ ...formData, dok_t11_sesudah: e.target.value })}
-                        fullWidth
-                        required
-                        multiline
-                        rows={2}
-                        size="small"
-                        error={!!errors.dok_t11_sesudah}
-                        helperText={errors.dok_t11_sesudah}
-                      />
-                    </Grid>
-                  </Grid>
-                </Stack>
-              </AccordionDetails>
-            </Accordion>
-
-            {/* Section 5: Aspek Perubahan Terhadap Penggunaan Sistem */}
-            <Accordion
-              expanded={expandedSection === 'section4'}
-              onChange={handleAccordionChange('section4')}
-              sx={{
-                borderRadius: '20px !important',
-                bgcolor: 'rgba(255, 255, 255, 0.6)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.8)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-                '&::before': { display: 'none' },
-                '&.Mui-expanded': { margin: '0 !important' },
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
-                },
-              }}
-            >
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
-                sx={{
-                  borderRadius: '20px',
-                  px: 2.5,
-                  '&.Mui-expanded': { minHeight: 56 },
-                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontWeight: 600,
-                    color: '#1d1d1f',
-                    fontSize: '0.95rem',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  5. Aspek Perubahan Terhadap Penggunaan Sistem
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
-                <Stack spacing={2}>
-                  <Typography variant="body2" fontWeight={500}>
-                    5.1 Jumlah Pengguna
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sebelum Pengubahan"
-                        value={formData.pengguna_sebelum}
-                        onChange={(e) => setFormData({ ...formData, pengguna_sebelum: e.target.value })}
-                        fullWidth
-                        required
-                        size="small"
-                        error={!!errors.pengguna_sebelum}
-                        helperText={errors.pengguna_sebelum}
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sesudah Pengubahan"
-                        value={formData.pengguna_sesudah}
-                        onChange={(e) => setFormData({ ...formData, pengguna_sesudah: e.target.value })}
-                        fullWidth
-                        required
-                        size="small"
-                        error={!!errors.pengguna_sesudah}
-                        helperText={errors.pengguna_sesudah}
-                      />
-                    </Grid>
-                  </Grid>
-
-                  <Typography variant="body2" fontWeight={500}>
-                    5.2 Jumlah akses secara bersamaan
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sebelum Pengubahan"
-                        value={formData.akses_bersamaan_sebelum}
-                        onChange={(e) => setFormData({ ...formData, akses_bersamaan_sebelum: e.target.value })}
-                        fullWidth
-                        required
-                        size="small"
-                        error={!!errors.akses_bersamaan_sebelum}
-                        helperText={errors.akses_bersamaan_sebelum}
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sesudah Pengubahan"
-                        value={formData.akses_bersamaan_sesudah}
-                        onChange={(e) => setFormData({ ...formData, akses_bersamaan_sesudah: e.target.value })}
-                        fullWidth
-                        required
-                        size="small"
-                        error={!!errors.akses_bersamaan_sesudah}
-                        helperText={errors.akses_bersamaan_sesudah}
-                      />
-                    </Grid>
-                  </Grid>
-
-                  <Typography variant="body2" fontWeight={500}>
-                    5.3 Jumlah pertumbuhan data per hari/bulan/tahun
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sebelum Pengubahan"
-                        value={formData.pertumbuhan_data_sebelum}
-                        onChange={(e) => setFormData({ ...formData, pertumbuhan_data_sebelum: e.target.value })}
-                        fullWidth
-                        required
-                        size="small"
-                        error={!!errors.pertumbuhan_data_sebelum}
-                        helperText={errors.pertumbuhan_data_sebelum}
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sesudah Pengubahan"
-                        value={formData.pertumbuhan_data_sesudah}
-                        onChange={(e) => setFormData({ ...formData, pertumbuhan_data_sesudah: e.target.value })}
-                        fullWidth
-                        required
-                        size="small"
-                        error={!!errors.pertumbuhan_data_sesudah}
-                        helperText={errors.pertumbuhan_data_sesudah}
-                      />
-                    </Grid>
-                  </Grid>
-                </Stack>
-              </AccordionDetails>
-            </Accordion>
-
-            {/* Section 6: Jadwal Pelaksanaan */}
-            <Accordion
-              expanded={expandedSection === 'section5'}
-              onChange={handleAccordionChange('section5')}
-              sx={{
-                borderRadius: '20px !important',
-                bgcolor: 'rgba(255, 255, 255, 0.6)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.8)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-                '&::before': { display: 'none' },
-                '&.Mui-expanded': { margin: '0 !important' },
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
-                },
-              }}
-            >
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
-                sx={{
-                  borderRadius: '20px',
-                  px: 2.5,
-                  '&.Mui-expanded': { minHeight: 56 },
-                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontWeight: 600,
-                    color: '#1d1d1f',
-                    fontSize: '0.95rem',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  6. Jadwal Pelaksanaan
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
-                  *Diisi untuk pengajuan di tahap pemeliharaan
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 4 }}>
-                    <GlassTextField
-                      label="6.1 Target Pengujian"
-                      type="date"
-                      value={formData.target_pengujian}
-                      onChange={(e) => setFormData({ ...formData, target_pengujian: e.target.value })}
-                      fullWidth
-                      required
-                      InputLabelProps={{ shrink: true }}
-                      size="small"
-                      error={!!errors.target_pengujian}
-                      helperText={errors.target_pengujian}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 4 }}>
-                    <GlassTextField
-                      label="6.2 Target Deployment"
-                      type="date"
-                      value={formData.target_deployment}
-                      onChange={(e) => setFormData({ ...formData, target_deployment: e.target.value })}
-                      fullWidth
-                      required
-                      InputLabelProps={{ shrink: true }}
-                      size="small"
-                      error={!!errors.target_deployment}
-                      helperText={errors.target_deployment}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 4 }}>
-                    <GlassTextField
-                      label="6.3 Target Go Live"
-                      type="date"
-                      value={formData.target_go_live}
-                      onChange={(e) => setFormData({ ...formData, target_go_live: e.target.value })}
-                      fullWidth
-                      required
-                      InputLabelProps={{ shrink: true }}
-                      size="small"
-                      error={!!errors.target_go_live}
-                      helperText={errors.target_go_live}
-                    />
-                  </Grid>
-                </Grid>
-              </AccordionDetails>
-            </Accordion>
-
-            {/* Section 7: Pernyataan */}
-            <Accordion
-              expanded={expandedSection === 'section6'}
-              onChange={handleAccordionChange('section6')}
-              sx={{
-                borderRadius: '20px !important',
-                bgcolor: 'rgba(255, 255, 255, 0.6)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.8)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-                '&::before': { display: 'none' },
-                '&.Mui-expanded': { margin: '0 !important' },
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
-                },
-              }}
-            >
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
-                sx={{
-                  borderRadius: '20px',
-                  px: 2.5,
-                  '&.Mui-expanded': { minHeight: 56 },
-                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontWeight: 600,
-                    color: '#1d1d1f',
-                    fontSize: '0.95rem',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  7. Pernyataan
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
-                <FormGroup sx={{ '& .MuiFormControlLabel-root': { mb: 1.5, alignItems: 'flex-start' }, '& .MuiCheckbox-root': { pt: 0.5 } }}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mb: 1 }}>
-                      *Diisi jika pengajuan pengubahan Aplikasi pada tahap Desain Aplikasi
-                    </Typography>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={formData.pernyataan_1 || false}
-                          onChange={(e) => setFormData({ ...formData, pernyataan_1: e.target.checked })}
-                          sx={{ '&.Mui-checked': { color: '#DA251C' } }}
-                        />
-                      }
-                      label="7.1 Kami selaku Satuan Kerja Pemilik Aplikasi menyatakan bersedia menerima konsekuensi pengunduran jadwal implementasi (apabila ada) akibat pengubahan Aplikasi ini."
-                    />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mb: 1 }}>
-                      *Diisi jika pengajuan pengubahan Aplikasi berdampak pada pengubahan Aplikasi lain
-                    </Typography>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={formData.pernyataan_2 || false}
-                          onChange={(e) => setFormData({ ...formData, pernyataan_2: e.target.checked })}
-                          sx={{ '&.Mui-checked': { color: '#DA251C' } }}
-                        />
-                      }
-                      label="7.2 Dalam hal pengubahan Aplikasi berdampak pada pengubahan Aplikasi lain, Satuan Kerja Pemilik Aplikasi terdampak telah menyetujui dan memiliki rencana terkait pengembangan atau pengubahan Aplikasi tersebut (melampirkan risalah rapat)"
-                    />
-                  </Box>
-                </FormGroup>
-              </AccordionDetails>
-            </Accordion>
-
-            {/* Section 8: Upload Dokumen F.S.2 */}
-            <Accordion
-              expanded={expandedSection === 'section7'}
-              onChange={handleAccordionChange('section7')}
-              sx={{
-                borderRadius: '20px !important',
-                bgcolor: 'rgba(255, 255, 255, 0.6)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.8)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-                '&::before': { display: 'none' },
-                '&.Mui-expanded': { margin: '0 !important' },
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
-                },
-              }}
-            >
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
-                sx={{
-                  borderRadius: '20px',
-                  px: 2.5,
-                  '&.Mui-expanded': { minHeight: 56 },
-                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontWeight: 600,
-                    color: '#1d1d1f',
-                    fontSize: '0.95rem',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  8. Upload Dokumen F.S.2
+                  3. Upload Dokumen F.S.2
                 </Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
@@ -3474,29 +2905,11 @@ function Fs2List() {
                     <MenuItem value="TINGGI">Tinggi</MenuItem>
                   </Select>
                 </FormControl>
-                <GlassTextField
-                  label="1.5 Deskripsi Pengubahan"
-                  value={formData.deskripsi_pengubahan}
-                  onChange={(e) => setFormData({ ...formData, deskripsi_pengubahan: e.target.value })}
-                  fullWidth
-                  multiline
-                  rows={3}
-                  size="small"
-                />
-                <GlassTextField
-                  label="1.6 Alasan Pengubahan"
-                  value={formData.alasan_pengubahan}
-                  onChange={(e) => setFormData({ ...formData, alasan_pengubahan: e.target.value })}
-                  fullWidth
-                  multiline
-                  rows={3}
-                  size="small"
-                />
                 </Stack>
               </AccordionDetails>
             </Accordion>
 
-            {/* Section 2: Kesesuaian Kriteria Pengubahan Aplikasi */}
+            {/* Section 2: Jadwal Pelaksanaan */}
             <Accordion
               expanded={expandedSection === 'section1'}
               onChange={handleAccordionChange('section1')}
@@ -3532,75 +2945,58 @@ function Fs2List() {
                     letterSpacing: '-0.01em',
                   }}
                 >
-                  2. Kesesuaian Kriteria Pengubahan Aplikasi
+                  2. Jadwal Pelaksanaan
                 </Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Pengubahan ini telah dipastikan memenuhi Kriteria Pengajuan berikut:
-                  <br />
-                  <em style={{ fontSize: '0.85rem' }}>
-                    *Jika salah satu kriteria tidak terpenuhi, pengubahan Aplikasi tidak dapat diajukan melalui F.S.2
-                  </em>
-                </Typography>
-                <FormGroup sx={{ '& .MuiFormControlLabel-root': { mb: 1.5, alignItems: 'flex-start' }, '& .MuiCheckbox-root': { pt: 0.5 } }}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formData.kriteria_1 || false}
-                        onChange={(e) => setFormData({ ...formData, kriteria_1: e.target.checked })}
-                        sx={{ '&.Mui-checked': { color: '#DA251C' } }}
-                      />
-                    }
-                    label="2.1 Tidak menambah fungsi baru dan/atau tidak mengubah fungsi yang sudah ada, yang berdampak struktural terhadap Aplikasi dan/atau dengan cakupan besar"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formData.kriteria_2 || false}
-                        onChange={(e) => setFormData({ ...formData, kriteria_2: e.target.checked })}
-                        sx={{ '&.Mui-checked': { color: '#DA251C' } }}
-                      />
-                    }
-                    label="2.2 Tidak menambah sumber data baru dari sistem lainnya, kecuali pengubahan untuk Aplikasi Reference Management, Aplikasi Data Master Management dan Aplikasi Convertion Engine"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formData.kriteria_3 || false}
-                        onChange={(e) => setFormData({ ...formData, kriteria_3: e.target.checked })}
-                        sx={{ '&.Mui-checked': { color: '#DA251C' } }}
-                      />
-                    }
-                    label="2.3 Tidak mengubah sumber data yang berdampak struktural terhadap Aplikasi atau Database dan/atau dengan cakupan besar"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formData.kriteria_4 || false}
-                        onChange={(e) => setFormData({ ...formData, kriteria_4: e.target.checked })}
-                        sx={{ '&.Mui-checked': { color: '#DA251C' } }}
-                      />
-                    }
-                    label="2.4 Tidak mengubah alur kerja Aplikasi"
-                  />
-                </FormGroup>
-                {errors.kriteria && (
-                  <Alert 
-                    severity="warning" 
-                    sx={{ 
-                      mt: 2, 
-                      borderRadius: '12px',
-                      '& .MuiAlert-icon': { color: '#FF9500' }
-                    }}
-                  >
-                    {errors.kriteria}
-                  </Alert>
-                )}
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 4 }}>
+                    <GlassTextField
+                      label="2.1 Target Pengujian"
+                      type="date"
+                      value={formData.target_pengujian}
+                      onChange={(e) => setFormData({ ...formData, target_pengujian: e.target.value })}
+                      fullWidth
+                      required
+                      InputLabelProps={{ shrink: true }}
+                      size="small"
+                      error={!!errors.target_pengujian}
+                      helperText={errors.target_pengujian}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 4 }}>
+                    <GlassTextField
+                      label="2.2 Target Deployment"
+                      type="date"
+                      value={formData.target_deployment}
+                      onChange={(e) => setFormData({ ...formData, target_deployment: e.target.value })}
+                      fullWidth
+                      required
+                      InputLabelProps={{ shrink: true }}
+                      size="small"
+                      error={!!errors.target_deployment}
+                      helperText={errors.target_deployment}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 4 }}>
+                    <GlassTextField
+                      label="2.3 Target Go Live"
+                      type="date"
+                      value={formData.target_go_live}
+                      onChange={(e) => setFormData({ ...formData, target_go_live: e.target.value })}
+                      fullWidth
+                      required
+                      InputLabelProps={{ shrink: true }}
+                      size="small"
+                      error={!!errors.target_go_live}
+                      helperText={errors.target_go_live}
+                    />
+                  </Grid>
+                </Grid>
               </AccordionDetails>
             </Accordion>
 
-            {/* Section 3: Aspek Perubahan */}
+            {/* Section 3: Upload Dokumen F.S.2 */}
             <Accordion
               expanded={expandedSection === 'section2'}
               onChange={handleAccordionChange('section2')}
@@ -3636,514 +3032,7 @@ function Fs2List() {
                     letterSpacing: '-0.01em',
                   }}
                 >
-                  3. Aspek Perubahan
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
-                  *Apa saja aspek perubahan yang terjadi yang diakibatkannya
-                </Typography>
-                <Stack spacing={2}>
-                  <GlassTextField
-                    label="3.1 Terhadap sistem yang ada"
-                    value={formData.aspek_sistem_ada}
-                    onChange={(e) => setFormData({ ...formData, aspek_sistem_ada: e.target.value })}
-                    fullWidth
-                    required
-                    multiline
-                    rows={2}
-                    size="small"
-                    error={!!errors.aspek_sistem_ada}
-                    helperText={errors.aspek_sistem_ada}
-                  />
-                  <GlassTextField
-                    label="3.2 Terhadap sistem terkait"
-                    value={formData.aspek_sistem_terkait}
-                    onChange={(e) => setFormData({ ...formData, aspek_sistem_terkait: e.target.value })}
-                    fullWidth
-                    required
-                    multiline
-                    rows={2}
-                    size="small"
-                    error={!!errors.aspek_sistem_terkait}
-                    helperText={errors.aspek_sistem_terkait}
-                  />
-                  <GlassTextField
-                    label="3.3 Terhadap alur kerja bisnis"
-                    value={formData.aspek_alur_kerja}
-                    onChange={(e) => setFormData({ ...formData, aspek_alur_kerja: e.target.value })}
-                    fullWidth
-                    required
-                    multiline
-                    rows={2}
-                    size="small"
-                    error={!!errors.aspek_alur_kerja}
-                    helperText={errors.aspek_alur_kerja}
-                  />
-                  <GlassTextField
-                    label="3.4 Terhadap struktur organisasi"
-                    value={formData.aspek_struktur_organisasi}
-                    onChange={(e) => setFormData({ ...formData, aspek_struktur_organisasi: e.target.value })}
-                    fullWidth
-                    required
-                    multiline
-                    rows={2}
-                    size="small"
-                    error={!!errors.aspek_struktur_organisasi}
-                    helperText={errors.aspek_struktur_organisasi}
-                  />
-                </Stack>
-              </AccordionDetails>
-            </Accordion>
-
-            {/* Section 4: Aspek Perubahan Terhadap Dokumentasi */}
-            <Accordion
-              expanded={expandedSection === 'section3'}
-              onChange={handleAccordionChange('section3')}
-              sx={{
-                borderRadius: '20px !important',
-                bgcolor: 'rgba(255, 255, 255, 0.6)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.8)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-                '&::before': { display: 'none' },
-                '&.Mui-expanded': { margin: '0 !important' },
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
-                },
-              }}
-            >
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
-                sx={{
-                  borderRadius: '20px',
-                  px: 2.5,
-                  '&.Mui-expanded': { minHeight: 56 },
-                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontWeight: 600,
-                    color: '#1d1d1f',
-                    fontSize: '0.95rem',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  4. Aspek Perubahan Terhadap Dokumentasi
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
-                <Stack spacing={2}>
-                  <Typography variant="body2" fontWeight={500}>
-                    4.1 Dokumen T.0.1
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sebelum Pengubahan"
-                        value={formData.dok_t01_sebelum}
-                        onChange={(e) => setFormData({ ...formData, dok_t01_sebelum: e.target.value })}
-                        fullWidth
-                        required
-                        multiline
-                        rows={2}
-                        size="small"
-                        error={!!errors.dok_t01_sebelum}
-                        helperText={errors.dok_t01_sebelum}
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sesudah Pengubahan"
-                        value={formData.dok_t01_sesudah}
-                        onChange={(e) => setFormData({ ...formData, dok_t01_sesudah: e.target.value })}
-                        fullWidth
-                        required
-                        multiline
-                        rows={2}
-                        size="small"
-                        error={!!errors.dok_t01_sesudah}
-                        helperText={errors.dok_t01_sesudah}
-                      />
-                    </Grid>
-                  </Grid>
-
-                  <Typography variant="body2" fontWeight={500}>
-                    4.2 Dokumen T.1.1
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sebelum Pengubahan"
-                        value={formData.dok_t11_sebelum}
-                        onChange={(e) => setFormData({ ...formData, dok_t11_sebelum: e.target.value })}
-                        fullWidth
-                        required
-                        multiline
-                        rows={2}
-                        size="small"
-                        error={!!errors.dok_t11_sebelum}
-                        helperText={errors.dok_t11_sebelum}
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sesudah Pengubahan"
-                        value={formData.dok_t11_sesudah}
-                        onChange={(e) => setFormData({ ...formData, dok_t11_sesudah: e.target.value })}
-                        fullWidth
-                        required
-                        multiline
-                        rows={2}
-                        size="small"
-                        error={!!errors.dok_t11_sesudah}
-                        helperText={errors.dok_t11_sesudah}
-                      />
-                    </Grid>
-                  </Grid>
-                </Stack>
-              </AccordionDetails>
-            </Accordion>
-
-            {/* Section 5: Aspek Perubahan Terhadap Penggunaan Sistem */}
-            <Accordion
-              expanded={expandedSection === 'section4'}
-              onChange={handleAccordionChange('section4')}
-              sx={{
-                borderRadius: '20px !important',
-                bgcolor: 'rgba(255, 255, 255, 0.6)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.8)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-                '&::before': { display: 'none' },
-                '&.Mui-expanded': { margin: '0 !important' },
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
-                },
-              }}
-            >
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
-                sx={{
-                  borderRadius: '20px',
-                  px: 2.5,
-                  '&.Mui-expanded': { minHeight: 56 },
-                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontWeight: 600,
-                    color: '#1d1d1f',
-                    fontSize: '0.95rem',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  5. Aspek Perubahan Terhadap Penggunaan Sistem
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
-                <Stack spacing={2}>
-                  <Typography variant="body2" fontWeight={500}>
-                    5.1 Jumlah Pengguna
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sebelum Pengubahan"
-                        value={formData.pengguna_sebelum}
-                        onChange={(e) => setFormData({ ...formData, pengguna_sebelum: e.target.value })}
-                        fullWidth
-                        required
-                        size="small"
-                        error={!!errors.pengguna_sebelum}
-                        helperText={errors.pengguna_sebelum}
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sesudah Pengubahan"
-                        value={formData.pengguna_sesudah}
-                        onChange={(e) => setFormData({ ...formData, pengguna_sesudah: e.target.value })}
-                        fullWidth
-                        required
-                        size="small"
-                        error={!!errors.pengguna_sesudah}
-                        helperText={errors.pengguna_sesudah}
-                      />
-                    </Grid>
-                  </Grid>
-
-                  <Typography variant="body2" fontWeight={500}>
-                    5.2 Jumlah akses secara bersamaan
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sebelum Pengubahan"
-                        value={formData.akses_bersamaan_sebelum}
-                        onChange={(e) => setFormData({ ...formData, akses_bersamaan_sebelum: e.target.value })}
-                        fullWidth
-                        required
-                        size="small"
-                        error={!!errors.akses_bersamaan_sebelum}
-                        helperText={errors.akses_bersamaan_sebelum}
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sesudah Pengubahan"
-                        value={formData.akses_bersamaan_sesudah}
-                        onChange={(e) => setFormData({ ...formData, akses_bersamaan_sesudah: e.target.value })}
-                        fullWidth
-                        required
-                        size="small"
-                        error={!!errors.akses_bersamaan_sesudah}
-                        helperText={errors.akses_bersamaan_sesudah}
-                      />
-                    </Grid>
-                  </Grid>
-
-                  <Typography variant="body2" fontWeight={500}>
-                    5.3 Jumlah pertumbuhan data per hari/bulan/tahun
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sebelum Pengubahan"
-                        value={formData.pertumbuhan_data_sebelum}
-                        onChange={(e) => setFormData({ ...formData, pertumbuhan_data_sebelum: e.target.value })}
-                        fullWidth
-                        required
-                        size="small"
-                        error={!!errors.pertumbuhan_data_sebelum}
-                        helperText={errors.pertumbuhan_data_sebelum}
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <GlassTextField
-                        label="Sesudah Pengubahan"
-                        value={formData.pertumbuhan_data_sesudah}
-                        onChange={(e) => setFormData({ ...formData, pertumbuhan_data_sesudah: e.target.value })}
-                        fullWidth
-                        required
-                        size="small"
-                        error={!!errors.pertumbuhan_data_sesudah}
-                        helperText={errors.pertumbuhan_data_sesudah}
-                      />
-                    </Grid>
-                  </Grid>
-                </Stack>
-              </AccordionDetails>
-            </Accordion>
-
-            {/* Section 6: Jadwal Pelaksanaan */}
-            <Accordion
-              expanded={expandedSection === 'section5'}
-              onChange={handleAccordionChange('section5')}
-              sx={{
-                borderRadius: '20px !important',
-                bgcolor: 'rgba(255, 255, 255, 0.6)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.8)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-                '&::before': { display: 'none' },
-                '&.Mui-expanded': { margin: '0 !important' },
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
-                },
-              }}
-            >
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
-                sx={{
-                  borderRadius: '20px',
-                  px: 2.5,
-                  '&.Mui-expanded': { minHeight: 56 },
-                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontWeight: 600,
-                    color: '#1d1d1f',
-                    fontSize: '0.95rem',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  6. Jadwal Pelaksanaan
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
-                  *Diisi untuk pengajuan di tahap pemeliharaan
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 4 }}>
-                    <GlassTextField
-                      label="6.1 Target Pengujian"
-                      type="date"
-                      value={formData.target_pengujian}
-                      onChange={(e) => setFormData({ ...formData, target_pengujian: e.target.value })}
-                      fullWidth
-                      required
-                      InputLabelProps={{ shrink: true }}
-                      size="small"
-                      error={!!errors.target_pengujian}
-                      helperText={errors.target_pengujian}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 4 }}>
-                    <GlassTextField
-                      label="6.2 Target Deployment"
-                      type="date"
-                      value={formData.target_deployment}
-                      onChange={(e) => setFormData({ ...formData, target_deployment: e.target.value })}
-                      fullWidth
-                      required
-                      InputLabelProps={{ shrink: true }}
-                      size="small"
-                      error={!!errors.target_deployment}
-                      helperText={errors.target_deployment}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 4 }}>
-                    <GlassTextField
-                      label="6.3 Target Go Live"
-                      type="date"
-                      value={formData.target_go_live}
-                      onChange={(e) => setFormData({ ...formData, target_go_live: e.target.value })}
-                      fullWidth
-                      required
-                      InputLabelProps={{ shrink: true }}
-                      size="small"
-                      error={!!errors.target_go_live}
-                      helperText={errors.target_go_live}
-                    />
-                  </Grid>
-                </Grid>
-              </AccordionDetails>
-            </Accordion>
-
-            {/* Section 7: Pernyataan */}
-            <Accordion
-              expanded={expandedSection === 'section6'}
-              onChange={handleAccordionChange('section6')}
-              sx={{
-                borderRadius: '20px !important',
-                bgcolor: 'rgba(255, 255, 255, 0.6)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.8)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-                '&::before': { display: 'none' },
-                '&.Mui-expanded': { margin: '0 !important' },
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
-                },
-              }}
-            >
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
-                sx={{
-                  borderRadius: '20px',
-                  px: 2.5,
-                  '&.Mui-expanded': { minHeight: 56 },
-                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontWeight: 600,
-                    color: '#1d1d1f',
-                    fontSize: '0.95rem',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  7. Pernyataan
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
-                <FormGroup sx={{ '& .MuiFormControlLabel-root': { mb: 1.5, alignItems: 'flex-start' }, '& .MuiCheckbox-root': { pt: 0.5 } }}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mb: 1 }}>
-                      *Diisi jika pengajuan pengubahan Aplikasi pada tahap Desain Aplikasi
-                    </Typography>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={formData.pernyataan_1 || false}
-                          onChange={(e) => setFormData({ ...formData, pernyataan_1: e.target.checked })}
-                          sx={{ '&.Mui-checked': { color: '#DA251C' } }}
-                        />
-                      }
-                      label="7.1 Kami selaku Satuan Kerja Pemilik Aplikasi menyatakan bersedia menerima konsekuensi pengunduran jadwal implementasi (apabila ada) akibat pengubahan Aplikasi ini."
-                    />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', mb: 1 }}>
-                      *Diisi jika pengajuan pengubahan Aplikasi berdampak pada pengubahan Aplikasi lain
-                    </Typography>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={formData.pernyataan_2 || false}
-                          onChange={(e) => setFormData({ ...formData, pernyataan_2: e.target.checked })}
-                          sx={{ '&.Mui-checked': { color: '#DA251C' } }}
-                        />
-                      }
-                      label="7.2 Dalam hal pengubahan Aplikasi berdampak pada pengubahan Aplikasi lain, Satuan Kerja Pemilik Aplikasi terdampak telah menyetujui dan memiliki rencana terkait pengembangan atau pengubahan Aplikasi tersebut (melampirkan risalah rapat)"
-                    />
-                  </Box>
-                </FormGroup>
-              </AccordionDetails>
-            </Accordion>
-
-            {/* Section 8: Upload Dokumen F.S.2 */}
-            <Accordion
-              expanded={expandedSection === 'section7'}
-              onChange={handleAccordionChange('section7')}
-              sx={{
-                borderRadius: '20px !important',
-                bgcolor: 'rgba(255, 255, 255, 0.6)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.8)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-                '&::before': { display: 'none' },
-                '&.Mui-expanded': { margin: '0 !important' },
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
-                },
-              }}
-            >
-              <AccordionSummary
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
-                sx={{
-                  borderRadius: '20px',
-                  px: 2.5,
-                  '&.Mui-expanded': { minHeight: 56 },
-                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontWeight: 600,
-                    color: '#1d1d1f',
-                    fontSize: '0.95rem',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  8. Upload Dokumen F.S.2
+                  3. Upload Dokumen F.S.2
                 </Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
