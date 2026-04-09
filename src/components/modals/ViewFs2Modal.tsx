@@ -24,8 +24,6 @@ import {
   Description as DescriptionIcon,
   Schedule as ScheduleIcon,
   Person as PersonIcon,
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
   MonitorHeart as MonitorHeartIcon,
   InsertDriveFile as FileIcon,
   Download as DownloadIcon,
