@@ -22,14 +22,8 @@ import {
   Close as CloseIcon,
   CalendarMonth as CalendarIcon,
   Description as DescriptionIcon,
-  Assignment as AssignmentIcon,
-  WarningAmber as WarningIcon,
-  Settings as SettingsIcon,
   Schedule as ScheduleIcon,
-  CompareArrows as CompareArrowsIcon,
-  Gavel as GavelIcon,
   Person as PersonIcon,
-  Business as BusinessIcon,
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
   MonitorHeart as MonitorHeartIcon,
@@ -90,11 +84,6 @@ interface ViewFs2ModalProps {
 }
 
 // Constants for labels (matching those in Fs2List and Fs2Disetujui)
-const STATUS_TAHAPAN_LABELS: Record<string, string> = {
-  DESAIN: 'Desain',
-  PEMELIHARAAN: 'Pemeliharaan',
-};
-
 const URGENSI_LABELS: Record<string, string> = {
   RENDAH: 'Rendah',
   SEDANG: 'Sedang',
@@ -265,20 +254,6 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
   };
 
   const statusStyle = getStatusStyle(fs2Data?.status);
-
-  // Render criteria check
-  const renderCriteria = (value: boolean | undefined, label: string) => (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-      {value ? (
-        <CheckCircleIcon sx={{ color: '#31A24C', fontSize: 18 }} />
-      ) : (
-        <CancelIcon sx={{ color: '#DC2626', fontSize: 18 }} />
-      )}
-      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
-        {label}
-      </Typography>
-    </Box>
-  );
 
   // Render file list section with versioning support
   const renderFileListSection = (
