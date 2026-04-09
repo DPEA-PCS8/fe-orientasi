@@ -10,15 +10,15 @@ import {
 import Grid from '@mui/material/Grid';
 import {
   ArrowBack, Edit, Apps, Link as LinkIcon, Business, People,
-  SyncAlt, Lock, Description, Security, Category, AccessTime,
+  Lock, Description, Security, Category, AccessTime,
   OpenInNew, Info, Save, Close, Add, Delete, EmojiEvents, CalendarMonth
 } from '@mui/icons-material';
 import {
   getAplikasiById, updateAplikasi, type AplikasiData, type AplikasiRequest,
-  type UrlRequest, type SatkerInternalRequest, type PenggunaEksternalRequest, type KomunikasiSistemRequest,
+  type UrlRequest, type SatkerInternalRequest, type PenggunaEksternalRequest,
   type PenghargaanRequest, getVariablesByKategori, type VariableData,
   APPLICATION_STATUS_LABELS, ACCESS_TYPE_LABELS,
-  KATEGORI_IDLE_LABELS, TIPE_SISTEM_LABELS
+  KATEGORI_IDLE_LABELS
 } from '../api/aplikasiApi';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
@@ -119,7 +119,7 @@ const AplikasiDetailPage = () => {
   const [kategoriPenghargaanList, setKategoriPenghargaanList] = useState<VariableData[]>([]);
 
   // Edit mode states
-  type EditSection = 'info' | 'urls' | 'komunikasi' | 'satker' | 'pengguna' | 'penghargaan' | null;
+  type EditSection = 'info' | 'urls' | 'satker' | 'pengguna' | 'penghargaan' | null;
   const [editSection, setEditSection] = useState<EditSection>(null);
 
   // Form data states
@@ -134,7 +134,8 @@ const AplikasiDetailPage = () => {
   });
 
   const [urlsForm, setUrlsForm] = useState<UrlRequest[]>([]);
-  const [komunikasiForm, setKomunikasiForm] = useState<KomunikasiSistemRequest[]>([]);
+  // Komunikasi Sistem - HIDDEN
+  // const [komunikasiForm, setKomunikasiForm] = useState<KomunikasiSistemRequest[]>([]);
   const [satkerForm, setSatkerForm] = useState<SatkerInternalRequest[]>([]);
   const [penggunaForm, setPenggunaForm] = useState<PenggunaEksternalRequest[]>([]);
   const [penghargaanForm, setPenghargaanForm] = useState<PenghargaanRequest[]>([]);
@@ -204,15 +205,16 @@ const AplikasiDetailPage = () => {
           keterangan: u.keterangan 
         })) || []);
         break;
-      case 'komunikasi':
-        setKomunikasiForm(aplikasi.komunikasi_sistems?.map(k => ({
-          nama_sistem: k.nama_sistem,
-          tipe_sistem: k.tipe_sistem,
-          deskripsi_komunikasi: k.deskripsi_komunikasi,
-          keterangan: k.keterangan,
-          is_planned: k.is_planned
-        })) || []);
-        break;
+      // Komunikasi Sistem - HIDDEN
+      // case 'komunikasi':
+      //   setKomunikasiForm(aplikasi.komunikasi_sistems?.map(k => ({
+      //     nama_sistem: k.nama_sistem,
+      //     tipe_sistem: k.tipe_sistem,
+      //     deskripsi_komunikasi: k.deskripsi_komunikasi,
+      //     keterangan: k.keterangan,
+      //     is_planned: k.is_planned
+      //   })) || []);
+      //   break;
       case 'satker':
         setSatkerForm(aplikasi.satker_internals?.map(s => ({ nama_satker: s.nama_satker, keterangan: s.keterangan })) || []);
         break;
@@ -261,13 +263,14 @@ const AplikasiDetailPage = () => {
         })),
         satker_internals: aplikasi.satker_internals?.map(s => ({ nama_satker: s.nama_satker, keterangan: s.keterangan })),
         pengguna_eksternals: aplikasi.pengguna_eksternals?.map(p => ({ nama_pengguna: p.nama_pengguna, keterangan: p.keterangan })),
-        komunikasi_sistems: aplikasi.komunikasi_sistems?.map(k => ({
-          nama_sistem: k.nama_sistem,
-          tipe_sistem: k.tipe_sistem,
-          deskripsi_komunikasi: k.deskripsi_komunikasi,
-          keterangan: k.keterangan,
-          is_planned: k.is_planned
-        })),
+        // Komunikasi Sistem - HIDDEN
+        // komunikasi_sistems: aplikasi.komunikasi_sistems?.map(k => ({
+        //   nama_sistem: k.nama_sistem,
+        //   tipe_sistem: k.tipe_sistem,
+        //   deskripsi_komunikasi: k.deskripsi_komunikasi,
+        //   keterangan: k.keterangan,
+        //   is_planned: k.is_planned
+        // })),
         penghargaans: aplikasi.penghargaans?.map(p => ({
           kategori_id: p.kategori?.id || '',
           tanggal: p.tanggal,
@@ -289,9 +292,10 @@ const AplikasiDetailPage = () => {
         case 'urls':
           baseRequest.urls = urlsForm;
           break;
-        case 'komunikasi':
-          baseRequest.komunikasi_sistems = komunikasiForm;
-          break;
+        // Komunikasi Sistem - HIDDEN
+        // case 'komunikasi':
+        //   baseRequest.komunikasi_sistems = komunikasiForm;
+        //   break;
         case 'satker':
           baseRequest.satker_internals = satkerForm;
           break;
@@ -888,157 +892,17 @@ const AplikasiDetailPage = () => {
             </CardContent>
           </Card>
 
-          {/* Komunikasi Sistem */}
+          {/* Komunikasi Sistem - HIDDEN */}
+          {/* 
           <Card sx={{ borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
             <CardContent sx={{ p: 3 }}>
-              <SectionHeader 
-                icon={<SyncAlt sx={{ fontSize: 20 }} />} 
-                title="Komunikasi dengan Sistem Lain" 
-                count={editSection === 'komunikasi' ? komunikasiForm.length : (aplikasi.komunikasi_sistems?.length || 0)}
-                canEdit={canUpdate && editSection !== 'komunikasi'}
-                onEdit={() => startEditSection('komunikasi')}
-              />
-              {editSection === 'komunikasi' ? (
-                <Box>
-                  <Stack spacing={2}>
-                    {komunikasiForm.map((kom, idx) => (
-                      <Paper key={idx} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                        <Grid container spacing={2} alignItems="center">
-                          <Grid size={{ xs: 12, sm: 3 }}>
-                            <TextField
-                              fullWidth
-                              size="small"
-                              label="Nama Sistem"
-                              value={kom.nama_sistem}
-                              onChange={(e) => {
-                                const newKom = [...komunikasiForm];
-                                newKom[idx] = { ...newKom[idx], nama_sistem: e.target.value };
-                                setKomunikasiForm(newKom);
-                              }}
-                            />
-                          </Grid>
-                          <Grid size={{ xs: 12, sm: 2 }}>
-                            <FormControl fullWidth size="small">
-                              <InputLabel>Tipe</InputLabel>
-                              <Select
-                                value={kom.tipe_sistem || ''}
-                                label="Tipe"
-                                onChange={(e) => {
-                                  const newKom = [...komunikasiForm];
-                                  newKom[idx] = { ...newKom[idx], tipe_sistem: e.target.value };
-                                  setKomunikasiForm(newKom);
-                                }}
-                              >
-                                {Object.entries(TIPE_SISTEM_LABELS).map(([key, label]) => (
-                                  <MenuItem key={key} value={key}>{label}</MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
-                          </Grid>
-                          <Grid size={{ xs: 12, sm: 4 }}>
-                            <TextField
-                              fullWidth
-                              size="small"
-                              label="Deskripsi"
-                              value={kom.deskripsi_komunikasi || ''}
-                              onChange={(e) => {
-                                const newKom = [...komunikasiForm];
-                                newKom[idx] = { ...newKom[idx], deskripsi_komunikasi: e.target.value };
-                                setKomunikasiForm(newKom);
-                              }}
-                              multiline
-                              rows={2}
-                            />
-                          </Grid>
-                          <Grid size={{ xs: 12, sm: 2 }}>
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  size="small"
-                                  checked={kom.is_planned || false}
-                                  onChange={(e) => {
-                                    const newKom = [...komunikasiForm];
-                                    newKom[idx] = { ...newKom[idx], is_planned: e.target.checked };
-                                    setKomunikasiForm(newKom);
-                                  }}
-                                />
-                              }
-                              label="Rencana"
-                            />
-                          </Grid>
-                          <Grid size={{ xs: 12, sm: 1 }}>
-                            <IconButton size="small" color="error" onClick={() => setKomunikasiForm(komunikasiForm.filter((_, i) => i !== idx))}>
-                              <Delete />
-                            </IconButton>
-                          </Grid>
-                        </Grid>
-                      </Paper>
-                    ))}
-                    <Button
-                      startIcon={<Add />}
-                      onClick={() => setKomunikasiForm([...komunikasiForm, { nama_sistem: '', tipe_sistem: '', deskripsi_komunikasi: '', is_planned: false }])}
-                      sx={{ alignSelf: 'flex-start' }}
-                    >
-                      Tambah Komunikasi
-                    </Button>
-                  </Stack>
-                  <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', mt: 2 }}>
-                    <Button size="small" onClick={cancelEdit} disabled={saving} startIcon={<Close />}>
-                      Batal
-                    </Button>
-                    <Button size="small" variant="contained" onClick={saveSection} disabled={saving} startIcon={saving ? <CircularProgress size={16} /> : <Save />}>
-                      Simpan
-                    </Button>
-                  </Box>
-                </Box>
-              ) : aplikasi.komunikasi_sistems && aplikasi.komunikasi_sistems.length > 0 ? (
-                <TableContainer sx={{ borderRadius: 2, border: '1px solid #e0e0e0' }}>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                        <TableCell sx={{ fontWeight: 600 }}>Nama Sistem</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Tipe</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Deskripsi</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {aplikasi.komunikasi_sistems.map((kom, idx) => (
-                        <TableRow key={kom.id || idx} sx={{ '&:hover': { bgcolor: '#fafafa' } }}>
-                          <TableCell sx={{ fontWeight: 500 }}>{kom.nama_sistem}</TableCell>
-                          <TableCell>
-                            <Chip 
-                              label={TIPE_SISTEM_LABELS[kom.tipe_sistem || ''] || kom.tipe_sistem || '-'} 
-                              size="small" 
-                              color="primary"
-                              variant="outlined"
-                            />
-                          </TableCell>
-                          <TableCell>{kom.deskripsi_komunikasi || '-'}</TableCell>
-                          <TableCell>
-                            <Chip
-                              label={kom.is_planned ? 'Direncanakan' : 'Aktif'}
-                              color={kom.is_planned ? 'warning' : 'success'}
-                              size="small"
-                              sx={{ fontWeight: 500 }}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              ) : (
-                <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
-                  <SyncAlt sx={{ fontSize: 48, opacity: 0.3, mb: 1 }} />
-                  <Typography>Tidak ada komunikasi dengan sistem lain</Typography>
-                </Box>
-              )}
+              ... komunikasi sistem content ...
             </CardContent>
           </Card>
+          */}
         </Grid>
 
-        {/* Right Column - Stakeholders */}
+        {/* Right Column - Additional Info */}
         <Grid size={{ xs: 12, lg: 5 }}>
           {/* Satker Internal */}
           <Card sx={{ mb: 3, borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>

@@ -11,9 +11,9 @@ import { ArrowBack, Save, Add, Delete, Apps, Lock } from '@mui/icons-material';
 import {
   getAplikasiById, createAplikasi, updateAplikasi, getVariablesByKategori,
   type AplikasiRequest, type UrlRequest, type SatkerInternalRequest,
-  type PenggunaEksternalRequest, type KomunikasiSistemRequest, type PenghargaanRequest,
+  type PenggunaEksternalRequest, type PenghargaanRequest,
   type VariableData, APPLICATION_STATUS, APPLICATION_STATUS_LABELS,
-  ACCESS_TYPE_LABELS, KATEGORI_IDLE_LABELS, TIPE_SISTEM_LABELS
+  ACCESS_TYPE_LABELS, KATEGORI_IDLE_LABELS
 } from '../api/aplikasiApi';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
@@ -244,29 +244,29 @@ const AplikasiFormPage = () => {
     }));
   };
 
-  // Komunikasi Sistem handlers
-  const addKomunikasi = () => {
-    setForm(prev => ({
-      ...prev,
-      komunikasi_sistems: [...(prev.komunikasi_sistems || []), {
-        nama_sistem: '', tipe_sistem: '', deskripsi_komunikasi: '', keterangan: '', is_planned: false
-      }]
-    }));
-  };
+  // Komunikasi Sistem handlers - HIDDEN
+  // const addKomunikasi = () => {
+  //   setForm(prev => ({
+  //     ...prev,
+  //     komunikasi_sistems: [...(prev.komunikasi_sistems || []), {
+  //       nama_sistem: '', tipe_sistem: '', deskripsi_komunikasi: '', keterangan: '', is_planned: false
+  //     }]
+  //   }));
+  // };
 
-  const updateKomunikasi = (index: number, field: keyof KomunikasiSistemRequest, value: string | boolean) => {
-    setForm(prev => ({
-      ...prev,
-      komunikasi_sistems: prev.komunikasi_sistems?.map((k, i) => i === index ? { ...k, [field]: value } : k)
-    }));
-  };
+  // const updateKomunikasi = (index: number, field: keyof KomunikasiSistemRequest, value: string | boolean) => {
+  //   setForm(prev => ({
+  //     ...prev,
+  //     komunikasi_sistems: prev.komunikasi_sistems?.map((k, i) => i === index ? { ...k, [field]: value } : k)
+  //   }));
+  // };
 
-  const removeKomunikasi = (index: number) => {
-    setForm(prev => ({
-      ...prev,
-      komunikasi_sistems: prev.komunikasi_sistems?.filter((_, i) => i !== index)
-    }));
-  };
+  // const removeKomunikasi = (index: number) => {
+  //   setForm(prev => ({
+  //     ...prev,
+  //     komunikasi_sistems: prev.komunikasi_sistems?.filter((_, i) => i !== index)
+  //   }));
+  // };
 
   // Penghargaan handlers
   const addPenghargaan = () => {
@@ -980,7 +980,8 @@ const AplikasiFormPage = () => {
         )}
       </Paper>
 
-      {/* Komunikasi Sistem */}
+      {/* Komunikasi Sistem - HIDDEN */}
+      {/* 
       <Paper sx={{ p: 3 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
           <Typography variant="h6">Komunikasi dengan Sistem Lain</Typography>
@@ -1059,6 +1060,7 @@ const AplikasiFormPage = () => {
           </Typography>
         )}
       </Paper>
+      */}
 
       {/* Penghargaan Aplikasi */}
       <Paper sx={{ p: 3, mt: 3 }}>
