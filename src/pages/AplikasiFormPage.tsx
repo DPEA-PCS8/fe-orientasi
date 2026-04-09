@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, TextField, FormControl,
   InputLabel, Select, MenuItem, FormControlLabel, Switch, CircularProgress,
-  Alert, IconButton, Divider, Skeleton, Autocomplete, Chip
+  Alert, IconButton, Divider, Skeleton, Autocomplete
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import type { SelectChangeEvent } from '@mui/material/Select';
@@ -11,9 +11,9 @@ import { ArrowBack, Save, Add, Delete, Apps, Lock } from '@mui/icons-material';
 import {
   getAplikasiById, createAplikasi, updateAplikasi, getVariablesByKategori,
   type AplikasiRequest, type UrlRequest, type SatkerInternalRequest,
-  type PenggunaEksternalRequest, type KomunikasiSistemRequest, type PenghargaanRequest,
+  type PenggunaEksternalRequest, type PenghargaanRequest,
   type VariableData, APPLICATION_STATUS, APPLICATION_STATUS_LABELS,
-  ACCESS_TYPE_LABELS, KATEGORI_IDLE_LABELS, TIPE_SISTEM_LABELS
+  ACCESS_TYPE_LABELS, KATEGORI_IDLE_LABELS
 } from '../api/aplikasiApi';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
@@ -26,7 +26,6 @@ interface FormData extends Omit<AplikasiRequest, 'bidang_id' | 'skpa_id' | 'sub_
   bidang_id: string;
   skpa_id: string;
   sub_kategori_id: string;
-  akses_list: string[]; // For multi-select
 }
 
 const initialForm: FormData = {
@@ -39,7 +38,6 @@ const initialForm: FormData = {
   sub_kategori_id: '',
   tanggal_implementasi: '',
   akses: '',
-  akses_list: [],
   proses_data_pribadi: false,
   data_pribadi_diproses: '',
   kategori_idle: '',
@@ -101,9 +99,6 @@ const AplikasiFormPage = () => {
       setError(null);
       try {
         const data = await getAplikasiById(id);
-        // Parse akses string to array (keep custom text as-is)
-        const aksesArray = data.akses ? data.akses.split(',').map(a => a.trim()) : [];
-        
         // Parse URLs - keep tipe_akses as-is
         const parsedUrls = data.urls?.map(u => ({
           url: u.url,
@@ -121,7 +116,6 @@ const AplikasiFormPage = () => {
           sub_kategori_id: data.sub_kategori?.id || '',
           tanggal_implementasi: data.tanggal_implementasi || '',
           akses: data.akses || '',
-          akses_list: aksesArray,
           proses_data_pribadi: data.proses_data_pribadi,
           data_pribadi_diproses: data.data_pribadi_diproses || '',
           kategori_idle: data.kategori_idle || '',
@@ -244,29 +238,29 @@ const AplikasiFormPage = () => {
     }));
   };
 
-  // Komunikasi Sistem handlers
-  const addKomunikasi = () => {
-    setForm(prev => ({
-      ...prev,
-      komunikasi_sistems: [...(prev.komunikasi_sistems || []), {
-        nama_sistem: '', tipe_sistem: '', deskripsi_komunikasi: '', keterangan: '', is_planned: false
-      }]
-    }));
-  };
+  // Komunikasi Sistem handlers - HIDDEN
+  // const addKomunikasi = () => {
+  //   setForm(prev => ({
+  //     ...prev,
+  //     komunikasi_sistems: [...(prev.komunikasi_sistems || []), {
+  //       nama_sistem: '', tipe_sistem: '', deskripsi_komunikasi: '', keterangan: '', is_planned: false
+  //     }]
+  //   }));
+  // };
 
-  const updateKomunikasi = (index: number, field: keyof KomunikasiSistemRequest, value: string | boolean) => {
-    setForm(prev => ({
-      ...prev,
-      komunikasi_sistems: prev.komunikasi_sistems?.map((k, i) => i === index ? { ...k, [field]: value } : k)
-    }));
-  };
+  // const updateKomunikasi = (index: number, field: keyof KomunikasiSistemRequest, value: string | boolean) => {
+  //   setForm(prev => ({
+  //     ...prev,
+  //     komunikasi_sistems: prev.komunikasi_sistems?.map((k, i) => i === index ? { ...k, [field]: value } : k)
+  //   }));
+  // };
 
-  const removeKomunikasi = (index: number) => {
-    setForm(prev => ({
-      ...prev,
-      komunikasi_sistems: prev.komunikasi_sistems?.filter((_, i) => i !== index)
-    }));
-  };
+  // const removeKomunikasi = (index: number) => {
+  //   setForm(prev => ({
+  //     ...prev,
+  //     komunikasi_sistems: prev.komunikasi_sistems?.filter((_, i) => i !== index)
+  //   }));
+  // };
 
   // Penghargaan handlers
   const addPenghargaan = () => {
@@ -407,9 +401,6 @@ const AplikasiFormPage = () => {
     setError(null);
 
     try {
-      // Build akses string from array - values are already in correct format from Autocomplete
-      const aksesString = form.akses_list.join(',');
-
       // URLs already have tipe_akses in correct format
       const urlsPayload = form.urls?.map(u => ({
         url: u.url,
@@ -419,7 +410,7 @@ const AplikasiFormPage = () => {
 
       const payload: AplikasiRequest = {
         ...form,
-        akses: aksesString || undefined,
+        akses: undefined,
         urls: urlsPayload,
         bidang_id: form.bidang_id || undefined,
         skpa_id: form.skpa_id || undefined,
@@ -680,49 +671,7 @@ const AplikasiFormPage = () => {
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <Autocomplete
-              multiple
-              freeSolo
-              options={Object.keys(ACCESS_TYPE_LABELS)}
-              value={form.akses_list}
-              onChange={(_, newValue) => {
-                setForm(prev => ({ ...prev, akses_list: newValue as string[] }));
-              }}
-              getOptionLabel={(option) => ACCESS_TYPE_LABELS[option] || option}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Akses"
-                  placeholder="Pilih dari daftar atau ketik sendiri..."
-                  helperText="Centang dari daftar atau ketik tipe akses lainnya"
-                />
-              )}
-              renderTags={(value, getTagProps) =>
-                value.map((option, index) => (
-                  <Chip
-                    label={ACCESS_TYPE_LABELS[option] || option}
-                    {...getTagProps({ index })}
-                    size="small"
-                  />
-                ))
-              }
-              renderOption={(props, option) => (
-                <Box component="li" {...props}>
-                  <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                    <input
-                      type="checkbox"
-                      checked={form.akses_list.includes(option)}
-                      readOnly
-                      style={{ margin: 0 }}
-                    />
-                    {ACCESS_TYPE_LABELS[option]}
-                  </Box>
-                </Box>
-              )}
-              ChipProps={{ size: 'small' }}
-            />
-          </Grid>
+
           <Grid size={{ xs: 12, md: 4 }}>
             <FormControlLabel
               control={
@@ -980,7 +929,8 @@ const AplikasiFormPage = () => {
         )}
       </Paper>
 
-      {/* Komunikasi Sistem */}
+      {/* Komunikasi Sistem - HIDDEN */}
+      {/* 
       <Paper sx={{ p: 3 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
           <Typography variant="h6">Komunikasi dengan Sistem Lain</Typography>
@@ -1059,6 +1009,7 @@ const AplikasiFormPage = () => {
           </Typography>
         )}
       </Paper>
+      */}
 
       {/* Penghargaan Aplikasi */}
       <Paper sx={{ p: 3, mt: 3 }}>
