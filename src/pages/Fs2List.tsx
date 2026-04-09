@@ -794,22 +794,6 @@ function Fs2List() {
     setOpenAddModal(false);
   };
 
-  // Handle input change and clear errors
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    // Clear error for this field
-    if (errors[name]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: undefined,
-      }));
-    }
-  };
-
   // Handle select/autocomplete change and clear errors
   const handleSelectChange = (fieldName: string, value: any) => {
     setFormData((prev) => ({
