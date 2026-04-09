@@ -66,6 +66,11 @@ const AplikasiFormPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  const [satkerBulkMode, setSatkerBulkMode] = useState(false);
+  const [satkerBulkInput, setSatkerBulkInput] = useState('');
+  const [penggunaBulkMode, setPenggunaBulkMode] = useState(false);
+  const [penggunaBulkInput, setPenggunaBulkInput] = useState('');
+
   const { getMenuPermissions, permissionsLoaded } = usePermissions();
   const { canView, canCreate, canUpdate } = getMenuPermissions(MENU_CODE);
   const hasPermission = isEdit ? canUpdate : canCreate;
@@ -216,6 +221,17 @@ const AplikasiFormPage = () => {
     }));
   };
 
+  const addSatkerBulk = () => {
+    const lines = satkerBulkInput.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length === 0) return;
+    setForm(prev => ({
+      ...prev,
+      satker_internals: [...(prev.satker_internals || []), ...lines.map(nama => ({ nama_satker: nama, keterangan: '' }))]
+    }));
+    setSatkerBulkInput('');
+    setSatkerBulkMode(false);
+  };
+
   // Pengguna Eksternal handlers
   const addPengguna = () => {
     setForm(prev => ({
@@ -236,6 +252,17 @@ const AplikasiFormPage = () => {
       ...prev,
       pengguna_eksternals: prev.pengguna_eksternals?.filter((_, i) => i !== index)
     }));
+  };
+
+  const addPenggunaBulk = () => {
+    const lines = penggunaBulkInput.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length === 0) return;
+    setForm(prev => ({
+      ...prev,
+      pengguna_eksternals: [...(prev.pengguna_eksternals || []), ...lines.map(nama => ({ nama_pengguna: nama, keterangan: '' }))]
+    }));
+    setPenggunaBulkInput('');
+    setPenggunaBulkMode(false);
   };
 
   // Komunikasi Sistem handlers - HIDDEN
@@ -843,10 +870,42 @@ const AplikasiFormPage = () => {
       <Paper sx={{ p: 3, mb: 3 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
           <Typography variant="h6">Satker Pengguna Internal</Typography>
-          <Button startIcon={<Add />} onClick={addSatker} variant="outlined" size="small">
-            Tambah Satker
-          </Button>
+          <Box display="flex" gap={1}>
+            <Button
+              size="small"
+              variant={satkerBulkMode ? 'contained' : 'outlined'}
+              onClick={() => { setSatkerBulkMode(v => !v); setSatkerBulkInput(''); }}
+            >
+              {satkerBulkMode ? 'Batal Massal' : 'Tambah Massal'}
+            </Button>
+            <Button startIcon={<Add />} onClick={addSatker} variant="outlined" size="small">
+              Tambah Satker
+            </Button>
+          </Box>
         </Box>
+        {satkerBulkMode && (
+          <Box mb={2}>
+            <TextField
+              fullWidth
+              multiline
+              rows={6}
+              label="Masukkan nama satker (satu per baris)"
+              placeholder={`Contoh:\nDepartemen Pengelolaan Data dan Statistik\nPengawas Sektor Perbankan\nSatuan Kerja terkait`}
+              value={satkerBulkInput}
+              onChange={(e) => setSatkerBulkInput(e.target.value)}
+              helperText={`${satkerBulkInput.split('\n').filter(l => l.trim()).length} satker akan ditambahkan`}
+            />
+            <Button
+              variant="contained"
+              size="small"
+              sx={{ mt: 1 }}
+              disabled={!satkerBulkInput.trim()}
+              onClick={addSatkerBulk}
+            >
+              Tambahkan Semua
+            </Button>
+          </Box>
+        )}
         {form.satker_internals?.map((satker, index) => (
           <Box key={index} mb={2}>
             <Grid container spacing={2} alignItems="center">
@@ -888,10 +947,42 @@ const AplikasiFormPage = () => {
       <Paper sx={{ p: 3, mb: 3 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
           <Typography variant="h6">Pengguna Eksternal</Typography>
-          <Button startIcon={<Add />} onClick={addPengguna} variant="outlined" size="small">
-            Tambah Pengguna
-          </Button>
+          <Box display="flex" gap={1}>
+            <Button
+              size="small"
+              variant={penggunaBulkMode ? 'contained' : 'outlined'}
+              onClick={() => { setPenggunaBulkMode(v => !v); setPenggunaBulkInput(''); }}
+            >
+              {penggunaBulkMode ? 'Batal Massal' : 'Tambah Massal'}
+            </Button>
+            <Button startIcon={<Add />} onClick={addPengguna} variant="outlined" size="small">
+              Tambah Pengguna
+            </Button>
+          </Box>
         </Box>
+        {penggunaBulkMode && (
+          <Box mb={2}>
+            <TextField
+              fullWidth
+              multiline
+              rows={6}
+              label="Masukkan nama pengguna (satu per baris)"
+              placeholder={`Contoh:\nBank BCA\nBank Mandiri\nNasabah Umum`}
+              value={penggunaBulkInput}
+              onChange={(e) => setPenggunaBulkInput(e.target.value)}
+              helperText={`${penggunaBulkInput.split('\n').filter(l => l.trim()).length} pengguna akan ditambahkan`}
+            />
+            <Button
+              variant="contained"
+              size="small"
+              sx={{ mt: 1 }}
+              disabled={!penggunaBulkInput.trim()}
+              onClick={addPenggunaBulk}
+            >
+              Tambahkan Semua
+            </Button>
+          </Box>
+        )}
         {form.pengguna_eksternals?.map((pengguna, index) => (
           <Box key={index} mb={2}>
             <Grid container spacing={2} alignItems="center">
