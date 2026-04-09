@@ -625,7 +625,8 @@ export interface DeadlineInsight {
 
 export interface JenisPksiStats {
   single_year: number;
-  multiyears: number;
+  multiyears_y_minus1: number;
+  multiyears_y_plus1: number;
 }
 
 export interface PelaksanaStats {

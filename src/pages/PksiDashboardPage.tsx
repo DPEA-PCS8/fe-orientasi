@@ -60,15 +60,20 @@ interface DonutChartProps {
 }
 
 const DonutChart = ({ data, size = 180, strokeWidth = 24, title }: DonutChartProps) => {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const total = data.reduce((sum, item) => sum + item.value, 0);
+  const svgPadding = 20; // Breathing room for hover stroke expansion
+  const svgSize = size + svgPadding;
+  const svgCenter = svgSize / 2;
+
   if (total === 0) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
         {title && <Typography variant="subtitle2" color="text.secondary">{title}</Typography>}
-        <Box sx={{ 
-          width: size, 
-          height: size, 
-          borderRadius: '50%', 
+        <Box sx={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
           bgcolor: '#f5f5f5',
           display: 'flex',
           alignItems: 'center',
@@ -88,33 +93,38 @@ const DonutChart = ({ data, size = 180, strokeWidth = 24, title }: DonutChartPro
       const strokeDasharray = `${percentage * circumference} ${circumference}`;
       const strokeDashoffset = -acc.currentOffset;
       acc.currentOffset += percentage * circumference;
-      acc.items.push({
-        ...item,
-        strokeDasharray,
-        strokeDashoffset,
-      });
+      acc.items.push({ ...item, strokeDasharray, strokeDashoffset });
       return acc;
     },
     { currentOffset: 0, items: [] as Array<{ label: string; value: number; color: string; strokeDasharray: string; strokeDashoffset: number }> }
   ).items;
 
+  const activeItem = activeIndex !== null ? data[activeIndex] : null;
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, overflow: 'visible' }}>
       {title && <Typography variant="subtitle1" fontWeight={600}>{title}</Typography>}
-      <Box sx={{ position: 'relative', width: size, height: size }}>
-        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+      <Box sx={{ position: 'relative', width: size, height: size, overflow: 'visible', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg
+          width={svgSize}
+          height={svgSize}
+          style={{ transform: 'rotate(-90deg)', cursor: 'pointer', display: 'block', position: 'absolute' }}
+          onMouseLeave={() => setActiveIndex(null)}
+        >
           {segments.map((item, index) => (
             <circle
               key={index}
-              cx={size / 2}
-              cy={size / 2}
+              cx={svgCenter}
+              cy={svgCenter}
               r={radius}
               fill="none"
               stroke={item.color}
-              strokeWidth={strokeWidth}
+              strokeWidth={activeIndex === index ? strokeWidth + 6 : strokeWidth}
               strokeDasharray={item.strokeDasharray}
               strokeDashoffset={item.strokeDashoffset}
-              style={{ transition: 'all 0.5s ease-in-out' }}
+              opacity={activeIndex === null || activeIndex === index ? 1 : 0.4}
+              style={{ transition: 'all 0.2s ease-in-out' }}
+              onMouseEnter={() => setActiveIndex(index)}
             />
           ))}
         </svg>
@@ -123,19 +133,59 @@ const DonutChart = ({ data, size = 180, strokeWidth = 24, title }: DonutChartPro
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          textAlign: 'center'
+          textAlign: 'center',
+          pointerEvents: 'none',
+          width: size - strokeWidth * 2 - 8,
+          whiteSpace: 'normal',
+          zIndex: 2,
         }}>
-          <Typography variant="h4" fontWeight={700}>{total}</Typography>
-          <Typography variant="caption" color="text.secondary">Total</Typography>
+          {activeItem ? (
+            <>
+              <Typography variant="h4" fontWeight={700} sx={{ color: activeItem.color, lineHeight: 1.1 }}>
+                {activeItem.value}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem', lineHeight: 1.2, overflow: 'visible' }}>
+                {activeItem.label}
+              </Typography>
+              <Typography variant="caption" sx={{ color: activeItem.color, fontWeight: 600, fontSize: '0.65rem' }}>
+                {((activeItem.value / total) * 100).toFixed(1)}%
+              </Typography>
+            </>
+          ) : (
+            <>
+              <Typography variant="h4" fontWeight={700}>{total}</Typography>
+              <Typography variant="caption" color="text.secondary">Total</Typography>
+            </>
+          )}
         </Box>
       </Box>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center' }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center', overflow: 'visible', width: '100%' }}>
         {data.map((item, index) => (
-          <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: item.color }} />
-            <Typography variant="caption">
-              {item.label}: {item.value} ({total > 0 ? ((item.value / total) * 100).toFixed(1) : 0}%)
-            </Typography>
+          <Box
+            key={index}
+            onMouseEnter={() => setActiveIndex(index)}
+            onMouseLeave={() => setActiveIndex(null)}
+            sx={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 0.5,
+              cursor: 'default',
+              opacity: activeIndex === null || activeIndex === index ? 1 : 0.4,
+              transition: 'opacity 0.2s',
+              overflow: 'visible',
+              minWidth: 'auto',
+              flex: '0 0 auto',
+            }}
+          >
+            <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: item.color, flexShrink: 0, marginTop: '2px' }} />
+            <Box sx={{ overflow: 'visible' }}>
+              <Typography variant="caption" sx={{ fontWeight: activeIndex === index ? 700 : 400, display: 'block', lineHeight: 1.1, overflow: 'visible', fontSize: '0.75rem' }}>
+                {item.label}
+              </Typography>
+              <Typography variant="caption" sx={{ color: item.color, fontWeight: 700, fontSize: '0.7rem', overflow: 'visible' }}>
+                {item.value} <Typography component="span" variant="caption" color="text.secondary" sx={{ fontWeight: 400, fontSize: '0.65rem' }}>({total > 0 ? ((item.value / total) * 100).toFixed(1) : 0}%)</Typography>
+              </Typography>
+            </Box>
           </Box>
         ))}
       </Box>
@@ -467,11 +517,13 @@ function PksiDashboardPage() {
   // Prepare chart data
   const jenisPksiChartData = useMemo(() => {
     if (!dashboardData?.jenis_pksi_stats) return [];
+    const { single_year, multiyears_y_minus1, multiyears_y_plus1 } = dashboardData.jenis_pksi_stats;
     return [
-      { label: 'Single Year', value: dashboardData.jenis_pksi_stats.single_year, color: '#EF4444' },
-      { label: 'Multiyears', value: dashboardData.jenis_pksi_stats.multiyears, color: '#1D4ED8' },
-    ];
-  }, [dashboardData?.jenis_pksi_stats]);
+      { label: `Multiyears Y-1 (${selectedTahun - 1}→${selectedTahun})`, value: multiyears_y_minus1, color: '#3B82F6' },
+      { label: `Single Year (${selectedTahun})`, value: single_year, color: '#EF4444' },
+      { label: `Multiyears Y+1 (${selectedTahun}→${selectedTahun + 1})`, value: multiyears_y_plus1, color: '#10B981' },
+    ].filter(item => item.value > 0);
+  }, [dashboardData?.jenis_pksi_stats, selectedTahun]);
 
   const pelaksanaChartData = useMemo(() => {
     if (!dashboardData?.pelaksana_stats) return [];
@@ -496,7 +548,17 @@ function PksiDashboardPage() {
   const bidangChartData = useMemo(() => {
     if (!dashboardData?.bidang_stats || dashboardData.bidang_stats.length === 0) return [];
     
-    const colors = ['#EF4444', '#1D4ED8'];
+    const colors = [
+      '#EF4444', // Red
+      '#1D4ED8', // Blue
+      '#10B981', // Green
+      '#F97316', // Orange
+      '#8B5CF6', // Purple
+      '#EC4899', // Pink
+      '#14B8A6', // Teal
+      '#F59E0B', // Amber
+      '#6366F1'  // Indigo
+    ];
     
     return dashboardData.bidang_stats.map((stat, index) => ({
       label: stat.bidang_kode,
@@ -1059,6 +1121,7 @@ function PksiDashboardPage() {
                 WebkitBackdropFilter: 'blur(20px)',
                 border: '1px solid rgba(255, 255, 255, 0.9)',
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                overflow: 'visible',
               }}
             >
               <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#4B5563' }}>
@@ -1084,11 +1147,12 @@ function PksiDashboardPage() {
                 WebkitBackdropFilter: 'blur(20px)',
                 border: '1px solid rgba(255, 255, 255, 0.9)',
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                overflow: 'visible',
               }}
             >
               <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#4B5563' }}>
                 <TrendingUpIcon sx={{ color: '#F87171' }} />
-                Jenis PKSI
+                Breakdown Jenis PKSI
               </Typography>
               <DonutChart 
                 data={jenisPksiChartData}
@@ -1109,6 +1173,7 @@ function PksiDashboardPage() {
                 WebkitBackdropFilter: 'blur(20px)',
                 border: '1px solid rgba(255, 255, 255, 0.9)',
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                overflow: 'visible',
               }}
             >
               <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#4B5563' }}>
@@ -1134,6 +1199,7 @@ function PksiDashboardPage() {
                 WebkitBackdropFilter: 'blur(20px)',
                 border: '1px solid rgba(255, 255, 255, 0.9)',
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+                overflow: 'visible',
               }}
             >
               <Typography variant="h6" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#4B5563' }}>
