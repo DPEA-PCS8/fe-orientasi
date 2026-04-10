@@ -192,6 +192,7 @@ function RbsiDashboardPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<'nomor' | 'nama' | 'program'>('nomor');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [hasPksiFilter, setHasPksiFilter] = useState<'all' | 'with_pksi' | 'without_pksi'>('all');
   
   // KEP Progress selection
   const [kepList, setKepList] = useState<RbsiKepResponse[]>([]);
@@ -330,6 +331,10 @@ function RbsiDashboardPage() {
     setSearchQuery(event.target.value);
   };
 
+  const handleHasPksiFilterChange = (event: SelectChangeEvent<string>) => {
+    setHasPksiFilter(event.target.value as 'all' | 'with_pksi' | 'without_pksi');
+  };
+
   const handleSort = (column: 'nomor' | 'nama' | 'program') => {
     if (sortBy === column) {
       setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
@@ -375,6 +380,13 @@ function RbsiDashboardPage() {
       );
     }
 
+    // Apply has PKSI filter
+    if (hasPksiFilter === 'with_pksi') {
+      filtered = filtered.filter(init => init.has_pksi);
+    } else if (hasPksiFilter === 'without_pksi') {
+      filtered = filtered.filter(init => !init.has_pksi);
+    }
+
     // Apply sorting
     const sorted = [...filtered].sort((a, b) => {
       let compareA: string;
@@ -417,7 +429,7 @@ function RbsiDashboardPage() {
     });
 
     return sorted;
-  }, [dashboardData, searchQuery, sortBy, sortOrder]);
+  }, [dashboardData, searchQuery, sortBy, sortOrder, hasPksiFilter]);
 
   const renderDiscrepancyBadge = (status: YearlyKepStatus | undefined) => {
     if (!status) return null;
@@ -627,42 +639,63 @@ function RbsiDashboardPage() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {initiative.pksi_list.map(pksi => (
-                        <TableRow key={pksi.id}>
-                          <TableCell>{pksi.nama_pksi}</TableCell>
-                          <TableCell>
-                            <Chip
-                              size="small"
-                              label={pksi.status}
-                              color={pksi.status === 'DISETUJUI' ? 'success' : 'default'}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            {pksi.tahun_pelaksanaan_awal || '-'} - {pksi.tahun_pelaksanaan_akhir || '-'}
-                          </TableCell>
-                          <TableCell>
-                            {pksi.is_multiyear ? (
-                              <Chip size="small" label="Ya" color="info" />
-                            ) : (
-                              <Chip size="small" label="Tidak" variant="outlined" />
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Link
-                              href={getPksiDetailUrl(pksi.id, pksi.status)}
-                              sx={{ cursor: 'pointer' }}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              Lihat Detail
-                            </Link>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {initiative.pksi_list.map(pksi => {
+                        const coversSelectedYear = pksi.tahun_pelaksanaan_awal && pksi.tahun_pelaksanaan_akhir &&
+                          selectedTahun >= pksi.tahun_pelaksanaan_awal && 
+                          selectedTahun <= pksi.tahun_pelaksanaan_akhir;
+                        
+                        return (
+                          <TableRow key={pksi.id} sx={{ 
+                            bgcolor: coversSelectedYear ? '#e8f5e9' : 'inherit' 
+                          }}>
+                            <TableCell>{pksi.nama_pksi}</TableCell>
+                            <TableCell>
+                              <Chip
+                                size="small"
+                                label={pksi.status}
+                                color={pksi.status === 'DISETUJUI' ? 'success' : 'default'}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Box>
+                                <Typography variant="body2">
+                                  {pksi.tahun_pelaksanaan_awal || '-'} - {pksi.tahun_pelaksanaan_akhir || '-'}
+                                </Typography>
+                                {coversSelectedYear && (
+                                  <Chip 
+                                    size="small" 
+                                    label={`Mencakup tahun ${selectedTahun}`}
+                                    color="success"
+                                    variant="outlined"
+                                    sx={{ mt: 0.5 }}
+                                  />
+                                )}
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              {pksi.is_multiyear ? (
+                                <Chip size="small" label="Ya" color="info" />
+                              ) : (
+                                <Chip size="small" label="Tidak" variant="outlined" />
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Link
+                                href={getPksiDetailUrl(pksi.id, pksi.status)}
+                                sx={{ cursor: 'pointer' }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                Lihat Detail
+                              </Link>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 ) : (
                   <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-                    Tidak ada PKSI yang terkait dengan inisiatif ini.
+                    Tidak ada PKSI yang mencakup tahun {selectedTahun} untuk inisiatif ini.
                   </Typography>
                 )}
               </Box>
@@ -795,7 +828,7 @@ function RbsiDashboardPage() {
               bgColor="#e3f2fd"
             />
             <StatCard
-              title="Memiliki PKSI"
+              title={`Memiliki PKSI (Tahun ${selectedTahun})`}
               value={dashboardData.summary.inisiatif_with_pksi}
               subtitle={`${dashboardData.summary.percentage_with_pksi.toFixed(1)}% dari total`}
               icon={<CheckCircleIcon />}
@@ -803,7 +836,7 @@ function RbsiDashboardPage() {
               bgColor="#e8f5e9"
             />
             <StatCard
-              title="Belum Memiliki PKSI"
+              title={`Belum Memiliki PKSI (Tahun ${selectedTahun})`}
               value={dashboardData.summary.inisiatif_without_pksi}
               icon={<CancelIcon />}
               color="#ff9800"
@@ -829,7 +862,7 @@ function RbsiDashboardPage() {
             {/* PKSI Status Chart */}
             <Paper sx={{ p: 3, borderRadius: 2 }}>
               <DonutChart
-                title="Status PKSI Inisiatif"
+                title={`Status PKSI di Tahun ${selectedTahun}`}
                 data={[
                   { label: 'Memiliki PKSI', value: dashboardData.summary.inisiatif_with_pksi, color: '#4caf50' },
                   { label: 'Belum Memiliki', value: dashboardData.summary.inisiatif_without_pksi, color: '#ff9800' },
@@ -889,17 +922,31 @@ function RbsiDashboardPage() {
                 </Typography>
               </Box>
               
-              {/* Search */}
-              <TextField
-                size="small"
-                placeholder="Cari inisiatif..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-                InputProps={{
-                  startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />,
-                }}
-                sx={{ minWidth: 300 }}
-              />
+              {/* Search and Filters */}
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <TextField
+                  size="small"
+                  placeholder="Cari inisiatif..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  InputProps={{
+                    startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />,
+                  }}
+                  sx={{ minWidth: 300 }}
+                />
+                <FormControl size="small" sx={{ minWidth: 200 }}>
+                  <InputLabel>Status PKSI di Tahun {selectedTahun}</InputLabel>
+                  <Select
+                    value={hasPksiFilter}
+                    label={`Status PKSI di Tahun ${selectedTahun}`}
+                    onChange={handleHasPksiFilterChange}
+                  >
+                    <MenuItem value="all">Semua</MenuItem>
+                    <MenuItem value="with_pksi">Ada PKSI</MenuItem>
+                    <MenuItem value="without_pksi">Belum Ada PKSI</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
             </Box>
             <TableContainer sx={{ height: 600, minHeight: 600 }}>
               <Table stickyHeader size="small">
@@ -928,7 +975,11 @@ function RbsiDashboardPage() {
                         )}
                       </Box>
                     </TableCell>
-                    <TableCell align="center">Status PKSI</TableCell>
+                    <TableCell align="center">
+                      <Tooltip title={`Status PKSI untuk tahun ${selectedTahun}`} arrow>
+                        <Box>Status PKSI ({selectedTahun})</Box>
+                      </Tooltip>
+                    </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: 0.5 }}>
                         {yearRange.map(year => (
