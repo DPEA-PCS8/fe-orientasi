@@ -211,6 +211,52 @@ const GlassTextField = styled(TextField)({
   },
 });
 
+// Month options for dropdown
+const MONTH_OPTIONS = [
+  { value: '01', label: 'Januari' },
+  { value: '02', label: 'Februari' },
+  { value: '03', label: 'Maret' },
+  { value: '04', label: 'April' },
+  { value: '05', label: 'Mei' },
+  { value: '06', label: 'Juni' },
+  { value: '07', label: 'Juli' },
+  { value: '08', label: 'Agustus' },
+  { value: '09', label: 'September' },
+  { value: '10', label: 'Oktober' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'Desember' },
+];
+
+// Generate years from 5 years ago to 10 years in future
+const currentYear = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from({ length: 16 }, (_, i) => {
+  const year = currentYear - 5 + i;
+  return { value: year.toString(), label: year.toString() };
+});
+
+// Helper to extract month from date string (YYYY-MM-DD or YYYY-MM)
+const getMonthFromDate = (dateString?: string): string => {
+  if (!dateString) return '';
+  const parts = dateString.split('-');
+  return parts.length >= 2 ? parts[1] : '';
+};
+
+// Helper to extract year from date string (YYYY-MM-DD or YYYY-MM)
+const getYearFromDate = (dateString?: string): string => {
+  if (!dateString) return '';
+  const parts = dateString.split('-');
+  return parts.length >= 1 ? parts[0] : '';
+};
+
+// Helper to build date string from month and year
+const buildDateFromMonthYear = (month: string, year: string): string => {
+  if (!month && !year) return '';
+  // Allow partial dates - if only month or only year is selected
+  const finalYear = year || new Date().getFullYear().toString(); // Use current year if not selected
+  const finalMonth = month || '01'; // Use January if not selected
+  return `${finalYear}-${finalMonth}-01`;
+};
+
 function Fs2List() {
   const [keyword, setKeyword] = useState('');
   const [openAddModal, setOpenAddModal] = useState(false);
@@ -261,7 +307,7 @@ function Fs2List() {
     { id: 'namaAplikasi', label: 'Nama Aplikasi', width: 150 },
     { id: 'statusTahapan', label: 'Status Tahapan Aplikasi', width: 180 },
     { id: 'skpa', label: 'SKPA', width: 100 },
-    { id: 'urgensi', label: 'Urgensi', width: 100 },
+    // { id: 'urgensi', label: 'Urgensi', width: 100 }, // HIDDEN as per requirement
     { id: 'tanggalPengajuan', label: 'Tanggal Pengajuan', width: 150 },
     { id: 'docsFs2', label: 'Docs F.S.2', width: 90 },
     { id: 'status', label: 'Status', width: 130 },
@@ -315,6 +361,7 @@ function Fs2List() {
     deskripsi_pengubahan: '',
     alasan_pengubahan: '',
     status_tahapan: '',
+    fase_pengajuan: '',
     urgensi: '',
     kriteria_1: false,
     kriteria_2: false,
@@ -817,7 +864,7 @@ function Fs2List() {
     if (!formData.aplikasi_id) newErrors.aplikasi_id = "Nama Aplikasi wajib dipilih";
     if (!formData.status_tahapan) newErrors.status_tahapan = "Status Tahapan wajib dipilih";
     if (!formData.skpa_id) newErrors.skpa_id = "SKPA wajib dipilih";
-    if (!formData.urgensi) newErrors.urgensi = "Urgensi wajib dipilih";
+    // if (!formData.urgensi) newErrors.urgensi = "Urgensi wajib dipilih"; // HIDDEN as per requirement
 
     // Section 2: Jadwal Pelaksanaan
     if (!formData.target_pengujian) newErrors.target_pengujian = "Target Pengujian wajib diisi";
@@ -906,6 +953,7 @@ function Fs2List() {
         target_go_live: fs2.target_go_live || '',
         pernyataan_1: fs2.pernyataan_1 || false,
         pernyataan_2: fs2.pernyataan_2 || false,
+        team_id: fs2.team_id || undefined,
       });
       
       // Fetch existing files
@@ -1225,11 +1273,13 @@ function Fs2List() {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 2,
             borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
           }}
         >
           {/* Search & Filter */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
             <TextField
               placeholder="Cari F.S.2..."
               size="small"
@@ -1538,6 +1588,7 @@ function Fs2List() {
                 background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
                 fontWeight: 500,
                 px: 2.5,
+                flexShrink: 0,
                 '&:hover': {
                   background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
                 },
@@ -1882,14 +1933,15 @@ function Fs2List() {
                 ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#f5f5f7' }),
                 ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
               }}>SKPA</TableCell>
-              <TableCell sx={{ 
+              {/* HIDDEN: Urgensi column as per requirement */}
+              {/* <TableCell sx={{ 
                 fontWeight: 600, 
                 color: '#1d1d1f', 
                 py: 2, 
                 minWidth: 100,
                 ...(stickyColumns.has('urgensi') && { position: 'sticky', left: getStickyLeft('urgensi'), zIndex: 3, bgcolor: '#f5f5f7' }),
                 ...(isLastStickyColumn('urgensi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
-              }}>Urgensi</TableCell>
+              }}>Urgensi</TableCell> */}
               <TableCell 
                 sortDirection={orderBy === 'tanggalPengajuan' ? order : false}
                 sx={{ 
@@ -2024,7 +2076,8 @@ function Fs2List() {
                         }}
                       />
                     </TableCell>
-                    <TableCell sx={{ 
+                    {/* HIDDEN: Urgensi column as per requirement */}
+                    {/* <TableCell sx={{ 
                       py: 2,
                       minWidth: 100,
                       ...(stickyColumns.has('urgensi') && { position: 'sticky', left: getStickyLeft('urgensi'), zIndex: 1, bgcolor: '#fff' }),
@@ -2042,7 +2095,7 @@ function Fs2List() {
                           borderRadius: '6px',
                         }}
                       />
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell sx={{ 
                       py: 2,
                       minWidth: 150,
@@ -2375,7 +2428,12 @@ function Fs2List() {
                   <Select
                     value={formData.status_tahapan}
                     label="1.2 Status Tahapan Aplikasi *"
-                    onChange={(e) => handleSelectChange('status_tahapan', e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      handleSelectChange('status_tahapan', value);
+                      // Auto-sync fase_pengajuan with status_tahapan
+                      setFormData(prev => ({ ...prev, fase_pengajuan: value }));
+                    }}
                     sx={{
                       borderRadius: '12px',
                       bgcolor: 'rgba(255, 255, 255, 0.6)',
@@ -2416,7 +2474,19 @@ function Fs2List() {
                   )}
                   size="small"
                 />
-                <FormControl fullWidth size="small" error={!!errors.urgensi}>
+                <GlassTextField
+                  label="1.4 Tanggal Pengajuan"
+                  type="date"
+                  size="small"
+                  value={formData.tanggal_pengajuan || ''}
+                  onChange={(e) => handleSelectChange('tanggal_pengajuan', e.target.value)}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  fullWidth
+                  error={!!errors.tanggal_pengajuan}
+                  helperText={errors.tanggal_pengajuan}
+                />
+                {/* HIDDEN: Urgensi field as per requirement */}
+                {/* <FormControl fullWidth size="small" error={!!errors.urgensi}>
                   <InputLabel>1.4 Urgensi *</InputLabel>
                   <Select
                     value={formData.urgensi}
@@ -2445,7 +2515,7 @@ function Fs2List() {
                       {errors.urgensi}
                     </Typography>
                   )}
-                </FormControl>
+                </FormControl> */}
                 </Stack>
               </AccordionDetails>
             </Accordion>
@@ -2492,46 +2562,130 @@ function Fs2List() {
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 4 }}>
-                    <GlassTextField
-                      label="2.1 Target Pengujian"
-                      type="date"
-                      value={formData.target_pengujian}
-                      onChange={(e) => setFormData({ ...formData, target_pengujian: e.target.value })}
-                      fullWidth
-                      required
-                      InputLabelProps={{ shrink: true }}
-                      size="small"
-                      error={!!errors.target_pengujian}
-                      helperText={errors.target_pengujian}
-                    />
+                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
+                      2.1 Target Pengujian *
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_pengujian}>
+                        <InputLabel>Bulan</InputLabel>
+                        <Select
+                          value={getMonthFromDate(formData.target_pengujian)}
+                          label="Bulan"
+                          onChange={(e) => setFormData({ 
+                            ...formData, 
+                            target_pengujian: buildDateFromMonthYear(e.target.value, getYearFromDate(formData.target_pengujian))
+                          })}
+                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                        >
+                          {MONTH_OPTIONS.map((month) => (
+                            <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_pengujian}>
+                        <InputLabel>Tahun</InputLabel>
+                        <Select
+                          value={getYearFromDate(formData.target_pengujian)}
+                          label="Tahun"
+                          onChange={(e) => setFormData({ 
+                            ...formData, 
+                            target_pengujian: buildDateFromMonthYear(getMonthFromDate(formData.target_pengujian), e.target.value)
+                          })}
+                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                        >
+                          {YEAR_OPTIONS.map((year) => (
+                            <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Box>
+                    {errors.target_pengujian && (
+                      <Typography variant="caption" sx={{ color: '#d32f2f', mt: 0.5, display: 'block' }}>{errors.target_pengujian}</Typography>
+                    )}
                   </Grid>
                   <Grid size={{ xs: 4 }}>
-                    <GlassTextField
-                      label="2.2 Target Deployment"
-                      type="date"
-                      value={formData.target_deployment}
-                      onChange={(e) => setFormData({ ...formData, target_deployment: e.target.value })}
-                      fullWidth
-                      required
-                      InputLabelProps={{ shrink: true }}
-                      size="small"
-                      error={!!errors.target_deployment}
-                      helperText={errors.target_deployment}
-                    />
+                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
+                      2.2 Target Deployment *
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_deployment}>
+                        <InputLabel>Bulan</InputLabel>
+                        <Select
+                          value={getMonthFromDate(formData.target_deployment)}
+                          label="Bulan"
+                          onChange={(e) => setFormData({ 
+                            ...formData, 
+                            target_deployment: buildDateFromMonthYear(e.target.value, getYearFromDate(formData.target_deployment))
+                          })}
+                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                        >
+                          {MONTH_OPTIONS.map((month) => (
+                            <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_deployment}>
+                        <InputLabel>Tahun</InputLabel>
+                        <Select
+                          value={getYearFromDate(formData.target_deployment)}
+                          label="Tahun"
+                          onChange={(e) => setFormData({ 
+                            ...formData, 
+                            target_deployment: buildDateFromMonthYear(getMonthFromDate(formData.target_deployment), e.target.value)
+                          })}
+                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                        >
+                          {YEAR_OPTIONS.map((year) => (
+                            <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Box>
+                    {errors.target_deployment && (
+                      <Typography variant="caption" sx={{ color: '#d32f2f', mt: 0.5, display: 'block' }}>{errors.target_deployment}</Typography>
+                    )}
                   </Grid>
                   <Grid size={{ xs: 4 }}>
-                    <GlassTextField
-                      label="2.3 Target Go Live"
-                      type="date"
-                      value={formData.target_go_live}
-                      onChange={(e) => setFormData({ ...formData, target_go_live: e.target.value })}
-                      fullWidth
-                      required
-                      InputLabelProps={{ shrink: true }}
-                      size="small"
-                      error={!!errors.target_go_live}
-                      helperText={errors.target_go_live}
-                    />
+                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
+                      2.3 Target Go Live *
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_go_live}>
+                        <InputLabel>Bulan</InputLabel>
+                        <Select
+                          value={getMonthFromDate(formData.target_go_live)}
+                          label="Bulan"
+                          onChange={(e) => setFormData({ 
+                            ...formData, 
+                            target_go_live: buildDateFromMonthYear(e.target.value, getYearFromDate(formData.target_go_live))
+                          })}
+                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                        >
+                          {MONTH_OPTIONS.map((month) => (
+                            <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_go_live}>
+                        <InputLabel>Tahun</InputLabel>
+                        <Select
+                          value={getYearFromDate(formData.target_go_live)}
+                          label="Tahun"
+                          onChange={(e) => setFormData({ 
+                            ...formData, 
+                            target_go_live: buildDateFromMonthYear(getMonthFromDate(formData.target_go_live), e.target.value)
+                          })}
+                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                        >
+                          {YEAR_OPTIONS.map((year) => (
+                            <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Box>
+                    {errors.target_go_live && (
+                      <Typography variant="caption" sx={{ color: '#d32f2f', mt: 0.5, display: 'block' }}>{errors.target_go_live}</Typography>
+                    )}
                   </Grid>
                 </Grid>
               </AccordionDetails>
@@ -2835,7 +2989,10 @@ function Fs2List() {
                   <Select
                     value={formData.status_tahapan}
                     label="1.2 Status Tahapan Aplikasi"
-                    onChange={(e) => setFormData({ ...formData, status_tahapan: e.target.value })}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFormData({ ...formData, status_tahapan: value, fase_pengajuan: value });
+                    }}
                     sx={{
                       borderRadius: '12px',
                       bgcolor: 'rgba(255, 255, 255, 0.6)',
@@ -2864,31 +3021,16 @@ function Fs2List() {
                   )}
                   size="small"
                 />
-                <FormControl fullWidth size="small">
-                  <InputLabel>1.4 Urgensi</InputLabel>
-                  <Select
-                    value={formData.urgensi}
-                    label="1.4 Urgensi"
-                    onChange={(e) => setFormData({ ...formData, urgensi: e.target.value })}
-                    sx={{
-                      borderRadius: '12px',
-                      bgcolor: 'rgba(255, 255, 255, 0.6)',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(0, 0, 0, 0.08)',
-                      },
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(0, 0, 0, 0.15)',
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#DA251C',
-                      },
-                    }}
-                  >
-                    <MenuItem value="RENDAH">Rendah</MenuItem>
-                    <MenuItem value="SEDANG">Sedang</MenuItem>
-                    <MenuItem value="TINGGI">Tinggi</MenuItem>
-                  </Select>
-                </FormControl>
+                <GlassTextField
+                  label="1.4 Tanggal Pengajuan"
+                  type="date"
+                  size="small"
+                  value={formData.tanggal_pengajuan || ''}
+                  onChange={(e) => setFormData({ ...formData, tanggal_pengajuan: e.target.value })}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  fullWidth
+                />
+                {/* HIDDEN: Urgensi field in Edit FS2 */}
                 </Stack>
               </AccordionDetails>
             </Accordion>
@@ -2935,46 +3077,130 @@ function Fs2List() {
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 4 }}>
-                    <GlassTextField
-                      label="2.1 Target Pengujian"
-                      type="date"
-                      value={formData.target_pengujian}
-                      onChange={(e) => setFormData({ ...formData, target_pengujian: e.target.value })}
-                      fullWidth
-                      required
-                      InputLabelProps={{ shrink: true }}
-                      size="small"
-                      error={!!errors.target_pengujian}
-                      helperText={errors.target_pengujian}
-                    />
+                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
+                      2.1 Target Pengujian *
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_pengujian}>
+                        <InputLabel>Bulan</InputLabel>
+                        <Select
+                          value={getMonthFromDate(formData.target_pengujian)}
+                          label="Bulan"
+                          onChange={(e) => setFormData({ 
+                            ...formData, 
+                            target_pengujian: buildDateFromMonthYear(e.target.value, getYearFromDate(formData.target_pengujian))
+                          })}
+                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                        >
+                          {MONTH_OPTIONS.map((month) => (
+                            <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_pengujian}>
+                        <InputLabel>Tahun</InputLabel>
+                        <Select
+                          value={getYearFromDate(formData.target_pengujian)}
+                          label="Tahun"
+                          onChange={(e) => setFormData({ 
+                            ...formData, 
+                            target_pengujian: buildDateFromMonthYear(getMonthFromDate(formData.target_pengujian), e.target.value)
+                          })}
+                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                        >
+                          {YEAR_OPTIONS.map((year) => (
+                            <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Box>
+                    {errors.target_pengujian && (
+                      <Typography variant="caption" sx={{ color: '#d32f2f', mt: 0.5, display: 'block' }}>{errors.target_pengujian}</Typography>
+                    )}
                   </Grid>
                   <Grid size={{ xs: 4 }}>
-                    <GlassTextField
-                      label="2.2 Target Deployment"
-                      type="date"
-                      value={formData.target_deployment}
-                      onChange={(e) => setFormData({ ...formData, target_deployment: e.target.value })}
-                      fullWidth
-                      required
-                      InputLabelProps={{ shrink: true }}
-                      size="small"
-                      error={!!errors.target_deployment}
-                      helperText={errors.target_deployment}
-                    />
+                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
+                      2.2 Target Deployment *
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_deployment}>
+                        <InputLabel>Bulan</InputLabel>
+                        <Select
+                          value={getMonthFromDate(formData.target_deployment)}
+                          label="Bulan"
+                          onChange={(e) => setFormData({ 
+                            ...formData, 
+                            target_deployment: buildDateFromMonthYear(e.target.value, getYearFromDate(formData.target_deployment))
+                          })}
+                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                        >
+                          {MONTH_OPTIONS.map((month) => (
+                            <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_deployment}>
+                        <InputLabel>Tahun</InputLabel>
+                        <Select
+                          value={getYearFromDate(formData.target_deployment)}
+                          label="Tahun"
+                          onChange={(e) => setFormData({ 
+                            ...formData, 
+                            target_deployment: buildDateFromMonthYear(getMonthFromDate(formData.target_deployment), e.target.value)
+                          })}
+                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                        >
+                          {YEAR_OPTIONS.map((year) => (
+                            <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Box>
+                    {errors.target_deployment && (
+                      <Typography variant="caption" sx={{ color: '#d32f2f', mt: 0.5, display: 'block' }}>{errors.target_deployment}</Typography>
+                    )}
                   </Grid>
                   <Grid size={{ xs: 4 }}>
-                    <GlassTextField
-                      label="2.3 Target Go Live"
-                      type="date"
-                      value={formData.target_go_live}
-                      onChange={(e) => setFormData({ ...formData, target_go_live: e.target.value })}
-                      fullWidth
-                      required
-                      InputLabelProps={{ shrink: true }}
-                      size="small"
-                      error={!!errors.target_go_live}
-                      helperText={errors.target_go_live}
-                    />
+                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
+                      2.3 Target Go Live *
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_go_live}>
+                        <InputLabel>Bulan</InputLabel>
+                        <Select
+                          value={getMonthFromDate(formData.target_go_live)}
+                          label="Bulan"
+                          onChange={(e) => setFormData({ 
+                            ...formData, 
+                            target_go_live: buildDateFromMonthYear(e.target.value, getYearFromDate(formData.target_go_live))
+                          })}
+                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                        >
+                          {MONTH_OPTIONS.map((month) => (
+                            <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_go_live}>
+                        <InputLabel>Tahun</InputLabel>
+                        <Select
+                          value={getYearFromDate(formData.target_go_live)}
+                          label="Tahun"
+                          onChange={(e) => setFormData({ 
+                            ...formData, 
+                            target_go_live: buildDateFromMonthYear(getMonthFromDate(formData.target_go_live), e.target.value)
+                          })}
+                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                        >
+                          {YEAR_OPTIONS.map((year) => (
+                            <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Box>
+                    {errors.target_go_live && (
+                      <Typography variant="caption" sx={{ color: '#d32f2f', mt: 0.5, display: 'block' }}>{errors.target_go_live}</Typography>
+                    )}
                   </Grid>
                 </Grid>
               </AccordionDetails>
