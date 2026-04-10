@@ -71,6 +71,11 @@ export interface Fs2DocumentData {
   tahun_selesai?: number;
   pic_id?: string;
   pic_name?: string;
+  // Team Structure
+  team_id?: string;
+  team_name?: string;
+  anggota_tim?: string;
+  anggota_tim_names?: string;
   dokumen_path?: string;
   
   // Monitoring Fields - Dokumen Pengajuan F.S.2
@@ -172,6 +177,10 @@ export interface Fs2DocumentRequest {
   tahun_mulai?: number;
   tahun_selesai?: number;
   pic_id?: string;
+  // Team Structure
+  team_id?: string;
+  anggota_tim?: string;
+  anggota_tim_names?: string;
   dokumen_path?: string;
   
   // Monitoring Fields - Dokumen Pengajuan F.S.2
@@ -313,9 +322,12 @@ export async function updateFs2Document(id: string, request: Fs2DocumentRequest)
 /**
  * Update F.S.2 document status
  */
-export async function updateFs2Status(id: string, status: string): Promise<Fs2DocumentData> {
+export async function updateFs2Status(
+  id: string, 
+  status: string
+): Promise<Fs2DocumentData> {
   const response = await apiRequest<Fs2DocumentData>(
-    `${BASE_URL}/fs2/${id}/status?status=${encodeURIComponent(status)}`,
+    `${BASE_URL}/fs2/${id}/status?status=${status}`,
     'PATCH'
   );
   return response.data;
