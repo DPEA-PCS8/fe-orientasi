@@ -38,8 +38,11 @@ import {
   Timeline as TimelineIcon,
   Gavel as GavelIcon,
   Person as PersonIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  HourglassEmpty as HourglassEmptyIcon,
 } from '@mui/icons-material';
-import { getPksiDocumentById, type PksiDocumentData } from '../../api/pksiApi';
+import { getPksiDocumentById, getPksiChangelogs, type PksiDocumentData, type PksiChangelogEntry } from '../../api/pksiApi';
 import { getAllSkpa } from '../../api/skpaApi';
 import { getPksiFiles, downloadPksiFile, type PksiFileData } from '../../api/fileApi';
 import FilePreviewModal from './FilePreviewModal';
@@ -102,10 +105,43 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
   const [pksiFiles, setPksiFiles] = useState<PksiFileData[]>([]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+  const [progressChangelogs, setProgressChangelogs] = useState<PksiChangelogEntry[]>([]);
   
   // Preview modal state
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<PksiFileData | null>(null);
+
+  // Progress to target field mapping
+  const PROGRESS_TARGET_MAP: Record<string, { targetField: keyof PksiDocumentData; label: string }> = {
+    'Penyusunan Usreq': { targetField: 'target_usreq', label: 'Target Usreq' },
+    'SIT': { targetField: 'target_sit', label: 'Target SIT' },
+    'UAT': { targetField: 'target_uat', label: 'Target UAT/PDKK' },
+    'Live': { targetField: 'target_go_live', label: 'Target Go Live' },
+    'Selesai': { targetField: 'target_go_live', label: 'Target Go Live' },
+  };
+
+  // Helper function to check deadline compliance
+  const checkDeadlineCompliance = (
+    progressValue: string,
+    progressChangeDate: string,
+    pksi: PksiDocumentData
+  ): { status: 'tepat' | 'terlambat' | 'belum' | 'tidak_ada_target'; targetDate: string | null; changeDate: string } => {
+    const mapping = PROGRESS_TARGET_MAP[progressValue];
+    if (!mapping) return { status: 'belum', targetDate: null, changeDate: progressChangeDate };
+
+    const targetDateValue = pksi[mapping.targetField] as string | undefined;
+    if (!targetDateValue) return { status: 'tidak_ada_target', targetDate: null, changeDate: progressChangeDate };
+
+    // Parse dates - target is YYYY-MM format, add day 28 for end of month comparison
+    const targetDate = new Date(targetDateValue.length === 7 ? `${targetDateValue}-28` : targetDateValue);
+    const changeDate = new Date(progressChangeDate);
+
+    if (changeDate <= targetDate) {
+      return { status: 'tepat', targetDate: targetDateValue, changeDate: progressChangeDate };
+    } else {
+      return { status: 'terlambat', targetDate: targetDateValue, changeDate: progressChangeDate };
+    }
+  };
 
   // Fetch SKPA lookup data
   useEffect(() => {
@@ -161,6 +197,27 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
     };
 
     fetchFiles();
+  }, [pksiId, open]);
+
+  // Fetch progress changelogs for deadline compliance
+  useEffect(() => {
+    const fetchProgressChangelogs = async () => {
+      if (!pksiId || !open) return;
+
+      try {
+        const response = await getPksiChangelogs(pksiId);
+        // Filter only progress field changes
+        const progressChanges = response.changelogs.filter(
+          (log) => log.field_name === 'progress'
+        );
+        setProgressChangelogs(progressChanges);
+      } catch (error) {
+        console.error('Error fetching progress changelogs:', error);
+        setProgressChangelogs([]);
+      }
+    };
+
+    fetchProgressChangelogs();
   }, [pksiId, open]);
 
   const handleClose = () => {
@@ -635,57 +692,232 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                 </Typography>
               </SectionHeader>
 
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                {/* Tahap 1 */}
-                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(218, 37, 28, 0.03)', border: '1px solid rgba(218, 37, 28, 0.1)' }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#DA251C', mb: 1.5 }}>
-                    Penyusunan Spesifikasi Kebutuhan Aplikasi
-                  </Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Awal</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(pksiData.tahap1_awal)}</Typography>
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Akhir</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(pksiData.tahap1_akhir)}</Typography>
-                    </InfoRow>
-                  </Box>
-                </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                {/* Timeline Cards */}
+                {[
+                  { 
+                    label: 'Target Usreq', 
+                    target: '2026-02', // Feb 2026
+                    realisasi: '2026-03', // Mar 2026 (late 1 bulan)
+                    icon: '📋',
+                    color: '#2563EB'
+                  },
+                  { 
+                    label: 'Target SIT', 
+                    target: '2026-03', // Mar 2026
+                    realisasi: '2026-04', // Apr 2026 (late 1 bulan)
+                    icon: '🧪',
+                    color: '#7C3AED'
+                  },
+                  { 
+                    label: 'Target UAT/PDKK', 
+                    target: '2026-05', // Mei 2026
+                    realisasi: null, // Pending
+                    icon: '✅',
+                    color: '#059669'
+                  },
+                  { 
+                    label: 'Target Go Live', 
+                    target: '2026-06', // Jun 2026
+                    realisasi: null, // Pending
+                    icon: '🚀',
+                    color: '#DC2626'
+                  },
+                ].map((item, index) => {
+                  const targetDate = item.target ? new Date(item.target + '-01') : null;
+                  const realisasiDate = item.realisasi ? new Date(item.realisasi + '-01') : null;
+                  
+                  let status: 'on-time' | 'late' | 'pending' = 'pending';
+                  let delayMonths = 0;
+                  
+                  if (realisasiDate && targetDate) {
+                    const diffTime = realisasiDate.getTime() - targetDate.getTime();
+                    delayMonths = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 30));
+                    status = delayMonths > 0 ? 'late' : 'on-time';
+                  }
 
-                {/* Tahap 5 */}
-                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(37, 99, 235, 0.03)', border: '1px solid rgba(37, 99, 235, 0.1)' }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#2563EB', mb: 1.5 }}>
-                    Pengujian Aplikasi – User Acceptance Test (UAT)
-                  </Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Awal</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(pksiData.tahap5_awal)}</Typography>
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Akhir</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(pksiData.tahap5_akhir)}</Typography>
-                    </InfoRow>
-                  </Box>
-                </Box>
+                  const statusConfig = {
+                    'on-time': { 
+                      bg: 'linear-gradient(135deg, rgba(5, 150, 105, 0.06) 0%, rgba(16, 185, 129, 0.04) 100%)',
+                      border: 'rgba(5, 150, 105, 0.15)', 
+                      color: '#059669',
+                      label: 'Tepat Waktu',
+                      icon: <CheckCircleIcon sx={{ fontSize: 16 }} />
+                    },
+                    'late': { 
+                      bg: 'linear-gradient(135deg, rgba(220, 38, 38, 0.06) 0%, rgba(239, 68, 68, 0.04) 100%)',
+                      border: 'rgba(220, 38, 38, 0.15)', 
+                      color: '#DC2626',
+                      label: `Terlambat ${delayMonths} bulan`,
+                      icon: <CancelIcon sx={{ fontSize: 16 }} />
+                    },
+                    'pending': { 
+                      bg: 'linear-gradient(135deg, rgba(107, 114, 128, 0.06) 0%, rgba(156, 163, 175, 0.04) 100%)',
+                      border: 'rgba(107, 114, 128, 0.15)', 
+                      color: '#6B7280',
+                      label: 'Belum Realisasi',
+                      icon: <HourglassEmptyIcon sx={{ fontSize: 16 }} />
+                    },
+                  };
 
-                {/* Tahap 7 */}
-                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(5, 150, 105, 0.03)', border: '1px solid rgba(5, 150, 105, 0.1)' }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#059669', mb: 1.5 }}>
-                    Penggunaan Aplikasi (Go-Live)
-                  </Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Awal</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(pksiData.tahap7_awal)}</Typography>
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Akhir</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(pksiData.tahap7_akhir)}</Typography>
-                    </InfoRow>
-                  </Box>
-                </Box>
+                  const config = statusConfig[status];
+
+                  return (
+                    <Box
+                      key={index}
+                      sx={{
+                        p: 2.5,
+                        borderRadius: '20px',
+                        background: config.bg,
+                        border: `1px solid ${config.border}`,
+                        position: 'relative',
+                        overflow: 'hidden',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        boxShadow: '0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          transform: 'translateY(-4px) scale(1.01)',
+                          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                          borderColor: config.color + '40',
+                        },
+                      }}
+                    >
+                      {/* Progress bar at top - Liquid glass style */}
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: 4,
+                          bgcolor: 'rgba(255, 255, 255, 0.3)',
+                          backdropFilter: 'blur(10px)',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            height: '100%',
+                            width: status === 'pending' ? '30%' : '100%',
+                            background: `linear-gradient(90deg, ${config.color}80, ${config.color})`,
+                            boxShadow: `0 0 20px ${config.color}40`,
+                            transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+                          }}
+                        />
+                      </Box>
+
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2.5, mt: 0.5 }}>
+                        {/* Icon - Liquid glass container */}
+                        <Box
+                          sx={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: '14px',
+                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.6) 100%)',
+                            backdropFilter: 'blur(10px)',
+                            WebkitBackdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(255, 255, 255, 0.8)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.4rem',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            transition: 'all 0.3s ease',
+                          }}
+                        >
+                          {item.icon}
+                        </Box>
+
+                        {/* Content */}
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1 }}>
+                            {item.label}
+                          </Typography>
+                          
+                          <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                            <Box>
+                              <Typography variant="caption" sx={{ color: '#86868b', display: 'block', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.5px' }}>
+                                TARGET
+                              </Typography>
+                              <Typography variant="body2" sx={{ color: '#1d1d1f', fontWeight: 600, fontSize: '0.85rem' }}>
+                                {targetDate ? targetDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }) : '-'}
+                              </Typography>
+                            </Box>
+                            <Box>
+                              <Typography variant="caption" sx={{ color: '#86868b', display: 'block', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.5px' }}>
+                                REALISASI
+                              </Typography>
+                              <Typography variant="body2" sx={{ color: realisasiDate ? '#1d1d1f' : '#86868b', fontWeight: 600, fontSize: '0.85rem' }}>
+                                {realisasiDate ? realisasiDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }) : 'Belum ada'}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </Box>
+
+                        {/* Status Badge - Liquid glass */}
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 0.5,
+                            px: 2,
+                            py: 0.75,
+                            borderRadius: '24px',
+                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 100%)',
+                            backdropFilter: 'blur(10px)',
+                            WebkitBackdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(255, 255, 255, 0.6)',
+                            color: config.color,
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                          }}
+                        >
+                          {config.icon}
+                          {config.label}
+                        </Box>
+                      </Box>
+
+                      {/* Warning Alert for late items - Liquid glass style */}
+                      {status === 'late' && (
+                        <Box
+                          sx={{
+                            mt: 2,
+                            p: 2,
+                            borderRadius: '14px',
+                            background: 'linear-gradient(135deg, rgba(220, 38, 38, 0.08) 0%, rgba(239, 68, 68, 0.06) 100%)',
+                            backdropFilter: 'blur(10px)',
+                            WebkitBackdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(220, 38, 38, 0.2)',
+                            boxShadow: '0 2px 12px rgba(220, 38, 38, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1.5,
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: '10px',
+                              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+                            }}
+                          >
+                            <WarningIcon sx={{ color: '#DC2626', fontSize: 18 }} />
+                          </Box>
+                          <Typography variant="caption" sx={{ color: '#DC2626', fontWeight: 600, lineHeight: 1.4 }}>
+                            Realisasi melebihi target {delayMonths} bulan. Perlu evaluasi dan tindak lanjut.
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  );
+                })}
               </Box>
             </GlassCard>
 
@@ -782,22 +1014,126 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, gap: 2 }}>
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target Usreq</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_usreq || '-'}</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
+                        {pksiData.target_usreq 
+                          ? new Date(pksiData.target_usreq + '-01').toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })
+                          : '-'}
+                      </Typography>
                     </InfoRow>
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target SIT</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_sit || '-'}</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
+                        {pksiData.target_sit 
+                          ? new Date(pksiData.target_sit + '-01').toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })
+                          : '-'}
+                      </Typography>
                     </InfoRow>
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target UAT/PDKK</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_uat || '-'}</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
+                        {pksiData.target_uat 
+                          ? new Date(pksiData.target_uat + '-01').toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })
+                          : '-'}
+                      </Typography>
                     </InfoRow>
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target Go Live</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_go_live || '-'}</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
+                        {pksiData.target_go_live 
+                          ? new Date(pksiData.target_go_live + '-01').toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })
+                          : '-'}
+                      </Typography>
                     </InfoRow>
                   </Box>
                 </Box>
+
+                {/* Ketepatan Deadline */}
+                {progressChangelogs.length > 0 && (
+                  <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(59, 130, 246, 0.03)', border: '1px solid rgba(59, 130, 246, 0.1)', mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                      <ScheduleIcon sx={{ color: '#2563EB', fontSize: 18 }} />
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#2563EB' }}>Ketepatan Deadline</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                      {progressChangelogs.map((log) => {
+                        const compliance = checkDeadlineCompliance(log.new_value || '', log.updated_at, pksiData);
+                        const mapping = PROGRESS_TARGET_MAP[log.new_value || ''];
+                        
+                        if (!mapping) return null;
+                        
+                        return (
+                          <Box 
+                            key={log.id}
+                            sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'space-between',
+                              p: 1.5,
+                              borderRadius: '10px',
+                              bgcolor: compliance.status === 'tepat' 
+                                ? 'rgba(16, 185, 129, 0.08)' 
+                                : compliance.status === 'terlambat' 
+                                  ? 'rgba(239, 68, 68, 0.08)' 
+                                  : 'rgba(107, 114, 128, 0.08)',
+                              border: compliance.status === 'tepat' 
+                                ? '1px solid rgba(16, 185, 129, 0.2)' 
+                                : compliance.status === 'terlambat' 
+                                  ? '1px solid rgba(239, 68, 68, 0.2)' 
+                                  : '1px solid rgba(107, 114, 128, 0.2)',
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                              {compliance.status === 'tepat' ? (
+                                <CheckCircleIcon sx={{ color: '#10B981', fontSize: 20 }} />
+                              ) : compliance.status === 'terlambat' ? (
+                                <CancelIcon sx={{ color: '#EF4444', fontSize: 20 }} />
+                              ) : (
+                                <HourglassEmptyIcon sx={{ color: '#6B7280', fontSize: 20 }} />
+                              )}
+                              <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                                  {log.new_value}
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: '#6B7280' }}>
+                                  {mapping.label}: {compliance.targetDate 
+                                    ? new Date(compliance.targetDate + '-01').toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })
+                                    : 'Tidak ada target'}
+                                </Typography>
+                              </Box>
+                            </Box>
+                            <Box sx={{ textAlign: 'right' }}>
+                              <Chip
+                                size="small"
+                                label={
+                                  compliance.status === 'tepat' ? 'Tepat Waktu' :
+                                  compliance.status === 'terlambat' ? 'Terlambat' :
+                                  compliance.status === 'tidak_ada_target' ? 'Tidak Ada Target' : 'Belum Tercapai'
+                                }
+                                sx={{
+                                  bgcolor: compliance.status === 'tepat' 
+                                    ? 'rgba(16, 185, 129, 0.15)' 
+                                    : compliance.status === 'terlambat' 
+                                      ? 'rgba(239, 68, 68, 0.15)' 
+                                      : 'rgba(107, 114, 128, 0.15)',
+                                  color: compliance.status === 'tepat' 
+                                    ? '#059669' 
+                                    : compliance.status === 'terlambat' 
+                                      ? '#DC2626' 
+                                      : '#4B5563',
+                                  fontWeight: 600,
+                                  fontSize: '0.7rem',
+                                }}
+                              />
+                              <Typography variant="caption" sx={{ display: 'block', color: '#86868b', mt: 0.5 }}>
+                                Dicapai: {new Date(log.updated_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  </Box>
+                )}
 
                 {/* Dokumen */}
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mb: 2 }}>

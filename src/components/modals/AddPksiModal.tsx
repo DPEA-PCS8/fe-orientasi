@@ -132,12 +132,10 @@ interface FormData {
   fungsiAplikasi: string;
   informasiYangDikelola: string;
   dasarPeraturan: string;
-  tahap1Awal: string;
-  tahap1Akhir: string;
-  tahap5Awal: string;
-  tahap5Akhir: string;
-  tahap7Awal: string;
-  tahap7Akhir: string;
+  targetUsreq: string;
+  targetSit: string;
+  targetUat: string;
+  targetGoLive: string;
   rencanaPengelolaan: string;
 }
 
@@ -188,12 +186,10 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     fungsiAplikasi: "",
     informasiYangDikelola: "",
     dasarPeraturan: "",
-    tahap1Awal: "",
-    tahap1Akhir: "",
-    tahap5Awal: "",
-    tahap5Akhir: "",
-    tahap7Awal: "",
-    tahap7Akhir: "",
+    targetUsreq: "",
+    targetSit: "",
+    targetUat: "",
+    targetGoLive: "",
     rencanaPengelolaan: "",
   });
 
@@ -1436,12 +1432,6 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
             </AccordionSummary>
             <AccordionDetails>
               <Stack spacing={2}>
-                <Typography
-                  variant="body2"
-                  sx={{ fontWeight: 600, color: "#86868b" }}
-                >
-                  Penyusunan Spesifikasi Kebutuhan Aplikasi
-                </Typography>
                 <Box
                   sx={{
                     display: "grid",
@@ -1451,88 +1441,40 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                 >
                   <TextField
                     fullWidth
-                    label="Awal"
-                    name="tahap1Awal"
-                    type="date"
-                    value={formData.tahap1Awal}
+                    label="Target Usreq (Bulan)"
+                    name="targetUsreq"
+                    type="month"
+                    value={formData.targetUsreq}
                     onChange={handleInputChange}
                     InputLabelProps={{ shrink: true }}
                     size="small"
                   />
                   <TextField
                     fullWidth
-                    label="Akhir"
-                    name="tahap1Akhir"
-                    type="date"
-                    value={formData.tahap1Akhir}
-                    onChange={handleInputChange}
-                    InputLabelProps={{ shrink: true }}
-                    size="small"
-                  />
-                </Box>
-                <Typography
-                  variant="body2"
-                  sx={{ fontWeight: 600, color: "#86868b" }}
-                >
-                  Pengujian Aplikasi – User Acceptance Test (UAT)
-                </Typography>
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 2,
-                  }}
-                >
-                  <TextField
-                    fullWidth
-                    label="Awal"
-                    name="tahap5Awal"
-                    type="date"
-                    value={formData.tahap5Awal}
+                    label="Target SIT (Bulan)"
+                    name="targetSit"
+                    type="month"
+                    value={formData.targetSit}
                     onChange={handleInputChange}
                     InputLabelProps={{ shrink: true }}
                     size="small"
                   />
                   <TextField
                     fullWidth
-                    label="Akhir"
-                    name="tahap5Akhir"
-                    type="date"
-                    value={formData.tahap5Akhir}
-                    onChange={handleInputChange}
-                    InputLabelProps={{ shrink: true }}
-                    size="small"
-                  />
-                </Box>
-                <Typography
-                  variant="body2"
-                  sx={{ fontWeight: 600, color: "#86868b" }}
-                >
-                  Penggunaan Aplikasi (Go-Live)
-                </Typography>
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 2,
-                  }}
-                >
-                  <TextField
-                    fullWidth
-                    label="Awal"
-                    name="tahap7Awal"
-                    type="date"
-                    value={formData.tahap7Awal}
+                    label="Target UAT/PDKK (Bulan)"
+                    name="targetUat"
+                    type="month"
+                    value={formData.targetUat}
                     onChange={handleInputChange}
                     InputLabelProps={{ shrink: true }}
                     size="small"
                   />
                   <TextField
                     fullWidth
-                    label="Akhir"
-                    name="tahap7Akhir"
-                    type="date"
-                    value={formData.tahap7Akhir}
+                    label="Target Go Live (Bulan)"
+                    name="targetGoLive"
+                    type="month"
+                    value={formData.targetGoLive}
                     onChange={handleInputChange}
                     InputLabelProps={{ shrink: true }}
                     size="small"

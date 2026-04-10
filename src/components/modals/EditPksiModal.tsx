@@ -132,12 +132,10 @@ interface FormData {
   fungsiAplikasi: string;
   informasiYangDikelola: string;
   dasarPeraturan: string;
-  tahap1Awal: string;
-  tahap1Akhir: string;
-  tahap5Awal: string;
-  tahap5Akhir: string;
-  tahap7Awal: string;
-  tahap7Akhir: string;
+  targetUsreq: string;
+  targetSit: string;
+  targetUat: string;
+  targetGoLive: string;
   rencanaPengelolaan: string;
 }
 
@@ -177,12 +175,10 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
     fungsiAplikasi: '',
     informasiYangDikelola: '',
     dasarPeraturan: '',
-    tahap1Awal: '',
-    tahap1Akhir: '',
-    tahap5Awal: '',
-    tahap5Akhir: '',
-    tahap7Awal: '',
-    tahap7Akhir: '',
+    targetUsreq: '',
+    targetSit: '',
+    targetUat: '',
+    targetGoLive: '',
     rencanaPengelolaan: '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -1465,32 +1461,11 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
                 <Stack spacing={2.5}>
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f', fontSize: '0.85rem' }}>
-                      Penyusunan Spesifikasi Kebutuhan Aplikasi
-                    </Typography>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-                      <TextField fullWidth label="Awal Tahap" name="tahap1Awal" type="date" value={formData.tahap1Awal} onChange={handleInputChange} InputLabelProps={{ shrink: true }} size="small" />
-                      <TextField fullWidth label="Akhir Tahap" name="tahap1Akhir" type="date" value={formData.tahap1Akhir} onChange={handleInputChange} InputLabelProps={{ shrink: true }} size="small" />
-                    </Box>
-                  </Box>
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f', fontSize: '0.85rem' }}>
-                      Pengujian Aplikasi – User Acceptance Test (UAT)
-                    </Typography>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-                      <TextField fullWidth label="Awal Tahap" name="tahap5Awal" type="date" value={formData.tahap5Awal} onChange={handleInputChange} InputLabelProps={{ shrink: true }} size="small" />
-                      <TextField fullWidth label="Akhir Tahap" name="tahap5Akhir" type="date" value={formData.tahap5Akhir} onChange={handleInputChange} InputLabelProps={{ shrink: true }} size="small" />
-                    </Box>
-                  </Box>
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f', fontSize: '0.85rem' }}>
-                      Penggunaan Aplikasi (Go-Live)
-                    </Typography>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-                      <TextField fullWidth label="Awal Tahap" name="tahap7Awal" type="date" value={formData.tahap7Awal} onChange={handleInputChange} InputLabelProps={{ shrink: true }} size="small" />
-                      <TextField fullWidth label="Akhir Tahap" name="tahap7Akhir" type="date" value={formData.tahap7Akhir} onChange={handleInputChange} InputLabelProps={{ shrink: true }} size="small" />
-                    </Box>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                    <TextField fullWidth label="Target Usreq (Bulan)" name="targetUsreq" type="month" value={formData.targetUsreq} onChange={handleInputChange} InputLabelProps={{ shrink: true }} size="small" />
+                    <TextField fullWidth label="Target SIT (Bulan)" name="targetSit" type="month" value={formData.targetSit} onChange={handleInputChange} InputLabelProps={{ shrink: true }} size="small" />
+                    <TextField fullWidth label="Target UAT/PDKK (Bulan)" name="targetUat" type="month" value={formData.targetUat} onChange={handleInputChange} InputLabelProps={{ shrink: true }} size="small" />
+                    <TextField fullWidth label="Target Go Live (Bulan)" name="targetGoLive" type="month" value={formData.targetGoLive} onChange={handleInputChange} InputLabelProps={{ shrink: true }} size="small" />
                   </Box>
                 </Stack>
               </AccordionDetails>

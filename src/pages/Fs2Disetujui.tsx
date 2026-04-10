@@ -2470,7 +2470,7 @@ function Fs2Disetujui() {
               />
               <TextField
                 label="Tanggal ND"
-                type="date"
+                type="month"
                 size="small"
                 value={editFormData.tanggal_nd || ''}
                 onChange={(e) => setEditFormData({ ...editFormData, tanggal_nd: e.target.value })}
@@ -2626,7 +2626,7 @@ function Fs2Disetujui() {
               />
               <TextField
                 label="Tanggal CD"
-                type="date"
+                type="month"
                 size="small"
                 value={editFormData.tanggal_cd || ''}
                 onChange={(e) => setEditFormData({ ...editFormData, tanggal_cd: e.target.value })}
@@ -2840,7 +2840,7 @@ function Fs2Disetujui() {
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
               <TextField
                 label="Target Pengujian"
-                type="date"
+                type="month"
                 size="small"
                 value={editFormData.target_pengujian || ''}
                 onChange={(e) => setEditFormData({ ...editFormData, target_pengujian: e.target.value })}
@@ -2849,7 +2849,7 @@ function Fs2Disetujui() {
               />
               <TextField
                 label="Realisasi Pengujian"
-                type="date"
+                type="month"
                 size="small"
                 value={editFormData.realisasi_pengujian || ''}
                 onChange={(e) => setEditFormData({ ...editFormData, realisasi_pengujian: e.target.value })}
@@ -2998,7 +2998,7 @@ function Fs2Disetujui() {
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
               <TextField
                 label="Target Deployment"
-                type="date"
+                type="month"
                 size="small"
                 value={editFormData.target_deployment || ''}
                 onChange={(e) => setEditFormData({ ...editFormData, target_deployment: e.target.value })}
@@ -3007,7 +3007,7 @@ function Fs2Disetujui() {
               />
               <TextField
                 label="Realisasi Deployment"
-                type="date"
+                type="month"
                 size="small"
                 value={editFormData.realisasi_deployment || ''}
                 onChange={(e) => setEditFormData({ ...editFormData, realisasi_deployment: e.target.value })}
@@ -3091,7 +3091,7 @@ function Fs2Disetujui() {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <TextField
                 label="Target Go Live"
-                type="date"
+                type="month"
                 size="small"
                 value={editFormData.target_go_live || ''}
                 onChange={(e) => setEditFormData({ ...editFormData, target_go_live: e.target.value })}

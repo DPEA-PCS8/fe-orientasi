@@ -871,18 +871,18 @@ const AddPksi = () => {
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
                     <TextField
                       fullWidth
-                      label="Awal Tahap"
+                      label="Bulan Awal"
                       name="tahap1Awal"
-                      type="date"
+                      type="month"
                       value={formData.tahap1Awal}
                       onChange={handleInputChange}
                       InputLabelProps={{ shrink: true }}
                     />
                     <TextField
                       fullWidth
-                      label="Akhir Tahap"
+                      label="Bulan Akhir"
                       name="tahap1Akhir"
-                      type="date"
+                      type="month"
                       value={formData.tahap1Akhir}
                       onChange={handleInputChange}
                       InputLabelProps={{ shrink: true }}
@@ -897,18 +897,18 @@ const AddPksi = () => {
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
                     <TextField
                       fullWidth
-                      label="Awal Tahap"
+                      label="Bulan Awal"
                       name="tahap5Awal"
-                      type="date"
+                      type="month"
                       value={formData.tahap5Awal}
                       onChange={handleInputChange}
                       InputLabelProps={{ shrink: true }}
                     />
                     <TextField
                       fullWidth
-                      label="Akhir Tahap"
+                      label="Bulan Akhir"
                       name="tahap5Akhir"
-                      type="date"
+                      type="month"
                       value={formData.tahap5Akhir}
                       onChange={handleInputChange}
                       InputLabelProps={{ shrink: true }}
@@ -923,18 +923,18 @@ const AddPksi = () => {
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
                     <TextField
                       fullWidth
-                      label="Awal Tahap"
+                      label="Bulan Awal"
                       name="tahap7Awal"
-                      type="date"
+                      type="month"
                       value={formData.tahap7Awal}
                       onChange={handleInputChange}
                       InputLabelProps={{ shrink: true }}
                     />
                     <TextField
                       fullWidth
-                      label="Akhir Tahap"
+                      label="Bulan Akhir"
                       name="tahap7Akhir"
-                      type="date"
+                      type="month"
                       value={formData.tahap7Akhir}
                       onChange={handleInputChange}
                       InputLabelProps={{ shrink: true }}

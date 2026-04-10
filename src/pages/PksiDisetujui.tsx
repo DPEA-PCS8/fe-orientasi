@@ -97,6 +97,11 @@ interface PksiData {
   targetSit: string;
   targetUat: string;
   targetGoLive: string;
+  // Realisasi Timeline (dummy)
+  realisasiUsreq?: string;
+  realisasiSit?: string;
+  realisasiUat?: string;
+  realisasiGoLive?: string;
   // Rencana PKSI (T01/T02)
   statusT01T02: string;
   berkasT01T02: string;
@@ -156,7 +161,7 @@ const calculateJangkaWaktu = (apiData: PksiDocumentData): string => {
 };
 
 // Transform API data to UI format
-const transformApiData = (apiData: PksiDocumentData): PksiData => {
+const transformApiData = (apiData: PksiDocumentData, index: number = 0): PksiData => {
   const jangkaWaktu = calculateJangkaWaktu(apiData);
   
   return {
@@ -181,32 +186,37 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     // New fields - read from backend or fallback to program_inisiatif_rbsi split
     programRbsi: apiData.program_rbsi || apiData.program_inisiatif_rbsi?.split(' - ')[0] || '-',
     inisiatifRbsi: apiData.inisiatif_rbsi || apiData.program_inisiatif_rbsi?.split(' - ')[1] || '-',
-    // Anggaran - with dummy data
-    anggaranTotal: apiData.anggaran_total || 'Rp 2.500.000.000',
-    anggaranTahunIni: apiData.anggaran_tahun_ini || `Rp 1.500.000.000 (${new Date().getFullYear()})`,
-    anggaranTahunDepan: apiData.anggaran_tahun_depan || (jangkaWaktu.includes('Multiyears') ? `Rp 1.000.000.000 (${new Date().getFullYear() + 1})` : '-'),
-    // Timeline - use existing tahap data or new fields with dummy
-    targetUsreq: apiData.target_usreq || apiData.tahap1_akhir || '2026-06-30',
-    targetSit: apiData.target_sit || apiData.tahap5_akhir || '2026-09-30',
-    targetUat: apiData.target_uat || '2026-11-15',
-    targetGoLive: apiData.target_go_live || apiData.tahap7_akhir || '2026-12-31',
-    // Rencana PKSI (T01/T02) - with dummy data
-    statusT01T02: apiData.status_t01_t02 || 'Diterima',
-    berkasT01T02: apiData.berkas_t01_t02 || 'T01_T02_Rencana_PKSI_v2.pdf',
-    // Spesifikasi Kebutuhan (T11) - with dummy data
-    statusT11: apiData.status_t11 || 'Diterima',
-    berkasT11: apiData.berkas_t11 || 'T11_Spesifikasi_Kebutuhan_v1.pdf',
-    // CD Prinsip - with dummy data
-    statusCd: apiData.status_cd || 'Diterima',
-    nomorCd: apiData.nomor_cd || `CD-${Math.floor(Math.random() * 900 + 100)}/PCS8/${new Date().getFullYear()}`,
-    // Kontrak - with dummy data
-    kontrakTanggalMulai: apiData.kontrak_tanggal_mulai || '2026-07-01',
-    kontrakTanggalSelesai: apiData.kontrak_tanggal_selesai || '2026-12-31',
-    kontrakNilai: apiData.kontrak_nilai || 'Rp 2.250.000.000',
-    kontrakJumlahTermin: apiData.kontrak_jumlah_termin || '3 Termin',
-    kontrakDetailPembayaran: apiData.kontrak_detail_pembayaran || '40% - 40% - 20%',
-    // BA Deploy - with dummy data
-    baDeploy: apiData.ba_deploy || `BA-DEPLOY-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 999)).padStart(3, '0')}`,
+    // Anggaran - from API only
+    anggaranTotal: apiData.anggaran_total || '-',
+    anggaranTahunIni: apiData.anggaran_tahun_ini || '-',
+    anggaranTahunDepan: apiData.anggaran_tahun_depan || '-',
+    // Timeline - from API only
+    targetUsreq: apiData.target_usreq?.substring(0, 7) || '-',
+    targetSit: apiData.target_sit?.substring(0, 7) || '-',
+    targetUat: apiData.target_uat?.substring(0, 7) || '-',
+    targetGoLive: apiData.target_go_live?.substring(0, 7) || '-',
+    // Realisasi Timeline - from API only
+    realisasiUsreq: apiData.realisasi_usreq?.substring(0, 7),
+    realisasiSit: apiData.realisasi_sit?.substring(0, 7),
+    realisasiUat: apiData.realisasi_uat?.substring(0, 7),
+    realisasiGoLive: apiData.realisasi_go_live?.substring(0, 7),
+    // Rencana PKSI (T01/T02) - from API only
+    statusT01T02: apiData.status_t01_t02 || '-',
+    berkasT01T02: apiData.berkas_t01_t02 || '-',
+    // Spesifikasi Kebutuhan (T11) - from API only
+    statusT11: apiData.status_t11 || '-',
+    berkasT11: apiData.berkas_t11 || '-',
+    // CD Prinsip - from API only
+    statusCd: apiData.status_cd || '-',
+    nomorCd: apiData.nomor_cd || '-',
+    // Kontrak - from API only
+    kontrakTanggalMulai: apiData.kontrak_tanggal_mulai || '-',
+    kontrakTanggalSelesai: apiData.kontrak_tanggal_selesai || '-',
+    kontrakNilai: apiData.kontrak_nilai || '-',
+    kontrakJumlahTermin: apiData.kontrak_jumlah_termin || '-',
+    kontrakDetailPembayaran: apiData.kontrak_detail_pembayaran || '-',
+    // BA Deploy - from API only
+    baDeploy: apiData.ba_deploy || '-',
   };
 };
 
@@ -565,7 +575,7 @@ function PksiDisetujui() {
       // Store raw data for year filtering
       setRawPksiData(response.content);
       
-      let transformedData = response.content.map(transformApiData);
+      let transformedData = response.content.map((item, index) => transformApiData(item, index));
       
       // Filter by user department if not Admin/Pengembang
       if (!isAdminOrPengembang && userDepartment) {
@@ -2403,27 +2413,209 @@ function PksiDisetujui() {
                   </TableCell>
                   {/* Timeline - Target Usreq */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.targetUsreq !== '-' && item.targetUsreq ? new Date(item.targetUsreq).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                        {item.targetUsreq !== '-' && item.targetUsreq ? new Date(item.targetUsreq + '-01').toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }) : '-'}
+                      </Typography>
+                      {/* Status indicator with tooltip */}
+                      {item.targetUsreq !== '-' && item.targetUsreq && (() => {
+                        const targetDate = new Date(item.targetUsreq + '-01');
+                        const realisasiDate = item.realisasiUsreq ? new Date(item.realisasiUsreq + '-01') : null;
+                        
+                        let status: 'on-time' | 'late' | 'pending' = 'pending';
+                        let tooltipText = 'Belum ada realisasi';
+                        let color = '#6B7280';
+                        let shadowColor = 'rgba(107, 114, 128, 0.2)';
+                        
+                        if (realisasiDate) {
+                          const isLate = realisasiDate > targetDate;
+                          status = isLate ? 'late' : 'on-time';
+                          const diffMonths = Math.ceil((realisasiDate.getTime() - targetDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
+                          
+                          if (isLate) {
+                            color = '#DC2626';
+                            shadowColor = 'rgba(220, 38, 38, 0.2)';
+                            tooltipText = `Terlambat ${diffMonths} bulan\nTarget: ${targetDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}\nRealisasi: ${realisasiDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}`;
+                          } else {
+                            color = '#059669';
+                            shadowColor = 'rgba(5, 150, 105, 0.2)';
+                            tooltipText = `Tepat waktu\nTarget: ${targetDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}\nRealisasi: ${realisasiDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}`;
+                          }
+                        }
+                        
+                        return (
+                          <Tooltip 
+                            title={<Typography variant="caption" sx={{ whiteSpace: 'pre-line' }}>{tooltipText}</Typography>}
+                            arrow
+                            placement="top"
+                          >
+                            <Box sx={{ 
+                              width: 8, 
+                              height: 8, 
+                              borderRadius: '50%', 
+                              bgcolor: color,
+                              boxShadow: `0 0 0 2px ${shadowColor}`,
+                              cursor: 'pointer',
+                              transition: 'transform 0.2s',
+                              '&:hover': { transform: 'scale(1.5)' }
+                            }} />
+                          </Tooltip>
+                        );
+                      })()}
+                    </Box>
                   </TableCell>
                   {/* Timeline - Target SIT */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.targetSit !== '-' && item.targetSit ? new Date(item.targetSit).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                        {item.targetSit !== '-' && item.targetSit ? new Date(item.targetSit + '-01').toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }) : '-'}
+                      </Typography>
+                      {/* Status indicator with tooltip */}
+                      {item.targetSit !== '-' && item.targetSit && (() => {
+                        const targetDate = new Date(item.targetSit + '-01');
+                        const realisasiDate = item.realisasiSit ? new Date(item.realisasiSit + '-01') : null;
+                        
+                        let tooltipText = 'Belum ada realisasi';
+                        let color = '#6B7280';
+                        let shadowColor = 'rgba(107, 114, 128, 0.2)';
+                        
+                        if (realisasiDate) {
+                          const isLate = realisasiDate > targetDate;
+                          const diffMonths = Math.ceil((realisasiDate.getTime() - targetDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
+                          
+                          if (isLate) {
+                            color = '#DC2626';
+                            shadowColor = 'rgba(220, 38, 38, 0.2)';
+                            tooltipText = `Terlambat ${diffMonths} bulan\nTarget: ${targetDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}\nRealisasi: ${realisasiDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}`;
+                          } else {
+                            color = '#059669';
+                            shadowColor = 'rgba(5, 150, 105, 0.2)';
+                            tooltipText = `Tepat waktu\nTarget: ${targetDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}\nRealisasi: ${realisasiDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}`;
+                          }
+                        }
+                        
+                        return (
+                          <Tooltip 
+                            title={<Typography variant="caption" sx={{ whiteSpace: 'pre-line' }}>{tooltipText}</Typography>}
+                            arrow
+                            placement="top"
+                          >
+                            <Box sx={{ 
+                              width: 8, 
+                              height: 8, 
+                              borderRadius: '50%', 
+                              bgcolor: color,
+                              boxShadow: `0 0 0 2px ${shadowColor}`,
+                              cursor: 'pointer',
+                              transition: 'transform 0.2s',
+                              '&:hover': { transform: 'scale(1.5)' }
+                            }} />
+                          </Tooltip>
+                        );
+                      })()}
+                    </Box>
                   </TableCell>
                   {/* Timeline - Target UAT/PDKK */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.targetUat !== '-' && item.targetUat ? new Date(item.targetUat).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                        {item.targetUat !== '-' && item.targetUat ? new Date(item.targetUat + '-01').toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }) : '-'}
+                      </Typography>
+                      {/* Status indicator with tooltip */}
+                      {item.targetUat !== '-' && item.targetUat && (() => {
+                        const targetDate = new Date(item.targetUat + '-01');
+                        const realisasiDate = item.realisasiUat ? new Date(item.realisasiUat + '-01') : null;
+                        
+                        let tooltipText = 'Belum ada realisasi';
+                        let color = '#6B7280';
+                        let shadowColor = 'rgba(107, 114, 128, 0.2)';
+                        
+                        if (realisasiDate) {
+                          const isLate = realisasiDate > targetDate;
+                          const diffMonths = Math.ceil((realisasiDate.getTime() - targetDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
+                          
+                          if (isLate) {
+                            color = '#DC2626';
+                            shadowColor = 'rgba(220, 38, 38, 0.2)';
+                            tooltipText = `Terlambat ${diffMonths} bulan\nTarget: ${targetDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}\nRealisasi: ${realisasiDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}`;
+                          } else {
+                            color = '#059669';
+                            shadowColor = 'rgba(5, 150, 105, 0.2)';
+                            tooltipText = `Tepat waktu\nTarget: ${targetDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}\nRealisasi: ${realisasiDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}`;
+                          }
+                        }
+                        
+                        return (
+                          <Tooltip 
+                            title={<Typography variant="caption" sx={{ whiteSpace: 'pre-line' }}>{tooltipText}</Typography>}
+                            arrow
+                            placement="top"
+                          >
+                            <Box sx={{ 
+                              width: 8, 
+                              height: 8, 
+                              borderRadius: '50%', 
+                              bgcolor: color,
+                              boxShadow: `0 0 0 2px ${shadowColor}`,
+                              cursor: 'pointer',
+                              transition: 'transform 0.2s',
+                              '&:hover': { transform: 'scale(1.5)' }
+                            }} />
+                          </Tooltip>
+                        );
+                      })()}
+                    </Box>
                   </TableCell>
                   {/* Timeline - Target Go Live */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.targetGoLive !== '-' && item.targetGoLive ? new Date(item.targetGoLive).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                        {item.targetGoLive !== '-' && item.targetGoLive ? new Date(item.targetGoLive + '-01').toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }) : '-'}
+                      </Typography>
+                      {/* Status indicator with tooltip */}
+                      {item.targetGoLive !== '-' && item.targetGoLive && (() => {
+                        const targetDate = new Date(item.targetGoLive + '-01');
+                        const realisasiDate = item.realisasiGoLive ? new Date(item.realisasiGoLive + '-01') : null;
+                        
+                        let tooltipText = 'Belum ada realisasi';
+                        let color = '#6B7280';
+                        let shadowColor = 'rgba(107, 114, 128, 0.2)';
+                        
+                        if (realisasiDate) {
+                          const isLate = realisasiDate > targetDate;
+                          const diffMonths = Math.ceil((realisasiDate.getTime() - targetDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
+                          
+                          if (isLate) {
+                            color = '#DC2626';
+                            shadowColor = 'rgba(220, 38, 38, 0.2)';
+                            tooltipText = `Terlambat ${diffMonths} bulan\nTarget: ${targetDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}\nRealisasi: ${realisasiDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}`;
+                          } else {
+                            color = '#059669';
+                            shadowColor = 'rgba(5, 150, 105, 0.2)';
+                            tooltipText = `Tepat waktu\nTarget: ${targetDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}\nRealisasi: ${realisasiDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}`;
+                          }
+                        }
+                        
+                        return (
+                          <Tooltip 
+                            title={<Typography variant="caption" sx={{ whiteSpace: 'pre-line' }}>{tooltipText}</Typography>}
+                            arrow
+                            placement="top"
+                          >
+                            <Box sx={{ 
+                              width: 8, 
+                              height: 8, 
+                              borderRadius: '50%', 
+                              bgcolor: color,
+                              boxShadow: `0 0 0 2px ${shadowColor}`,
+                              cursor: 'pointer',
+                              transition: 'transform 0.2s',
+                              '&:hover': { transform: 'scale(1.5)' }
+                            }} />
+                          </Tooltip>
+                        );
+                      })()}
+                    </Box>
                   </TableCell>
                   {/* Rencana PKSI - Status T01/T02 */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.04)' }}>
@@ -3377,8 +3569,8 @@ function PksiDisetujui() {
           <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
             <TextField
               fullWidth
-              label="Target Usreq"
-              type="date"
+              label="Target Usreq (Bulan)"
+              type="month"
               value={editForm.targetUsreq}
               onChange={(e) => setEditForm({ ...editForm, targetUsreq: e.target.value })}
               InputLabelProps={{ shrink: true }}
@@ -3395,8 +3587,8 @@ function PksiDisetujui() {
             />
             <TextField
               fullWidth
-              label="Target SIT"
-              type="date"
+              label="Target SIT (Bulan)"
+              type="month"
               value={editForm.targetSit}
               onChange={(e) => setEditForm({ ...editForm, targetSit: e.target.value })}
               InputLabelProps={{ shrink: true }}
@@ -3415,8 +3607,8 @@ function PksiDisetujui() {
           <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
             <TextField
               fullWidth
-              label="Target UAT/PDKK"
-              type="date"
+              label="Target UAT/PDKK (Bulan)"
+              type="month"
               value={editForm.targetUat}
               onChange={(e) => setEditForm({ ...editForm, targetUat: e.target.value })}
               InputLabelProps={{ shrink: true }}
@@ -3433,8 +3625,8 @@ function PksiDisetujui() {
             />
             <TextField
               fullWidth
-              label="Target Go Live"
-              type="date"
+              label="Target Go Live (Bulan)"
+              type="month"
               value={editForm.targetGoLive}
               onChange={(e) => setEditForm({ ...editForm, targetGoLive: e.target.value })}
               InputLabelProps={{ shrink: true }}

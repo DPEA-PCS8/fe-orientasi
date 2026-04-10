@@ -2839,7 +2839,7 @@ function Fs2List() {
                   <Grid size={{ xs: 4 }}>
                     <GlassTextField
                       label="6.1 Target Pengujian"
-                      type="date"
+                      type="month"
                       value={formData.target_pengujian}
                       onChange={(e) => setFormData({ ...formData, target_pengujian: e.target.value })}
                       fullWidth
@@ -2853,7 +2853,7 @@ function Fs2List() {
                   <Grid size={{ xs: 4 }}>
                     <GlassTextField
                       label="6.2 Target Deployment"
-                      type="date"
+                      type="month"
                       value={formData.target_deployment}
                       onChange={(e) => setFormData({ ...formData, target_deployment: e.target.value })}
                       fullWidth
@@ -2867,7 +2867,7 @@ function Fs2List() {
                   <Grid size={{ xs: 4 }}>
                     <GlassTextField
                       label="6.3 Target Go Live"
-                      type="date"
+                      type="month"
                       value={formData.target_go_live}
                       onChange={(e) => setFormData({ ...formData, target_go_live: e.target.value })}
                       fullWidth
@@ -3824,7 +3824,7 @@ function Fs2List() {
                   <Grid size={{ xs: 4 }}>
                     <GlassTextField
                       label="6.1 Target Pengujian"
-                      type="date"
+                      type="month"
                       value={formData.target_pengujian}
                       onChange={(e) => setFormData({ ...formData, target_pengujian: e.target.value })}
                       fullWidth
@@ -3838,7 +3838,7 @@ function Fs2List() {
                   <Grid size={{ xs: 4 }}>
                     <GlassTextField
                       label="6.2 Target Deployment"
-                      type="date"
+                      type="month"
                       value={formData.target_deployment}
                       onChange={(e) => setFormData({ ...formData, target_deployment: e.target.value })}
                       fullWidth
@@ -3852,7 +3852,7 @@ function Fs2List() {
                   <Grid size={{ xs: 4 }}>
                     <GlassTextField
                       label="6.3 Target Go Live"
-                      type="date"
+                      type="month"
                       value={formData.target_go_live}
                       onChange={(e) => setFormData({ ...formData, target_go_live: e.target.value })}
                       fullWidth
