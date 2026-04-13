@@ -151,6 +151,11 @@ export interface PksiDocumentRequest {
   tahap7_akhir?: string;
   // Section 7
   rencana_pengelolaan?: string;
+  // Timeline
+  target_usreq?: string;
+  target_sit?: string;
+  target_uat?: string;
+  target_go_live?: string;
   // User ID (optional - backend extracts from JWT token)
   user_id?: string;
 }
