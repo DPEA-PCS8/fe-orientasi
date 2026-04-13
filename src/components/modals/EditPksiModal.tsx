@@ -47,7 +47,7 @@ interface EditPksiModalProps {
 
 interface FormData {
   namaPksi: string; aplikasiId: string; tanggalPengajuan: string; picSatkerBA: string[];
-  programInisiatifRBSI: string; targetUsreq: string; targetSit: string; targetUat: string; targetGoLive: string;
+  programInisiatifRBSI: string; jenisPksi: string; targetUsreq: string; targetSit: string; targetUat: string; targetGoLive: string;
 }
 
 interface FormErrors { [key: string]: string | undefined; }
@@ -79,11 +79,15 @@ interface PhaseTimelineProps {
   phaseNumber: number; targetUsreq: string; targetSit: string; targetUat: string; targetGoLive: string;
   onChangeUsreq: (v: string) => void; onChangeSit: (v: string) => void;
   onChangeUat: (v: string) => void; onChangeGoLive: (v: string) => void; onRemove?: () => void;
+  hideSit?: boolean;
 }
 
-const PhaseTimeline = ({ phaseNumber, targetUsreq, targetSit, targetUat, targetGoLive, onChangeUsreq, onChangeSit, onChangeUat, onChangeGoLive, onRemove }: PhaseTimelineProps) => {
-  const values = [targetUsreq, targetSit, targetUat, targetGoLive];
-  const handlers = [onChangeUsreq, onChangeSit, onChangeUat, onChangeGoLive];
+const PhaseTimeline = ({ phaseNumber, targetUsreq, targetSit, targetUat, targetGoLive, onChangeUsreq, onChangeSit, onChangeUat, onChangeGoLive, onRemove, hideSit }: PhaseTimelineProps) => {
+  const cardsToShow = hideSit ? TIMELINE_CARDS.filter(c => c.key !== 'targetSit') : TIMELINE_CARDS;
+  const allValues: Record<string, string> = { targetUsreq, targetSit, targetUat, targetGoLive };
+  const allHandlers: Record<string, (v: string) => void> = { targetUsreq: onChangeUsreq, targetSit: onChangeSit, targetUat: onChangeUat, targetGoLive: onChangeGoLive };
+  const values = cardsToShow.map(c => allValues[c.key]);
+  const handlers = cardsToShow.map(c => allHandlers[c.key]);
   return (
     <Box sx={{ mb: 2 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
@@ -104,7 +108,7 @@ const PhaseTimeline = ({ phaseNumber, targetUsreq, targetSit, targetUat, targetG
         )}
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
-        {TIMELINE_CARDS.map((card, i) => (
+        {cardsToShow.map((card, i) => (
           <Box key={card.key} sx={{ borderRadius: '16px', background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 6px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)', overflow: 'hidden' }}>
             <Box sx={{ height: 3, background: `linear-gradient(90deg, ${card.gradient[0]}, ${card.gradient[1]})` }} />
             <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.2 }}>
@@ -127,7 +131,7 @@ const PhaseTimeline = ({ phaseNumber, targetUsreq, targetSit, targetUat, targetG
 const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, onSuccess }) => {
   const [expandedSection, setExpandedSection] = useState<string | false>('jadwal');
   const [formData, setFormData] = useState<FormData>({
-    namaPksi: '', aplikasiId: '', tanggalPengajuan: '', picSatkerBA: [], programInisiatifRBSI: '',
+    namaPksi: '', aplikasiId: '', tanggalPengajuan: '', picSatkerBA: [], programInisiatifRBSI: '', jenisPksi: 'Reguler',
     targetUsreq: currentMonthValue(), targetSit: currentMonthValue(), targetUat: currentMonthValue(), targetGoLive: currentMonthValue(),
   });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -262,6 +266,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
           tanggalPengajuan: data.tanggal_pengajuan ? data.tanggal_pengajuan.split('T')[0] : '',
           picSatkerBA: data.pic_satker_ba ? data.pic_satker_ba.split(/[,]\s*/).filter(Boolean) : [],
           programInisiatifRBSI: data.program_inisiatif_rbsi || '',
+          jenisPksi: data.jenis_pksi || 'Reguler',
           targetUsreq: data.target_usreq ? data.target_usreq.split('T')[0] : currentMonthValue(),
           targetSit: data.target_sit ? data.target_sit.split('T')[0] : currentMonthValue(),
           targetUat: data.target_uat ? data.target_uat.split('T')[0] : currentMonthValue(),
@@ -322,10 +327,10 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
     try {
       const requestData: PksiDocumentRequest = {
         aplikasi_id: formData.aplikasiId || undefined, inisiatif_id: selectedInisiatif?.id || undefined,
-        nama_pksi: formData.namaPksi, tanggal_pengajuan: formData.tanggalPengajuan || undefined,
+        nama_pksi: formData.namaPksi, jenis_pksi: formData.jenisPksi, tanggal_pengajuan: formData.tanggalPengajuan || undefined,
         pic_satker_ba: formData.picSatkerBA.length > 0 ? formData.picSatkerBA.join(',') : undefined,
         program_inisiatif_rbsi: formData.programInisiatifRBSI || undefined,
-        target_usreq: formData.targetUsreq || undefined, target_sit: formData.targetSit || undefined,
+        target_usreq: formData.targetUsreq || undefined, target_sit: formData.jenisPksi === 'Mendesak' ? (formData.targetUat || undefined) : (formData.targetSit || undefined),
         target_uat: formData.targetUat || undefined, target_go_live: formData.targetGoLive || undefined,
         user_id: getUserInfo()?.uuid || '',
       };
@@ -336,7 +341,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
   };
 
   const handleClose = () => {
-    setFormData({ namaPksi: '', aplikasiId: '', tanggalPengajuan: '', picSatkerBA: [], programInisiatifRBSI: '', targetUsreq: currentMonthValue(), targetSit: currentMonthValue(), targetUat: currentMonthValue(), targetGoLive: currentMonthValue() });
+    setFormData({ namaPksi: '', aplikasiId: '', tanggalPengajuan: '', picSatkerBA: [], programInisiatifRBSI: '', jenisPksi: 'Reguler', targetUsreq: currentMonthValue(), targetSit: currentMonthValue(), targetUat: currentMonthValue(), targetGoLive: currentMonthValue() });
     setErrors({}); setExpandedSection('jadwal'); setFilesT01([]); setFilesT11([]);
     setIsUploadingT01(false); setIsUploadingT11(false); setErrorMessage('');
     setPreviewOpen(false); setPreviewFile(null); setTimelinePhases([]);
@@ -391,6 +396,10 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
               <Typography variant="subtitle1" sx={{ mb: 2.5, fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.01em', fontSize: '1rem' }}>Informasi Dasar</Typography>
               <Stack spacing={2.5}>
                 <GlassTextField fullWidth label="Nama PKSI" name="namaPksi" value={formData.namaPksi} onChange={handleInputChange} error={!!errors.namaPksi} helperText={errors.namaPksi} size="small" />
+                <GlassTextField select fullWidth label="Jenis PKSI" name="jenisPksi" value={formData.jenisPksi} onChange={handleInputChange} size="small">
+                  <MenuItem value="Reguler">Reguler</MenuItem>
+                  <MenuItem value="Mendesak">Mendesak</MenuItem>
+                </GlassTextField>
                 <Autocomplete fullWidth options={aplikasiOptions} getOptionLabel={(o) => `${o.kode_aplikasi} - ${o.nama_aplikasi}`} value={aplikasiOptions.find(a => a.id === formData.aplikasiId) || null} onChange={(_, v) => setFormData(prev => ({ ...prev, aplikasiId: v?.id || '' }))} renderInput={(params) => <GlassTextField {...params} label="Nama Aplikasi" size="small" />} size="small" />
                 <Autocomplete multiple fullWidth options={skpaOptions} getOptionLabel={(o) => `${o.kode_skpa} - ${o.nama_skpa}`} value={skpaOptions.filter(s => formData.picSatkerBA.includes(s.id))} onChange={(_, v) => setFormData(prev => ({ ...prev, picSatkerBA: v.map(s => s.id) }))}
                   renderInput={(params) => <GlassTextField {...params} label="SKPA (Satuan Kerja Pemilik Aplikasi)" size="small" />}
@@ -461,12 +470,13 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
               <AccordionDetails sx={{ pt: 1.5, pb: 2, px: 2 }}>
                 <PhaseTimeline phaseNumber={1} targetUsreq={formData.targetUsreq} targetSit={formData.targetSit} targetUat={formData.targetUat} targetGoLive={formData.targetGoLive}
                   onChangeUsreq={(v) => setFormData(p => ({ ...p, targetUsreq: v ? lastDayOfMonth(v) : '' }))} onChangeSit={(v) => setFormData(p => ({ ...p, targetSit: v ? lastDayOfMonth(v) : '' }))}
-                  onChangeUat={(v) => setFormData(p => ({ ...p, targetUat: v ? lastDayOfMonth(v) : '' }))} onChangeGoLive={(v) => setFormData(p => ({ ...p, targetGoLive: v ? lastDayOfMonth(v) : '' }))} />
+                  onChangeUat={(v) => setFormData(p => ({ ...p, targetUat: v ? lastDayOfMonth(v) : '' }))} onChangeGoLive={(v) => setFormData(p => ({ ...p, targetGoLive: v ? lastDayOfMonth(v) : '' }))}
+                  hideSit={formData.jenisPksi === 'Mendesak'} />
                 {timelinePhases.map((phase, idx) => (
                   <PhaseTimeline key={phase.id} phaseNumber={idx + 2} targetUsreq={phase.targetUsreq} targetSit={phase.targetSit} targetUat={phase.targetUat} targetGoLive={phase.targetGoLive}
                     onChangeUsreq={(v) => updatePhase(phase.id, 'targetUsreq', v ? lastDayOfMonth(v) : '')} onChangeSit={(v) => updatePhase(phase.id, 'targetSit', v ? lastDayOfMonth(v) : '')}
                     onChangeUat={(v) => updatePhase(phase.id, 'targetUat', v ? lastDayOfMonth(v) : '')} onChangeGoLive={(v) => updatePhase(phase.id, 'targetGoLive', v ? lastDayOfMonth(v) : '')}
-                    onRemove={() => removePhase(phase.id)} />
+                    onRemove={() => removePhase(phase.id)} hideSit={formData.jenisPksi === 'Mendesak'} />
                 ))}
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
                   <Button variant="outlined" startIcon={<AddIcon />} onClick={addPhase} sx={{ borderRadius: '14px', borderColor: 'rgba(99,102,241,0.3)', color: '#6366F1', fontWeight: 600, fontSize: '0.82rem', px: 3, py: 1, textTransform: 'none', backdropFilter: 'blur(10px)', background: 'rgba(99,102,241,0.04)', '&:hover': { borderColor: '#6366F1', background: 'rgba(99,102,241,0.08)' } }}>Tambah Tahap</Button>
@@ -477,7 +487,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
             {/* Upload Dokumen */}
             <Accordion expanded={expandedSection === 'upload'} onChange={handleAccordionChange('upload')} sx={{ borderRadius: '20px !important', bgcolor: 'rgba(255, 255, 255, 0.6)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255, 255, 255, 0.8)', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)', '&::before': { display: 'none' }, '&.Mui-expanded': { margin: '0 !important' }, transition: 'all 0.3s ease', '&:hover': { boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)' } }}>
               <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: '#86868b' }} />} sx={{ borderRadius: '20px', px: 2.5, '&.Mui-expanded': { minHeight: 56 }, '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' } }}>
-                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>Upload Dokumen</Typography>
+                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.95rem', letterSpacing: '-0.01em' }}>Upload Dokumen T.01 & Nota Dinas</Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
                 <Stack spacing={3}>

@@ -21,6 +21,7 @@ import {
   Autocomplete,
   Chip,
   CircularProgress,
+  MenuItem,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -46,6 +47,7 @@ import {
 interface FormData {
   namaPksi: string;
   aplikasiId: string;
+  jenisPksi: string;
   tanggalPengajuan: string;
   picSatkerBA: string[];
   targetUsreq: string;
@@ -106,6 +108,7 @@ interface PhaseTimelineProps {
   targetSit: string;
   targetUat: string;
   targetGoLive: string;
+  hideSit?: boolean;
   onChangeUsreq: (yearMonth: string) => void;
   onChangeSit: (yearMonth: string) => void;
   onChangeUat: (yearMonth: string) => void;
@@ -113,9 +116,14 @@ interface PhaseTimelineProps {
   onRemove?: () => void;
 }
 
-const PhaseTimeline = ({ phaseNumber, targetUsreq, targetSit, targetUat, targetGoLive, onChangeUsreq, onChangeSit, onChangeUat, onChangeGoLive, onRemove }: PhaseTimelineProps) => {
-  const values = [targetUsreq, targetSit, targetUat, targetGoLive];
-  const handlers = [onChangeUsreq, onChangeSit, onChangeUat, onChangeGoLive];
+const PhaseTimeline = ({ phaseNumber, targetUsreq, targetSit, targetUat, targetGoLive, hideSit, onChangeUsreq, onChangeSit, onChangeUat, onChangeGoLive, onRemove }: PhaseTimelineProps) => {
+  const allCards = TIMELINE_CARDS;
+  const visibleCards = hideSit ? allCards.filter(c => c.key !== 'targetSit') : allCards;
+  const allValues = [targetUsreq, targetSit, targetUat, targetGoLive];
+  const allHandlers = [onChangeUsreq, onChangeSit, onChangeUat, onChangeGoLive];
+  const values = hideSit ? [targetUsreq, targetUat, targetGoLive] : allValues;
+  const handlers = hideSit ? [onChangeUsreq, onChangeUat, onChangeGoLive] : allHandlers;
+  const visibleConnectors = hideSit ? CONNECTOR_COLORS.filter((_, i) => i !== 0).slice(0, values.length - 1) : CONNECTOR_COLORS;
 
   return (
     <Box sx={{ mb: 2 }}>
@@ -160,7 +168,7 @@ const PhaseTimeline = ({ phaseNumber, targetUsreq, targetSit, targetUat, targetG
 
       {/* Timeline cards row */}
       <Box sx={{ display: 'flex', flexWrap: { xs: 'wrap', md: 'nowrap' }, gap: 1.5, alignItems: 'stretch' }}>
-        {TIMELINE_CARDS.map((card, i) => (
+        {visibleCards.map((card, i) => (
           <React.Fragment key={card.key}>
             {/* Card */}
             <Box sx={{
@@ -204,10 +212,10 @@ const PhaseTimeline = ({ phaseNumber, targetUsreq, targetSit, targetUat, targetG
             </Box>
 
             {/* Connector arrow (not after last card) */}
-            {i < 3 && (
+            {i < values.length - 1 && (
               <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', flexShrink: 0 }}>
-                <Box sx={{ width: 20, height: 2, background: `linear-gradient(90deg, ${CONNECTOR_COLORS[i][0]}, ${CONNECTOR_COLORS[i][1]})` }} />
-                <Box sx={{ width: 0, height: 0, borderTop: '5px solid transparent', borderBottom: '5px solid transparent', borderLeft: `7px solid ${CONNECTOR_COLORS[i][1]}` }} />
+                <Box sx={{ width: 20, height: 2, background: `linear-gradient(90deg, ${visibleConnectors[i][0]}, ${visibleConnectors[i][1]})` }} />
+                <Box sx={{ width: 0, height: 0, borderTop: '5px solid transparent', borderBottom: '5px solid transparent', borderLeft: `7px solid ${visibleConnectors[i][1]}` }} />
               </Box>
             )}
           </React.Fragment>
@@ -226,6 +234,7 @@ const AddPksi = () => {
   const [formData, setFormData] = useState<FormData>({
     namaPksi: '',
     aplikasiId: '',
+    jenisPksi: 'Reguler',
     tanggalPengajuan: new Date().toISOString().split('T')[0],
     picSatkerBA: [],
     targetUsreq: currentMonthValue(),
@@ -393,10 +402,11 @@ const AddPksi = () => {
       const pksiData = {
         aplikasi_id: formData.aplikasiId || undefined,
         nama_pksi: formData.namaPksi,
+        jenis_pksi: formData.jenisPksi,
         tanggal_pengajuan: formData.tanggalPengajuan || undefined,
         pic_satker_ba: formData.picSatkerBA.length > 0 ? formData.picSatkerBA.join(',') : undefined,
         target_usreq: formData.targetUsreq || undefined,
-        target_sit: formData.targetSit || undefined,
+        target_sit: formData.jenisPksi === 'Mendesak' ? (formData.targetUat || undefined) : (formData.targetSit || undefined),
         target_uat: formData.targetUat || undefined,
         target_go_live: formData.targetGoLive || undefined,
       };
@@ -487,6 +497,17 @@ const AddPksi = () => {
                 onChange={handleInputChange}
                 InputLabelProps={{ shrink: true, required: false }}
               />
+              <TextField
+                select
+                fullWidth
+                label="Jenis PKSI"
+                name="jenisPksi"
+                value={formData.jenisPksi}
+                onChange={handleInputChange}
+              >
+                <MenuItem value="Reguler">Reguler</MenuItem>
+                <MenuItem value="Mendesak">Mendesak</MenuItem>
+              </TextField>
               <Autocomplete
                 options={aplikasiList}
                 getOptionLabel={(option) => option.nama_aplikasi || ''}
@@ -604,6 +625,7 @@ const AddPksi = () => {
                 targetSit={formData.targetSit}
                 targetUat={formData.targetUat}
                 targetGoLive={formData.targetGoLive}
+                hideSit={formData.jenisPksi === 'Mendesak'}
                 onChangeUsreq={(v) => setFormData(p => ({ ...p, targetUsreq: v ? lastDayOfMonth(v) : '' }))}
                 onChangeSit={(v) => setFormData(p => ({ ...p, targetSit: v ? lastDayOfMonth(v) : '' }))}
                 onChangeUat={(v) => setFormData(p => ({ ...p, targetUat: v ? lastDayOfMonth(v) : '' }))}
@@ -624,6 +646,7 @@ const AddPksi = () => {
                   onChangeUat={(v) => updatePhase(phase.id, 'targetUat', v ? lastDayOfMonth(v) : '')}
                   onChangeGoLive={(v) => updatePhase(phase.id, 'targetGoLive', v ? lastDayOfMonth(v) : '')}
                   onRemove={() => removePhase(phase.id)}
+                  hideSit={formData.jenisPksi === 'Mendesak'}
                 />
               ))}
 
@@ -692,7 +715,7 @@ const AddPksi = () => {
                   letterSpacing: '-0.01em',
                 }}
               >
-                Upload Dokumen
+                Upload Dokumen T.01 & Nota Dinas
               </Typography>
             </AccordionSummary>
             <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>

@@ -298,7 +298,7 @@ const UserList = () => {
             mb: 0.5,
           }}
         >
-          Dashboard PKSI
+          Semua PKSI
         </Typography>
         <Typography variant="body1" sx={{ color: '#86868b' }}>
           Kelola data pengajuan PKSI dan dokumen T.01

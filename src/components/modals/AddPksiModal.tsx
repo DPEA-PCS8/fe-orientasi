@@ -113,6 +113,7 @@ interface FormData {
   aplikasiId: string;
   tanggalPengajuan: string;
   picSatkerBA: string[];
+  jenisPksi: string;
   programInisiatifRBSI: string;
   targetUsreq: string;
   targetSit: string;
@@ -165,11 +166,15 @@ interface PhaseTimelineProps {
   onChangeUat: (yearMonth: string) => void;
   onChangeGoLive: (yearMonth: string) => void;
   onRemove?: () => void;
+  hideSit?: boolean;
 }
 
-const PhaseTimeline = ({ phaseNumber, targetUsreq, targetSit, targetUat, targetGoLive, onChangeUsreq, onChangeSit, onChangeUat, onChangeGoLive, onRemove }: PhaseTimelineProps) => {
-  const values = [targetUsreq, targetSit, targetUat, targetGoLive];
-  const handlers = [onChangeUsreq, onChangeSit, onChangeUat, onChangeGoLive];
+const PhaseTimeline = ({ phaseNumber, targetUsreq, targetSit, targetUat, targetGoLive, onChangeUsreq, onChangeSit, onChangeUat, onChangeGoLive, onRemove, hideSit }: PhaseTimelineProps) => {
+  const cardsToShow = hideSit ? TIMELINE_CARDS.filter(c => c.key !== 'targetSit') : TIMELINE_CARDS;
+  const allValues: Record<string, string> = { targetUsreq, targetSit, targetUat, targetGoLive };
+  const allHandlers: Record<string, (v: string) => void> = { targetUsreq: onChangeUsreq, targetSit: onChangeSit, targetUat: onChangeUat, targetGoLive: onChangeGoLive };
+  const values = cardsToShow.map(c => allValues[c.key]);
+  const handlers = cardsToShow.map(c => allHandlers[c.key]);
 
   return (
     <Box sx={{ mb: 2 }}>
@@ -214,7 +219,7 @@ const PhaseTimeline = ({ phaseNumber, targetUsreq, targetSit, targetUat, targetG
 
       {/* Timeline cards — 2x2 grid for modal */}
       <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
-        {TIMELINE_CARDS.map((card, i) => (
+        {cardsToShow.map((card, i) => (
           <Box key={card.key} sx={{
             borderRadius: '16px',
             background: 'rgba(255,255,255,0.65)',
@@ -281,6 +286,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     aplikasiId: "",
     tanggalPengajuan: new Date().toISOString().split("T")[0],
     picSatkerBA: [],
+    jenisPksi: "Reguler",
     programInisiatifRBSI: "",
     targetUsreq: currentMonthValue(),
     targetSit: currentMonthValue(),
@@ -483,6 +489,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
       aplikasiId: "",
       tanggalPengajuan: new Date().toISOString().split("T")[0],
       picSatkerBA: [],
+      jenisPksi: "Reguler",
       programInisiatifRBSI: "",
       targetUsreq: currentMonthValue(),
       targetSit: currentMonthValue(),
@@ -543,11 +550,12 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
         aplikasi_id: formData.aplikasiId || undefined,
         inisiatif_id: selectedInisiatif?.id || undefined,
         nama_pksi: formData.namaPksi,
+        jenis_pksi: formData.jenisPksi,
         tanggal_pengajuan: formData.tanggalPengajuan || undefined,
         pic_satker_ba: formData.picSatkerBA.length > 0 ? formData.picSatkerBA.join(",") : undefined,
         program_inisiatif_rbsi: formData.programInisiatifRBSI || undefined,
         target_usreq: formData.targetUsreq || undefined,
-        target_sit: formData.targetSit || undefined,
+        target_sit: formData.jenisPksi === 'Mendesak' ? (formData.targetUat || undefined) : (formData.targetSit || undefined),
         target_uat: formData.targetUat || undefined,
         target_go_live: formData.targetGoLive || undefined,
         user_id: getUserInfo()?.uuid || "",
@@ -736,6 +744,18 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                 helperText={errors.namaPksi}
                 size="small"
               />
+              <GlassTextField
+                select
+                fullWidth
+                label="Jenis PKSI"
+                name="jenisPksi"
+                value={formData.jenisPksi}
+                onChange={handleInputChange}
+                size="small"
+              >
+                <MenuItem value="Reguler">Reguler</MenuItem>
+                <MenuItem value="Mendesak">Mendesak</MenuItem>
+              </GlassTextField>
               <Autocomplete
                 fullWidth
                 options={aplikasiOptions}
@@ -1081,6 +1101,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                 onChangeSit={(v) => setFormData(p => ({ ...p, targetSit: v ? lastDayOfMonth(v) : '' }))}
                 onChangeUat={(v) => setFormData(p => ({ ...p, targetUat: v ? lastDayOfMonth(v) : '' }))}
                 onChangeGoLive={(v) => setFormData(p => ({ ...p, targetGoLive: v ? lastDayOfMonth(v) : '' }))}
+                hideSit={formData.jenisPksi === 'Mendesak'}
               />
 
               {/* Additional phases — Dummy (not connected to backend) */}
@@ -1097,6 +1118,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                   onChangeUat={(v) => updatePhase(phase.id, 'targetUat', v ? lastDayOfMonth(v) : '')}
                   onChangeGoLive={(v) => updatePhase(phase.id, 'targetGoLive', v ? lastDayOfMonth(v) : '')}
                   onRemove={() => removePhase(phase.id)}
+                  hideSit={formData.jenisPksi === 'Mendesak'}
                 />
               ))}
 
@@ -1165,7 +1187,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                   letterSpacing: '-0.01em',
                 }}
               >
-                Upload Dokumen T.0.1
+                Upload Dokumen T.01 & Nota Dinas
               </Typography>
             </AccordionSummary>
             <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
