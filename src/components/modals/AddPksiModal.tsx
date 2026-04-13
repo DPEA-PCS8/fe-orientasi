@@ -35,6 +35,7 @@ import {
   InsertDriveFile as FileIcon,
   Download as DownloadIcon,
   Visibility as VisibilityIcon,
+  Add as AddIcon,
 } from "@mui/icons-material";
 import { getAllSkpa, type SkpaData } from "../../api/skpaApi";
 import { getAllAplikasi, type AplikasiData } from "../../api/aplikasiApi";
@@ -138,11 +139,136 @@ const currentMonthValue = () => {
   return lastDayOfMonth(`${y}-${m}`);
 };
 
+interface TimelinePhase {
+  id: string;
+  targetUsreq: string;
+  targetSit: string;
+  targetUat: string;
+  targetGoLive: string;
+}
+
+const TIMELINE_CARDS = [
+  { key: 'targetUsreq' as const, label: 'Target Usreq', gradient: ['#6366F1', '#818CF8'], rgb: '99,102,241' },
+  { key: 'targetSit' as const, label: 'Target SIT', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246' },
+  { key: 'targetUat' as const, label: 'Target UAT/PDKK', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11' },
+  { key: 'targetGoLive' as const, label: 'Target Go Live', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
+];
+
+const CONNECTOR_COLORS = [
+  ['#818CF8', '#A78BFA'],
+  ['#A78BFA', '#FCD34D'],
+  ['#FCD34D', '#34D399'],
+];
+
+interface PhaseTimelineProps {
+  phaseNumber: number;
+  targetUsreq: string;
+  targetSit: string;
+  targetUat: string;
+  targetGoLive: string;
+  onChangeUsreq: (yearMonth: string) => void;
+  onChangeSit: (yearMonth: string) => void;
+  onChangeUat: (yearMonth: string) => void;
+  onChangeGoLive: (yearMonth: string) => void;
+  onRemove?: () => void;
+}
+
+const PhaseTimeline = ({ phaseNumber, targetUsreq, targetSit, targetUat, targetGoLive, onChangeUsreq, onChangeSit, onChangeUat, onChangeGoLive, onRemove }: PhaseTimelineProps) => {
+  const values = [targetUsreq, targetSit, targetUat, targetGoLive];
+  const handlers = [onChangeUsreq, onChangeSit, onChangeUat, onChangeGoLive];
+
+  return (
+    <Box sx={{ mb: 2 }}>
+      {/* Phase header */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{
+            px: 1.5, py: 0.4, borderRadius: '8px',
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.1))',
+            border: '1px solid rgba(99,102,241,0.15)',
+          }}>
+            <Typography sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#6366F1', letterSpacing: '0.02em' }}>
+              Tahap {phaseNumber}
+            </Typography>
+          </Box>
+          {phaseNumber === 1 && (
+            <Box sx={{
+              px: 1, py: 0.3, borderRadius: '6px',
+              background: 'rgba(16,185,129,0.08)',
+              border: '1px solid rgba(16,185,129,0.15)',
+            }}>
+              <Typography sx={{ fontWeight: 600, fontSize: '0.65rem', color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Active
+              </Typography>
+            </Box>
+          )}
+        </Box>
+        {onRemove && (
+          <IconButton
+            size="small"
+            onClick={onRemove}
+            sx={{
+              width: 28, height: 28,
+              color: '#86868b',
+              '&:hover': { color: '#DC2626', bgcolor: 'rgba(220,38,38,0.06)' },
+            }}
+          >
+            <CloseIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        )}
+      </Box>
+
+      {/* Timeline cards — 2x2 grid for modal */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+        {TIMELINE_CARDS.map((card, i) => (
+          <Box key={card.key} sx={{
+            borderRadius: '16px',
+            background: 'rgba(255,255,255,0.65)',
+            backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+            border: '1px solid rgba(255,255,255,0.8)',
+            boxShadow: '0 6px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)',
+            overflow: 'hidden',
+          }}>
+            <Box sx={{ height: 3, background: `linear-gradient(90deg, ${card.gradient[0]}, ${card.gradient[1]})` }} />
+            <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <Box sx={{
+                  width: 22, height: 22, borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${card.gradient[0]}, ${card.gradient[1]})`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: `0 2px 6px rgba(${card.rgb},0.4)`, flexShrink: 0,
+                }}>
+                  <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.65rem', lineHeight: 1 }}>{i + 1}</Typography>
+                </Box>
+                <Typography sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>{card.label}</Typography>
+              </Box>
+              <TextField
+                fullWidth size="small" type="month"
+                value={values[i] ? values[i].substring(0, 7) : ''}
+                onChange={(e) => handlers[i](e.target.value)}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '10px', background: `rgba(${card.rgb},0.07)`,
+                    '& fieldset': { border: `1px solid rgba(${card.rgb},0.18)` },
+                    '&:hover fieldset': { borderColor: `rgba(${card.rgb},0.4)` },
+                    '&.Mui-focused fieldset': { borderColor: card.gradient[0], borderWidth: '1.5px' },
+                  },
+                  '& .MuiInputBase-input': { fontSize: '0.78rem', py: '6px', color: '#1d1d1f' },
+                }}
+              />
+            </Box>
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  );
+};
+
 const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const [expandedSection, setExpandedSection] = useState<string | false>(
     "jadwal",
   );
-  const [, setSkpaOptions] = useState<SkpaOption[]>([]);
+  const [skpaOptions, setSkpaOptions] = useState<SkpaOption[]>([]);
   const [aplikasiOptions, setAplikasiOptions] = useState<AplikasiData[]>([]);
   const [rbsiOptions, setRbsiOptions] = useState<RbsiResponse[]>([]);
   const [programOptions, setProgramOptions] = useState<RbsiProgramResponse[]>(
@@ -172,6 +298,32 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+
+  // Multi-phase timeline state (additional phases beyond Phase 1)
+  const [timelinePhases, setTimelinePhases] = useState<TimelinePhase[]>([]);
+
+  const addPhase = () => {
+    setTimelinePhases(prev => [
+      ...prev,
+      {
+        id: `phase_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        targetUsreq: currentMonthValue(),
+        targetSit: currentMonthValue(),
+        targetUat: currentMonthValue(),
+        targetGoLive: currentMonthValue(),
+      },
+    ]);
+  };
+
+  const removePhase = (id: string) => {
+    setTimelinePhases(prev => prev.filter(p => p.id !== id));
+  };
+
+  const updatePhase = (id: string, field: keyof Omit<TimelinePhase, 'id'>, value: string) => {
+    setTimelinePhases(prev =>
+      prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
+    );
+  };
   
   // File upload state - matching FS2 pattern
   const [uploadedFileData, setUploadedFileData] = useState<PksiFileData[]>([]);
@@ -349,6 +501,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     setExpandedSection("jadwal");
     setUploadedFileData([]);
     setIsUploading(false);
+    setTimelinePhases([]);
     setSelectedRbsi(null);
     setSelectedProgram(null);
     setSelectedInisiatif(null);
@@ -609,6 +762,46 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                 renderInput={(params) => (
                   <GlassTextField {...params} label="Nama Aplikasi" size="small" />
                 )}
+                size="small"
+              />
+              <Autocomplete
+                multiple
+                fullWidth
+                options={skpaOptions}
+                getOptionLabel={(option) => `${option.kode_skpa} - ${option.nama_skpa}`}
+                value={skpaOptions.filter(skpa => formData.picSatkerBA.includes(skpa.id))}
+                onChange={(_, newValue) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    picSatkerBA: newValue.map(skpa => skpa.id)
+                  }));
+                }}
+                renderInput={(params) => (
+                  <GlassTextField
+                    {...params}
+                    label="SKPA (Satuan Kerja Pemilik Aplikasi)"
+                    size="small"
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      {...getTagProps({ index })}
+                      key={option.id}
+                      label={option.kode_skpa}
+                      size="small"
+                      sx={{
+                        bgcolor: '#DA251C',
+                        color: 'white',
+                        '& .MuiChip-deleteIcon': {
+                          color: 'rgba(255, 255, 255, 0.7)',
+                          '&:hover': { color: 'white' },
+                        },
+                      }}
+                    />
+                  ))
+                }
+                isOptionEqualToValue={(option, value) => option.id === value.id}
                 size="small"
               />
 
@@ -883,85 +1076,61 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails sx={{ pt: 1.5, pb: 2, px: 2 }}>
-              {/* 2x2 grid of glass milestone cards */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+              {/* Phase 1 — Connected to backend */}
+              <PhaseTimeline
+                phaseNumber={1}
+                targetUsreq={formData.targetUsreq}
+                targetSit={formData.targetSit}
+                targetUat={formData.targetUat}
+                targetGoLive={formData.targetGoLive}
+                onChangeUsreq={(v) => setFormData(p => ({ ...p, targetUsreq: v ? lastDayOfMonth(v) : '' }))}
+                onChangeSit={(v) => setFormData(p => ({ ...p, targetSit: v ? lastDayOfMonth(v) : '' }))}
+                onChangeUat={(v) => setFormData(p => ({ ...p, targetUat: v ? lastDayOfMonth(v) : '' }))}
+                onChangeGoLive={(v) => setFormData(p => ({ ...p, targetGoLive: v ? lastDayOfMonth(v) : '' }))}
+              />
 
-                {/* Card 1 — Target Usreq */}
-                <Box sx={{ borderRadius: '16px', background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 6px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)', overflow: 'hidden' }}>
-                  <Box sx={{ height: 3, background: 'linear-gradient(90deg, #6366F1, #818CF8)' }} />
-                  <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                      <Box sx={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg, #6366F1, #818CF8)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(99,102,241,0.4)', flexShrink: 0 }}>
-                        <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.65rem', lineHeight: 1 }}>1</Typography>
-                      </Box>
-                      <Typography sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>Target Usreq</Typography>
-                    </Box>
-                    <TextField
-                      fullWidth size="small" type="month"
-                      value={formData.targetUsreq ? formData.targetUsreq.substring(0, 7) : ""}
-                      onChange={(e) => setFormData(p => ({ ...p, targetUsreq: e.target.value ? lastDayOfMonth(e.target.value) : "" }))}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', background: 'rgba(99,102,241,0.07)', '& fieldset': { border: '1px solid rgba(99,102,241,0.18)' }, '&:hover fieldset': { borderColor: 'rgba(99,102,241,0.4)' }, '&.Mui-focused fieldset': { borderColor: '#6366F1', borderWidth: '1.5px' } }, '& .MuiInputBase-input': { fontSize: '0.78rem', py: '6px', color: '#1d1d1f' } }}
-                    />
-                  </Box>
-                </Box>
+              {/* Additional phases — Dummy (not connected to backend) */}
+              {timelinePhases.map((phase, idx) => (
+                <PhaseTimeline
+                  key={phase.id}
+                  phaseNumber={idx + 2}
+                  targetUsreq={phase.targetUsreq}
+                  targetSit={phase.targetSit}
+                  targetUat={phase.targetUat}
+                  targetGoLive={phase.targetGoLive}
+                  onChangeUsreq={(v) => updatePhase(phase.id, 'targetUsreq', v ? lastDayOfMonth(v) : '')}
+                  onChangeSit={(v) => updatePhase(phase.id, 'targetSit', v ? lastDayOfMonth(v) : '')}
+                  onChangeUat={(v) => updatePhase(phase.id, 'targetUat', v ? lastDayOfMonth(v) : '')}
+                  onChangeGoLive={(v) => updatePhase(phase.id, 'targetGoLive', v ? lastDayOfMonth(v) : '')}
+                  onRemove={() => removePhase(phase.id)}
+                />
+              ))}
 
-                {/* Card 2 — Target SIT */}
-                <Box sx={{ borderRadius: '16px', background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 6px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)', overflow: 'hidden' }}>
-                  <Box sx={{ height: 3, background: 'linear-gradient(90deg, #8B5CF6, #A78BFA)' }} />
-                  <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                      <Box sx={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(139,92,246,0.4)', flexShrink: 0 }}>
-                        <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.65rem', lineHeight: 1 }}>2</Typography>
-                      </Box>
-                      <Typography sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>Target SIT</Typography>
-                    </Box>
-                    <TextField
-                      fullWidth size="small" type="month"
-                      value={formData.targetSit ? formData.targetSit.substring(0, 7) : ""}
-                      onChange={(e) => setFormData(p => ({ ...p, targetSit: e.target.value ? lastDayOfMonth(e.target.value) : "" }))}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', background: 'rgba(139,92,246,0.07)', '& fieldset': { border: '1px solid rgba(139,92,246,0.18)' }, '&:hover fieldset': { borderColor: 'rgba(139,92,246,0.4)' }, '&.Mui-focused fieldset': { borderColor: '#8B5CF6', borderWidth: '1.5px' } }, '& .MuiInputBase-input': { fontSize: '0.78rem', py: '6px', color: '#1d1d1f' } }}
-                    />
-                  </Box>
-                </Box>
-
-                {/* Card 3 — Target UAT/PDKK */}
-                <Box sx={{ borderRadius: '16px', background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 6px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)', overflow: 'hidden' }}>
-                  <Box sx={{ height: 3, background: 'linear-gradient(90deg, #F59E0B, #FCD34D)' }} />
-                  <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                      <Box sx={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg, #F59E0B, #FCD34D)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(245,158,11,0.4)', flexShrink: 0 }}>
-                        <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.65rem', lineHeight: 1 }}>3</Typography>
-                      </Box>
-                      <Typography sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>Target UAT/PDKK</Typography>
-                    </Box>
-                    <TextField
-                      fullWidth size="small" type="month"
-                      value={formData.targetUat ? formData.targetUat.substring(0, 7) : ""}
-                      onChange={(e) => setFormData(p => ({ ...p, targetUat: e.target.value ? lastDayOfMonth(e.target.value) : "" }))}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', background: 'rgba(245,158,11,0.07)', '& fieldset': { border: '1px solid rgba(245,158,11,0.18)' }, '&:hover fieldset': { borderColor: 'rgba(245,158,11,0.4)' }, '&.Mui-focused fieldset': { borderColor: '#F59E0B', borderWidth: '1.5px' } }, '& .MuiInputBase-input': { fontSize: '0.78rem', py: '6px', color: '#1d1d1f' } }}
-                    />
-                  </Box>
-                </Box>
-
-                {/* Card 4 — Target Go Live */}
-                <Box sx={{ borderRadius: '16px', background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 6px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)', overflow: 'hidden' }}>
-                  <Box sx={{ height: 3, background: 'linear-gradient(90deg, #10B981, #34D399)' }} />
-                  <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                      <Box sx={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg, #10B981, #34D399)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(16,185,129,0.4)', flexShrink: 0 }}>
-                        <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.65rem', lineHeight: 1 }}>4</Typography>
-                      </Box>
-                      <Typography sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>Target Go Live</Typography>
-                    </Box>
-                    <TextField
-                      fullWidth size="small" type="month"
-                      value={formData.targetGoLive ? formData.targetGoLive.substring(0, 7) : ""}
-                      onChange={(e) => setFormData(p => ({ ...p, targetGoLive: e.target.value ? lastDayOfMonth(e.target.value) : "" }))}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', background: 'rgba(16,185,129,0.07)', '& fieldset': { border: '1px solid rgba(16,185,129,0.18)' }, '&:hover fieldset': { borderColor: 'rgba(16,185,129,0.4)' }, '&.Mui-focused fieldset': { borderColor: '#10B981', borderWidth: '1.5px' } }, '& .MuiInputBase-input': { fontSize: '0.78rem', py: '6px', color: '#1d1d1f' } }}
-                    />
-                  </Box>
-                </Box>
-
+              {/* Add Phase Button */}
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<AddIcon />}
+                  onClick={addPhase}
+                  sx={{
+                    borderRadius: '14px',
+                    borderColor: 'rgba(99,102,241,0.3)',
+                    color: '#6366F1',
+                    fontWeight: 600,
+                    fontSize: '0.82rem',
+                    px: 3,
+                    py: 1,
+                    textTransform: 'none',
+                    backdropFilter: 'blur(10px)',
+                    background: 'rgba(99,102,241,0.04)',
+                    '&:hover': {
+                      borderColor: '#6366F1',
+                      background: 'rgba(99,102,241,0.08)',
+                    },
+                  }}
+                >
+                  Tambah Tahap
+                </Button>
               </Box>
             </AccordionDetails>
           </Accordion>

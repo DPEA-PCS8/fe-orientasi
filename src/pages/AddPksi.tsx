@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -19,6 +19,7 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   Autocomplete,
+  Chip,
   CircularProgress,
 } from '@mui/material';
 import {
@@ -28,8 +29,11 @@ import {
   CloudUpload as CloudUploadIcon,
   Delete as DeleteIcon,
   InsertDriveFile as FileIcon,
+  Add as AddIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { getAllAplikasi, type AplikasiData } from '../api/aplikasiApi';
+import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { createPksiDocument } from '../api/pksiApi';
 import {
   uploadPksiTempFiles,
@@ -43,14 +47,29 @@ interface FormData {
   namaPksi: string;
   aplikasiId: string;
   tanggalPengajuan: string;
+  picSatkerBA: string[];
   targetUsreq: string;
   targetSit: string;
   targetUat: string;
   targetGoLive: string;
 }
 
+interface SkpaOption {
+  id: string;
+  kode_skpa: string;
+  nama_skpa: string;
+}
+
 interface FormErrors {
   [key: string]: string | undefined;
+}
+
+interface TimelinePhase {
+  id: string;
+  targetUsreq: string;
+  targetSit: string;
+  targetUat: string;
+  targetGoLive: string;
 }
 
 // Returns 'YYYY-MM-DD' for the last day of the given month string 'YYYY-MM'
@@ -68,20 +87,177 @@ const currentMonthValue = () => {
   return lastDayOfMonth(`${y}-${m}`);
 };
 
+const TIMELINE_CARDS = [
+  { key: 'targetUsreq' as const, label: 'Target Usreq', gradient: ['#6366F1', '#818CF8'], rgb: '99,102,241' },
+  { key: 'targetSit' as const, label: 'Target SIT', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246' },
+  { key: 'targetUat' as const, label: 'Target UAT/PDKK', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11' },
+  { key: 'targetGoLive' as const, label: 'Target Go Live', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
+];
+
+const CONNECTOR_COLORS = [
+  ['#818CF8', '#A78BFA'],
+  ['#A78BFA', '#FCD34D'],
+  ['#FCD34D', '#34D399'],
+];
+
+interface PhaseTimelineProps {
+  phaseNumber: number;
+  targetUsreq: string;
+  targetSit: string;
+  targetUat: string;
+  targetGoLive: string;
+  onChangeUsreq: (yearMonth: string) => void;
+  onChangeSit: (yearMonth: string) => void;
+  onChangeUat: (yearMonth: string) => void;
+  onChangeGoLive: (yearMonth: string) => void;
+  onRemove?: () => void;
+}
+
+const PhaseTimeline = ({ phaseNumber, targetUsreq, targetSit, targetUat, targetGoLive, onChangeUsreq, onChangeSit, onChangeUat, onChangeGoLive, onRemove }: PhaseTimelineProps) => {
+  const values = [targetUsreq, targetSit, targetUat, targetGoLive];
+  const handlers = [onChangeUsreq, onChangeSit, onChangeUat, onChangeGoLive];
+
+  return (
+    <Box sx={{ mb: 2 }}>
+      {/* Phase header */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{
+            px: 1.5, py: 0.4, borderRadius: '8px',
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.1))',
+            border: '1px solid rgba(99,102,241,0.15)',
+          }}>
+            <Typography sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#6366F1', letterSpacing: '0.02em' }}>
+              Tahap {phaseNumber}
+            </Typography>
+          </Box>
+          {phaseNumber === 1 && (
+            <Box sx={{
+              px: 1, py: 0.3, borderRadius: '6px',
+              background: 'rgba(16,185,129,0.08)',
+              border: '1px solid rgba(16,185,129,0.15)',
+            }}>
+              <Typography sx={{ fontWeight: 600, fontSize: '0.65rem', color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Active
+              </Typography>
+            </Box>
+          )}
+        </Box>
+        {onRemove && (
+          <IconButton
+            size="small"
+            onClick={onRemove}
+            sx={{
+              width: 28, height: 28,
+              color: '#86868b',
+              '&:hover': { color: '#DC2626', bgcolor: 'rgba(220,38,38,0.06)' },
+            }}
+          >
+            <CloseIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        )}
+      </Box>
+
+      {/* Timeline cards row */}
+      <Box sx={{ display: 'flex', flexWrap: { xs: 'wrap', md: 'nowrap' }, gap: 1.5, alignItems: 'stretch' }}>
+        {TIMELINE_CARDS.map((card, i) => (
+          <React.Fragment key={card.key}>
+            {/* Card */}
+            <Box sx={{
+              flex: 1, minWidth: { xs: 'calc(50% - 6px)', md: 0 },
+              borderRadius: '18px',
+              background: 'rgba(255,255,255,0.65)',
+              backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+              border: '1px solid rgba(255,255,255,0.8)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)',
+              overflow: 'hidden', display: 'flex', flexDirection: 'column',
+            }}>
+              <Box sx={{ height: 3, background: `linear-gradient(90deg, ${card.gradient[0]}, ${card.gradient[1]})` }} />
+              <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5, flex: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{
+                    width: 26, height: 26, borderRadius: '50%',
+                    background: `linear-gradient(135deg, ${card.gradient[0]}, ${card.gradient[1]})`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: `0 2px 8px rgba(${card.rgb},0.45)`, flexShrink: 0,
+                  }}>
+                    <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.7rem', lineHeight: 1 }}>{i + 1}</Typography>
+                  </Box>
+                  <Typography sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>{card.label}</Typography>
+                </Box>
+                <TextField
+                  fullWidth size="small" type="month"
+                  value={values[i] ? values[i].substring(0, 7) : ''}
+                  onChange={(e) => handlers[i](e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '12px', background: `rgba(${card.rgb},0.07)`, backdropFilter: 'blur(10px)',
+                      '& fieldset': { border: `1px solid rgba(${card.rgb},0.18)` },
+                      '&:hover fieldset': { borderColor: `rgba(${card.rgb},0.4)` },
+                      '&.Mui-focused fieldset': { borderColor: card.gradient[0], borderWidth: '1.5px' },
+                    },
+                    '& .MuiInputBase-input': { fontSize: '0.82rem', color: '#1d1d1f' },
+                  }}
+                />
+              </Box>
+            </Box>
+
+            {/* Connector arrow (not after last card) */}
+            {i < 3 && (
+              <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', flexShrink: 0 }}>
+                <Box sx={{ width: 20, height: 2, background: `linear-gradient(90deg, ${CONNECTOR_COLORS[i][0]}, ${CONNECTOR_COLORS[i][1]})` }} />
+                <Box sx={{ width: 0, height: 0, borderTop: '5px solid transparent', borderBottom: '5px solid transparent', borderLeft: `7px solid ${CONNECTOR_COLORS[i][1]}` }} />
+              </Box>
+            )}
+          </React.Fragment>
+        ))}
+      </Box>
+    </Box>
+  );
+};
+
 const AddPksi = () => {
   const navigate = useNavigate();
   const [expandedSection, setExpandedSection] = useState<string | false>('jadwal');
   const [aplikasiList, setAplikasiList] = useState<AplikasiData[]>([]);
   const [loadingAplikasi, setLoadingAplikasi] = useState(false);
+  const [skpaOptions, setSkpaOptions] = useState<SkpaOption[]>([]);
   const [formData, setFormData] = useState<FormData>({
     namaPksi: '',
     aplikasiId: '',
     tanggalPengajuan: new Date().toISOString().split('T')[0],
+    picSatkerBA: [],
     targetUsreq: currentMonthValue(),
     targetSit: currentMonthValue(),
     targetUat: currentMonthValue(),
     targetGoLive: currentMonthValue(),
   });
+
+  const [timelinePhases, setTimelinePhases] = useState<TimelinePhase[]>([]);
+
+  const addPhase = () => {
+    setTimelinePhases(prev => [
+      ...prev,
+      {
+        id: `phase_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        targetUsreq: currentMonthValue(),
+        targetSit: currentMonthValue(),
+        targetUat: currentMonthValue(),
+        targetGoLive: currentMonthValue(),
+      },
+    ]);
+  };
+
+  const removePhase = (id: string) => {
+    setTimelinePhases(prev => prev.filter(p => p.id !== id));
+  };
+
+  const updatePhase = (id: string, field: keyof Omit<TimelinePhase, 'id'>, value: string) => {
+    setTimelinePhases(prev =>
+      prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
+    );
+  };
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -108,7 +284,21 @@ const AddPksi = () => {
         setLoadingAplikasi(false);
       }
     };
+    const fetchSkpaOptions = async () => {
+      try {
+        const response = await getAllSkpa();
+        const mapped: SkpaOption[] = (response.data || []).map((skpa: SkpaData) => ({
+          id: skpa.id,
+          kode_skpa: skpa.kode_skpa,
+          nama_skpa: skpa.nama_skpa,
+        }));
+        setSkpaOptions(mapped);
+      } catch (error) {
+        console.error('Failed to fetch SKPA:', error);
+      }
+    };
     fetchAplikasi();
+    fetchSkpaOptions();
   }, []);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -204,6 +394,7 @@ const AddPksi = () => {
         aplikasi_id: formData.aplikasiId || undefined,
         nama_pksi: formData.namaPksi,
         tanggal_pengajuan: formData.tanggalPengajuan || undefined,
+        pic_satker_ba: formData.picSatkerBA.length > 0 ? formData.picSatkerBA.join(',') : undefined,
         target_usreq: formData.targetUsreq || undefined,
         target_sit: formData.targetSit || undefined,
         target_uat: formData.targetUat || undefined,
@@ -325,6 +516,43 @@ const AddPksi = () => {
                   />
                 )}
               />
+              <Autocomplete
+                multiple
+                options={skpaOptions}
+                getOptionLabel={(option) => `${option.kode_skpa} - ${option.nama_skpa}`}
+                value={skpaOptions.filter(skpa => formData.picSatkerBA.includes(skpa.id))}
+                onChange={(_, newValue) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    picSatkerBA: newValue.map(skpa => skpa.id)
+                  }));
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="SKPA (Satuan Kerja Pemilik Aplikasi)"
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      {...getTagProps({ index })}
+                      key={option.id}
+                      label={option.kode_skpa}
+                      size="small"
+                      sx={{
+                        bgcolor: '#DA251C',
+                        color: 'white',
+                        '& .MuiChip-deleteIcon': {
+                          color: 'rgba(255, 255, 255, 0.7)',
+                          '&:hover': { color: 'white' },
+                        },
+                      }}
+                    />
+                  ))
+                }
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+              />
             </Stack>
           </Box>
 
@@ -369,106 +597,61 @@ const AddPksi = () => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails sx={{ px: 2.5, pb: 3, pt: 2 }}>
-              <Box sx={{ display: 'flex', flexWrap: { xs: 'wrap', md: 'nowrap' }, gap: 1.5, alignItems: 'stretch' }}>
+              {/* Phase 1 — Connected to backend */}
+              <PhaseTimeline
+                phaseNumber={1}
+                targetUsreq={formData.targetUsreq}
+                targetSit={formData.targetSit}
+                targetUat={formData.targetUat}
+                targetGoLive={formData.targetGoLive}
+                onChangeUsreq={(v) => setFormData(p => ({ ...p, targetUsreq: v ? lastDayOfMonth(v) : '' }))}
+                onChangeSit={(v) => setFormData(p => ({ ...p, targetSit: v ? lastDayOfMonth(v) : '' }))}
+                onChangeUat={(v) => setFormData(p => ({ ...p, targetUat: v ? lastDayOfMonth(v) : '' }))}
+                onChangeGoLive={(v) => setFormData(p => ({ ...p, targetGoLive: v ? lastDayOfMonth(v) : '' }))}
+              />
 
-                {/* Card 1 — Target Usreq */}
-                <Box sx={{ flex: 1, minWidth: { xs: 'calc(50% - 6px)', md: 0 }, borderRadius: '18px', background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                  <Box sx={{ height: 3, background: 'linear-gradient(90deg, #6366F1, #818CF8)' }} />
-                  <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5, flex: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box sx={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg, #6366F1, #818CF8)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(99,102,241,0.45)', flexShrink: 0 }}>
-                        <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.7rem', lineHeight: 1 }}>1</Typography>
-                      </Box>
-                      <Typography sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>Target Usreq</Typography>
-                    </Box>
-                    <TextField
-                      fullWidth size='small' type='month'
-                      value={formData.targetUsreq ? formData.targetUsreq.substring(0, 7) : ''}
-                      onChange={(e) => setFormData(p => ({ ...p, targetUsreq: e.target.value ? lastDayOfMonth(e.target.value) : '' }))}
-                      InputLabelProps={{ shrink: true }}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', background: 'rgba(99,102,241,0.07)', backdropFilter: 'blur(10px)', '& fieldset': { border: '1px solid rgba(99,102,241,0.18)' }, '&:hover fieldset': { borderColor: 'rgba(99,102,241,0.4)' }, '&.Mui-focused fieldset': { borderColor: '#6366F1', borderWidth: '1.5px' } }, '& .MuiInputBase-input': { fontSize: '0.82rem', color: '#1d1d1f' } }}
-                    />
-                  </Box>
-                </Box>
+              {/* Additional phases — Dummy (not connected to backend) */}
+              {timelinePhases.map((phase, idx) => (
+                <PhaseTimeline
+                  key={phase.id}
+                  phaseNumber={idx + 2}
+                  targetUsreq={phase.targetUsreq}
+                  targetSit={phase.targetSit}
+                  targetUat={phase.targetUat}
+                  targetGoLive={phase.targetGoLive}
+                  onChangeUsreq={(v) => updatePhase(phase.id, 'targetUsreq', v ? lastDayOfMonth(v) : '')}
+                  onChangeSit={(v) => updatePhase(phase.id, 'targetSit', v ? lastDayOfMonth(v) : '')}
+                  onChangeUat={(v) => updatePhase(phase.id, 'targetUat', v ? lastDayOfMonth(v) : '')}
+                  onChangeGoLive={(v) => updatePhase(phase.id, 'targetGoLive', v ? lastDayOfMonth(v) : '')}
+                  onRemove={() => removePhase(phase.id)}
+                />
+              ))}
 
-                {/* Connector */}
-                <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', flexShrink: 0 }}>
-                  <Box sx={{ width: 20, height: 2, background: 'linear-gradient(90deg, #818CF8, #A78BFA)' }} />
-                  <Box sx={{ width: 0, height: 0, borderTop: '5px solid transparent', borderBottom: '5px solid transparent', borderLeft: '7px solid #A78BFA' }} />
-                </Box>
-
-                {/* Card 2 — Target SIT */}
-                <Box sx={{ flex: 1, minWidth: { xs: 'calc(50% - 6px)', md: 0 }, borderRadius: '18px', background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                  <Box sx={{ height: 3, background: 'linear-gradient(90deg, #8B5CF6, #A78BFA)' }} />
-                  <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5, flex: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box sx={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(139,92,246,0.45)', flexShrink: 0 }}>
-                        <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.7rem', lineHeight: 1 }}>2</Typography>
-                      </Box>
-                      <Typography sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>Target SIT</Typography>
-                    </Box>
-                    <TextField
-                      fullWidth size='small' type='month'
-                      value={formData.targetSit ? formData.targetSit.substring(0, 7) : ''}
-                      onChange={(e) => setFormData(p => ({ ...p, targetSit: e.target.value ? lastDayOfMonth(e.target.value) : '' }))}
-                      InputLabelProps={{ shrink: true }}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', background: 'rgba(139,92,246,0.07)', backdropFilter: 'blur(10px)', '& fieldset': { border: '1px solid rgba(139,92,246,0.18)' }, '&:hover fieldset': { borderColor: 'rgba(139,92,246,0.4)' }, '&.Mui-focused fieldset': { borderColor: '#8B5CF6', borderWidth: '1.5px' } }, '& .MuiInputBase-input': { fontSize: '0.82rem', color: '#1d1d1f' } }}
-                    />
-                  </Box>
-                </Box>
-
-                {/* Connector */}
-                <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', flexShrink: 0 }}>
-                  <Box sx={{ width: 20, height: 2, background: 'linear-gradient(90deg, #A78BFA, #FCD34D)' }} />
-                  <Box sx={{ width: 0, height: 0, borderTop: '5px solid transparent', borderBottom: '5px solid transparent', borderLeft: '7px solid #FCD34D' }} />
-                </Box>
-
-                {/* Card 3 — Target UAT/PDKK */}
-                <Box sx={{ flex: 1, minWidth: { xs: 'calc(50% - 6px)', md: 0 }, borderRadius: '18px', background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                  <Box sx={{ height: 3, background: 'linear-gradient(90deg, #F59E0B, #FCD34D)' }} />
-                  <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5, flex: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box sx={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg, #F59E0B, #FCD34D)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(245,158,11,0.45)', flexShrink: 0 }}>
-                        <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.7rem', lineHeight: 1 }}>3</Typography>
-                      </Box>
-                      <Typography sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>Target UAT/PDKK</Typography>
-                    </Box>
-                    <TextField
-                      fullWidth size='small' type='month'
-                      value={formData.targetUat ? formData.targetUat.substring(0, 7) : ''}
-                      onChange={(e) => setFormData(p => ({ ...p, targetUat: e.target.value ? lastDayOfMonth(e.target.value) : '' }))}
-                      InputLabelProps={{ shrink: true }}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', background: 'rgba(245,158,11,0.07)', backdropFilter: 'blur(10px)', '& fieldset': { border: '1px solid rgba(245,158,11,0.18)' }, '&:hover fieldset': { borderColor: 'rgba(245,158,11,0.4)' }, '&.Mui-focused fieldset': { borderColor: '#F59E0B', borderWidth: '1.5px' } }, '& .MuiInputBase-input': { fontSize: '0.82rem', color: '#1d1d1f' } }}
-                    />
-                  </Box>
-                </Box>
-
-                {/* Connector */}
-                <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', flexShrink: 0 }}>
-                  <Box sx={{ width: 20, height: 2, background: 'linear-gradient(90deg, #FCD34D, #34D399)' }} />
-                  <Box sx={{ width: 0, height: 0, borderTop: '5px solid transparent', borderBottom: '5px solid transparent', borderLeft: '7px solid #34D399' }} />
-                </Box>
-
-                {/* Card 4 — Target Go Live */}
-                <Box sx={{ flex: 1, minWidth: { xs: 'calc(50% - 6px)', md: 0 }, borderRadius: '18px', background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                  <Box sx={{ height: 3, background: 'linear-gradient(90deg, #10B981, #34D399)' }} />
-                  <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5, flex: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box sx={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg, #10B981, #34D399)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(16,185,129,0.45)', flexShrink: 0 }}>
-                        <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.7rem', lineHeight: 1 }}>4</Typography>
-                      </Box>
-                      <Typography sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>Target Go Live</Typography>
-                    </Box>
-                    <TextField
-                      fullWidth size='small' type='month'
-                      value={formData.targetGoLive ? formData.targetGoLive.substring(0, 7) : ''}
-                      onChange={(e) => setFormData(p => ({ ...p, targetGoLive: e.target.value ? lastDayOfMonth(e.target.value) : '' }))}
-                      InputLabelProps={{ shrink: true }}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', background: 'rgba(16,185,129,0.07)', backdropFilter: 'blur(10px)', '& fieldset': { border: '1px solid rgba(16,185,129,0.18)' }, '&:hover fieldset': { borderColor: 'rgba(16,185,129,0.4)' }, '&.Mui-focused fieldset': { borderColor: '#10B981', borderWidth: '1.5px' } }, '& .MuiInputBase-input': { fontSize: '0.82rem', color: '#1d1d1f' } }}
-                    />
-                  </Box>
-                </Box>
-
+              {/* Add Phase Button */}
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<AddIcon />}
+                  onClick={addPhase}
+                  sx={{
+                    borderRadius: '14px',
+                    borderColor: 'rgba(99,102,241,0.3)',
+                    color: '#6366F1',
+                    fontWeight: 600,
+                    fontSize: '0.82rem',
+                    px: 3,
+                    py: 1,
+                    textTransform: 'none',
+                    backdropFilter: 'blur(10px)',
+                    background: 'rgba(99,102,241,0.04)',
+                    '&:hover': {
+                      borderColor: '#6366F1',
+                      background: 'rgba(99,102,241,0.08)',
+                    },
+                  }}
+                >
+                  Tambah Tahap
+                </Button>
               </Box>
             </AccordionDetails>
           </Accordion>
