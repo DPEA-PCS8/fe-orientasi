@@ -142,7 +142,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const [expandedSection, setExpandedSection] = useState<string | false>(
     "jadwal",
   );
-  const [skpaOptions, setSkpaOptions] = useState<SkpaOption[]>([]);
+  const [, setSkpaOptions] = useState<SkpaOption[]>([]);
   const [aplikasiOptions, setAplikasiOptions] = useState<AplikasiData[]>([]);
   const [rbsiOptions, setRbsiOptions] = useState<RbsiResponse[]>([]);
   const [programOptions, setProgramOptions] = useState<RbsiProgramResponse[]>(
