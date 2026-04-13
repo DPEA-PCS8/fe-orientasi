@@ -13,6 +13,7 @@ export interface PksiDocumentData {
   nama_aplikasi?: string;
   kode_aplikasi?: string;
   nama_pksi: string;
+  jenis_pksi?: string;
   tanggal_pengajuan?: string;
   // Section 1
   deskripsi_pksi?: string;
@@ -115,6 +116,7 @@ export interface PksiDocumentRequest {
   aplikasi_id?: string;
   inisiatif_id?: string;
   nama_pksi: string;
+  jenis_pksi?: string;
   tanggal_pengajuan?: string;
   // Section 1
   deskripsi_pksi?: string;

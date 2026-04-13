@@ -800,7 +800,7 @@ function PksiList() {
               letterSpacing: '-0.02em',
             }}
           >
-            Dashboard PKSI
+            Semua PKSI
           </Typography>
         </Box>
         <Typography variant="body1" sx={{ color: '#86868b' }}>
