@@ -111,43 +111,36 @@ interface FormData {
   namaPksi: string;
   aplikasiId: string;
   tanggalPengajuan: string;
-  deskripsiPksi: string;
-  mengapaPksiDiperlukan: string;
-  kapanHarusDiselesaikan: string;
   picSatkerBA: string[];
-  kegunaanPksi: string;
-  tujuanPksi: string;
-  targetPksi: string;
-  ruangLingkup: string;
-  batasanPksi: string;
-  hubunganSistemLain: string;
-  asumsi: string;
-  batasanDesain: string;
-  riskoBisnis: string;
-  risikoSuksesPksi: string;
-  pengendalianRisiko: string;
-  pengelolaAplikasi: string;
-  penggunaAplikasi: string;
   programInisiatifRBSI: string;
-  fungsiAplikasi: string;
-  informasiYangDikelola: string;
-  dasarPeraturan: string;
-  tahap1Awal: string;
-  tahap1Akhir: string;
-  tahap5Awal: string;
-  tahap5Akhir: string;
-  tahap7Awal: string;
-  tahap7Akhir: string;
-  rencanaPengelolaan: string;
+  targetUsreq: string;
+  targetSit: string;
+  targetUat: string;
+  targetGoLive: string;
 }
 
 interface FormErrors {
   [key: string]: string | undefined;
 }
 
+// Returns 'YYYY-MM-DD' for the last day of the given month string 'YYYY-MM'
+const lastDayOfMonth = (yearMonth: string): string => {
+  if (!yearMonth) return '';
+  const [y, m] = yearMonth.split('-').map(Number);
+  const last = new Date(y, m, 0).getDate();
+  return `${yearMonth}-${String(last).padStart(2, '0')}`;
+};
+
+const currentMonthValue = () => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  return lastDayOfMonth(`${y}-${m}`);
+};
+
 const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const [expandedSection, setExpandedSection] = useState<string | false>(
-    "section1",
+    "jadwal",
   );
   const [skpaOptions, setSkpaOptions] = useState<SkpaOption[]>([]);
   const [aplikasiOptions, setAplikasiOptions] = useState<AplikasiData[]>([]);
@@ -167,34 +160,12 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     namaPksi: "",
     aplikasiId: "",
     tanggalPengajuan: new Date().toISOString().split("T")[0],
-    deskripsiPksi: "",
-    mengapaPksiDiperlukan: "",
-    kapanHarusDiselesaikan: "",
     picSatkerBA: [],
-    kegunaanPksi: "",
-    tujuanPksi: "",
-    targetPksi: "",
-    ruangLingkup: "",
-    batasanPksi: "",
-    hubunganSistemLain: "",
-    asumsi: "",
-    batasanDesain: "",
-    riskoBisnis: "",
-    risikoSuksesPksi: "",
-    pengendalianRisiko: "",
-    pengelolaAplikasi: "",
-    penggunaAplikasi: "",
     programInisiatifRBSI: "",
-    fungsiAplikasi: "",
-    informasiYangDikelola: "",
-    dasarPeraturan: "",
-    tahap1Awal: "",
-    tahap1Akhir: "",
-    tahap5Awal: "",
-    tahap5Akhir: "",
-    tahap7Awal: "",
-    tahap7Akhir: "",
-    rencanaPengelolaan: "",
+    targetUsreq: currentMonthValue(),
+    targetSit: currentMonthValue(),
+    targetUat: currentMonthValue(),
+    targetGoLive: currentMonthValue(),
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -365,39 +336,17 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
       namaPksi: "",
       aplikasiId: "",
       tanggalPengajuan: new Date().toISOString().split("T")[0],
-      deskripsiPksi: "",
-      mengapaPksiDiperlukan: "",
-      kapanHarusDiselesaikan: "",
       picSatkerBA: [],
-      kegunaanPksi: "",
-      tujuanPksi: "",
-      targetPksi: "",
-      ruangLingkup: "",
-      batasanPksi: "",
-      hubunganSistemLain: "",
-      asumsi: "",
-      batasanDesain: "",
-      riskoBisnis: "",
-      risikoSuksesPksi: "",
-      pengendalianRisiko: "",
-      pengelolaAplikasi: "",
-      penggunaAplikasi: "",
       programInisiatifRBSI: "",
-      fungsiAplikasi: "",
-      informasiYangDikelola: "",
-      dasarPeraturan: "",
-      tahap1Awal: "",
-      tahap1Akhir: "",
-      tahap5Awal: "",
-      tahap5Akhir: "",
-      tahap7Awal: "",
-      tahap7Akhir: "",
-      rencanaPengelolaan: "",
+      targetUsreq: currentMonthValue(),
+      targetSit: currentMonthValue(),
+      targetUat: currentMonthValue(),
+      targetGoLive: currentMonthValue(),
     });
     setErrors({});
     setSuccessMessage("");
     setErrorMessage("");
-    setExpandedSection("section1");
+    setExpandedSection("jadwal");
     setUploadedFileData([]);
     setIsUploading(false);
     setSelectedRbsi(null);
@@ -413,19 +362,6 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     const newErrors: FormErrors = {};
 
     if (!formData.namaPksi) newErrors.namaPksi = "Nama PKSI wajib diisi";
-    if (!formData.deskripsiPksi)
-      newErrors.deskripsiPksi = "Deskripsi PKSI wajib diisi";
-    if (!formData.mengapaPksiDiperlukan)
-      newErrors.mengapaPksiDiperlukan = "Alasan PKSI diperlukan wajib diisi";
-    if (formData.picSatkerBA.length === 0)
-      newErrors.picSatkerBA = "Satuan Kerja Pemilik Aplikasi wajib dipilih";
-    if (!formData.kegunaanPksi)
-      newErrors.kegunaanPksi = "Kegunaan PKSI wajib diisi";
-    if (!formData.tujuanPksi) newErrors.tujuanPksi = "Tujuan PKSI wajib diisi";
-    if (!formData.pengelolaAplikasi)
-      newErrors.pengelolaAplikasi = "Pengelola Aplikasi wajib diisi";
-    if (!formData.fungsiAplikasi)
-      newErrors.fungsiAplikasi = "Fungsi Aplikasi wajib diisi";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -461,34 +397,12 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
         inisiatif_id: selectedInisiatif?.id || undefined,
         nama_pksi: formData.namaPksi,
         tanggal_pengajuan: formData.tanggalPengajuan || undefined,
-        deskripsi_pksi: formData.deskripsiPksi,
-        mengapa_pksi_diperlukan: formData.mengapaPksiDiperlukan,
-        kapan_harus_diselesaikan: formData.kapanHarusDiselesaikan || undefined,
-        pic_satker_ba: formData.picSatkerBA.join(","),
-        kegunaan_pksi: formData.kegunaanPksi,
-        tujuan_pksi: formData.tujuanPksi,
-        target_pksi: formData.targetPksi || undefined,
-        ruang_lingkup: formData.ruangLingkup || undefined,
-        batasan_pksi: formData.batasanPksi || undefined,
-        hubungan_sistem_lain: formData.hubunganSistemLain || undefined,
-        asumsi: formData.asumsi || undefined,
-        batasan_desain: formData.batasanDesain || undefined,
-        risiko_bisnis: formData.riskoBisnis || undefined,
-        risiko_sukses_pksi: formData.risikoSuksesPksi || undefined,
-        pengendalian_risiko: formData.pengendalianRisiko || undefined,
-        pengelola_aplikasi: formData.pengelolaAplikasi,
-        pengguna_aplikasi: formData.penggunaAplikasi || undefined,
+        pic_satker_ba: formData.picSatkerBA.length > 0 ? formData.picSatkerBA.join(",") : undefined,
         program_inisiatif_rbsi: formData.programInisiatifRBSI || undefined,
-        fungsi_aplikasi: formData.fungsiAplikasi,
-        informasi_yang_dikelola: formData.informasiYangDikelola || undefined,
-        dasar_peraturan: formData.dasarPeraturan || undefined,
-        tahap1_awal: formData.tahap1Awal || undefined,
-        tahap1_akhir: formData.tahap1Akhir || undefined,
-        tahap5_awal: formData.tahap5Awal || undefined,
-        tahap5_akhir: formData.tahap5Akhir || undefined,
-        tahap7_awal: formData.tahap7Awal || undefined,
-        tahap7_akhir: formData.tahap7Akhir || undefined,
-        rencana_pengelolaan: formData.rencanaPengelolaan || undefined,
+        target_usreq: formData.targetUsreq || undefined,
+        target_sit: formData.targetSit || undefined,
+        target_uat: formData.targetUat || undefined,
+        target_go_live: formData.targetGoLive || undefined,
         user_id: getUserInfo()?.uuid || "",
       };
 
@@ -934,666 +848,128 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
             </Stack>
           </Box>
 
-          {/* Section 1 */}
+          {/* Usulan Jadwal Pelaksanaan */}
           <Accordion
-            expanded={expandedSection === "section1"}
-            onChange={handleAccordionChange("section1")}
+            expanded={expandedSection === "jadwal"}
+            onChange={handleAccordionChange("jadwal")}
             sx={{
-              mt: expandedSection === "section1" ? 1 : 0,
-              borderRadius: "20px !important",
-              bgcolor: "rgba(255, 255, 255, 0.6)",
+              mt: expandedSection === "jadwal" ? 1 : 0,
+              borderRadius: "16px !important",
+              bgcolor: "rgba(255, 255, 255, 0.72)",
               backdropFilter: "blur(20px)",
               WebkitBackdropFilter: "blur(20px)",
-              border: "1px solid rgba(255, 255, 255, 0.8)",
-              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)",
+              boxShadow:
+                "0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)",
               "&::before": { display: "none" },
-              "&.Mui-expanded": { margin: "0 !important" },
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                boxShadow: "0 12px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)",
-              },
+              "&.Mui-expanded": { margin: 0 },
             }}
           >
             <AccordionSummary
-              expandIcon={<ExpandMoreIcon sx={{ color: "#86868b", transition: 'transform 0.3s ease' }} />}
+              expandIcon={<ExpandMoreIcon sx={{ color: "#86868b" }} />}
               sx={{
-                borderRadius: "20px",
-                px: 2.5,
-                "&.Mui-expanded": { minHeight: 56 },
-                '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' },
+                borderRadius: "16px",
+                "&.Mui-expanded": { minHeight: 48 },
               }}
             >
               <Typography
                 sx={{
                   fontWeight: 600,
                   color: "#1d1d1f",
-                  fontSize: "0.95rem",
+                  fontSize: "0.9rem",
                   letterSpacing: "-0.01em",
                 }}
               >
-                1. Pendahuluan
+                Usulan Jadwal Pelaksanaan
               </Typography>
             </AccordionSummary>
-            <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
-              <Stack spacing={2.5}>
-                <GlassTextField
-                  fullWidth
-                  label="1.1 Deskripsi PKSI"
-                  name="deskripsiPksi"
-                  value={formData.deskripsiPksi}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={3}
-                  error={!!errors.deskripsiPksi}
-                  helperText={errors.deskripsiPksi}
-                  size="small"
-                />
-                <GlassTextField
-                  fullWidth
-                  label="1.2 Mengapa PKSI Diperlukan"
-                  name="mengapaPksiDiperlukan"
-                  value={formData.mengapaPksiDiperlukan}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={3}
-                  error={!!errors.mengapaPksiDiperlukan}
-                  helperText={errors.mengapaPksiDiperlukan}
-                  size="small"
-                />
-                <TextField
-                  fullWidth
-                  label="1.3 Kapan Harus Diselesaikan"
-                  name="kapanHarusDiselesaikan"
-                  value={formData.kapanHarusDiselesaikan}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={2}
-                  size="small"
-                />
-                <Autocomplete
-                  multiple
-                  fullWidth
-                  options={skpaOptions}
-                  getOptionLabel={(option) =>
-                    `${option.kode_skpa} - ${option.nama_skpa}`
-                  }
-                  value={skpaOptions.filter((skpa) =>
-                    formData.picSatkerBA.includes(skpa.id),
-                  )}
-                  onChange={(_, newValue) => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      picSatkerBA: newValue.map((skpa) => skpa.id),
-                    }));
-                    if (errors.picSatkerBA) {
-                      setErrors((prev) => ({
-                        ...prev,
-                        picSatkerBA: undefined,
-                      }));
-                    }
-                  }}
-                  renderInput={(params) => (
+            <AccordionDetails sx={{ pt: 1.5, pb: 2, px: 2 }}>
+              {/* 2x2 grid of glass milestone cards */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+
+                {/* Card 1 — Target Usreq */}
+                <Box sx={{ borderRadius: '16px', background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 6px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)', overflow: 'hidden' }}>
+                  <Box sx={{ height: 3, background: 'linear-gradient(90deg, #6366F1, #818CF8)' }} />
+                  <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      <Box sx={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg, #6366F1, #818CF8)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(99,102,241,0.4)', flexShrink: 0 }}>
+                        <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.65rem', lineHeight: 1 }}>1</Typography>
+                      </Box>
+                      <Typography sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>Target Usreq</Typography>
+                    </Box>
                     <TextField
-                      {...params}
-                      label="1.4 Satuan Kerja Pemilik Aplikasi"
-                      error={!!errors.picSatkerBA}
-                      helperText={errors.picSatkerBA}
-                      size="small"
+                      fullWidth size="small" type="month"
+                      value={formData.targetUsreq ? formData.targetUsreq.substring(0, 7) : ""}
+                      onChange={(e) => setFormData(p => ({ ...p, targetUsreq: e.target.value ? lastDayOfMonth(e.target.value) : "" }))}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', background: 'rgba(99,102,241,0.07)', '& fieldset': { border: '1px solid rgba(99,102,241,0.18)' }, '&:hover fieldset': { borderColor: 'rgba(99,102,241,0.4)' }, '&.Mui-focused fieldset': { borderColor: '#6366F1', borderWidth: '1.5px' } }, '& .MuiInputBase-input': { fontSize: '0.78rem', py: '6px', color: '#1d1d1f' } }}
                     />
-                  )}
-                  renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                      <Chip
-                        {...getTagProps({ index })}
-                        key={option.id}
-                        label={option.kode_skpa}
-                        size="small"
-                        sx={{
-                          bgcolor: "#DA251C",
-                          color: "white",
-                          "& .MuiChip-deleteIcon": {
-                            color: "rgba(255, 255, 255, 0.7)",
-                            "&:hover": {
-                              color: "white",
-                            },
-                          },
-                        }}
-                      />
-                    ))
-                  }
-                  isOptionEqualToValue={(option, value) =>
-                    option.id === value.id
-                  }
-                  size="small"
-                />
-              </Stack>
-            </AccordionDetails>
-          </Accordion>
-
-          {/* Section 2 */}
-          <Accordion
-            expanded={expandedSection === "section2"}
-            onChange={handleAccordionChange("section2")}
-            sx={{
-              mt: expandedSection === "section2" ? 1 : 0,
-              borderRadius: "16px !important",
-              bgcolor: "rgba(255, 255, 255, 0.72)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-              boxShadow:
-                "0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)",
-              "&::before": { display: "none" },
-              "&.Mui-expanded": { margin: 0 },
-            }}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon sx={{ color: "#86868b" }} />}
-              sx={{
-                borderRadius: "16px",
-                "&.Mui-expanded": { minHeight: 48 },
-              }}
-            >
-              <Typography
-                sx={{
-                  fontWeight: 600,
-                  color: "#1d1d1f",
-                  fontSize: "0.9rem",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                2. Tujuan dan Kegunaan PKSI
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Stack spacing={2}>
-                <TextField
-                  fullWidth
-                  label="2.1 Kegunaan PKSI"
-                  name="kegunaanPksi"
-                  value={formData.kegunaanPksi}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={3}
-                  error={!!errors.kegunaanPksi}
-                  helperText={errors.kegunaanPksi}
-                  size="small"
-                />
-                <TextField
-                  fullWidth
-                  label="2.2 Tujuan PKSI"
-                  name="tujuanPksi"
-                  value={formData.tujuanPksi}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={3}
-                  error={!!errors.tujuanPksi}
-                  helperText={errors.tujuanPksi}
-                  size="small"
-                />
-                <TextField
-                  fullWidth
-                  label="2.3 Target PKSI"
-                  name="targetPksi"
-                  value={formData.targetPksi}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={2}
-                  size="small"
-                />
-              </Stack>
-            </AccordionDetails>
-          </Accordion>
-
-          {/* Section 3 */}
-          <Accordion
-            expanded={expandedSection === "section3"}
-            onChange={handleAccordionChange("section3")}
-            sx={{
-              mt: expandedSection === "section3" ? 1 : 0,
-              borderRadius: "16px !important",
-              bgcolor: "rgba(255, 255, 255, 0.72)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-              boxShadow:
-                "0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)",
-              "&::before": { display: "none" },
-              "&.Mui-expanded": { margin: 0 },
-            }}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon sx={{ color: "#86868b" }} />}
-              sx={{
-                borderRadius: "16px",
-                "&.Mui-expanded": { minHeight: 48 },
-              }}
-            >
-              <Typography
-                sx={{
-                  fontWeight: 600,
-                  color: "#1d1d1f",
-                  fontSize: "0.9rem",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                3. Cakupan PKSI
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Stack spacing={2}>
-                <TextField
-                  fullWidth
-                  label="3.1 Ruang Lingkup PKSI"
-                  name="ruangLingkup"
-                  value={formData.ruangLingkup}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={3}
-                  size="small"
-                />
-                <TextField
-                  fullWidth
-                  label="3.2 Batasan PKSI"
-                  name="batasanPksi"
-                  value={formData.batasanPksi}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={3}
-                  size="small"
-                />
-                <TextField
-                  fullWidth
-                  label="3.3 Hubungan dengan Sistem Lainnya"
-                  name="hubunganSistemLain"
-                  value={formData.hubunganSistemLain}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={2}
-                  size="small"
-                />
-                <TextField
-                  fullWidth
-                  label="3.4 Asumsi"
-                  name="asumsi"
-                  value={formData.asumsi}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={2}
-                  size="small"
-                />
-              </Stack>
-            </AccordionDetails>
-          </Accordion>
-
-          {/* Section 4 */}
-          <Accordion
-            expanded={expandedSection === "section4"}
-            onChange={handleAccordionChange("section4")}
-            sx={{
-              mt: expandedSection === "section4" ? 1 : 0,
-              borderRadius: "16px !important",
-              bgcolor: "rgba(255, 255, 255, 0.72)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-              boxShadow:
-                "0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)",
-              "&::before": { display: "none" },
-              "&.Mui-expanded": { margin: 0 },
-            }}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon sx={{ color: "#86868b" }} />}
-              sx={{
-                borderRadius: "16px",
-                "&.Mui-expanded": { minHeight: 48 },
-              }}
-            >
-              <Typography
-                sx={{
-                  fontWeight: 600,
-                  color: "#1d1d1f",
-                  fontSize: "0.9rem",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                4. Risiko dan Batasan PKSI
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Stack spacing={2}>
-                <TextField
-                  fullWidth
-                  label="4.1 Batasan Desain"
-                  name="batasanDesain"
-                  value={formData.batasanDesain}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={2}
-                  size="small"
-                />
-                <TextField
-                  fullWidth
-                  label="4.2 Risiko Bisnis"
-                  name="riskoBisnis"
-                  value={formData.riskoBisnis}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={3}
-                  size="small"
-                />
-                <TextField
-                  fullWidth
-                  label="4.3 Risiko Sukses PKSI"
-                  name="risikoSuksesPksi"
-                  value={formData.risikoSuksesPksi}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={2}
-                  size="small"
-                />
-                <TextField
-                  fullWidth
-                  label="4.4 Pengendalian Risiko"
-                  name="pengendalianRisiko"
-                  value={formData.pengendalianRisiko}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={2}
-                  size="small"
-                />
-              </Stack>
-            </AccordionDetails>
-          </Accordion>
-
-          {/* Section 5 */}
-          <Accordion
-            expanded={expandedSection === "section5"}
-            onChange={handleAccordionChange("section5")}
-            sx={{
-              mt: expandedSection === "section5" ? 1 : 0,
-              borderRadius: "16px !important",
-              bgcolor: "rgba(255, 255, 255, 0.72)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-              boxShadow:
-                "0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)",
-              "&::before": { display: "none" },
-              "&.Mui-expanded": { margin: 0 },
-            }}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon sx={{ color: "#86868b" }} />}
-              sx={{
-                borderRadius: "16px",
-                "&.Mui-expanded": { minHeight: 48 },
-              }}
-            >
-              <Typography
-                sx={{
-                  fontWeight: 600,
-                  color: "#1d1d1f",
-                  fontSize: "0.9rem",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                5. Gambaran Umum Aplikasi
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Stack spacing={2}>
-                <TextField
-                  fullWidth
-                  label="5.1 Pengelola Aplikasi"
-                  name="pengelolaAplikasi"
-                  value={formData.pengelolaAplikasi}
-                  onChange={handleInputChange}
-                  error={!!errors.pengelolaAplikasi}
-                  helperText={errors.pengelolaAplikasi}
-                  size="small"
-                />
-                <TextField
-                  fullWidth
-                  label="5.2 Pengguna Aplikasi"
-                  name="penggunaAplikasi"
-                  value={formData.penggunaAplikasi}
-                  onChange={handleInputChange}
-                  size="small"
-                />
-                <TextField
-                  fullWidth
-                  label="5.3 Program Inisiatif RBSI"
-                  value={formData.programInisiatifRBSI}
-                  InputProps={{ readOnly: true }}
-                  size="small"
-                  helperText="Pilih dari dropdown di bagian Informasi Dasar"
-                />
-                <TextField
-                  fullWidth
-                  label="5.4 Fungsi Aplikasi"
-                  name="fungsiAplikasi"
-                  value={formData.fungsiAplikasi}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={2}
-                  error={!!errors.fungsiAplikasi}
-                  helperText={errors.fungsiAplikasi}
-                  size="small"
-                />
-                <TextField
-                  fullWidth
-                  label="5.5 Informasi yang Dikelola"
-                  name="informasiYangDikelola"
-                  value={formData.informasiYangDikelola}
-                  onChange={handleInputChange}
-                  multiline
-                  rows={2}
-                  size="small"
-                />
-                <TextField
-                  fullWidth
-                  label="5.6 Dasar Peraturan"
-                  name="dasarPeraturan"
-                  value={formData.dasarPeraturan}
-                  onChange={handleInputChange}
-                  size="small"
-                />
-              </Stack>
-            </AccordionDetails>
-          </Accordion>
-
-          {/* Section 6 */}
-          <Accordion
-            expanded={expandedSection === "section6"}
-            onChange={handleAccordionChange("section6")}
-            sx={{
-              mt: expandedSection === "section6" ? 1 : 0,
-              borderRadius: "16px !important",
-              bgcolor: "rgba(255, 255, 255, 0.72)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-              boxShadow:
-                "0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)",
-              "&::before": { display: "none" },
-              "&.Mui-expanded": { margin: 0 },
-            }}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon sx={{ color: "#86868b" }} />}
-              sx={{
-                borderRadius: "16px",
-                "&.Mui-expanded": { minHeight: 48 },
-              }}
-            >
-              <Typography
-                sx={{
-                  fontWeight: 600,
-                  color: "#1d1d1f",
-                  fontSize: "0.9rem",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                6. Usulan Jadwal Pelaksanaan
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Stack spacing={2}>
-                <Typography
-                  variant="body2"
-                  sx={{ fontWeight: 600, color: "#86868b" }}
-                >
-                  Penyusunan Spesifikasi Kebutuhan Aplikasi
-                </Typography>
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 2,
-                  }}
-                >
-                  <TextField
-                    fullWidth
-                    label="Awal"
-                    name="tahap1Awal"
-                    type="date"
-                    value={formData.tahap1Awal}
-                    onChange={handleInputChange}
-                    InputLabelProps={{ shrink: true }}
-                    size="small"
-                  />
-                  <TextField
-                    fullWidth
-                    label="Akhir"
-                    name="tahap1Akhir"
-                    type="date"
-                    value={formData.tahap1Akhir}
-                    onChange={handleInputChange}
-                    InputLabelProps={{ shrink: true }}
-                    size="small"
-                  />
+                  </Box>
                 </Box>
-                <Typography
-                  variant="body2"
-                  sx={{ fontWeight: 600, color: "#86868b" }}
-                >
-                  Pengujian Aplikasi – User Acceptance Test (UAT)
-                </Typography>
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 2,
-                  }}
-                >
-                  <TextField
-                    fullWidth
-                    label="Awal"
-                    name="tahap5Awal"
-                    type="date"
-                    value={formData.tahap5Awal}
-                    onChange={handleInputChange}
-                    InputLabelProps={{ shrink: true }}
-                    size="small"
-                  />
-                  <TextField
-                    fullWidth
-                    label="Akhir"
-                    name="tahap5Akhir"
-                    type="date"
-                    value={formData.tahap5Akhir}
-                    onChange={handleInputChange}
-                    InputLabelProps={{ shrink: true }}
-                    size="small"
-                  />
+
+                {/* Card 2 — Target SIT */}
+                <Box sx={{ borderRadius: '16px', background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 6px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)', overflow: 'hidden' }}>
+                  <Box sx={{ height: 3, background: 'linear-gradient(90deg, #8B5CF6, #A78BFA)' }} />
+                  <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      <Box sx={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(139,92,246,0.4)', flexShrink: 0 }}>
+                        <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.65rem', lineHeight: 1 }}>2</Typography>
+                      </Box>
+                      <Typography sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>Target SIT</Typography>
+                    </Box>
+                    <TextField
+                      fullWidth size="small" type="month"
+                      value={formData.targetSit ? formData.targetSit.substring(0, 7) : ""}
+                      onChange={(e) => setFormData(p => ({ ...p, targetSit: e.target.value ? lastDayOfMonth(e.target.value) : "" }))}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', background: 'rgba(139,92,246,0.07)', '& fieldset': { border: '1px solid rgba(139,92,246,0.18)' }, '&:hover fieldset': { borderColor: 'rgba(139,92,246,0.4)' }, '&.Mui-focused fieldset': { borderColor: '#8B5CF6', borderWidth: '1.5px' } }, '& .MuiInputBase-input': { fontSize: '0.78rem', py: '6px', color: '#1d1d1f' } }}
+                    />
+                  </Box>
                 </Box>
-                <Typography
-                  variant="body2"
-                  sx={{ fontWeight: 600, color: "#86868b" }}
-                >
-                  Penggunaan Aplikasi (Go-Live)
-                </Typography>
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 2,
-                  }}
-                >
-                  <TextField
-                    fullWidth
-                    label="Awal"
-                    name="tahap7Awal"
-                    type="date"
-                    value={formData.tahap7Awal}
-                    onChange={handleInputChange}
-                    InputLabelProps={{ shrink: true }}
-                    size="small"
-                  />
-                  <TextField
-                    fullWidth
-                    label="Akhir"
-                    name="tahap7Akhir"
-                    type="date"
-                    value={formData.tahap7Akhir}
-                    onChange={handleInputChange}
-                    InputLabelProps={{ shrink: true }}
-                    size="small"
-                  />
+
+                {/* Card 3 — Target UAT/PDKK */}
+                <Box sx={{ borderRadius: '16px', background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 6px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)', overflow: 'hidden' }}>
+                  <Box sx={{ height: 3, background: 'linear-gradient(90deg, #F59E0B, #FCD34D)' }} />
+                  <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      <Box sx={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg, #F59E0B, #FCD34D)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(245,158,11,0.4)', flexShrink: 0 }}>
+                        <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.65rem', lineHeight: 1 }}>3</Typography>
+                      </Box>
+                      <Typography sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>Target UAT/PDKK</Typography>
+                    </Box>
+                    <TextField
+                      fullWidth size="small" type="month"
+                      value={formData.targetUat ? formData.targetUat.substring(0, 7) : ""}
+                      onChange={(e) => setFormData(p => ({ ...p, targetUat: e.target.value ? lastDayOfMonth(e.target.value) : "" }))}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', background: 'rgba(245,158,11,0.07)', '& fieldset': { border: '1px solid rgba(245,158,11,0.18)' }, '&:hover fieldset': { borderColor: 'rgba(245,158,11,0.4)' }, '&.Mui-focused fieldset': { borderColor: '#F59E0B', borderWidth: '1.5px' } }, '& .MuiInputBase-input': { fontSize: '0.78rem', py: '6px', color: '#1d1d1f' } }}
+                    />
+                  </Box>
                 </Box>
-              </Stack>
+
+                {/* Card 4 — Target Go Live */}
+                <Box sx={{ borderRadius: '16px', background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 6px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)', overflow: 'hidden' }}>
+                  <Box sx={{ height: 3, background: 'linear-gradient(90deg, #10B981, #34D399)' }} />
+                  <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      <Box sx={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg, #10B981, #34D399)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(16,185,129,0.4)', flexShrink: 0 }}>
+                        <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.65rem', lineHeight: 1 }}>4</Typography>
+                      </Box>
+                      <Typography sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>Target Go Live</Typography>
+                    </Box>
+                    <TextField
+                      fullWidth size="small" type="month"
+                      value={formData.targetGoLive ? formData.targetGoLive.substring(0, 7) : ""}
+                      onChange={(e) => setFormData(p => ({ ...p, targetGoLive: e.target.value ? lastDayOfMonth(e.target.value) : "" }))}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', background: 'rgba(16,185,129,0.07)', '& fieldset': { border: '1px solid rgba(16,185,129,0.18)' }, '&:hover fieldset': { borderColor: 'rgba(16,185,129,0.4)' }, '&.Mui-focused fieldset': { borderColor: '#10B981', borderWidth: '1.5px' } }, '& .MuiInputBase-input': { fontSize: '0.78rem', py: '6px', color: '#1d1d1f' } }}
+                    />
+                  </Box>
+                </Box>
+
+              </Box>
             </AccordionDetails>
           </Accordion>
 
-          {/* Section 7 */}
+          {/* Upload Dokumen */}
           <Accordion
-            expanded={expandedSection === "section7"}
-            onChange={handleAccordionChange("section7")}
-            sx={{
-              mt: expandedSection === "section7" ? 1 : 0,
-              borderRadius: "16px !important",
-              bgcolor: "rgba(255, 255, 255, 0.72)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-              boxShadow:
-                "0 4px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)",
-              "&::before": { display: "none" },
-              "&.Mui-expanded": { margin: 0 },
-            }}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon sx={{ color: "#86868b" }} />}
-              sx={{
-                borderRadius: "16px",
-                "&.Mui-expanded": { minHeight: 48 },
-              }}
-            >
-              <Typography
-                sx={{
-                  fontWeight: 600,
-                  color: "#1d1d1f",
-                  fontSize: "0.9rem",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                7. Rencana Pengelolaan
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <TextField
-                fullWidth
-                label="Rencana Pengelolaan"
-                name="rencanaPengelolaan"
-                value={formData.rencanaPengelolaan}
-                onChange={handleInputChange}
-                multiline
-                rows={4}
-                size="small"
-              />
-            </AccordionDetails>
-          </Accordion>
-
-          {/* Section 8 - Upload File - Matching FS2 pattern */}
-          <Accordion
-            expanded={expandedSection === "section8"}
-            onChange={handleAccordionChange("section8")}
+            expanded={expandedSection === "upload"}
+            onChange={handleAccordionChange("upload")}
             sx={{
               borderRadius: '20px !important',
               bgcolor: 'rgba(255, 255, 255, 0.6)',
@@ -1626,7 +1002,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                   letterSpacing: '-0.01em',
                 }}
               >
-                8. Upload Dokumen T.0.1
+                Upload Dokumen T.0.1
               </Typography>
             </AccordionSummary>
             <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
