@@ -154,12 +154,6 @@ const TIMELINE_CARDS = [
   { key: 'targetGoLive' as const, label: 'Target Go Live', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
 ];
 
-const CONNECTOR_COLORS = [
-  ['#818CF8', '#A78BFA'],
-  ['#A78BFA', '#FCD34D'],
-  ['#FCD34D', '#34D399'],
-];
-
 interface PhaseTimelineProps {
   phaseNumber: number;
   targetUsreq: string;
