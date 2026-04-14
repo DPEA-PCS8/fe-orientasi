@@ -71,10 +71,14 @@ interface PksiData {
   namaPksi: string;
   namaAplikasi: string;
   picSatkerBA: string;
+  jenisPksi: string;
   jangkaWaktu: string;
   tanggalPengajuan: string;
   linkDocsT01: string;
   status: 'pending' | 'disetujui' | 'tidak_disetujui';
+  teamId?: string;
+  iku?: string;
+  inhouseOutsource?: string;
 }
 
 // Calculate jangka waktu based on timeline dates
@@ -120,10 +124,14 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     namaPksi: apiData.nama_pksi,
     namaAplikasi: apiData.nama_aplikasi || '-',
     picSatkerBA: apiData.pic_satker_names || apiData.pic_satker_ba || '-',
+    jenisPksi: apiData.jenis_pksi || 'Reguler',
     jangkaWaktu: calculateJangkaWaktu(apiData),
     tanggalPengajuan: apiData.tanggal_pengajuan || apiData.created_at || '',
     linkDocsT01: '', // Will be populated when document upload is implemented
     status: mapStatus(apiData.status),
+    teamId: apiData.team_id || '',
+    iku: apiData.iku || 'ya',
+    inhouseOutsource: apiData.inhouse_outsource || 'inhouse',
   };
 };
 
@@ -424,10 +432,11 @@ function PksiList() {
     // If approving, show approval form instead
     if (newStatus === 'disetujui') {
       setPendingApprovalPksiId(selectedPksiId);
+      const existingPksi = pksiData.find(p => p.id === selectedPksiId);
       setApprovalForm({
-        teamId: '',
-        iku: 'ya',
-        inhouseOutsource: 'inhouse',
+        teamId: existingPksi?.teamId || '',
+        iku: existingPksi?.iku || 'ya',
+        inhouseOutsource: existingPksi?.inhouseOutsource || 'inhouse',
       });
       setOpenApprovalDialog(true);
       handleStatusMenuClose();
@@ -804,7 +813,7 @@ function PksiList() {
           </Typography>
         </Box>
         <Typography variant="body1" sx={{ color: '#86868b' }}>
-          Kelola data pengajuan PKSI
+          Kelola data semua PKSI
         </Typography>
       </Box>
 
@@ -1679,6 +1688,16 @@ function PksiList() {
                     Nama PKSI
                   </TableSortLabel>
                 </TableCell>
+                <TableCell
+                  sx={{
+                    fontWeight: 600,
+                    color: '#1d1d1f',
+                    py: 2,
+                    minWidth: 110,
+                  }}
+                >
+                  Jenis PKSI
+                </TableCell>
                 <TableCell 
                   sortDirection={orderBy === 'picSatkerBA' ? order : false}
                   sx={{ 
@@ -1776,7 +1795,7 @@ function PksiList() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} sx={{ textAlign: 'center', py: 6 }}>
+                  <TableCell colSpan={10} sx={{ textAlign: 'center', py: 6 }}>
                     <CircularProgress size={40} sx={{ color: '#DA251C' }} />
                     <Typography variant="body2" sx={{ mt: 2, color: '#86868b' }}>
                       Memuat data...
@@ -1785,7 +1804,7 @@ function PksiList() {
                 </TableRow>
               ) : paginatedPksi.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} sx={{ textAlign: 'center', py: 6 }}>
+                  <TableCell colSpan={10} sx={{ textAlign: 'center', py: 6 }}>
                     <Typography variant="body2" sx={{ color: '#86868b' }}>
                       Tidak ada data PKSI ditemukan
                     </Typography>
@@ -1853,6 +1872,20 @@ function PksiList() {
                     >
                       {item.namaPksi}
                     </Typography>
+                  </TableCell>
+                  <TableCell sx={{ py: 2, minWidth: 110 }}>
+                    <Chip
+                      label={item.jenisPksi || 'Reguler'}
+                      size="small"
+                      sx={{
+                        bgcolor: item.jenisPksi === 'Mendesak' ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)',
+                        color: item.jenisPksi === 'Mendesak' ? '#DC2626' : '#059669',
+                        fontWeight: 600,
+                        fontSize: '0.72rem',
+                        borderRadius: '6px',
+                        border: `1px solid ${item.jenisPksi === 'Mendesak' ? 'rgba(220,38,38,0.25)' : 'rgba(5,150,105,0.25)'}`,
+                      }}
+                    />
                   </TableCell>
                   <TableCell sx={{ 
                     py: 2,

@@ -159,9 +159,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
   };
 
   const [filesT01, setFilesT01] = useState<PksiFileData[]>([]);
-  const [filesT11, setFilesT11] = useState<PksiFileData[]>([]);
   const [isUploadingT01, setIsUploadingT01] = useState(false);
-  const [isUploadingT11, setIsUploadingT11] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -195,33 +193,17 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
         await uploadPksiFiles(pksiData.id, [files[0]], 'T01');
         const all = await getPksiFiles(pksiData.id);
         setFilesT01(all.filter(f => f.file_type === 'T01' || !f.file_type));
-        setFilesT11(all.filter(f => f.file_type === 'T11'));
       } catch (error) { console.error('Upload T01 failed:', error); setErrorMessage('Gagal mengupload file T01.'); }
       finally { setIsUploadingT01(false); }
     }
     event.target.value = '';
   };
 
-  const handleFileUploadT11 = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files && files.length > 0 && pksiData?.id) {
-      setIsUploadingT11(true); setErrorMessage('');
-      try {
-        await uploadPksiFiles(pksiData.id, [files[0]], 'T11');
-        const all = await getPksiFiles(pksiData.id);
-        setFilesT01(all.filter(f => f.file_type === 'T01' || !f.file_type));
-        setFilesT11(all.filter(f => f.file_type === 'T11'));
-      } catch (error) { console.error('Upload T11 failed:', error); setErrorMessage('Gagal mengupload file T11.'); }
-      finally { setIsUploadingT11(false); }
-    }
-    event.target.value = '';
-  };
 
-  const handleRemoveFile = async (fileId: string, fileType: string) => {
+  const handleRemoveFile = async (fileId: string, _fileType: string) => {
     try {
       await deletePksiFile(fileId);
-      if (fileType === 'T11') setFilesT11(prev => prev.filter(f => f.id !== fileId));
-      else setFilesT01(prev => prev.filter(f => f.id !== fileId));
+      setFilesT01(prev => prev.filter(f => f.id !== fileId));
     } catch (error) { console.error('Delete failed:', error); setErrorMessage('Gagal menghapus file.'); }
   };
 
@@ -246,10 +228,10 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const skpaResp = await getAllSkpa();
+        const [skpaResp, appResp, rbsiResp] = await Promise.all([getAllSkpa(), getAllAplikasi(), getAllRbsi()]);
         setSkpaOptions((skpaResp.data || []).map((s: SkpaData) => ({ id: s.id, kode_skpa: s.kode_skpa, nama_skpa: s.nama_skpa })));
-        const appResp = await getAllAplikasi(); setAplikasiOptions(appResp.data || []);
-        const rbsiResp = await getAllRbsi(); setRbsiOptions(rbsiResp.data || []);
+        setAplikasiOptions(appResp.data || []);
+        setRbsiOptions(rbsiResp.data || []);
       } catch (error) { console.error('Error fetching options:', error); }
     };
     if (open) fetchOptions();
@@ -276,7 +258,6 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
         try {
           const existingFiles = await getPksiFiles(pksiData.id);
           setFilesT01(existingFiles.filter(f => f.file_type === 'T01' || !f.file_type));
-          setFilesT11(existingFiles.filter(f => f.file_type === 'T11'));
         } catch (fileErr) { console.error('Error fetching files:', fileErr); }
       } catch (error) { console.error('Error fetching PKSI details:', error); }
       finally { setIsLoadingData(false); }
@@ -293,19 +274,16 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
   }, [loadedInisiatifId, programOptions]);
 
   useEffect(() => {
-    const autoSelectRbsi = async () => {
-      if (!loadedInisiatifId || !rbsiOptions.length || selectedRbsi) return;
-      for (const rbsi of rbsiOptions) {
-        try {
-          const resp = await getRbsiById(rbsi.id);
-          const programs = resp.data?.programs || [];
-          if (programs.some(p => p.inisiatifs?.some(i => i.id === loadedInisiatifId))) {
-            setSelectedRbsi(rbsi); setProgramOptions(programs); break;
-          }
-        } catch (error) { console.error('Error checking RBSI:', error); }
+    if (!loadedInisiatifId || !rbsiOptions.length || selectedRbsi) return;
+    // getAllRbsi already returns nested programs+inisiatifs — no extra API calls needed
+    for (const rbsi of rbsiOptions) {
+      const programs = rbsi.programs || [];
+      if (programs.some(p => p.inisiatifs?.some(i => i.id === loadedInisiatifId))) {
+        setSelectedRbsi(rbsi);
+        setProgramOptions(programs);
+        break;
       }
-    };
-    autoSelectRbsi();
+    }
   }, [loadedInisiatifId, rbsiOptions, selectedRbsi]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -342,8 +320,8 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
 
   const handleClose = () => {
     setFormData({ namaPksi: '', aplikasiId: '', tanggalPengajuan: '', picSatkerBA: [], programInisiatifRBSI: '', jenisPksi: 'Reguler', targetUsreq: currentMonthValue(), targetSit: currentMonthValue(), targetUat: currentMonthValue(), targetGoLive: currentMonthValue() });
-    setErrors({}); setExpandedSection('jadwal'); setFilesT01([]); setFilesT11([]);
-    setIsUploadingT01(false); setIsUploadingT11(false); setErrorMessage('');
+    setErrors({}); setExpandedSection('jadwal'); setFilesT01([]);
+    setIsUploadingT01(false); setErrorMessage('');
     setPreviewOpen(false); setPreviewFile(null); setTimelinePhases([]);
     setSelectedRbsi(null); setSelectedProgram(null); setSelectedInisiatif(null);
     setSelectedYear(null); setLoadedInisiatifId(null); onClose();
@@ -493,7 +471,6 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
                 <Stack spacing={3}>
                   {errorMessage && <Typography color="error" variant="body2">{errorMessage}</Typography>}
                   {renderFileSection('Rencana PKSI (T01/T02)', 'T01', filesT01, isUploadingT01, handleFileUploadT01, 'edit-pksi-file-upload-t01', '#DA251C')}
-                  {renderFileSection('Spesifikasi Kebutuhan (T11)', 'T11', filesT11, isUploadingT11, handleFileUploadT11, 'edit-pksi-file-upload-t11', '#0891B2')}
                 </Stack>
               </AccordionDetails>
             </Accordion>

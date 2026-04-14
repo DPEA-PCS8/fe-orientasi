@@ -51,7 +51,7 @@ import {
   CalendarMonth as CalendarIcon,
   AttachFile as AttachFileIcon,
 } from '@mui/icons-material';
-import { searchPksiDocuments, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
+import { searchPksiDocuments, updatePksiApproval, getPksiDocumentById, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getUserRoles } from '../api/authApi';
 import { ViewPksiModal, FilePreviewModal } from '../components/modals';
@@ -72,6 +72,7 @@ interface PksiData {
   namaAplikasi: string;
   picSatkerBA: string; // Display value: kode_skpa names (e.g., "DIMB, DLIK")
   picSatkerUuids: string; // Original UUIDs for bidang lookup
+  jenisPksi: string;
   bidang: string;
   pic: string;
   picUuid: string;
@@ -165,6 +166,7 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     namaAplikasi: apiData.nama_aplikasi || '-',
     picSatkerBA: apiData.pic_satker_names || apiData.pic_satker_ba || '-', // Display kode_skpa names
     picSatkerUuids: apiData.pic_satker_ba || '', // Original UUIDs for bidang lookup
+    jenisPksi: apiData.jenis_pksi || 'Reguler',
     bidang: '', // Will be resolved from SKPA lookup
     pic: apiData.pic_approval_name || apiData.pic_approval || apiData.pengelola_aplikasi || '-',
     picUuid: apiData.pic_approval || '',
@@ -178,35 +180,35 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     tanggalPengajuan: apiData.tanggal_pengajuan || apiData.created_at || '',
     linkDocsT01: '', // Not available in API response
     progress: apiData.progress || 'Penyusunan Usreq',
-    // New fields - read from backend or fallback to program_inisiatif_rbsi split
+    // New fields - read from backend
     programRbsi: apiData.program_rbsi || apiData.program_inisiatif_rbsi?.split(' - ')[0] || '-',
-    inisiatifRbsi: apiData.inisiatif_rbsi || apiData.program_inisiatif_rbsi?.split(' - ')[1] || '-',
-    // Anggaran - with dummy data
-    anggaranTotal: apiData.anggaran_total || 'Rp 2.500.000.000',
-    anggaranTahunIni: apiData.anggaran_tahun_ini || `Rp 1.500.000.000 (${new Date().getFullYear()})`,
-    anggaranTahunDepan: apiData.anggaran_tahun_depan || (jangkaWaktu.includes('Multiyears') ? `Rp 1.000.000.000 (${new Date().getFullYear() + 1})` : '-'),
-    // Timeline - use existing tahap data or new fields with dummy
-    targetUsreq: apiData.target_usreq || apiData.tahap1_akhir || '2026-06-30',
-    targetSit: apiData.target_sit || apiData.tahap5_akhir || '2026-09-30',
-    targetUat: apiData.target_uat || '2026-11-15',
-    targetGoLive: apiData.target_go_live || apiData.tahap7_akhir || '2026-12-31',
-    // Rencana PKSI (T01/T02) - with dummy data
-    statusT01T02: apiData.status_t01_t02 || 'Diterima',
-    berkasT01T02: apiData.berkas_t01_t02 || 'T01_T02_Rencana_PKSI_v2.pdf',
-    // Spesifikasi Kebutuhan (T11) - with dummy data
-    statusT11: apiData.status_t11 || 'Diterima',
-    berkasT11: apiData.berkas_t11 || 'T11_Spesifikasi_Kebutuhan_v1.pdf',
-    // CD Prinsip - with dummy data
-    statusCd: apiData.status_cd || 'Diterima',
-    nomorCd: apiData.nomor_cd || `CD-${Math.floor(Math.random() * 900 + 100)}/PCS8/${new Date().getFullYear()}`,
-    // Kontrak - with dummy data
-    kontrakTanggalMulai: apiData.kontrak_tanggal_mulai || '2026-07-01',
-    kontrakTanggalSelesai: apiData.kontrak_tanggal_selesai || '2026-12-31',
-    kontrakNilai: apiData.kontrak_nilai || 'Rp 2.250.000.000',
-    kontrakJumlahTermin: apiData.kontrak_jumlah_termin || '3 Termin',
-    kontrakDetailPembayaran: apiData.kontrak_detail_pembayaran || '40% - 40% - 20%',
-    // BA Deploy - with dummy data
-    baDeploy: apiData.ba_deploy || `BA-DEPLOY-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 999)).padStart(3, '0')}`,
+    inisiatifRbsi: apiData.inisiatif_nama || apiData.program_inisiatif_rbsi || '-',
+    // Anggaran
+    anggaranTotal: apiData.anggaran_total || '',
+    anggaranTahunIni: apiData.anggaran_tahun_ini || '',
+    anggaranTahunDepan: apiData.anggaran_tahun_depan || '',
+    // Timeline
+    targetUsreq: apiData.target_usreq || apiData.tahap1_akhir || '',
+    targetSit: apiData.target_sit || apiData.tahap5_akhir || '',
+    targetUat: apiData.target_uat || '',
+    targetGoLive: apiData.target_go_live || apiData.tahap7_akhir || '',
+    // Rencana PKSI (T01/T02)
+    statusT01T02: apiData.status_t01_t02 || '',
+    berkasT01T02: apiData.berkas_t01_t02 || '',
+    // Spesifikasi Kebutuhan (T11)
+    statusT11: apiData.status_t11 || '',
+    berkasT11: apiData.berkas_t11 || '',
+    // CD Prinsip
+    statusCd: apiData.status_cd || '',
+    nomorCd: apiData.nomor_cd || '',
+    // Kontrak
+    kontrakTanggalMulai: apiData.kontrak_tanggal_mulai || '',
+    kontrakTanggalSelesai: apiData.kontrak_tanggal_selesai || '',
+    kontrakNilai: apiData.kontrak_nilai || '',
+    kontrakJumlahTermin: apiData.kontrak_jumlah_termin || '',
+    kontrakDetailPembayaran: apiData.kontrak_detail_pembayaran || '',
+    // BA Deploy
+    baDeploy: apiData.ba_deploy || '',
   };
 };
 
@@ -409,36 +411,86 @@ function PksiDisetujui() {
 
   const handleEditClick = async (pksi: PksiData) => {
     setSelectedPksiForEdit(pksi);
-    
-    setEditForm({
-      teamId: pksi.teamId || '',
-      iku: pksi.iku !== '-' ? pksi.iku : 'ya',
-      inhouseOutsource: pksi.inhouseOutsource !== '-' ? pksi.inhouseOutsource : 'inhouse',
-      progress: pksi.progress || 'Penyusunan Usreq',
-      // New fields
-      programRbsi: pksi.programRbsi !== '-' ? pksi.programRbsi : '',
-      inisiatifRbsi: pksi.inisiatifRbsi !== '-' ? pksi.inisiatifRbsi : '',
-      anggaranTotal: pksi.anggaranTotal !== '-' ? pksi.anggaranTotal : '',
-      anggaranTahunIni: pksi.anggaranTahunIni !== '-' ? pksi.anggaranTahunIni : '',
-      anggaranTahunDepan: pksi.anggaranTahunDepan !== '-' ? pksi.anggaranTahunDepan : '',
-      targetUsreq: pksi.targetUsreq !== '-' ? pksi.targetUsreq : '',
-      targetSit: pksi.targetSit !== '-' ? pksi.targetSit : '',
-      targetUat: pksi.targetUat !== '-' ? pksi.targetUat : '',
-      targetGoLive: pksi.targetGoLive !== '-' ? pksi.targetGoLive : '',
-      statusT01T02: pksi.statusT01T02 !== '-' ? pksi.statusT01T02 : '',
-      berkasT01T02: pksi.berkasT01T02 !== '-' ? pksi.berkasT01T02 : '',
-      statusT11: pksi.statusT11 !== '-' ? pksi.statusT11 : '',
-      berkasT11: pksi.berkasT11 !== '-' ? pksi.berkasT11 : '',
-      statusCd: pksi.statusCd !== '-' ? pksi.statusCd : '',
-      nomorCd: pksi.nomorCd !== '-' ? pksi.nomorCd : '',
-      kontrakTanggalMulai: pksi.kontrakTanggalMulai !== '-' ? pksi.kontrakTanggalMulai : '',
-      kontrakTanggalSelesai: pksi.kontrakTanggalSelesai !== '-' ? pksi.kontrakTanggalSelesai : '',
-      kontrakNilai: pksi.kontrakNilai !== '-' ? pksi.kontrakNilai : '',
-      kontrakJumlahTermin: pksi.kontrakJumlahTermin !== '-' ? pksi.kontrakJumlahTermin : '',
-      kontrakDetailPembayaran: pksi.kontrakDetailPembayaran !== '-' ? pksi.kontrakDetailPembayaran : '',
-      baDeploy: pksi.baDeploy !== '-' ? pksi.baDeploy : '',
-    });
-    
+
+    // Fetch fresh full details from API to ensure all fields (team_id, iku, etc.) are populated
+    try {
+      const detail = await getPksiDocumentById(pksi.id);
+      console.log('[EditPksi] API detail response:', { team_id: detail.team_id, team_name: detail.team_name, iku: detail.iku, inhouse_outsource: detail.inhouse_outsource, inisiatif_nama: detail.inisiatif_nama, program_inisiatif_rbsi: detail.program_inisiatif_rbsi });
+      const freshPksi = transformApiData(detail);
+      console.log('[EditPksi] Transformed:', { teamId: freshPksi.teamId, teamName: freshPksi.teamName, iku: freshPksi.iku, inhouseOutsource: freshPksi.inhouseOutsource, inisiatifRbsi: freshPksi.inisiatifRbsi, programRbsi: freshPksi.programRbsi });
+      console.log('[EditPksi] Teams loaded:', teams.map(t => ({ id: t.id, name: t.name })));
+
+      // Fallback team matching when team_id is missing from API response
+      let resolvedTeamId = freshPksi.teamId || '';
+      if (!resolvedTeamId) {
+        const byName = teams.find(t => t.name === freshPksi.teamName);
+        if (byName) resolvedTeamId = byName.id;
+      }
+      if (!resolvedTeamId && detail.pic_approval) {
+        const byPic = teams.find(t => t.pic?.uuid === detail.pic_approval);
+        if (byPic) resolvedTeamId = byPic.id;
+      }
+
+      setSelectedPksiForEdit(freshPksi);
+      setEditForm({
+        teamId: resolvedTeamId,
+        iku: freshPksi.iku && freshPksi.iku !== '-' ? freshPksi.iku : 'ya',
+        inhouseOutsource: freshPksi.inhouseOutsource && freshPksi.inhouseOutsource !== '-' ? freshPksi.inhouseOutsource : 'inhouse',
+        progress: freshPksi.progress || 'Penyusunan Usreq',
+        programRbsi: freshPksi.programRbsi !== '-' ? freshPksi.programRbsi : '',
+        inisiatifRbsi: freshPksi.inisiatifRbsi !== '-' ? freshPksi.inisiatifRbsi : '',
+        anggaranTotal: freshPksi.anggaranTotal || '',
+        anggaranTahunIni: freshPksi.anggaranTahunIni || '',
+        anggaranTahunDepan: freshPksi.anggaranTahunDepan || '',
+        targetUsreq: freshPksi.targetUsreq || '',
+        targetSit: freshPksi.targetSit || '',
+        targetUat: freshPksi.targetUat || '',
+        targetGoLive: freshPksi.targetGoLive || '',
+        statusT01T02: freshPksi.statusT01T02 || '',
+        berkasT01T02: freshPksi.berkasT01T02 || '',
+        statusT11: freshPksi.statusT11 || '',
+        berkasT11: freshPksi.berkasT11 || '',
+        statusCd: freshPksi.statusCd || '',
+        nomorCd: freshPksi.nomorCd || '',
+        kontrakTanggalMulai: freshPksi.kontrakTanggalMulai || '',
+        kontrakTanggalSelesai: freshPksi.kontrakTanggalSelesai || '',
+        kontrakNilai: freshPksi.kontrakNilai || '',
+        kontrakJumlahTermin: freshPksi.kontrakJumlahTermin || '',
+        kontrakDetailPembayaran: freshPksi.kontrakDetailPembayaran || '',
+        baDeploy: freshPksi.baDeploy || '',
+      });
+    } catch (err) {
+      console.error('Failed to fetch PKSI details for edit:', err);
+      // Fallback to table row data
+      setEditForm({
+        teamId: pksi.teamId || '',
+        iku: pksi.iku && pksi.iku !== '-' ? pksi.iku : 'ya',
+        inhouseOutsource: pksi.inhouseOutsource && pksi.inhouseOutsource !== '-' ? pksi.inhouseOutsource : 'inhouse',
+        progress: pksi.progress || 'Penyusunan Usreq',
+        programRbsi: pksi.programRbsi !== '-' ? pksi.programRbsi : '',
+        inisiatifRbsi: pksi.inisiatifRbsi !== '-' ? pksi.inisiatifRbsi : '',
+        anggaranTotal: pksi.anggaranTotal || '',
+        anggaranTahunIni: pksi.anggaranTahunIni || '',
+        anggaranTahunDepan: pksi.anggaranTahunDepan || '',
+        targetUsreq: pksi.targetUsreq || '',
+        targetSit: pksi.targetSit || '',
+        targetUat: pksi.targetUat || '',
+        targetGoLive: pksi.targetGoLive || '',
+        statusT01T02: pksi.statusT01T02 || '',
+        berkasT01T02: pksi.berkasT01T02 || '',
+        statusT11: pksi.statusT11 || '',
+        berkasT11: pksi.berkasT11 || '',
+        statusCd: pksi.statusCd || '',
+        nomorCd: pksi.nomorCd || '',
+        kontrakTanggalMulai: pksi.kontrakTanggalMulai || '',
+        kontrakTanggalSelesai: pksi.kontrakTanggalSelesai || '',
+        kontrakNilai: pksi.kontrakNilai || '',
+        kontrakJumlahTermin: pksi.kontrakJumlahTermin || '',
+        kontrakDetailPembayaran: pksi.kontrakDetailPembayaran || '',
+        baDeploy: pksi.baDeploy || '',
+      });
+    }
+
     // Load existing files for this PKSI
     // setIsLoadingFiles(true);
     try {
@@ -2146,6 +2198,7 @@ function PksiDisetujui() {
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', textAlign: 'center', fontSize: '0.8rem', minWidth: 50, ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>No</TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Nama Aplikasi</TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 180, ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Nama PKSI</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 110 }}>Jenis PKSI</TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>SKPA</TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Bidang</TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160, ...(stickyColumns.has('inisiatifRbsi') && { position: 'sticky', left: getStickyLeft('inisiatifRbsi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('inisiatifRbsi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Inisiatif RBSI</TableCell>
@@ -2247,6 +2300,23 @@ function PksiDisetujui() {
                     <Typography variant="body2" sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.8rem', lineHeight: 1.4 }}>
                       {item.namaPksi}
                     </Typography>
+                  </TableCell>
+                  {/* Jenis PKSI */}
+                  <TableCell sx={{ py: 1, px: 2, minWidth: 110 }}>
+                    <Chip
+                      label={item.jenisPksi || 'Reguler'}
+                      size="small"
+                      sx={{
+                        bgcolor: item.jenisPksi === 'Mendesak' ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)',
+                        color: item.jenisPksi === 'Mendesak' ? '#DC2626' : '#059669',
+                        fontWeight: 600,
+                        fontSize: '0.65rem',
+                        borderRadius: '4px',
+                        border: `1px solid ${item.jenisPksi === 'Mendesak' ? 'rgba(220,38,38,0.25)' : 'rgba(5,150,105,0.25)'}`,
+                        height: 20,
+                        '& .MuiChip-label': { px: 0.8 },
+                      }}
+                    />
                   </TableCell>
                   {/* SKPA */}
                   <TableCell sx={{ py: 1, px: 1, minWidth: 100, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
