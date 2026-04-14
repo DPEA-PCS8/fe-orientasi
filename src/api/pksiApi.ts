@@ -2,6 +2,14 @@ import { apiRequest } from './apiClient';
 
 const BASE_URL = '/api';
 
+// ==================== TIMELINE TYPES ====================
+
+export interface PksiTimeline {
+  phase: number;
+  target_date: string; // ISO date string (YYYY-MM-DD)
+  stage: 'USREQ' | 'SIT' | 'UAT' | 'GO_LIVE';
+}
+
 // ==================== RESPONSE TYPES ====================
 
 export interface PksiDocumentData {
@@ -73,6 +81,9 @@ export interface PksiDocumentData {
   anggaran_total?: string;
   anggaran_tahun_ini?: string;
   anggaran_tahun_depan?: string;
+  // Timeline (new flexible structure)
+  timelines?: PksiTimeline[];
+  // Legacy timeline fields (kept for backward compatibility)
   target_usreq?: string;
   target_sit?: string;
   target_uat?: string;
@@ -153,7 +164,9 @@ export interface PksiDocumentRequest {
   tahap7_akhir?: string;
   // Section 7
   rencana_pengelolaan?: string;
-  // Timeline
+  // Timeline (new flexible structure)
+  timelines?: PksiTimeline[];
+  // Legacy timeline fields (kept for backward compatibility)
   target_usreq?: string;
   target_sit?: string;
   target_uat?: string;
@@ -587,6 +600,7 @@ export interface DashboardSummary {
 export interface ApprovalBreakdown {
   disetujui_tahun_ini: number;
   disetujui_multiyears_sebelumnya: number;
+  disetujui_mendesak: number;
 }
 
 export interface ProgressByBidangRow {

@@ -92,11 +92,11 @@ interface PksiData {
   anggaranTotal: string;
   anggaranTahunIni: string;
   anggaranTahunDepan: string;
-  // Timeline
-  targetUsreq: string;
-  targetSit: string;
-  targetUat: string;
-  targetGoLive: string;
+  // Timeline (supports multiple phases per stage)
+  targetUsreq: string[];
+  targetSit: string[];
+  targetUat: string[];
+  targetGoLive: string[];
   // Rencana PKSI (T01/T02)
   statusT01T02: string;
   berkasT01T02: string;
@@ -155,9 +155,65 @@ const calculateJangkaWaktu = (apiData: PksiDocumentData): string => {
   }
 };
 
+// Helper to group timelines by stage and extract dates
+const groupTimelinesByStage = (timelines: any[] | undefined): {
+  usreq: string[];
+  sit: string[];
+  uat: string[];
+  goLive: string[];
+} => {
+  if (!timelines || timelines.length === 0) {
+    return { usreq: [], sit: [], uat: [], goLive: [] };
+  }
+
+  const groups = {
+    usreq: [] as string[],
+    sit: [] as string[],
+    uat: [] as string[],
+    goLive: [] as string[],
+  };
+
+  // Group by stage
+  const stageMap: { [key: string]: { phase: number; date: string }[] } = {
+    USREQ: [],
+    SIT: [],
+    UAT: [],
+    GO_LIVE: [],
+  };
+
+  timelines.forEach(t => {
+    if (t.stage && t.target_date) {
+      stageMap[t.stage].push({ phase: t.phase || 1, date: t.target_date });
+    }
+  });
+
+  // Sort by phase and extract dates
+  Object.keys(stageMap).forEach(stage => {
+    const sorted = stageMap[stage].sort((a, b) => a.phase - b.phase);
+    const dates = sorted.map(item => item.date);
+    
+    if (stage === 'USREQ') groups.usreq = dates;
+    else if (stage === 'SIT') groups.sit = dates;
+    else if (stage === 'UAT') groups.uat = dates;
+    else if (stage === 'GO_LIVE') groups.goLive = dates;
+  });
+
+  return groups;
+};
+
 // Transform API data to UI format
 const transformApiData = (apiData: PksiDocumentData): PksiData => {
   const jangkaWaktu = calculateJangkaWaktu(apiData);
+  
+  // Parse timelines - prefer new flexible structure, fallback to legacy
+  const timelineGroups = apiData.timelines && apiData.timelines.length > 0
+    ? groupTimelinesByStage(apiData.timelines)
+    : {
+        usreq: apiData.target_usreq ? [apiData.target_usreq] : (apiData.tahap1_akhir ? [apiData.tahap1_akhir] : ['2026-06-30']),
+        sit: apiData.target_sit ? [apiData.target_sit] : (apiData.tahap5_akhir ? [apiData.tahap5_akhir] : ['2026-09-30']),
+        uat: apiData.target_uat ? [apiData.target_uat] : ['2026-11-15'],
+        goLive: apiData.target_go_live ? [apiData.target_go_live] : (apiData.tahap7_akhir ? [apiData.tahap7_akhir] : ['2026-12-31']),
+      };
   
   return {
     id: apiData.id,
@@ -185,11 +241,11 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     anggaranTotal: apiData.anggaran_total || 'Rp 2.500.000.000',
     anggaranTahunIni: apiData.anggaran_tahun_ini || `Rp 1.500.000.000 (${new Date().getFullYear()})`,
     anggaranTahunDepan: apiData.anggaran_tahun_depan || (jangkaWaktu.includes('Multiyears') ? `Rp 1.000.000.000 (${new Date().getFullYear() + 1})` : '-'),
-    // Timeline - use existing tahap data or new fields with dummy
-    targetUsreq: apiData.target_usreq || apiData.tahap1_akhir || '2026-06-30',
-    targetSit: apiData.target_sit || apiData.tahap5_akhir || '2026-09-30',
-    targetUat: apiData.target_uat || '2026-11-15',
-    targetGoLive: apiData.target_go_live || apiData.tahap7_akhir || '2026-12-31',
+    // Timeline - use grouped timelines
+    targetUsreq: timelineGroups.usreq,
+    targetSit: timelineGroups.sit,
+    targetUat: timelineGroups.uat,
+    targetGoLive: timelineGroups.goLive,
     // Rencana PKSI (T01/T02) - with dummy data
     statusT01T02: apiData.status_t01_t02 || 'Diterima',
     berkasT01T02: apiData.berkas_t01_t02 || 'T01_T02_Rencana_PKSI_v2.pdf',
@@ -421,10 +477,11 @@ function PksiDisetujui() {
       anggaranTotal: pksi.anggaranTotal !== '-' ? pksi.anggaranTotal : '',
       anggaranTahunIni: pksi.anggaranTahunIni !== '-' ? pksi.anggaranTahunIni : '',
       anggaranTahunDepan: pksi.anggaranTahunDepan !== '-' ? pksi.anggaranTahunDepan : '',
-      targetUsreq: pksi.targetUsreq !== '-' ? pksi.targetUsreq : '',
-      targetSit: pksi.targetSit !== '-' ? pksi.targetSit : '',
-      targetUat: pksi.targetUat !== '-' ? pksi.targetUat : '',
-      targetGoLive: pksi.targetGoLive !== '-' ? pksi.targetGoLive : '',
+      // Convert timeline arrays to strings for form display
+      targetUsreq: Array.isArray(pksi.targetUsreq) ? pksi.targetUsreq.filter(d => d !== '-').join(', ') : (pksi.targetUsreq !== '-' ? pksi.targetUsreq : ''),
+      targetSit: Array.isArray(pksi.targetSit) ? pksi.targetSit.filter(d => d !== '-').join(', ') : (pksi.targetSit !== '-' ? pksi.targetSit : ''),
+      targetUat: Array.isArray(pksi.targetUat) ? pksi.targetUat.filter(d => d !== '-').join(', ') : (pksi.targetUat !== '-' ? pksi.targetUat : ''),
+      targetGoLive: Array.isArray(pksi.targetGoLive) ? pksi.targetGoLive.filter(d => d !== '-').join(', ') : (pksi.targetGoLive !== '-' ? pksi.targetGoLive : ''),
       statusT01T02: pksi.statusT01T02 !== '-' ? pksi.statusT01T02 : '',
       berkasT01T02: pksi.berkasT01T02 !== '-' ? pksi.berkasT01T02 : '',
       statusT11: pksi.statusT11 !== '-' ? pksi.statusT11 : '',
@@ -2403,27 +2460,63 @@ function PksiDisetujui() {
                   </TableCell>
                   {/* Timeline - Target Usreq */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.targetUsreq !== '-' && item.targetUsreq ? new Date(item.targetUsreq).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                    </Typography>
+                    {item.targetUsreq && item.targetUsreq.length > 0 ? (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        {item.targetUsreq.map((date, idx) => (
+                          <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                            {item.targetUsreq.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
+                            {new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </Typography>
+                        ))}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
+                    )}
                   </TableCell>
                   {/* Timeline - Target SIT */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.targetSit !== '-' && item.targetSit ? new Date(item.targetSit).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                    </Typography>
+                    {item.targetSit && item.targetSit.length > 0 ? (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        {item.targetSit.map((date, idx) => (
+                          <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                            {item.targetSit.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
+                            {new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </Typography>
+                        ))}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
+                    )}
                   </TableCell>
                   {/* Timeline - Target UAT/PDKK */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.targetUat !== '-' && item.targetUat ? new Date(item.targetUat).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                    </Typography>
+                    {item.targetUat && item.targetUat.length > 0 ? (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        {item.targetUat.map((date, idx) => (
+                          <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                            {item.targetUat.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
+                            {new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </Typography>
+                        ))}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
+                    )}
                   </TableCell>
                   {/* Timeline - Target Go Live */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                      {item.targetGoLive !== '-' && item.targetGoLive ? new Date(item.targetGoLive).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                    </Typography>
+                    {item.targetGoLive && item.targetGoLive.length > 0 ? (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        {item.targetGoLive.map((date, idx) => (
+                          <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                            {item.targetGoLive.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
+                            {new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </Typography>
+                        ))}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
+                    )}
                   </TableCell>
                   {/* Rencana PKSI - Status T01/T02 */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.04)' }}>

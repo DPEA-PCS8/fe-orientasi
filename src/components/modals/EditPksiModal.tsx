@@ -47,10 +47,17 @@ interface EditPksiModalProps {
 
 interface FormData {
   namaPksi: string; aplikasiId: string; tanggalPengajuan: string; picSatkerBA: string[];
-  programInisiatifRBSI: string; jenisPksi: string; targetUsreq: string; targetSit: string; targetUat: string; targetGoLive: string;
+  programInisiatifRBSI: string; jenisPksi: string;
 }
 
 interface FormErrors { [key: string]: string | undefined; }
+
+interface TimelinePhases {
+  usreq: string[];
+  sit: string[];
+  uat: string[];
+  goLive: string[];
+}
 
 const lastDayOfMonth = (yearMonth: string): string => {
   if (!yearMonth) return '';
@@ -66,64 +73,141 @@ const currentMonthValue = () => {
   return lastDayOfMonth(`${y}-${m}`);
 };
 
-interface TimelinePhase { id: string; targetUsreq: string; targetSit: string; targetUat: string; targetGoLive: string; }
-
-const TIMELINE_CARDS = [
-  { key: 'targetUsreq' as const, label: 'Target Usreq', gradient: ['#6366F1', '#818CF8'], rgb: '99,102,241' },
-  { key: 'targetSit' as const, label: 'Target SIT', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246' },
-  { key: 'targetUat' as const, label: 'Target UAT/PDKK', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11' },
-  { key: 'targetGoLive' as const, label: 'Target Go Live', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
+const TIMELINE_CONFIGS = [
+  { key: 'usreq' as const, label: 'Target Usreq', stage: 'USREQ', gradient: ['#6366F1', '#818CF8'], rgb: '99,102,241' },
+  { key: 'sit' as const, label: 'Target SIT', stage: 'SIT', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246' },
+  { key: 'uat' as const, label: 'Target UAT/PDKK', stage: 'UAT', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11' },
+  { key: 'goLive' as const, label: 'Target Go Live', stage: 'GO_LIVE', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
 ];
 
-interface PhaseTimelineProps {
-  phaseNumber: number; targetUsreq: string; targetSit: string; targetUat: string; targetGoLive: string;
-  onChangeUsreq: (v: string) => void; onChangeSit: (v: string) => void;
-  onChangeUat: (v: string) => void; onChangeGoLive: (v: string) => void; onRemove?: () => void;
-  hideSit?: boolean;
+interface TimelineStageProps {
+  label: string;
+  stages: string[];
+  gradient: string[];
+  rgb: string;
+  onChange: (phaseIndex: number, value: string) => void;
+  onAddPhase: () => void;
+  onRemovePhase: (phaseIndex: number) => void;
 }
 
-const PhaseTimeline = ({ phaseNumber, targetUsreq, targetSit, targetUat, targetGoLive, onChangeUsreq, onChangeSit, onChangeUat, onChangeGoLive, onRemove, hideSit }: PhaseTimelineProps) => {
-  const cardsToShow = hideSit ? TIMELINE_CARDS.filter(c => c.key !== 'targetSit') : TIMELINE_CARDS;
-  const allValues: Record<string, string> = { targetUsreq, targetSit, targetUat, targetGoLive };
-  const allHandlers: Record<string, (v: string) => void> = { targetUsreq: onChangeUsreq, targetSit: onChangeSit, targetUat: onChangeUat, targetGoLive: onChangeGoLive };
-  const values = cardsToShow.map(c => allValues[c.key]);
-  const handlers = cardsToShow.map(c => allHandlers[c.key]);
+const TimelineStage = ({ label, stages, gradient, rgb, onChange, onAddPhase, onRemovePhase }: TimelineStageProps) => {
   return (
-    <Box sx={{ mb: 2 }}>
+    <Box sx={{ mb: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Box sx={{ px: 1.5, py: 0.4, borderRadius: '8px', background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.1))', border: '1px solid rgba(99,102,241,0.15)' }}>
-            <Typography sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#6366F1', letterSpacing: '0.02em' }}>Tahap {phaseNumber}</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{
+            width: 32, height: 32, borderRadius: '10px',
+            background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]})`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: `0 2px 12px rgba(${rgb},0.35)`,
+          }}>
+            <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.75rem' }}>
+              {stages.length}
+            </Typography>
           </Box>
-          {phaseNumber === 1 && (
-            <Box sx={{ px: 1, py: 0.3, borderRadius: '6px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
-              <Typography sx={{ fontWeight: 600, fontSize: '0.65rem', color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active</Typography>
-            </Box>
-          )}
+          <Typography sx={{ fontWeight: 600, fontSize: '0.9rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>
+            {label}
+          </Typography>
         </Box>
-        {onRemove && (
-          <IconButton size="small" onClick={onRemove} sx={{ width: 28, height: 28, color: '#86868b', '&:hover': { color: '#DC2626', bgcolor: 'rgba(220,38,38,0.06)' } }}>
-            <CloseIcon sx={{ fontSize: 16 }} />
-          </IconButton>
-        )}
+        <Button
+          size="small"
+          startIcon={<AddIcon />}
+          onClick={onAddPhase}
+          sx={{
+            borderRadius: '10px',
+            borderColor: `rgba(${rgb},0.25)`,
+            color: gradient[0],
+            fontWeight: 600,
+            fontSize: '0.7rem',
+            px: 1.5,
+            py: 0.4,
+            textTransform: 'none',
+            background: `rgba(${rgb},0.04)`,
+            border: `1px solid rgba(${rgb},0.25)`,
+            '&:hover': {
+              borderColor: gradient[0],
+              background: `rgba(${rgb},0.08)`,
+            },
+          }}
+        >
+          Tambah Fase
+        </Button>
       </Box>
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
-        {cardsToShow.map((card, i) => (
-          <Box key={card.key} sx={{ borderRadius: '16px', background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 6px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)', overflow: 'hidden' }}>
-            <Box sx={{ height: 3, background: `linear-gradient(90deg, ${card.gradient[0]}, ${card.gradient[1]})` }} />
-            <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                <Box sx={{ width: 22, height: 22, borderRadius: '50%', background: `linear-gradient(135deg, ${card.gradient[0]}, ${card.gradient[1]})`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 2px 6px rgba(${card.rgb},0.4)`, flexShrink: 0 }}>
-                  <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.65rem', lineHeight: 1 }}>{i + 1}</Typography>
-                </Box>
-                <Typography sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>{card.label}</Typography>
-              </Box>
-              <TextField fullWidth size="small" type="month" value={values[i] ? values[i].substring(0, 7) : ''} onChange={(e) => handlers[i](e.target.value)}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', background: `rgba(${card.rgb},0.07)`, '& fieldset': { border: `1px solid rgba(${card.rgb},0.18)` }, '&:hover fieldset': { borderColor: `rgba(${card.rgb},0.4)` }, '&.Mui-focused fieldset': { borderColor: card.gradient[0], borderWidth: '1.5px' } }, '& .MuiInputBase-input': { fontSize: '0.78rem', py: '6px', color: '#1d1d1f' } }} />
+
+      <Stack spacing={1.2}>
+        {stages.map((date, phaseIndex) => (
+          <Box
+            key={phaseIndex}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.2,
+              p: 1.5,
+              borderRadius: '12px',
+              background: 'rgba(255,255,255,0.7)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255,255,255,0.9)',
+              boxShadow: '0 3px 12px rgba(0,0,0,0.04)',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
+                borderColor: `rgba(${rgb},0.2)`,
+              },
+            }}
+          >
+            <Box sx={{
+              minWidth: 32,
+              height: 32,
+              borderRadius: '8px',
+              background: `rgba(${rgb},0.1)`,
+              border: `1.5px solid rgba(${rgb},0.25)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Typography sx={{ fontWeight: 700, fontSize: '0.8rem', color: gradient[0] }}>
+                {phaseIndex + 1}
+              </Typography>
             </Box>
+
+            <TextField
+              fullWidth
+              size="small"
+              type="month"
+              value={date ? date.substring(0, 7) : ''}
+              onChange={(e) => onChange(phaseIndex, e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              placeholder="Pilih bulan"
+              sx={{
+                flex: 1,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '8px',
+                  background: `rgba(${rgb},0.04)`,
+                  '& fieldset': { border: `1px solid rgba(${rgb},0.15)` },
+                  '&:hover fieldset': { borderColor: `rgba(${rgb},0.3)` },
+                  '&.Mui-focused fieldset': { borderColor: gradient[0], borderWidth: '1.5px' },
+                },
+                '& .MuiInputBase-input': { fontSize: '0.8rem', color: '#1d1d1f', fontWeight: 500, py: 1 },
+              }}
+            />
+
+            {stages.length > 1 && (
+              <IconButton
+                size="small"
+                onClick={() => onRemovePhase(phaseIndex)}
+                sx={{
+                  width: 28,
+                  height: 28,
+                  color: '#86868b',
+                  '&:hover': { color: '#DC2626', bgcolor: 'rgba(220,38,38,0.06)' },
+                }}
+              >
+                <CloseIcon sx={{ fontSize: 17 }} />
+              </IconButton>
+            )}
           </Box>
         ))}
-      </Box>
+      </Stack>
     </Box>
   );
 };
@@ -132,7 +216,6 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
   const [expandedSection, setExpandedSection] = useState<string | false>('jadwal');
   const [formData, setFormData] = useState<FormData>({
     namaPksi: '', aplikasiId: '', tanggalPengajuan: '', picSatkerBA: [], programInisiatifRBSI: '', jenisPksi: 'Reguler',
-    targetUsreq: currentMonthValue(), targetSit: currentMonthValue(), targetUat: currentMonthValue(), targetGoLive: currentMonthValue(),
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -148,14 +231,35 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
   const [popoverWidth, setPopoverWidth] = useState<number>(0);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [loadedInisiatifId, setLoadedInisiatifId] = useState<string | null>(null);
-  const [timelinePhases, setTimelinePhases] = useState<TimelinePhase[]>([]);
+  const [timelinePhases, setTimelinePhases] = useState<TimelinePhases>({
+    usreq: [currentMonthValue()],
+    sit: [currentMonthValue()],
+    uat: [currentMonthValue()],
+    goLive: [currentMonthValue()],
+  });
 
-  const addPhase = () => {
-    setTimelinePhases(prev => [...prev, { id: `phase_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`, targetUsreq: currentMonthValue(), targetSit: currentMonthValue(), targetUat: currentMonthValue(), targetGoLive: currentMonthValue() }]);
+  const handleTimelineChange = (stage: keyof TimelinePhases, phaseIndex: number, value: string) => {
+    setTimelinePhases(prev => {
+      const updated = { ...prev };
+      const newDates = [...updated[stage]];
+      newDates[phaseIndex] = value ? lastDayOfMonth(value) : '';
+      updated[stage] = newDates;
+      return updated;
+    });
   };
-  const removePhase = (id: string) => setTimelinePhases(prev => prev.filter(p => p.id !== id));
-  const updatePhase = (id: string, field: keyof Omit<TimelinePhase, 'id'>, value: string) => {
-    setTimelinePhases(prev => prev.map(p => (p.id === id ? { ...p, [field]: value } : p)));
+
+  const handleAddPhase = (stage: keyof TimelinePhases) => {
+    setTimelinePhases(prev => ({
+      ...prev,
+      [stage]: [...prev[stage], currentMonthValue()],
+    }));
+  };
+
+  const handleRemovePhase = (stage: keyof TimelinePhases, phaseIndex: number) => {
+    setTimelinePhases(prev => ({
+      ...prev,
+      [stage]: prev[stage].filter((_, i) => i !== phaseIndex),
+    }));
   };
 
   const [filesT01, setFilesT01] = useState<PksiFileData[]>([]);
@@ -261,17 +365,63 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
       setIsLoadingData(true);
       try {
         const data = await getPksiDocumentById(pksiData.id);
+        
+        // Initialize timeline phases from timelines
+        let phases: TimelinePhases = {
+          usreq: [currentMonthValue()],
+          sit: [currentMonthValue()],
+          uat: [currentMonthValue()],
+          goLive: [currentMonthValue()],
+        };
+        
+        if (data.timelines && data.timelines.length > 0) {
+          // Group timelines by stage
+          const stageMap: Record<string, Map<number, string>> = {
+            USREQ: new Map(),
+            SIT: new Map(),
+            UAT: new Map(),
+            GO_LIVE: new Map(),
+          };
+          
+          data.timelines.forEach(timeline => {
+            if (stageMap[timeline.stage]) {
+              stageMap[timeline.stage].set(timeline.phase, timeline.target_date.split('T')[0]);
+            }
+          });
+          
+          // Convert maps to arrays sorted by phase
+          phases = {
+            usreq: Array.from(stageMap.USREQ.entries()).sort((a, b) => a[0] - b[0]).map(([_, date]) => date),
+            sit: Array.from(stageMap.SIT.entries()).sort((a, b) => a[0] - b[0]).map(([_, date]) => date),
+            uat: Array.from(stageMap.UAT.entries()).sort((a, b) => a[0] - b[0]).map(([_, date]) => date),
+            goLive: Array.from(stageMap.GO_LIVE.entries()).sort((a, b) => a[0] - b[0]).map(([_, date]) => date),
+          };
+          
+          // Ensure at least one phase per stage
+          if (phases.usreq.length === 0) phases.usreq = [currentMonthValue()];
+          if (phases.sit.length === 0) phases.sit = [currentMonthValue()];
+          if (phases.uat.length === 0) phases.uat = [currentMonthValue()];
+          if (phases.goLive.length === 0) phases.goLive = [currentMonthValue()];
+        } else {
+          // Fallback to legacy fields if no timelines
+          phases = {
+            usreq: [data.target_usreq ? data.target_usreq.split('T')[0] : currentMonthValue()],
+            sit: [data.target_sit ? data.target_sit.split('T')[0] : currentMonthValue()],
+            uat: [data.target_uat ? data.target_uat.split('T')[0] : currentMonthValue()],
+            goLive: [data.target_go_live ? data.target_go_live.split('T')[0] : currentMonthValue()],
+          };
+        }
+        
         setFormData({
           namaPksi: data.nama_pksi || '', aplikasiId: data.aplikasi_id || '',
           tanggalPengajuan: data.tanggal_pengajuan ? data.tanggal_pengajuan.split('T')[0] : '',
           picSatkerBA: data.pic_satker_ba ? data.pic_satker_ba.split(/[,]\s*/).filter(Boolean) : [],
           programInisiatifRBSI: data.program_inisiatif_rbsi || '',
           jenisPksi: data.jenis_pksi || 'Reguler',
-          targetUsreq: data.target_usreq ? data.target_usreq.split('T')[0] : currentMonthValue(),
-          targetSit: data.target_sit ? data.target_sit.split('T')[0] : currentMonthValue(),
-          targetUat: data.target_uat ? data.target_uat.split('T')[0] : currentMonthValue(),
-          targetGoLive: data.target_go_live ? data.target_go_live.split('T')[0] : currentMonthValue(),
         });
+        
+        setTimelinePhases(phases);
+        
         if (data.inisiatif_id) setLoadedInisiatifId(data.inisiatif_id);
         try {
           const existingFiles = await getPksiFiles(pksiData.id);
@@ -325,13 +475,45 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
     if (!validateForm() || !pksiData?.id) return;
     setIsSubmitting(true);
     try {
+      // Convert timeline data to new structure
+      const timelines: any[] = [];
+      
+      // Add USREQ phases
+      timelinePhases.usreq.forEach((date, index) => {
+        if (date) {
+          timelines.push({ phase: index + 1, target_date: date, stage: 'USREQ' });
+        }
+      });
+      
+      // Add SIT phases (skip if Mendesak)
+      if (formData.jenisPksi !== 'Mendesak') {
+        timelinePhases.sit.forEach((date, index) => {
+          if (date) {
+            timelines.push({ phase: index + 1, target_date: date, stage: 'SIT' });
+          }
+        });
+      }
+      
+      // Add UAT phases
+      timelinePhases.uat.forEach((date, index) => {
+        if (date) {
+          timelines.push({ phase: index + 1, target_date: date, stage: 'UAT' });
+        }
+      });
+      
+      // Add GO_LIVE phases
+      timelinePhases.goLive.forEach((date, index) => {
+        if (date) {
+          timelines.push({ phase: index + 1, target_date: date, stage: 'GO_LIVE' });
+        }
+      });
+
       const requestData: PksiDocumentRequest = {
         aplikasi_id: formData.aplikasiId || undefined, inisiatif_id: selectedInisiatif?.id || undefined,
         nama_pksi: formData.namaPksi, jenis_pksi: formData.jenisPksi, tanggal_pengajuan: formData.tanggalPengajuan || undefined,
         pic_satker_ba: formData.picSatkerBA.length > 0 ? formData.picSatkerBA.join(',') : undefined,
         program_inisiatif_rbsi: formData.programInisiatifRBSI || undefined,
-        target_usreq: formData.targetUsreq || undefined, target_sit: formData.jenisPksi === 'Mendesak' ? (formData.targetUat || undefined) : (formData.targetSit || undefined),
-        target_uat: formData.targetUat || undefined, target_go_live: formData.targetGoLive || undefined,
+        timelines: timelines.length > 0 ? timelines : undefined,
         user_id: getUserInfo()?.uuid || '',
       };
       await updatePksiDocument(pksiData.id, requestData);
@@ -341,10 +523,11 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
   };
 
   const handleClose = () => {
-    setFormData({ namaPksi: '', aplikasiId: '', tanggalPengajuan: '', picSatkerBA: [], programInisiatifRBSI: '', jenisPksi: 'Reguler', targetUsreq: currentMonthValue(), targetSit: currentMonthValue(), targetUat: currentMonthValue(), targetGoLive: currentMonthValue() });
+    setFormData({ namaPksi: '', aplikasiId: '', tanggalPengajuan: '', picSatkerBA: [], programInisiatifRBSI: '', jenisPksi: 'Reguler' });
+    setTimelinePhases({ usreq: [currentMonthValue()], sit: [currentMonthValue()], uat: [currentMonthValue()], goLive: [currentMonthValue()] });
     setErrors({}); setExpandedSection('jadwal'); setFilesT01([]); setFilesT11([]);
     setIsUploadingT01(false); setIsUploadingT11(false); setErrorMessage('');
-    setPreviewOpen(false); setPreviewFile(null); setTimelinePhases([]);
+    setPreviewOpen(false); setPreviewFile(null);
     setSelectedRbsi(null); setSelectedProgram(null); setSelectedInisiatif(null);
     setSelectedYear(null); setLoadedInisiatifId(null); onClose();
   };
@@ -468,19 +651,20 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
                 <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.9rem', letterSpacing: '-0.01em' }}>Usulan Jadwal Pelaksanaan</Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ pt: 1.5, pb: 2, px: 2 }}>
-                <PhaseTimeline phaseNumber={1} targetUsreq={formData.targetUsreq} targetSit={formData.targetSit} targetUat={formData.targetUat} targetGoLive={formData.targetGoLive}
-                  onChangeUsreq={(v) => setFormData(p => ({ ...p, targetUsreq: v ? lastDayOfMonth(v) : '' }))} onChangeSit={(v) => setFormData(p => ({ ...p, targetSit: v ? lastDayOfMonth(v) : '' }))}
-                  onChangeUat={(v) => setFormData(p => ({ ...p, targetUat: v ? lastDayOfMonth(v) : '' }))} onChangeGoLive={(v) => setFormData(p => ({ ...p, targetGoLive: v ? lastDayOfMonth(v) : '' }))}
-                  hideSit={formData.jenisPksi === 'Mendesak'} />
-                {timelinePhases.map((phase, idx) => (
-                  <PhaseTimeline key={phase.id} phaseNumber={idx + 2} targetUsreq={phase.targetUsreq} targetSit={phase.targetSit} targetUat={phase.targetUat} targetGoLive={phase.targetGoLive}
-                    onChangeUsreq={(v) => updatePhase(phase.id, 'targetUsreq', v ? lastDayOfMonth(v) : '')} onChangeSit={(v) => updatePhase(phase.id, 'targetSit', v ? lastDayOfMonth(v) : '')}
-                    onChangeUat={(v) => updatePhase(phase.id, 'targetUat', v ? lastDayOfMonth(v) : '')} onChangeGoLive={(v) => updatePhase(phase.id, 'targetGoLive', v ? lastDayOfMonth(v) : '')}
-                    onRemove={() => removePhase(phase.id)} hideSit={formData.jenisPksi === 'Mendesak'} />
-                ))}
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                  <Button variant="outlined" startIcon={<AddIcon />} onClick={addPhase} sx={{ borderRadius: '14px', borderColor: 'rgba(99,102,241,0.3)', color: '#6366F1', fontWeight: 600, fontSize: '0.82rem', px: 3, py: 1, textTransform: 'none', backdropFilter: 'blur(10px)', background: 'rgba(99,102,241,0.04)', '&:hover': { borderColor: '#6366F1', background: 'rgba(99,102,241,0.08)' } }}>Tambah Tahap</Button>
-                </Box>
+                {TIMELINE_CONFIGS
+                  .filter(config => formData.jenisPksi !== 'Mendesak' || config.key !== 'sit')
+                  .map((config) => (
+                    <TimelineStage
+                      key={config.key}
+                      label={config.label}
+                      stages={timelinePhases[config.key]}
+                      gradient={config.gradient}
+                      rgb={config.rgb}
+                      onChange={(phaseIndex, value) => handleTimelineChange(config.key, phaseIndex, value)}
+                      onAddPhase={() => handleAddPhase(config.key)}
+                      onRemovePhase={(phaseIndex) => handleRemovePhase(config.key, phaseIndex)}
+                    />
+                  ))}
               </AccordionDetails>
             </Accordion>
 

@@ -427,6 +427,115 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
               )}
             </GlassCard>
 
+            {/* Timeline Section - Always visible */}
+            <GlassCard>
+              <SectionHeader>
+                <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <TimelineIcon sx={{ color: '#7C3AED', fontSize: 20 }} />
+                </Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                  Timeline
+                </Typography>
+              </SectionHeader>
+
+              <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(139, 92, 246, 0.03)', border: '1px solid rgba(139, 92, 246, 0.1)' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, gap: 2 }}>
+                  {/* Target Usreq */}
+                  <InfoRow>
+                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target Usreq</Typography>
+                    {(() => {
+                      const usreqPhases = (pksiData.timelines || []).filter(t => t.stage === 'USREQ').sort((a, b) => a.phase - b.phase);
+                      if (usreqPhases.length === 0) {
+                        return <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_usreq || '-'}</Typography>;
+                      }
+                      if (usreqPhases.length === 1) {
+                        return <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{usreqPhases[0].target_date || '-'}</Typography>;
+                      }
+                      return (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {usreqPhases.map((phase, idx) => (
+                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.875rem' }}>
+                              <span style={{ fontWeight: 600 }}>Fase {phase.phase}: </span>
+                              {phase.target_date}
+                            </Typography>
+                          ))}
+                        </Box>
+                      );
+                    })()}
+                  </InfoRow>
+                  {/* Target SIT */}
+                  <InfoRow>
+                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target SIT</Typography>
+                    {(() => {
+                      const sitPhases = (pksiData.timelines || []).filter(t => t.stage === 'SIT').sort((a, b) => a.phase - b.phase);
+                      if (sitPhases.length === 0) {
+                        return <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_sit || '-'}</Typography>;
+                      }
+                      if (sitPhases.length === 1) {
+                        return <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{sitPhases[0].target_date || '-'}</Typography>;
+                      }
+                      return (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {sitPhases.map((phase, idx) => (
+                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.875rem' }}>
+                              <span style={{ fontWeight: 600 }}>Fase {phase.phase}: </span>
+                              {phase.target_date}
+                            </Typography>
+                          ))}
+                        </Box>
+                      );
+                    })()}
+                  </InfoRow>
+                  {/* Target UAT */}
+                  <InfoRow>
+                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target UAT/PDKK</Typography>
+                    {(() => {
+                      const uatPhases = (pksiData.timelines || []).filter(t => t.stage === 'UAT').sort((a, b) => a.phase - b.phase);
+                      if (uatPhases.length === 0) {
+                        return <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_uat || '-'}</Typography>;
+                      }
+                      if (uatPhases.length === 1) {
+                        return <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{uatPhases[0].target_date || '-'}</Typography>;
+                      }
+                      return (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {uatPhases.map((phase, idx) => (
+                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.875rem' }}>
+                              <span style={{ fontWeight: 600 }}>Fase {phase.phase}: </span>
+                              {phase.target_date}
+                            </Typography>
+                          ))}
+                        </Box>
+                      );
+                    })()}
+                  </InfoRow>
+                  {/* Target Go Live */}
+                  <InfoRow>
+                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target Go Live</Typography>
+                    {(() => {
+                      const goLivePhases = (pksiData.timelines || []).filter(t => t.stage === 'GO_LIVE').sort((a, b) => a.phase - b.phase);
+                      if (goLivePhases.length === 0) {
+                        return <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_go_live || '-'}</Typography>;
+                      }
+                      if (goLivePhases.length === 1) {
+                        return <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{goLivePhases[0].target_date || '-'}</Typography>;
+                      }
+                      return (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {goLivePhases.map((phase, idx) => (
+                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.875rem' }}>
+                              <span style={{ fontWeight: 600 }}>Fase {phase.phase}: </span>
+                              {phase.target_date}
+                            </Typography>
+                          ))}
+                        </Box>
+                      );
+                    })()}
+                  </InfoRow>
+                </Box>
+              </Box>
+            </GlassCard>
+
             {/* Section 8: Monitoring & Tracking (Only for DISETUJUI status and when showMonitoringSection is true) */}
             {showMonitoringSection && pksiData.status === 'DISETUJUI' && (
               <GlassCard>
@@ -491,32 +600,6 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tahun Depan</Typography>
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.anggaran_tahun_depan || '-'}</Typography>
-                    </InfoRow>
-                  </Box>
-                </Box>
-
-                {/* Timeline */}
-                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(139, 92, 246, 0.03)', border: '1px solid rgba(139, 92, 246, 0.1)', mb: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                    <TimelineIcon sx={{ color: '#7C3AED', fontSize: 18 }} />
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#7C3AED' }}>Timeline</Typography>
-                  </Box>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, gap: 2 }}>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target Usreq</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_usreq || '-'}</Typography>
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target SIT</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_sit || '-'}</Typography>
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target UAT/PDKK</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_uat || '-'}</Typography>
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target Go Live</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_go_live || '-'}</Typography>
                     </InfoRow>
                   </Box>
                 </Box>

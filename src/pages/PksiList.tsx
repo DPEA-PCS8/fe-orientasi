@@ -9,7 +9,6 @@ import {
   TableHead,
   TableRow,
   TablePagination,
-  TableSortLabel,
   InputAdornment,
   Typography,
   Paper,
@@ -75,7 +74,58 @@ interface PksiData {
   tanggalPengajuan: string;
   linkDocsT01: string;
   status: 'pending' | 'disetujui' | 'tidak_disetujui';
+  // Timeline fields - support multiple phases per stage
+  targetUsreq: string[];
+  targetSit: string[];
+  targetUat: string[];
+  targetGoLive: string[];
 }
+
+// Group timelines by stage, sorting by phase
+const groupTimelinesByStage = (timelines: { phase: number; target_date: string; stage: string }[]): {
+  usreq: string[];
+  sit: string[];
+  uat: string[];
+  goLive: string[];
+} => {
+  if (!timelines || timelines.length === 0) {
+    return { usreq: [], sit: [], uat: [], goLive: [] };
+  }
+
+  const groups = {
+    usreq: [] as string[],
+    sit: [] as string[],
+    uat: [] as string[],
+    goLive: [] as string[],
+  };
+
+  // Group by stage
+  const stageMap: { [key: string]: { phase: number; date: string }[] } = {
+    USREQ: [],
+    SIT: [],
+    UAT: [],
+    GO_LIVE: [],
+  };
+
+  timelines.forEach(t => {
+    if (t.stage && t.target_date) {
+      stageMap[t.stage].push({ phase: t.phase || 1, date: t.target_date });
+    }
+  });
+
+  // Sort by phase and extract dates
+  Object.keys(stageMap).forEach(stage => {
+    const sorted = stageMap[stage].sort((a, b) => a.phase - b.phase);
+    const dates = sorted.map(item => item.date);
+    
+    if (stage === 'USREQ') groups.usreq = dates;
+    else if (stage === 'SIT') groups.sit = dates;
+    else if (stage === 'UAT') groups.uat = dates;
+    else if (stage === 'GO_LIVE') groups.goLive = dates;
+  });
+
+  return groups;
+};
 
 // Calculate jangka waktu based on timeline dates
 const calculateJangkaWaktu = (apiData: PksiDocumentData): string => {
@@ -107,6 +157,8 @@ const calculateJangkaWaktu = (apiData: PksiDocumentData): string => {
 
 // Transform API data to UI format
 const transformApiData = (apiData: PksiDocumentData): PksiData => {
+  const jangkaWaktu = calculateJangkaWaktu(apiData);
+  
   // Map backend status to frontend status
   const mapStatus = (status: string): PksiData['status'] => {
     const statusLower = status.toLowerCase();
@@ -115,15 +167,30 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     return 'pending';
   };
 
+  // Parse timelines - prefer new flexible structure, fallback to legacy
+  const timelineGroups = apiData.timelines && apiData.timelines.length > 0
+    ? groupTimelinesByStage(apiData.timelines)
+    : {
+        usreq: apiData.target_usreq ? [apiData.target_usreq] : (apiData.tahap1_akhir ? [apiData.tahap1_akhir] : []),
+        sit: apiData.target_sit ? [apiData.target_sit] : (apiData.tahap5_akhir ? [apiData.tahap5_akhir] : []),
+        uat: apiData.target_uat ? [apiData.target_uat] : [],
+        goLive: apiData.target_go_live ? [apiData.target_go_live] : (apiData.tahap7_akhir ? [apiData.tahap7_akhir] : []),
+      };
+
   return {
     id: apiData.id,
     namaPksi: apiData.nama_pksi,
     namaAplikasi: apiData.nama_aplikasi || '-',
     picSatkerBA: apiData.pic_satker_names || apiData.pic_satker_ba || '-',
-    jangkaWaktu: calculateJangkaWaktu(apiData),
+    jangkaWaktu: jangkaWaktu,
     tanggalPengajuan: apiData.tanggal_pengajuan || apiData.created_at || '',
     linkDocsT01: '', // Will be populated when document upload is implemented
     status: mapStatus(apiData.status),
+    // Timeline - use grouped timelines
+    targetUsreq: timelineGroups.usreq,
+    targetSit: timelineGroups.sit,
+    targetUat: timelineGroups.uat,
+    targetGoLive: timelineGroups.goLive,
   };
 };
 
@@ -762,12 +829,6 @@ function PksiList() {
     
     return result;
   }, [pksiData, selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa, resolveSkpaCodes]);
-
-  const handleSort = (property: keyof PksiData) => {
-    const isAsc = orderBy === property && order === 'asc';
-    setOrder(isAsc ? 'desc' : 'asc');
-    setOrderBy(property);
-  };
 
   const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
@@ -1624,159 +1685,62 @@ function PksiList() {
             },
           },
         }}>
-          <Table sx={{ minWidth: 1400 }}>
+          <Table sx={{ minWidth: 1800 }}>
             <TableHead>
+              {/* First row - Grouped headers */}
               <TableRow sx={{ bgcolor: '#f5f5f7' }}>
-                <TableCell 
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 2,
-                    width: 50,
-                    minWidth: 50,
-                    textAlign: 'center',
-                    ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 3, bgcolor: '#f5f5f7' }),
-                    ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
-                  }}
-                >
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', textAlign: 'center', fontSize: '0.8rem', width: 50, minWidth: 50, ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                   No
                 </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'namaAplikasi' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 150,
-                    ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#f5f5f7' }),
-                    ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'namaAplikasi'}
-                    direction={orderBy === 'namaAplikasi' ? order : 'asc'}
-                    onClick={() => handleSort('namaAplikasi')}
-                  >
-                    Nama Aplikasi
-                  </TableSortLabel>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                  Nama Aplikasi
                 </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'namaPksi' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 200,
-                    ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 3, bgcolor: '#f5f5f7' }),
-                    ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'namaPksi'}
-                    direction={orderBy === 'namaPksi' ? order : 'asc'}
-                    onClick={() => handleSort('namaPksi')}
-                  >
-                    Nama PKSI
-                  </TableSortLabel>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 200, ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                  Nama PKSI
                 </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'picSatkerBA' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 150,
-                    ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#f5f5f7' }),
-                    ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'picSatkerBA'}
-                    direction={orderBy === 'picSatkerBA' ? order : 'asc'}
-                    onClick={() => handleSort('picSatkerBA')}
-                  >
-                    SKPA
-                  </TableSortLabel>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                  SKPA
                 </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'jangkaWaktu' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 120,
-                    ...(stickyColumns.has('jangkaWaktu') && { position: 'sticky', left: getStickyLeft('jangkaWaktu'), zIndex: 3, bgcolor: '#f5f5f7' }),
-                    ...(isLastStickyColumn('jangkaWaktu') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'jangkaWaktu'}
-                    direction={orderBy === 'jangkaWaktu' ? order : 'asc'}
-                    onClick={() => handleSort('jangkaWaktu')}
-                  >
-                    Jangka Waktu
-                  </TableSortLabel>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('jangkaWaktu') && { position: 'sticky', left: getStickyLeft('jangkaWaktu'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('jangkaWaktu') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                  Jangka Waktu
                 </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'tanggalPengajuan' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 150,
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'tanggalPengajuan'}
-                    direction={orderBy === 'tanggalPengajuan' ? order : 'asc'}
-                    onClick={() => handleSort('tanggalPengajuan')}
-                  >
-                    Tanggal Pengajuan
-                  </TableSortLabel>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150 }}>
+                  Tanggal Pengajuan
                 </TableCell>
-                <TableCell 
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 90,
-                  }}
-                >
+                {/* Timeline - grouped */}
+                <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem' }}>
+                  Timeline
+                </TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 90 }}>
                   Docs T.01
                 </TableCell>
-                <TableCell 
-                  sortDirection={orderBy === 'status' ? order : false}
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 130,
-                  }}
-                >
-                  <TableSortLabel
-                    active={orderBy === 'status'}
-                    direction={orderBy === 'status' ? order : 'asc'}
-                    onClick={() => handleSort('status')}
-                  >
-                    Status
-                  </TableSortLabel>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 130 }}>
+                  Status
                 </TableCell>
-                <TableCell 
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1d1d1f', 
-                    py: 2,
-                    minWidth: 100,
-                  }}
-                >
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100 }}>
                   Aksi
+                </TableCell>
+              </TableRow>
+              {/* Second row - Timeline sub-headers */}
+              <TableRow sx={{ bgcolor: '#f5f5f7' }}>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 110 }}>
+                  Target Usreq
+                </TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100 }}>
+                  Target SIT
+                </TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>
+                  Target UAT
+                </TableCell>
+                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 110 }}>
+                  Target Go Live
                 </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} sx={{ textAlign: 'center', py: 6 }}>
+                  <TableCell colSpan={11} sx={{ textAlign: 'center', py: 6 }}>
                     <CircularProgress size={40} sx={{ color: '#DA251C' }} />
                     <Typography variant="body2" sx={{ mt: 2, color: '#86868b' }}>
                       Memuat data...
@@ -1785,7 +1749,7 @@ function PksiList() {
                 </TableRow>
               ) : paginatedPksi.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} sx={{ textAlign: 'center', py: 6 }}>
+                  <TableCell colSpan={11} sx={{ textAlign: 'center', py: 6 }}>
                     <Typography variant="body2" sx={{ color: '#86868b' }}>
                       Tidak ada data PKSI ditemukan
                     </Typography>
@@ -1795,6 +1759,7 @@ function PksiList() {
                 <TableRow 
                   key={item.id}
                   sx={{
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
                       bgcolor: 'rgba(218, 37, 28, 0.02)',
                     },
@@ -1803,13 +1768,15 @@ function PksiList() {
                     },
                   }}
                 >
+                  {/* No */}
                   <TableCell 
                     sx={{ 
                       color: '#86868b', 
-                      py: 2,
+                      py: 1.5,
+                      px: 2,
                       textAlign: 'center',
                       fontWeight: 500,
-                      fontSize: '0.85rem',
+                      fontSize: '0.8rem',
                       minWidth: 50,
                       ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 1, bgcolor: '#fff' }),
                       ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
@@ -1817,8 +1784,10 @@ function PksiList() {
                   >
                     {page * rowsPerPage + index + 1}
                   </TableCell>
+                  {/* Nama Aplikasi */}
                   <TableCell sx={{ 
-                    py: 2, 
+                    py: 1.5,
+                    px: 2,
                     whiteSpace: 'normal', 
                     wordWrap: 'break-word',
                     minWidth: 150,
@@ -1829,14 +1798,16 @@ function PksiList() {
                       variant="body2" 
                       sx={{ 
                         color: '#1d1d1f',
-                        fontSize: '0.85rem',
+                        fontSize: '0.8rem',
                       }}
                     >
                       {item.namaAplikasi}
                     </Typography>
                   </TableCell>
+                  {/* Nama PKSI */}
                   <TableCell sx={{ 
-                    py: 2, 
+                    py: 1.5,
+                    px: 2,
                     whiteSpace: 'normal', 
                     wordWrap: 'break-word',
                     minWidth: 200,
@@ -1848,19 +1819,22 @@ function PksiList() {
                       sx={{ 
                         fontWeight: 500,
                         color: '#1d1d1f',
-                        lineHeight: 1.5,
+                        fontSize: '0.8rem',
+                        lineHeight: 1.4,
                       }}
                     >
                       {item.namaPksi}
                     </Typography>
                   </TableCell>
+                  {/* SKPA */}
                   <TableCell sx={{ 
-                    py: 2,
+                    py: 1.5,
+                    px: 1,
                     minWidth: 150,
                     ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 1, bgcolor: '#fff' }),
                     ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                   }}>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.3 }}>
                       {resolveSkpaCodes(item.picSatkerBA).length > 0 ? (
                         resolveSkpaCodes(item.picSatkerBA).map((code, idx) => {
                           const chipColor = getSkpaColor(code);
@@ -1873,20 +1847,23 @@ function PksiList() {
                                 bgcolor: chipColor.bg,
                                 color: chipColor.text,
                                 fontWeight: 600,
-                                fontSize: '0.7rem',
-                                height: 24,
-                                borderRadius: '6px',
+                                fontSize: '0.65rem',
+                                height: 20,
+                                borderRadius: '4px',
+                                '& .MuiChip-label': { px: 0.8 },
                               }}
                             />
                           );
                         })
                       ) : (
-                        <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.85rem' }}>-</Typography>
+                        <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
                       )}
                     </Box>
                   </TableCell>
+                  {/* Jangka Waktu */}
                   <TableCell sx={{ 
-                    py: 2,
+                    py: 1.5,
+                    px: 1.5,
                     minWidth: 120,
                     ...(stickyColumns.has('jangkaWaktu') && { position: 'sticky', left: getStickyLeft('jangkaWaktu'), zIndex: 1, bgcolor: '#fff' }),
                     ...(isLastStickyColumn('jangkaWaktu') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
@@ -1895,23 +1872,24 @@ function PksiList() {
                       label={item.jangkaWaktu === 'Single Year' ? 'Single Year' : 'Multiyears'}
                       size="small"
                       sx={{
-                        bgcolor: item.jangkaWaktu === 'Single Year' 
-                          ? 'rgba(139, 92, 246, 0.1)' 
-                          : 'rgba(37, 99, 235, 0.1)',
-                        color: item.jangkaWaktu === 'Single Year' ? '#8B5CF6' : '#2563EB',
+                        background: item.jangkaWaktu === 'Single Year' 
+                          ? 'linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)'
+                          : 'linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(37, 99, 235, 0.15) 100%)',
+                        color: item.jangkaWaktu === 'Single Year' ? '#7C3AED' : '#1D4ED8',
                         fontWeight: 600,
-                        fontSize: '0.75rem',
-                        height: 26,
+                        fontSize: '0.7rem',
+                        height: 24,
                         borderRadius: '6px',
                       }}
                     />
                   </TableCell>
-                  <TableCell sx={{ py: 2 }}>
+                  {/* Tanggal Pengajuan */}
+                  <TableCell sx={{ py: 1.5, px: 1.5 }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
                         color: '#1d1d1f',
-                        fontSize: '0.85rem',
+                        fontSize: '0.8rem',
                       }}
                     >
                       {new Date(item.tanggalPengajuan).toLocaleDateString('id-ID', {
@@ -1921,7 +1899,68 @@ function PksiList() {
                       })}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: 2 }}>
+                  {/* Timeline - Target USREQ */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
+                    {item.targetUsreq && item.targetUsreq.length > 0 ? (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        {item.targetUsreq.map((date, idx) => (
+                          <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                            {item.targetUsreq.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
+                            {new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </Typography>
+                        ))}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
+                    )}
+                  </TableCell>
+                  {/* Timeline - Target SIT */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
+                    {item.targetSit && item.targetSit.length > 0 ? (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        {item.targetSit.map((date, idx) => (
+                          <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                            {item.targetSit.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
+                            {new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </Typography>
+                        ))}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
+                    )}
+                  </TableCell>
+                  {/* Timeline - Target UAT */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
+                    {item.targetUat && item.targetUat.length > 0 ? (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        {item.targetUat.map((date, idx) => (
+                          <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                            {item.targetUat.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
+                            {new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </Typography>
+                        ))}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
+                    )}
+                  </TableCell>
+                  {/* Timeline - Target Go Live */}
+                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
+                    {item.targetGoLive && item.targetGoLive.length > 0 ? (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        {item.targetGoLive.map((date, idx) => (
+                          <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                            {item.targetGoLive.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
+                            {new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </Typography>
+                        ))}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
+                    )}
+                  </TableCell>
+                  {/* Docs T.01 */}
+                  <TableCell sx={{ py: 1.5, px: 1.5 }}>
                     <Tooltip title="Lihat dokumen T.01">
                       <IconButton
                         onClick={() => handleOpenFileDialog(item.id, item.namaPksi)}
@@ -1938,7 +1977,8 @@ function PksiList() {
                       </IconButton>
                     </Tooltip>
                   </TableCell>
-                  <TableCell sx={{ py: 2 }}>
+                  {/* Status */}
+                  <TableCell sx={{ py: 1.5, px: 1.5 }}>
                     <Box
                       onClick={(e) => handleStatusMenuOpen(e, item.id)}
                       sx={{
@@ -1946,14 +1986,16 @@ function PksiList() {
                         alignItems: 'center',
                         gap: 0.5,
                         px: 1.5,
-                        py: 0.5,
+                        py: 0.75,
+                        borderRadius: '8px',
                         bgcolor: `${getStatusColor(item.status)}15`,
-                        borderRadius: '6px',
                         cursor: 'pointer',
                         transition: 'all 0.2s',
                         border: `1px solid ${getStatusColor(item.status)}30`,
                         '&:hover': {
                           bgcolor: `${getStatusColor(item.status)}25`,
+                          transform: 'translateY(-1px)',
+                          boxShadow: `0 2px 8px ${getStatusColor(item.status)}20`,
                         },
                       }}
                     >
@@ -1961,16 +2003,17 @@ function PksiList() {
                         variant="body2"
                         sx={{
                           fontWeight: 600,
-                          fontSize: '0.75rem',
+                          fontSize: '0.7rem',
                           color: getStatusColor(item.status),
                         }}
                       >
                         {STATUS_LABELS[item.status]}
                       </Typography>
-                      <ArrowDownIcon sx={{ fontSize: 14, color: getStatusColor(item.status) }} />
+                      <ArrowDownIcon sx={{ fontSize: 12, color: getStatusColor(item.status) }} />
                     </Box>
                   </TableCell>
-                  <TableCell sx={{ py: 2 }}>
+                  {/* Aksi */}
+                  <TableCell sx={{ py: 1.5, px: 1.5 }}>
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
                       <Tooltip title="Lihat Detail PKSI">
                         <IconButton
