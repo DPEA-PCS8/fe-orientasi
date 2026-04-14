@@ -44,14 +44,6 @@ import {
   type PksiFileData,
 } from '../api/pksiFileApi';
 
-interface FormData {
-  namaPksi: string;
-  aplikasiId: string;
-  jenisPksi: string;
-  tanggalPengajuan: string;
-  picSatkerBA: string[];
-}
-
 interface SkpaOption {
   id: string;
   kode_skpa: string;
