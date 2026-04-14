@@ -96,6 +96,12 @@ const PROGRES_LABELS: Record<string, string> = {
   DEPLOY_SELESAI: 'Deploy/Selesai',
 };
 
+const PROGRES_STATUS_LABELS: Record<string, string> = {
+  BELUM_DIMULAI: 'Belum Dimulai',
+  DALAM_PROSES: 'Dalam Proses',
+  SELESAI: 'Selesai',
+};
+
 const FASE_LABELS: Record<string, string> = {
   DESAIN: 'Desain',
   PEMELIHARAAN: 'Pemeliharaan',
@@ -580,14 +586,6 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                 </InfoRow>
                 <InfoRow>
                   <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Bidang
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500, color: '#1d1d1f' }}>
-                    {fs2Data.nama_bidang || '-'}
-                  </Typography>
-                </InfoRow>
-                <InfoRow>
-                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     SKPA
                   </Typography>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 0.5 }}>
@@ -670,7 +668,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
               </Box>
             </GlassCard>
 
-            {/* Section 2: Dokumen F.S.2 (Only when showDocumentSection is true) */}
+            {/* Section 2: Berkas F.S.2 (Only when showDocumentSection is true) */}
             {showDocumentSection && (
               <GlassCard>
                 <SectionHeader>
@@ -678,9 +676,24 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                     <FileIcon sx={{ color: '#2563EB', fontSize: 20 }} />
                   </Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                    2. Dokumen F.S.2
+                    2. Berkas F.S.2
                   </Typography>
                 </SectionHeader>
+
+                {/* Tanggal Berkas FS2 */}
+                {fs2Data.tanggal_berkas_fs2 && (
+                  <Box sx={{ mb: 2, p: 2, borderRadius: '12px', bgcolor: 'rgba(37, 99, 235, 0.03)', border: '1px solid rgba(37, 99, 235, 0.1)' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                      <CalendarIcon sx={{ fontSize: 16, color: '#2563EB' }} />
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#2563EB' }}>
+                        Tanggal Berkas FS2
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', ml: 3 }}>
+                      {formatDate(fs2Data.tanggal_berkas_fs2)}
+                    </Typography>
+                  </Box>
+                )}
 
                 <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(37, 99, 235, 0.03)', border: '1px solid rgba(37, 99, 235, 0.1)' }}>
                   {(() => {
@@ -776,9 +789,24 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                     </InfoRow>
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Progres</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
-                        {PROGRES_LABELS[fs2Data.progres || ''] || fs2Data.progres || '-'}
-                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography variant="body2" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                          {PROGRES_LABELS[fs2Data.progres || ''] || fs2Data.progres || '-'}
+                        </Typography>
+                        {fs2Data.progres_status && (
+                          <Typography variant="caption" sx={{ 
+                            color: fs2Data.progres_status === 'SELESAI' ? '#059669' : fs2Data.progres_status === 'DALAM_PROSES' ? '#D97706' : '#86868b',
+                            fontWeight: 500,
+                          }}>
+                            Status: {PROGRES_STATUS_LABELS[fs2Data.progres_status] || fs2Data.progres_status}
+                          </Typography>
+                        )}
+                        {fs2Data.tanggal_progres && (
+                          <Typography variant="caption" sx={{ color: '#86868b' }}>
+                            Tanggal: {formatDate(fs2Data.tanggal_progres)}
+                          </Typography>
+                        )}
+                      </Box>
                     </InfoRow>
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Fase Pengajuan</Typography>
@@ -814,12 +842,18 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.nomor_nd || '-'}</Typography>
                     </InfoRow>
                     <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal</Typography>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas ND</Typography>
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_nd)}</Typography>
                     </InfoRow>
                   </Box>
                   {renderFileListSection(fs2Files, 'Berkas ND', ['ND'], '#31A24C', 'Belum ada file')}
                   {renderFileListSection(fs2Files, 'Berkas F.S.2', ['FS2'], '#31A24C', 'Belum ada file')}
+                  {fs2Data.tanggal_berkas_fs2 && (
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas F.S.2</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_berkas_fs2)}</Typography>
+                    </InfoRow>
+                  )}
                 </Box>
 
                 {/* CD Prinsip Persetujuan FS2 */}
@@ -831,13 +865,31 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.nomor_cd || '-'}</Typography>
                     </InfoRow>
                     <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal</Typography>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas CD Prinsip Persetujuan FS2</Typography>
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_cd)}</Typography>
                     </InfoRow>
                   </Box>
                   {renderFileListSection(fs2Files, 'Berkas CD Prinsip Persetujuan FS2', ['CD'], '#2563EB', 'Belum ada file')}
+                  {fs2Data.tanggal_cd && (
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas CD Prinsip Persetujuan FS2</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_cd)}</Typography>
+                    </InfoRow>
+                  )}
                   {renderFileListSection(fs2Files, 'Berkas F.S.2A', ['FS2A'], '#2563EB', 'Belum ada file')}
+                  {fs2Data.tanggal_berkas_fs2a && (
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas F.S.2A</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_berkas_fs2a)}</Typography>
+                    </InfoRow>
+                  )}
                   {renderFileListSection(fs2Files, 'Berkas F.S.2B', ['FS2B'], '#2563EB', 'Belum ada file')}
+                  {fs2Data.tanggal_berkas_fs2b && (
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas F.S.2B</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_berkas_fs2b)}</Typography>
+                    </InfoRow>
+                  )}
                 </Box>
 
                 {/* Pengujian */}
@@ -854,7 +906,19 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                     </InfoRow>
                   </Box>
                   {renderFileListSection(fs2Files, 'Berkas F45', ['F45'], '#D97706', 'Belum ada file')}
+                  {fs2Data.tanggal_berkas_f45 && (
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas F45</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_berkas_f45)}</Typography>
+                    </InfoRow>
+                  )}
                   {renderFileListSection(fs2Files, 'Berkas F46', ['F46'], '#D97706', 'Belum ada file')}
+                  {fs2Data.tanggal_berkas_f46 && (
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas F46</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_berkas_f46)}</Typography>
+                    </InfoRow>
+                  )}
                 </Box>
 
                 {/* Deployment */}
@@ -871,6 +935,12 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                     </InfoRow>
                   </Box>
                   {renderFileListSection(fs2Files, 'Berkas ND/BA Deployment', ['NDBA'], '#7C3AED', 'Belum ada file')}
+                  {fs2Data.tanggal_berkas_nd_ba && (
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas ND/BA</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_berkas_nd_ba)}</Typography>
+                    </InfoRow>
+                  )}
                 </Box>
 
                 {/* Go Live */}
