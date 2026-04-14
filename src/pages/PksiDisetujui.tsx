@@ -35,9 +35,11 @@ import {
   ListItemIcon,
   ListItemText,
   ListItemSecondaryAction,
+  Stack,
 } from '@mui/material';
 import {
   Search as SearchIcon,
+  Add as AddIcon,
   TuneRounded,
   Close as CloseIcon,
   Visibility as VisibilityIcon,
@@ -292,6 +294,179 @@ const getSkpaColor = (skpaCode: string): { bg: string; text: string } => {
   return SKPA_COLORS[index];
 };
 
+// Format date to show only month and year (e.g., "Apr 2026")
+const formatMonthYear = (dateString: string): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
+  } catch {
+    return '-';
+  }
+};
+
+// Helper functions for timeline phase management
+const lastDayOfMonth = (yearMonth: string): string => {
+  if (!yearMonth) return '';
+  const [y, m] = yearMonth.split('-').map(Number);
+  const last = new Date(y, m, 0).getDate();
+  return `${yearMonth}-${String(last).padStart(2, '0')}`;
+};
+
+const currentMonthValue = () => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  return lastDayOfMonth(`${y}-${m}`);
+};
+
+// Timeline configuration with styling
+interface TimelinePhases {
+  usreq: string[];
+  sit: string[];
+  uat: string[];
+  goLive: string[];
+}
+
+const TIMELINE_CONFIGS = [
+  { key: 'usreq' as const, label: 'Target Usreq', stage: 'USREQ', gradient: ['#6366F1', '#818CF8'], rgb: '99,102,241' },
+  { key: 'sit' as const, label: 'Target SIT', stage: 'SIT', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246' },
+  { key: 'uat' as const, label: 'Target UAT/PDKK', stage: 'UAT', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11' },
+  { key: 'goLive' as const, label: 'Target Go Live', stage: 'GO_LIVE', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
+];
+
+interface TimelineStageProps {
+  label: string;
+  stages: string[];
+  gradient: string[];
+  rgb: string;
+  onChange: (phaseIndex: number, value: string) => void;
+  onAddPhase: () => void;
+  onRemovePhase: (phaseIndex: number) => void;
+}
+
+const TimelineStage = ({ label, stages, gradient, rgb, onChange, onAddPhase, onRemovePhase }: TimelineStageProps) => {
+  return (
+    <Box sx={{ mb: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{
+            width: 32, height: 32, borderRadius: '10px',
+            background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]})`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: `0 2px 12px rgba(${rgb},0.35)`,
+          }}>
+            <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.75rem' }}>
+              {stages.length}
+            </Typography>
+          </Box>
+          <Typography sx={{ fontWeight: 600, fontSize: '0.9rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>
+            {label}
+          </Typography>
+        </Box>
+        <Button
+          size="small"
+          startIcon={<AddIcon />}
+          onClick={onAddPhase}
+          sx={{
+            borderRadius: '10px',
+            borderColor: `rgba(${rgb},0.25)`,
+            color: gradient[0],
+            fontWeight: 600,
+            fontSize: '0.7rem',
+            px: 1.5,
+            py: 0.4,
+            textTransform: 'none',
+            background: `rgba(${rgb},0.04)`,
+            border: `1px solid rgba(${rgb},0.25)`,
+            '&:hover': {
+              borderColor: gradient[0],
+              background: `rgba(${rgb},0.08)`,
+            },
+          }}
+        >
+          Tambah Fase
+        </Button>
+      </Box>
+
+      <Stack spacing={1.2}>
+        {stages.map((date, phaseIndex) => (
+          <Box
+            key={phaseIndex}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.2,
+              p: 1.5,
+              borderRadius: '12px',
+              background: 'rgba(255,255,255,0.7)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255,255,255,0.9)',
+              boxShadow: '0 3px 12px rgba(0,0,0,0.04)',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
+                borderColor: `rgba(${rgb},0.2)`,
+              },
+            }}
+          >
+            <Box sx={{
+              minWidth: 32,
+              height: 32,
+              borderRadius: '8px',
+              background: `rgba(${rgb},0.1)`,
+              border: `1.5px solid rgba(${rgb},0.25)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Typography sx={{ fontWeight: 700, fontSize: '0.8rem', color: gradient[0] }}>
+                {phaseIndex + 1}
+              </Typography>
+            </Box>
+
+            <TextField
+              fullWidth
+              size="small"
+              type="month"
+              value={date ? date.substring(0, 7) : ''}
+              onChange={(e) => onChange(phaseIndex, e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              placeholder="Pilih bulan"
+              sx={{
+                flex: 1,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '8px',
+                  background: `rgba(${rgb},0.04)`,
+                  '& fieldset': { border: `1px solid rgba(${rgb},0.15)` },
+                  '&:hover fieldset': { borderColor: `rgba(${rgb},0.3)` },
+                  '&.Mui-focused fieldset': { borderColor: gradient[0], borderWidth: '1.5px' },
+                },
+                '& .MuiInputBase-input': { fontSize: '0.8rem', color: '#1d1d1f', fontWeight: 500, py: 1 },
+              }}
+            />
+
+            {stages.length > 1 && (
+              <IconButton
+                size="small"
+                onClick={() => onRemovePhase(phaseIndex)}
+                sx={{
+                  width: 28,
+                  height: 28,
+                  color: '#86868b',
+                  '&:hover': { color: '#DC2626', bgcolor: 'rgba(220,38,38,0.06)' },
+                }}
+              >
+                <CloseIcon sx={{ fontSize: 17 }} />
+              </IconButton>
+            )}
+          </Box>
+        ))}
+      </Stack>
+    </Box>
+  );
+};
+
 function PksiDisetujui() {
   const { isCollapsed } = useSidebar();
   const [keyword, setKeyword] = useState('');
@@ -415,6 +590,15 @@ function PksiDisetujui() {
     kontrakDetailPembayaran: '',
     baDeploy: '',
   });
+
+  // Timeline phases state for phase-based editing
+  const [timelinePhases, setTimelinePhases] = useState<TimelinePhases>({
+    usreq: [currentMonthValue()],
+    sit: [currentMonthValue()],
+    uat: [currentMonthValue()],
+    goLive: [currentMonthValue()],
+  });
+
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
   // File upload state for T01 and T11 - API-based
@@ -495,6 +679,14 @@ function PksiDisetujui() {
       kontrakDetailPembayaran: pksi.kontrakDetailPembayaran !== '-' ? pksi.kontrakDetailPembayaran : '',
       baDeploy: pksi.baDeploy !== '-' ? pksi.baDeploy : '',
     });
+
+    // Initialize timeline phases from pksi data (arrays)
+    setTimelinePhases({
+      usreq: Array.isArray(pksi.targetUsreq) ? pksi.targetUsreq.filter(d => d && d !== '-') : (pksi.targetUsreq && pksi.targetUsreq !== '-' ? [pksi.targetUsreq] : [currentMonthValue()]),
+      sit: Array.isArray(pksi.targetSit) ? pksi.targetSit.filter(d => d && d !== '-') : (pksi.targetSit && pksi.targetSit !== '-' ? [pksi.targetSit] : [currentMonthValue()]),
+      uat: Array.isArray(pksi.targetUat) ? pksi.targetUat.filter(d => d && d !== '-') : (pksi.targetUat && pksi.targetUat !== '-' ? [pksi.targetUat] : [currentMonthValue()]),
+      goLive: Array.isArray(pksi.targetGoLive) ? pksi.targetGoLive.filter(d => d && d !== '-') : (pksi.targetGoLive && pksi.targetGoLive !== '-' ? [pksi.targetGoLive] : [currentMonthValue()]),
+    });
     
     // Load existing files for this PKSI
     // setIsLoadingFiles(true);
@@ -541,10 +733,11 @@ function PksiDisetujui() {
         anggaran_total: editForm.anggaranTotal || undefined,
         anggaran_tahun_ini: editForm.anggaranTahunIni || undefined,
         anggaran_tahun_depan: editForm.anggaranTahunDepan || undefined,
-        target_usreq: editForm.targetUsreq || undefined,
-        target_sit: editForm.targetSit || undefined,
-        target_uat: editForm.targetUat || undefined,
-        target_go_live: editForm.targetGoLive || undefined,
+        // Send first phase of each timeline stage
+        target_usreq: timelinePhases.usreq.length > 0 ? timelinePhases.usreq[0] : undefined,
+        target_sit: timelinePhases.sit.length > 0 ? timelinePhases.sit[0] : undefined,
+        target_uat: timelinePhases.uat.length > 0 ? timelinePhases.uat[0] : undefined,
+        target_go_live: timelinePhases.goLive.length > 0 ? timelinePhases.goLive[0] : undefined,
         status_t01_t02: editForm.statusT01T02 || undefined,
         berkas_t01_t02: editForm.berkasT01T02 || undefined,
         status_t11: editForm.statusT11 || undefined,
@@ -575,6 +768,31 @@ function PksiDisetujui() {
     } finally {
       setIsSubmittingEdit(false);
     }
+  };
+
+  // Timeline phase handlers
+  const handleTimelineChange = (stage: keyof TimelinePhases, phaseIndex: number, value: string) => {
+    setTimelinePhases(prev => {
+      const updated = { ...prev };
+      const newDates = [...updated[stage]];
+      newDates[phaseIndex] = value ? lastDayOfMonth(value) : '';
+      updated[stage] = newDates;
+      return updated;
+    });
+  };
+
+  const handleAddPhase = (stage: keyof TimelinePhases) => {
+    setTimelinePhases(prev => ({
+      ...prev,
+      [stage]: [...prev[stage], currentMonthValue()],
+    }));
+  };
+
+  const handleRemovePhase = (stage: keyof TimelinePhases, phaseIndex: number) => {
+    setTimelinePhases(prev => ({
+      ...prev,
+      [stage]: prev[stage].filter((_, i) => i !== phaseIndex),
+    }));
   };
 
   const handleEditCancel = () => {
@@ -2465,7 +2683,7 @@ function PksiDisetujui() {
                         {item.targetUsreq.map((date, idx) => (
                           <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                             {item.targetUsreq.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
-                            {new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            {formatMonthYear(date)}
                           </Typography>
                         ))}
                       </Box>
@@ -2480,7 +2698,7 @@ function PksiDisetujui() {
                         {item.targetSit.map((date, idx) => (
                           <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                             {item.targetSit.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
-                            {new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            {formatMonthYear(date)}
                           </Typography>
                         ))}
                       </Box>
@@ -2495,7 +2713,7 @@ function PksiDisetujui() {
                         {item.targetUat.map((date, idx) => (
                           <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                             {item.targetUat.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
-                            {new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            {formatMonthYear(date)}
                           </Typography>
                         ))}
                       </Box>
@@ -2510,7 +2728,7 @@ function PksiDisetujui() {
                         {item.targetGoLive.map((date, idx) => (
                           <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                             {item.targetGoLive.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
-                            {new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            {formatMonthYear(date)}
                           </Typography>
                         ))}
                       </Box>
@@ -3483,83 +3701,19 @@ function PksiDisetujui() {
             </Typography>
           </Box>
 
-          {/* Timeline Fields - 2 rows */}
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-            <TextField
-              fullWidth
-              label="Target Usreq"
-              type="date"
-              value={editForm.targetUsreq}
-              onChange={(e) => setEditForm({ ...editForm, targetUsreq: e.target.value })}
-              InputLabelProps={{ shrink: true }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '14px',
-                  backgroundColor: 'rgba(139, 92, 246, 0.02)',
-                  '& fieldset': { borderColor: 'rgba(139, 92, 246, 0.15)' },
-                  '&:hover fieldset': { borderColor: 'rgba(139, 92, 246, 0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#8B5CF6' },
-                },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#8B5CF6' },
-              }}
+          {/* Timeline Stages with Phase Management */}
+          {TIMELINE_CONFIGS.map(config => (
+            <TimelineStage
+              key={config.key}
+              label={config.label}
+              stages={timelinePhases[config.key]}
+              gradient={config.gradient}
+              rgb={config.rgb}
+              onChange={(phaseIndex, value) => handleTimelineChange(config.key, phaseIndex, value)}
+              onAddPhase={() => handleAddPhase(config.key)}
+              onRemovePhase={(phaseIndex) => handleRemovePhase(config.key, phaseIndex)}
             />
-            <TextField
-              fullWidth
-              label="Target SIT"
-              type="date"
-              value={editForm.targetSit}
-              onChange={(e) => setEditForm({ ...editForm, targetSit: e.target.value })}
-              InputLabelProps={{ shrink: true }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '14px',
-                  backgroundColor: 'rgba(139, 92, 246, 0.02)',
-                  '& fieldset': { borderColor: 'rgba(139, 92, 246, 0.15)' },
-                  '&:hover fieldset': { borderColor: 'rgba(139, 92, 246, 0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#8B5CF6' },
-                },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#8B5CF6' },
-              }}
-            />
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-            <TextField
-              fullWidth
-              label="Target UAT/PDKK"
-              type="date"
-              value={editForm.targetUat}
-              onChange={(e) => setEditForm({ ...editForm, targetUat: e.target.value })}
-              InputLabelProps={{ shrink: true }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '14px',
-                  backgroundColor: 'rgba(139, 92, 246, 0.02)',
-                  '& fieldset': { borderColor: 'rgba(139, 92, 246, 0.15)' },
-                  '&:hover fieldset': { borderColor: 'rgba(139, 92, 246, 0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#8B5CF6' },
-                },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#8B5CF6' },
-              }}
-            />
-            <TextField
-              fullWidth
-              label="Target Go Live"
-              type="date"
-              value={editForm.targetGoLive}
-              onChange={(e) => setEditForm({ ...editForm, targetGoLive: e.target.value })}
-              InputLabelProps={{ shrink: true }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '14px',
-                  backgroundColor: 'rgba(139, 92, 246, 0.02)',
-                  '& fieldset': { borderColor: 'rgba(139, 92, 246, 0.15)' },
-                  '&:hover fieldset': { borderColor: 'rgba(139, 92, 246, 0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#8B5CF6' },
-                },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#8B5CF6' },
-              }}
-            />
-          </Box>
+          ))}
 
           {/* Divider - Rencana PKSI (T01/T02) Section */}
           <Box sx={{ mt: 3, mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
