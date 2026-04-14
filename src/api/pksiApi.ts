@@ -13,6 +13,7 @@ export interface PksiDocumentData {
   nama_aplikasi?: string;
   kode_aplikasi?: string;
   nama_pksi: string;
+  jenis_pksi?: string;
   tanggal_pengajuan?: string;
   // Section 1
   deskripsi_pksi?: string;
@@ -115,15 +116,16 @@ export interface PksiDocumentRequest {
   aplikasi_id?: string;
   inisiatif_id?: string;
   nama_pksi: string;
+  jenis_pksi?: string;
   tanggal_pengajuan?: string;
   // Section 1
-  deskripsi_pksi: string;
-  mengapa_pksi_diperlukan: string;
+  deskripsi_pksi?: string;
+  mengapa_pksi_diperlukan?: string;
   kapan_harus_diselesaikan?: string;
-  pic_satker_ba: string;
+  pic_satker_ba?: string;
   // Section 2
-  kegunaan_pksi: string;
-  tujuan_pksi: string;
+  kegunaan_pksi?: string;
+  tujuan_pksi?: string;
   target_pksi?: string;
   // Section 3
   ruang_lingkup?: string;
@@ -136,10 +138,10 @@ export interface PksiDocumentRequest {
   risiko_sukses_pksi?: string;
   pengendalian_risiko?: string;
   // Section 5
-  pengelola_aplikasi: string;
+  pengelola_aplikasi?: string;
   pengguna_aplikasi?: string;
   program_inisiatif_rbsi?: string;
-  fungsi_aplikasi: string;
+  fungsi_aplikasi?: string;
   informasi_yang_dikelola?: string;
   dasar_peraturan?: string;
   // Section 6
@@ -151,6 +153,11 @@ export interface PksiDocumentRequest {
   tahap7_akhir?: string;
   // Section 7
   rencana_pengelolaan?: string;
+  // Timeline
+  target_usreq?: string;
+  target_sit?: string;
+  target_uat?: string;
+  target_go_live?: string;
   // User ID (optional - backend extracts from JWT token)
   user_id?: string;
 }

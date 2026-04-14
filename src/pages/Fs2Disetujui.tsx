@@ -38,6 +38,7 @@ import {
   ListItemSecondaryAction,
   Snackbar,
   Alert,
+  Link,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -57,8 +58,9 @@ import {
 import { searchApprovedFs2Documents, updateFs2Document, type Fs2DocumentData, type Fs2DocumentRequest } from '../api/fs2Api';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
-import { getUsersByRole, type UserSimple } from '../api/userApi';
+import { getAllTeams, type Team } from '../api/teamApi';
 import { usePermissions } from '../hooks/usePermissions';
+import { DataCountDisplay } from '../components/DataCountDisplay';
 import ViewFs2Modal from '../components/modals/ViewFs2Modal';
 import { FilePreviewModal } from '../components/modals';
 import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
@@ -85,6 +87,7 @@ interface Fs2DisetujuiData {
   tahunMulai: number | null;
   tahunSelesai: number | null;
   pic: string;
+  anggotaTim: string;
   dokumenPath: string;
   // Dokumen Pengajuan F.S.2
   nomorNd: string;
@@ -139,6 +142,62 @@ const PELAKSANAAN_LABELS: Record<string, string> = {
   MULTIYEARS: 'Multiyears',
 };
 
+// Helper to format month and year only (for Jadwal Pelaksanaan fields)
+const formatMonthYear = (dateString?: string | null): string => {
+  if (!dateString || dateString === '-') return '-';
+  try {
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      month: 'long',
+      year: 'numeric',
+    });
+  } catch {
+    return '-';
+  }
+};
+
+// Month options for dropdown
+const MONTH_OPTIONS = [
+  { value: '01', label: 'Januari' },
+  { value: '02', label: 'Februari' },
+  { value: '03', label: 'Maret' },
+  { value: '04', label: 'April' },
+  { value: '05', label: 'Mei' },
+  { value: '06', label: 'Juni' },
+  { value: '07', label: 'Juli' },
+  { value: '08', label: 'Agustus' },
+  { value: '09', label: 'September' },
+  { value: '10', label: 'Oktober' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'Desember' },
+];
+
+// Generate years from 5 years ago to 10 years in future
+const currentYear = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from({ length: 16 }, (_, i) => {
+  const year = currentYear - 5 + i;
+  return { value: year.toString(), label: year.toString() };
+});
+
+// Helper to extract month from date string (YYYY-MM-DD or YYYY-MM)
+const getMonthFromDate = (dateString?: string): string => {
+  if (!dateString) return '';
+  const parts = dateString.split('-');
+  return parts.length >= 2 ? parts[1] : '';
+};
+
+// Helper to extract year from date string (YYYY-MM-DD or YYYY-MM)
+const getYearFromDate = (dateString?: string): string => {
+  if (!dateString) return '';
+  const parts = dateString.split('-');
+  return parts.length >= 1 ? parts[0] : '';
+};
+
+// Helper to build date string from month and year
+const buildDateFromMonthYear = (month: string, year: string): string => {
+  if (!month || !year) return '';
+  return `${year}-${month}-01`;
+};
+
 // Transform API data to UI format
 const transformApiData = (apiData: Fs2DocumentData): Fs2DisetujuiData => {
   return {
@@ -155,6 +214,7 @@ const transformApiData = (apiData: Fs2DocumentData): Fs2DisetujuiData => {
     tahunMulai: apiData.tahun_mulai || null,
     tahunSelesai: apiData.tahun_selesai || null,
     pic: apiData.pic_name || '-',
+    anggotaTim: apiData.anggota_tim_names || '-',
     dokumenPath: apiData.dokumen_path || '',
     // Dokumen Pengajuan F.S.2
     nomorNd: apiData.nomor_nd || '-',
@@ -167,20 +227,57 @@ const transformApiData = (apiData: Fs2DocumentData): Fs2DisetujuiData => {
     berkasCd: apiData.berkas_cd || '',
     berkasFs2a: apiData.berkas_fs2a || '',
     berkasFs2b: apiData.berkas_fs2b || '',
-    // Pengujian
-    targetPengujian: apiData.target_pengujian || '-',
-    realisasiPengujian: apiData.realisasi_pengujian || '-',
+    // Pengujian - format as Month Year
+    targetPengujian: formatMonthYear(apiData.target_pengujian),
+    realisasiPengujian: formatMonthYear(apiData.realisasi_pengujian),
     berkasF45: apiData.berkas_f45 || '',
     berkasF46: apiData.berkas_f46 || '',
-    // Deployment
-    targetDeployment: apiData.target_deployment || '-',
-    realisasiDeployment: apiData.realisasi_deployment || '-',
+    // Deployment - format as Month Year
+    targetDeployment: formatMonthYear(apiData.target_deployment),
+    realisasiDeployment: formatMonthYear(apiData.realisasi_deployment),
     berkasNdBaDeployment: apiData.berkas_nd_ba_deployment || '',
-    // Go Live
-    targetGoLive: apiData.target_go_live || '-',
+    // Go Live - format as Month Year
+    targetGoLive: formatMonthYear(apiData.target_go_live),
     // Keterangan
     keterangan: apiData.keterangan || '-',
   };
+};
+
+// Helper function to render text with clickable URLs
+const renderTextWithLinks = (text: string) => {
+  if (!text || text === '-') return text;
+  
+  // URL regex pattern
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part.match(urlRegex)) {
+          return (
+            <Link
+              key={index}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{
+                color: '#0066CC',
+                textDecoration: 'none',
+                '&:hover': {
+                  textDecoration: 'underline',
+                },
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {part}
+            </Link>
+          );
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </>
+  );
 };
 
 type Order = 'asc' | 'desc';
@@ -267,6 +364,7 @@ function Fs2Disetujui() {
     { id: 'mekanisme', label: 'Mekanisme', width: 100 },
     { id: 'pelaksanaan', label: 'Pelaksanaan', width: 140 },
     { id: 'pic', label: 'PIC', width: 120 },
+    { id: 'anggotaTim', label: 'Anggota Tim', width: 160 },
     { id: 'dokumenPengajuan', label: 'Dokumen Pengajuan F.S.2', width: 360 },
     { id: 'cdPrinsip', label: 'CD Prinsip Persetujuan FS2', width: 440 },
     { id: 'pengujian', label: 'Pengujian', width: 360 },
@@ -311,7 +409,8 @@ function Fs2Disetujui() {
   // Reference data
   const [bidangList, setBidangList] = useState<BidangData[]>([]);
   const [skpaList, setSkpaList] = useState<SkpaData[]>([]);
-  const [userList, setUserList] = useState<UserSimple[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [isLoadingTeams, setIsLoadingTeams] = useState(false);
 
   // Edit modal state
   const [openEditModal, setOpenEditModal] = useState(false);
@@ -416,17 +515,20 @@ function Fs2Disetujui() {
   // Fetch reference data
   useEffect(() => {
     const fetchReferenceData = async () => {
+      setIsLoadingTeams(true);
       try {
-        const [bidang, skpaRes, users] = await Promise.all([
+        const [bidang, skpaRes, teamsData] = await Promise.all([
           getAllBidang(),
           getAllSkpa(),
-          getUsersByRole('Admin,Pengembang'),
+          getAllTeams(),
         ]);
         setBidangList(bidang);
         setSkpaList(skpaRes.data || []);
-        setUserList(users);
+        setTeams(teamsData);
       } catch (error) {
         console.error('Failed to fetch reference data:', error);
+      } finally {
+        setIsLoadingTeams(false);
       }
     };
     fetchReferenceData();
@@ -615,6 +717,9 @@ function Fs2Disetujui() {
         tahun_mulai: fs2.tahun_mulai || undefined,
         tahun_selesai: fs2.tahun_selesai || undefined,
         pic_id: fs2.pic_id || '',
+        team_id: fs2.team_id || '',
+        anggota_tim: fs2.anggota_tim || '',
+        anggota_tim_names: fs2.anggota_tim_names || '',
         bidang_id: fs2.bidang_id || '',
         // Dokumen Pengajuan F.S.2
         nomor_nd: fs2.nomor_nd || '',
@@ -1789,16 +1894,28 @@ function Fs2Disetujui() {
           </Box>
         </Popover>
 
+        {/* Data Count Display */}
+        <Box sx={{ my: 2.5 }}>
+          <DataCountDisplay
+            count={totalElements}
+            isLoading={isLoading}
+            label="Total"
+            unit="F.S.2 Documents"
+          />
+        </Box>
+
         {/* Table */}
         <TableContainer sx={{ 
           width: '100%',
           overflowX: 'auto',
+          pb: 1.5,
           '&::-webkit-scrollbar': {
-            height: 8,
+            height: 10,
           },
           '&::-webkit-scrollbar-track': {
             background: 'rgba(0, 0, 0, 0.02)',
             borderRadius: 4,
+            marginBottom: '8px',
           },
           '&::-webkit-scrollbar-thumb': {
             background: 'rgba(49, 162, 76, 0.2)',
@@ -1830,6 +1947,7 @@ function Fs2Disetujui() {
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100, ...(stickyColumns.has('mekanisme') && { position: 'sticky', left: getStickyLeft('mekanisme'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('mekanisme') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Mekanisme</TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 140, ...(stickyColumns.has('pelaksanaan') && { position: 'sticky', left: getStickyLeft('pelaksanaan'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('pelaksanaan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Pelaksanaan</TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('pic') && { position: 'sticky', left: getStickyLeft('pic'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('pic') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>PIC</TableCell>
+              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160, ...(stickyColumns.has('anggotaTim') && { position: 'sticky', left: getStickyLeft('anggotaTim'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('anggotaTim') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Anggota Tim</TableCell>
               {/* Dokumen Pengajuan F.S.2 - grouped */}
               <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(49, 162, 76, 0.08)' }}>Dokumen Pengajuan F.S.2</TableCell>
               {/* CD Prinsip - grouped */}
@@ -1931,6 +2049,8 @@ function Fs2Disetujui() {
                     <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 140, ...(stickyColumns.has('pelaksanaan') && { position: 'sticky', left: getStickyLeft('pelaksanaan'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('pelaksanaan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>{getPelaksanaanDisplay(row)}</TableCell>
                     {/* PIC */}
                     <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('pic') && { position: 'sticky', left: getStickyLeft('pic'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('pic') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>{row.pic}</TableCell>
+                    {/* Anggota Tim */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 160, whiteSpace: 'normal', wordWrap: 'break-word', ...(stickyColumns.has('anggotaTim') && { position: 'sticky', left: getStickyLeft('anggotaTim'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('anggotaTim') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>{row.anggotaTim}</TableCell>
                     {/* Dokumen Pengajuan F.S.2 - Nomor ND */}
                     <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(49, 162, 76, 0.02)' }}>{row.nomorNd}</TableCell>
                     {/* Dokumen Pengajuan F.S.2 - Tanggal */}
@@ -2168,7 +2288,7 @@ function Fs2Disetujui() {
                     {/* Keterangan */}
                     <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 150 }}>
                       <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.keterangan}>
-                        {row.keterangan}
+                        {renderTextWithLinks(row.keterangan)}
                       </Typography>
                     </TableCell>
                     {/* Aksi */}
@@ -2597,33 +2717,119 @@ function Fs2Disetujui() {
                 ))}
               </Select>
             </FormControl>
-
-            <Autocomplete
-              options={userList}
-              getOptionLabel={(option) => option.full_name}
-              value={userList.find(u => u.uuid === editFormData.pic_id) || null}
-              onChange={(_, newValue) => setEditFormData({ ...editFormData, pic_id: newValue?.uuid || '' })}
-              renderInput={(params) => (
-                <TextField 
-                  {...params} 
-                  label="PIC" 
-                  size="small"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: '14px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                      backdropFilter: 'blur(10px)',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.08)', transition: 'all 0.3s ease' },
-                      '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.9)', '& fieldset': { borderColor: 'rgba(49, 162, 76, 0.3)' } },
-                      '&.Mui-focused': { backgroundColor: 'rgba(255, 255, 255, 1)', boxShadow: '0 4px 20px rgba(49, 162, 76, 0.12)', '& fieldset': { borderColor: '#31A24C', borderWidth: '1.5px' } },
-                    },
-                    '& .MuiInputLabel-root.Mui-focused': { color: '#31A24C' },
-                  }}
-                />
-              )}
-            />
           </Box>
+
+          {/* Tim Field */}
+          <FormControl fullWidth sx={{ mb: 2, mt: 3 }}>
+            <InputLabel 
+              id="edit-team-label"
+              sx={{
+                '&.Mui-focused': { color: '#31A24C' },
+              }}
+            >
+              Tim *
+            </InputLabel>
+            <Select
+              labelId="edit-team-label"
+              value={editFormData.team_id || ''}
+              label="Tim *"
+              onChange={(e) => {
+                setEditFormData({ 
+                  ...editFormData, 
+                  team_id: e.target.value,
+                });
+              }}
+              disabled={isLoadingTeams}
+              sx={{
+                borderRadius: '14px',
+                backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                backdropFilter: 'blur(10px)',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(0, 0, 0, 0.08)',
+                  transition: 'all 0.3s ease',
+                },
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(49, 162, 76, 0.3)',
+                  },
+                },
+                '&.Mui-focused': {
+                  backgroundColor: 'rgba(255, 255, 255, 1)',
+                  boxShadow: '0 4px 20px rgba(49, 162, 76, 0.12)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#31A24C',
+                    borderWidth: '1.5px',
+                  },
+                },
+              }}
+            >
+              <MenuItem value=""><em>Pilih Tim</em></MenuItem>
+              {teams.map((team) => (
+                <MenuItem key={team.id} value={team.id}>
+                  {team.name} {team.pic ? `(PIC: ${team.pic.fullName})` : ''}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Display selected team info */}
+          {editFormData.team_id && teams.find(t => t.id === editFormData.team_id) && (
+            <Box sx={{ 
+              mb: 2, 
+              p: 2, 
+              borderRadius: '12px', 
+              bgcolor: 'rgba(49, 162, 76, 0.05)',
+              border: '1px solid rgba(49, 162, 76, 0.1)',
+            }}>
+              <Typography sx={{ fontSize: '0.75rem', color: '#86868b', mb: 1, fontWeight: 600, textTransform: 'uppercase' }}>
+                Info Tim
+              </Typography>
+              {(() => {
+                const selectedTeam = teams.find(t => t.id === editFormData.team_id);
+                return (
+                  <>
+                    <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography sx={{ fontSize: '0.7rem', color: '#86868b' }}>PIC</Typography>
+                        <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: '#1d1d1f' }}>
+                          {selectedTeam?.pic?.fullName || '-'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography sx={{ fontSize: '0.7rem', color: '#86868b' }}>Jumlah Anggota</Typography>
+                        <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: '#1d1d1f' }}>
+                          {selectedTeam?.members?.length || 0} orang
+                        </Typography>
+                      </Box>
+                    </Box>
+                    {selectedTeam?.members && selectedTeam.members.length > 0 && (
+                      <Box>
+                        <Typography sx={{ fontSize: '0.7rem', color: '#86868b', mb: 0.5 }}>Anggota</Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {selectedTeam.members.map((member) => (
+                            <Chip
+                              key={member.uuid}
+                              label={member.fullName}
+                              size="small"
+                              sx={{
+                                bgcolor: 'rgba(49, 162, 76, 0.1)',
+                                color: '#31A24C',
+                                fontWeight: 500,
+                                fontSize: '0.7rem',
+                                height: 24,
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      </Box>
+                    )}
+                  </>
+                );
+              })()}
+            </Box>
+          )}
           </Box>
 
           {/* Dokumen Pengajuan F.S.2 Section */}
@@ -3073,24 +3279,84 @@ function Fs2Disetujui() {
               Pengujian
             </Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
-              <TextField
-                label="Target Pengujian"
-                type="date"
-                size="small"
-                value={editFormData.target_pengujian || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, target_pengujian: e.target.value })}
-                fullWidth
-                slotProps={{ inputLabel: { shrink: true } }}
-              />
-              <TextField
-                label="Realisasi Pengujian"
-                type="date"
-                size="small"
-                value={editFormData.realisasi_pengujian || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, realisasi_pengujian: e.target.value })}
-                fullWidth
-                slotProps={{ inputLabel: { shrink: true } }}
-              />
+              <Box>
+                <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
+                  Target Pengujian
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <FormControl size="small" sx={{ flex: 1 }}>
+                    <InputLabel>Bulan</InputLabel>
+                    <Select
+                      value={getMonthFromDate(editFormData.target_pengujian)}
+                      label="Bulan"
+                      onChange={(e) => setEditFormData({ 
+                        ...editFormData, 
+                        target_pengujian: buildDateFromMonthYear(e.target.value, getYearFromDate(editFormData.target_pengujian))
+                      })}
+                      sx={{ borderRadius: '8px' }}
+                    >
+                      {MONTH_OPTIONS.map((month) => (
+                        <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ flex: 1 }}>
+                    <InputLabel>Tahun</InputLabel>
+                    <Select
+                      value={getYearFromDate(editFormData.target_pengujian)}
+                      label="Tahun"
+                      onChange={(e) => setEditFormData({ 
+                        ...editFormData, 
+                        target_pengujian: buildDateFromMonthYear(getMonthFromDate(editFormData.target_pengujian), e.target.value)
+                      })}
+                      sx={{ borderRadius: '8px' }}
+                    >
+                      {YEAR_OPTIONS.map((year) => (
+                        <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+              </Box>
+              <Box>
+                <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
+                  Realisasi Pengujian
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <FormControl size="small" sx={{ flex: 1 }}>
+                    <InputLabel>Bulan</InputLabel>
+                    <Select
+                      value={getMonthFromDate(editFormData.realisasi_pengujian)}
+                      label="Bulan"
+                      onChange={(e) => setEditFormData({ 
+                        ...editFormData, 
+                        realisasi_pengujian: buildDateFromMonthYear(e.target.value, getYearFromDate(editFormData.realisasi_pengujian))
+                      })}
+                      sx={{ borderRadius: '8px' }}
+                    >
+                      {MONTH_OPTIONS.map((month) => (
+                        <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ flex: 1 }}>
+                    <InputLabel>Tahun</InputLabel>
+                    <Select
+                      value={getYearFromDate(editFormData.realisasi_pengujian)}
+                      label="Tahun"
+                      onChange={(e) => setEditFormData({ 
+                        ...editFormData, 
+                        realisasi_pengujian: buildDateFromMonthYear(getMonthFromDate(editFormData.realisasi_pengujian), e.target.value)
+                      })}
+                      sx={{ borderRadius: '8px' }}
+                    >
+                      {YEAR_OPTIONS.map((year) => (
+                        <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+              </Box>
             </Box>
             
             {/* Berkas F45 Dropzone */}
@@ -3255,24 +3521,84 @@ function Fs2Disetujui() {
               Deployment
             </Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
-              <TextField
-                label="Target Deployment"
-                type="date"
-                size="small"
-                value={editFormData.target_deployment || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, target_deployment: e.target.value })}
-                fullWidth
-                slotProps={{ inputLabel: { shrink: true } }}
-              />
-              <TextField
-                label="Realisasi Deployment"
-                type="date"
-                size="small"
-                value={editFormData.realisasi_deployment || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, realisasi_deployment: e.target.value })}
-                fullWidth
-                slotProps={{ inputLabel: { shrink: true } }}
-              />
+              <Box>
+                <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
+                  Target Deployment
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <FormControl size="small" sx={{ flex: 1 }}>
+                    <InputLabel>Bulan</InputLabel>
+                    <Select
+                      value={getMonthFromDate(editFormData.target_deployment)}
+                      label="Bulan"
+                      onChange={(e) => setEditFormData({ 
+                        ...editFormData, 
+                        target_deployment: buildDateFromMonthYear(e.target.value, getYearFromDate(editFormData.target_deployment))
+                      })}
+                      sx={{ borderRadius: '8px' }}
+                    >
+                      {MONTH_OPTIONS.map((month) => (
+                        <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ flex: 1 }}>
+                    <InputLabel>Tahun</InputLabel>
+                    <Select
+                      value={getYearFromDate(editFormData.target_deployment)}
+                      label="Tahun"
+                      onChange={(e) => setEditFormData({ 
+                        ...editFormData, 
+                        target_deployment: buildDateFromMonthYear(getMonthFromDate(editFormData.target_deployment), e.target.value)
+                      })}
+                      sx={{ borderRadius: '8px' }}
+                    >
+                      {YEAR_OPTIONS.map((year) => (
+                        <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+              </Box>
+              <Box>
+                <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
+                  Realisasi Deployment
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <FormControl size="small" sx={{ flex: 1 }}>
+                    <InputLabel>Bulan</InputLabel>
+                    <Select
+                      value={getMonthFromDate(editFormData.realisasi_deployment)}
+                      label="Bulan"
+                      onChange={(e) => setEditFormData({ 
+                        ...editFormData, 
+                        realisasi_deployment: buildDateFromMonthYear(e.target.value, getYearFromDate(editFormData.realisasi_deployment))
+                      })}
+                      sx={{ borderRadius: '8px' }}
+                    >
+                      {MONTH_OPTIONS.map((month) => (
+                        <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ flex: 1 }}>
+                    <InputLabel>Tahun</InputLabel>
+                    <Select
+                      value={getYearFromDate(editFormData.realisasi_deployment)}
+                      label="Tahun"
+                      onChange={(e) => setEditFormData({ 
+                        ...editFormData, 
+                        realisasi_deployment: buildDateFromMonthYear(getMonthFromDate(editFormData.realisasi_deployment), e.target.value)
+                      })}
+                      sx={{ borderRadius: '8px' }}
+                    >
+                      {YEAR_OPTIONS.map((year) => (
+                        <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+              </Box>
             </Box>
             
             {/* Berkas ND/BA Deployment Dropzone */}
@@ -3360,15 +3686,45 @@ function Fs2Disetujui() {
               Go Live & Keterangan
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <TextField
-                label="Target Go Live"
-                type="date"
-                size="small"
-                value={editFormData.target_go_live || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, target_go_live: e.target.value })}
-                fullWidth
-                slotProps={{ inputLabel: { shrink: true } }}
-              />
+              <Box>
+                <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
+                  Target Go Live
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, maxWidth: '50%' }}>
+                  <FormControl size="small" sx={{ flex: 1 }}>
+                    <InputLabel>Bulan</InputLabel>
+                    <Select
+                      value={getMonthFromDate(editFormData.target_go_live)}
+                      label="Bulan"
+                      onChange={(e) => setEditFormData({ 
+                        ...editFormData, 
+                        target_go_live: buildDateFromMonthYear(e.target.value, getYearFromDate(editFormData.target_go_live))
+                      })}
+                      sx={{ borderRadius: '8px' }}
+                    >
+                      {MONTH_OPTIONS.map((month) => (
+                        <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ flex: 1 }}>
+                    <InputLabel>Tahun</InputLabel>
+                    <Select
+                      value={getYearFromDate(editFormData.target_go_live)}
+                      label="Tahun"
+                      onChange={(e) => setEditFormData({ 
+                        ...editFormData, 
+                        target_go_live: buildDateFromMonthYear(getMonthFromDate(editFormData.target_go_live), e.target.value)
+                      })}
+                      sx={{ borderRadius: '8px' }}
+                    >
+                      {YEAR_OPTIONS.map((year) => (
+                        <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+              </Box>
               <TextField
                 label="Keterangan (Text dan/atau Link URL)"
                 size="small"

@@ -82,25 +82,23 @@ interface ViewFs2ModalProps {
 }
 
 // Constants for labels (matching those in Fs2List and Fs2Disetujui)
-const URGENSI_LABELS: Record<string, string> = {
-  RENDAH: 'Rendah',
-  SEDANG: 'Sedang',
-  TINGGI: 'Tinggi',
-};
+// HIDDEN: Urgensi labels no longer needed
+// const URGENSI_LABELS: Record<string, string> = {
+//   RENDAH: 'Rendah',
+//   SEDANG: 'Sedang',
+//   TINGGI: 'Tinggi',
+// };
 
 const PROGRES_LABELS: Record<string, string> = {
-  DESAIN: 'Desain',
-  PENGEMBANGAN: 'Pengembangan',
-  PENGUJIAN: 'Pengujian',
-  DEPLOYMENT: 'Deployment',
-  GO_LIVE: 'Go Live',
+  ASESMEN: 'Asesmen',
+  CODING: 'Coding',
+  PDKK: 'PDKK',
+  DEPLOY_SELESAI: 'Deploy/Selesai',
 };
 
 const FASE_LABELS: Record<string, string> = {
-  FASE_1: 'Fase 1',
-  FASE_2: 'Fase 2',
-  FASE_3: 'Fase 3',
-  TAMBAHAN: 'Tambahan',
+  DESAIN: 'Desain',
+  PEMELIHARAAN: 'Pemeliharaan',
 };
 
 const MEKANISME_LABELS: Record<string, string> = {
@@ -220,6 +218,15 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
     });
   };
 
+  // Helper to format month and year only (for Jadwal Pelaksanaan fields)
+  const formatMonthYear = (dateString?: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      month: 'long',
+      year: 'numeric',
+    });
+  };
+
   // Get status styling
   const getStatusStyle = (status?: string) => {
     switch (status?.toLowerCase()) {
@@ -237,19 +244,19 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
     }
   };
 
-  // Get urgensi styling
-  const getUrgensiStyle = (urgensi?: string) => {
-    switch (urgensi?.toUpperCase()) {
-      case 'TINGGI':
-        return { bgcolor: 'rgba(220, 38, 38, 0.1)', color: '#DC2626' };
-      case 'SEDANG':
-        return { bgcolor: 'rgba(217, 119, 6, 0.1)', color: '#D97706' };
-      case 'RENDAH':
-        return { bgcolor: 'rgba(49, 162, 76, 0.1)', color: '#31A24C' };
-      default:
-        return { bgcolor: 'rgba(134, 134, 139, 0.1)', color: '#86868b' };
-    }
-  };
+  // HIDDEN: Urgensi styling no longer needed
+  // const getUrgensiStyle = (urgensi?: string) => {
+  //   switch (urgensi?.toUpperCase()) {
+  //     case 'TINGGI':
+  //       return { bgcolor: 'rgba(220, 38, 38, 0.1)', color: '#DC2626' };
+  //     case 'SEDANG':
+  //       return { bgcolor: 'rgba(245, 158, 11, 0.1)', color: '#F59E0B' };
+  //     case 'RENDAH':
+  //       return { bgcolor: 'rgba(34, 197, 94, 0.1)', color: '#22C55E' };
+  //     default:
+  //       return { bgcolor: 'rgba(156, 163, 175, 0.1)', color: '#6B7280' };
+  //   }
+  // };
 
   const statusStyle = getStatusStyle(fs2Data?.status);
 
@@ -603,8 +610,8 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                 </InfoRow>
               </Box>
 
-              {/* Urgensi Badge */}
-              {fs2Data.urgensi && (
+              {/* HIDDEN: Urgensi Badge as per requirement */}
+              {/* {fs2Data.urgensi && (
                 <Box sx={{ mt: 2 }}>
                   <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 1 }}>
                     Urgensi
@@ -619,7 +626,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                     }}
                   />
                 </Box>
-              )}
+              )} */}
             </GlassCard>
 
             {/* Section 1: Jadwal Pelaksanaan */}
@@ -639,7 +646,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                     Target Pengujian
                   </Typography>
                   <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
-                    {formatDate(fs2Data.target_pengujian)}
+                    {formatMonthYear(fs2Data.target_pengujian)}
                   </Typography>
                 </Box>
 
@@ -648,7 +655,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                     Target Deployment
                   </Typography>
                   <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
-                    {formatDate(fs2Data.target_deployment)}
+                    {formatMonthYear(fs2Data.target_deployment)}
                   </Typography>
                 </Box>
 
@@ -657,7 +664,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                     Target Go Live
                   </Typography>
                   <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
-                    {formatDate(fs2Data.target_go_live)}
+                    {formatMonthYear(fs2Data.target_go_live)}
                   </Typography>
                 </Box>
               </Box>
@@ -762,6 +769,12 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.pic_name || '-'}</Typography>
                     </InfoRow>
                     <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Anggota Tim</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                        {fs2Data.anggota_tim_names || '-'}
+                      </Typography>
+                    </InfoRow>
+                    <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Progres</Typography>
                       <Typography variant="body2" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
                         {PROGRES_LABELS[fs2Data.progres || ''] || fs2Data.progres || '-'}
@@ -833,11 +846,11 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mb: 2 }}>
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.target_pengujian)}</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatMonthYear(fs2Data.target_pengujian)}</Typography>
                     </InfoRow>
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Realisasi</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.realisasi_pengujian)}</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatMonthYear(fs2Data.realisasi_pengujian)}</Typography>
                     </InfoRow>
                   </Box>
                   {renderFileListSection(fs2Files, 'Berkas F45', ['F45'], '#D97706', 'Belum ada file')}
@@ -850,11 +863,11 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mb: 2 }}>
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.target_deployment)}</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatMonthYear(fs2Data.target_deployment)}</Typography>
                     </InfoRow>
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Realisasi</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.realisasi_deployment)}</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatMonthYear(fs2Data.realisasi_deployment)}</Typography>
                     </InfoRow>
                   </Box>
                   {renderFileListSection(fs2Files, 'Berkas ND/BA Deployment', ['NDBA'], '#7C3AED', 'Belum ada file')}
@@ -866,7 +879,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.target_go_live)}</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatMonthYear(fs2Data.target_go_live)}</Typography>
                     </InfoRow>
                   </Box>
                 </Box>
