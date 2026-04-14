@@ -173,6 +173,8 @@ export interface PksiDocumentRequest {
   target_go_live?: string;
   // User ID (optional - backend extracts from JWT token)
   user_id?: string;
+  // Team ID (optional - for team assignment)
+  team_id?: string;
 }
 
 export interface UpdateStatusRequest {
@@ -295,6 +297,7 @@ export async function updatePksiStatus(
     anggota_tim?: string;
     anggota_tim_names?: string;
     progress?: string;
+    team_id?: string;
   }
 ): Promise<PksiDocumentData> {
   const payload: UpdateStatusRequest = { status, ...approvalData };
