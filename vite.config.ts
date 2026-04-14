@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://backend-app-test-orientasi.apps.ocp.ojk.go.id',
+        target: 'https://backend-app-test-orientasi.apps.ocp.ojk.go.id;',
         changeOrigin: true,
         secure: false,
       },

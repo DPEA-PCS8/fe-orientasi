@@ -194,8 +194,6 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
   };
 };
 
-type Order = 'asc' | 'desc';
-
 // Status label mapping
 const STATUS_LABELS: Record<PksiData['status'], string> = {
   pending: 'Pending',
@@ -253,8 +251,8 @@ function PksiList() {
   const [selectedPksiIdForView, setSelectedPksiIdForView] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [orderBy, setOrderBy] = useState<keyof PksiData>('namaPksi');
-  const [order, setOrder] = useState<Order>('asc');
+  const orderBy = 'namaPksi' as const;
+  const order = 'asc' as const;
   const [pksiData, setPksiData] = useState<PksiData[]>([]);
   const [rawPksiData, setRawPksiData] = useState<PksiDocumentData[]>([]);
   const [totalElements, setTotalElements] = useState(0);
