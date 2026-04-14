@@ -542,6 +542,7 @@ function PksiDashboardPage() {
     return [
       { label: 'Tahun Ini', value: dashboardData.approval_breakdown.disetujui_tahun_ini, color: '#EF4444' },
       { label: 'Multiyears Sebelumnya', value: dashboardData.approval_breakdown.disetujui_multiyears_sebelumnya, color: '#1D4ED8' },
+      { label: 'PKSI Mendesak', value: dashboardData.approval_breakdown.disetujui_mendesak, color: '#10B981' },
     ];
   }, [dashboardData?.approval_breakdown]);
 

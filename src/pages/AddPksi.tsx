@@ -50,10 +50,6 @@ interface FormData {
   jenisPksi: string;
   tanggalPengajuan: string;
   picSatkerBA: string[];
-  targetUsreq: string;
-  targetSit: string;
-  targetUat: string;
-  targetGoLive: string;
 }
 
 interface SkpaOption {
@@ -66,12 +62,12 @@ interface FormErrors {
   [key: string]: string | undefined;
 }
 
-interface TimelinePhase {
-  id: string;
-  targetUsreq: string;
-  targetSit: string;
-  targetUat: string;
-  targetGoLive: string;
+// Each timeline stage can have multiple phases independently
+interface TimelinePhases {
+  usreq: string[];  // Array of dates for each phase
+  sit: string[];
+  uat: string[];
+  goLive: string[];
 }
 
 // Returns 'YYYY-MM-DD' for the last day of the given month string 'YYYY-MM'
@@ -89,138 +85,146 @@ const currentMonthValue = () => {
   return lastDayOfMonth(`${y}-${m}`);
 };
 
-const TIMELINE_CARDS = [
-  { key: 'targetUsreq' as const, label: 'Target Usreq', gradient: ['#6366F1', '#818CF8'], rgb: '99,102,241' },
-  { key: 'targetSit' as const, label: 'Target SIT', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246' },
-  { key: 'targetUat' as const, label: 'Target UAT/PDKK', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11' },
-  { key: 'targetGoLive' as const, label: 'Target Go Live', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
+const TIMELINE_CONFIGS = [
+  { key: 'usreq' as const, label: 'Target Usreq', stage: 'USREQ', gradient: ['#6366F1', '#818CF8'], rgb: '99,102,241' },
+  { key: 'sit' as const, label: 'Target SIT', stage: 'SIT', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246' },
+  { key: 'uat' as const, label: 'Target UAT/PDKK', stage: 'UAT', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11' },
+  { key: 'goLive' as const, label: 'Target Go Live', stage: 'GO_LIVE', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
 ];
 
-const CONNECTOR_COLORS = [
-  ['#818CF8', '#A78BFA'],
-  ['#A78BFA', '#FCD34D'],
-  ['#FCD34D', '#34D399'],
-];
-
-interface PhaseTimelineProps {
-  phaseNumber: number;
-  targetUsreq: string;
-  targetSit: string;
-  targetUat: string;
-  targetGoLive: string;
-  hideSit?: boolean;
-  onChangeUsreq: (yearMonth: string) => void;
-  onChangeSit: (yearMonth: string) => void;
-  onChangeUat: (yearMonth: string) => void;
-  onChangeGoLive: (yearMonth: string) => void;
-  onRemove?: () => void;
+interface TimelineStageProps {
+  label: string;
+  stages: string[];  // Array of dates for each phase
+  gradient: string[];
+  rgb: string;
+  onChange: (phaseIndex: number, value: string) => void;
+  onAddPhase: () => void;
+  onRemovePhase: (phaseIndex: number) => void;
 }
 
-const PhaseTimeline = ({ phaseNumber, targetUsreq, targetSit, targetUat, targetGoLive, hideSit, onChangeUsreq, onChangeSit, onChangeUat, onChangeGoLive, onRemove }: PhaseTimelineProps) => {
-  const allCards = TIMELINE_CARDS;
-  const visibleCards = hideSit ? allCards.filter(c => c.key !== 'targetSit') : allCards;
-  const allValues = [targetUsreq, targetSit, targetUat, targetGoLive];
-  const allHandlers = [onChangeUsreq, onChangeSit, onChangeUat, onChangeGoLive];
-  const values = hideSit ? [targetUsreq, targetUat, targetGoLive] : allValues;
-  const handlers = hideSit ? [onChangeUsreq, onChangeUat, onChangeGoLive] : allHandlers;
-  const visibleConnectors = hideSit ? CONNECTOR_COLORS.filter((_, i) => i !== 0).slice(0, values.length - 1) : CONNECTOR_COLORS;
-
+const TimelineStage = ({ label, stages, gradient, rgb, onChange, onAddPhase, onRemovePhase }: TimelineStageProps) => {
   return (
-    <Box sx={{ mb: 2 }}>
-      {/* Phase header */}
+    <Box sx={{ mb: 3 }}>
+      {/* Stage Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Box sx={{
-            px: 1.5, py: 0.4, borderRadius: '8px',
-            background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.1))',
-            border: '1px solid rgba(99,102,241,0.15)',
+            width: 32, height: 32, borderRadius: '10px',
+            background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]})`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: `0 2px 12px rgba(${rgb},0.35)`,
           }}>
-            <Typography sx={{ fontWeight: 700, fontSize: '0.75rem', color: '#6366F1', letterSpacing: '0.02em' }}>
-              Tahap {phaseNumber}
+            <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.75rem' }}>
+              {stages.length}
             </Typography>
           </Box>
-          {phaseNumber === 1 && (
-            <Box sx={{
-              px: 1, py: 0.3, borderRadius: '6px',
-              background: 'rgba(16,185,129,0.08)',
-              border: '1px solid rgba(16,185,129,0.15)',
-            }}>
-              <Typography sx={{ fontWeight: 600, fontSize: '0.65rem', color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Active
-              </Typography>
-            </Box>
-          )}
+          <Typography sx={{ fontWeight: 600, fontSize: '0.95rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>
+            {label}
+          </Typography>
         </Box>
-        {onRemove && (
-          <IconButton
-            size="small"
-            onClick={onRemove}
+        <Button
+          size="small"
+          startIcon={<AddIcon />}
+          onClick={onAddPhase}
+          sx={{
+            borderRadius: '10px',
+            borderColor: `rgba(${rgb},0.25)`,
+            color: gradient[0],
+            fontWeight: 600,
+            fontSize: '0.75rem',
+            px: 2,
+            py: 0.5,
+            textTransform: 'none',
+            background: `rgba(${rgb},0.04)`,
+            border: `1px solid rgba(${rgb},0.25)`,
+            '&:hover': {
+              borderColor: gradient[0],
+              background: `rgba(${rgb},0.08)`,
+            },
+          }}
+        >
+          Tambah Fase
+        </Button>
+      </Box>
+
+      {/* Phases */}
+      <Stack spacing={1.5}>
+        {stages.map((date, phaseIndex) => (
+          <Box
+            key={phaseIndex}
             sx={{
-              width: 28, height: 28,
-              color: '#86868b',
-              '&:hover': { color: '#DC2626', bgcolor: 'rgba(220,38,38,0.06)' },
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              p: 2,
+              borderRadius: '14px',
+              background: 'rgba(255,255,255,0.7)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255,255,255,0.9)',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                boxShadow: '0 6px 24px rgba(0,0,0,0.06)',
+                borderColor: `rgba(${rgb},0.2)`,
+              },
             }}
           >
-            <CloseIcon sx={{ fontSize: 16 }} />
-          </IconButton>
-        )}
-      </Box>
-
-      {/* Timeline cards row */}
-      <Box sx={{ display: 'flex', flexWrap: { xs: 'wrap', md: 'nowrap' }, gap: 1.5, alignItems: 'stretch' }}>
-        {visibleCards.map((card, i) => (
-          <React.Fragment key={card.key}>
-            {/* Card */}
+            {/* Phase Number */}
             <Box sx={{
-              flex: 1, minWidth: { xs: 'calc(50% - 6px)', md: 0 },
-              borderRadius: '18px',
-              background: 'rgba(255,255,255,0.65)',
-              backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
-              border: '1px solid rgba(255,255,255,0.8)',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9)',
-              overflow: 'hidden', display: 'flex', flexDirection: 'column',
+              minWidth: 36,
+              height: 36,
+              borderRadius: '10px',
+              background: `rgba(${rgb},0.1)`,
+              border: `1.5px solid rgba(${rgb},0.25)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}>
-              <Box sx={{ height: 3, background: `linear-gradient(90deg, ${card.gradient[0]}, ${card.gradient[1]})` }} />
-              <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5, flex: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{
-                    width: 26, height: 26, borderRadius: '50%',
-                    background: `linear-gradient(135deg, ${card.gradient[0]}, ${card.gradient[1]})`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: `0 2px 8px rgba(${card.rgb},0.45)`, flexShrink: 0,
-                  }}>
-                    <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.7rem', lineHeight: 1 }}>{i + 1}</Typography>
-                  </Box>
-                  <Typography sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>{card.label}</Typography>
-                </Box>
-                <TextField
-                  fullWidth size="small" type="month"
-                  value={values[i] ? values[i].substring(0, 7) : ''}
-                  onChange={(e) => handlers[i](e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: '12px', background: `rgba(${card.rgb},0.07)`, backdropFilter: 'blur(10px)',
-                      '& fieldset': { border: `1px solid rgba(${card.rgb},0.18)` },
-                      '&:hover fieldset': { borderColor: `rgba(${card.rgb},0.4)` },
-                      '&.Mui-focused fieldset': { borderColor: card.gradient[0], borderWidth: '1.5px' },
-                    },
-                    '& .MuiInputBase-input': { fontSize: '0.82rem', color: '#1d1d1f' },
-                  }}
-                />
-              </Box>
+              <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', color: gradient[0] }}>
+                {phaseIndex + 1}
+              </Typography>
             </Box>
 
-            {/* Connector arrow (not after last card) */}
-            {i < values.length - 1 && (
-              <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', flexShrink: 0 }}>
-                <Box sx={{ width: 20, height: 2, background: `linear-gradient(90deg, ${visibleConnectors[i][0]}, ${visibleConnectors[i][1]})` }} />
-                <Box sx={{ width: 0, height: 0, borderTop: '5px solid transparent', borderBottom: '5px solid transparent', borderLeft: `7px solid ${visibleConnectors[i][1]}` }} />
-              </Box>
+            {/* Date Input */}
+            <TextField
+              fullWidth
+              size="small"
+              type="month"
+              value={date ? date.substring(0, 7) : ''}
+              onChange={(e) => onChange(phaseIndex, e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              placeholder="Pilih bulan"
+              sx={{
+                flex: 1,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '10px',
+                  background: `rgba(${rgb},0.04)`,
+                  '& fieldset': { border: `1px solid rgba(${rgb},0.15)` },
+                  '&:hover fieldset': { borderColor: `rgba(${rgb},0.3)` },
+                  '&.Mui-focused fieldset': { borderColor: gradient[0], borderWidth: '1.5px' },
+                },
+                '& .MuiInputBase-input': { fontSize: '0.85rem', color: '#1d1d1f', fontWeight: 500 },
+              }}
+            />
+
+            {/* Remove Button (only if more than 1 phase) */}
+            {stages.length > 1 && (
+              <IconButton
+                size="small"
+                onClick={() => onRemovePhase(phaseIndex)}
+                sx={{
+                  width: 32,
+                  height: 32,
+                  color: '#86868b',
+                  '&:hover': { color: '#DC2626', bgcolor: 'rgba(220,38,38,0.06)' },
+                }}
+              >
+                <CloseIcon sx={{ fontSize: 18 }} />
+              </IconButton>
             )}
-          </React.Fragment>
+          </Box>
         ))}
-      </Box>
+      </Stack>
     </Box>
   );
 };
@@ -231,41 +235,44 @@ const AddPksi = () => {
   const [aplikasiList, setAplikasiList] = useState<AplikasiData[]>([]);
   const [loadingAplikasi, setLoadingAplikasi] = useState(false);
   const [skpaOptions, setSkpaOptions] = useState<SkpaOption[]>([]);
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState({
     namaPksi: '',
     aplikasiId: '',
+    tanggalPengajuan: '',
+    picSatkerBA: [] as string[],
     jenisPksi: 'Reguler',
-    tanggalPengajuan: new Date().toISOString().split('T')[0],
-    picSatkerBA: [],
-    targetUsreq: currentMonthValue(),
-    targetSit: currentMonthValue(),
-    targetUat: currentMonthValue(),
-    targetGoLive: currentMonthValue(),
   });
 
-  const [timelinePhases, setTimelinePhases] = useState<TimelinePhase[]>([]);
+  // Each timeline stage can have multiple phases independently
+  const [timelinePhases, setTimelinePhases] = useState<TimelinePhases>({
+    usreq: [currentMonthValue()],
+    sit: [currentMonthValue()],
+    uat: [currentMonthValue()],
+    goLive: [currentMonthValue()],
+  });
 
-  const addPhase = () => {
-    setTimelinePhases(prev => [
+  const handleTimelineChange = (stage: keyof TimelinePhases, phaseIndex: number, value: string) => {
+    setTimelinePhases(prev => {
+      const updated = { ...prev };
+      const newDates = [...updated[stage]];
+      newDates[phaseIndex] = value ? lastDayOfMonth(value) : '';
+      updated[stage] = newDates;
+      return updated;
+    });
+  };
+
+  const handleAddPhase = (stage: keyof TimelinePhases) => {
+    setTimelinePhases(prev => ({
       ...prev,
-      {
-        id: `phase_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        targetUsreq: currentMonthValue(),
-        targetSit: currentMonthValue(),
-        targetUat: currentMonthValue(),
-        targetGoLive: currentMonthValue(),
-      },
-    ]);
+      [stage]: [...prev[stage], currentMonthValue()],
+    }));
   };
 
-  const removePhase = (id: string) => {
-    setTimelinePhases(prev => prev.filter(p => p.id !== id));
-  };
-
-  const updatePhase = (id: string, field: keyof Omit<TimelinePhase, 'id'>, value: string) => {
-    setTimelinePhases(prev =>
-      prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
-    );
+  const handleRemovePhase = (stage: keyof TimelinePhases, phaseIndex: number) => {
+    setTimelinePhases(prev => ({
+      ...prev,
+      [stage]: prev[stage].filter((_, i) => i !== phaseIndex),
+    }));
   };
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -392,23 +399,51 @@ const AddPksi = () => {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) {
-      return;
-    }
-
+    if (!validateForm()) return;
+    
     setIsSubmitting(true);
     setErrorMessage('');
+    
     try {
+      const timelines: any[] = [];
+      
+      // Add USREQ phases
+      timelinePhases.usreq.forEach((date, index) => {
+        if (date) {
+          timelines.push({ phase: index + 1, target_date: date, stage: 'USREQ' });
+        }
+      });
+      
+      // Add SIT phases (skip if Mendesak)
+      if (formData.jenisPksi !== 'Mendesak') {
+        timelinePhases.sit.forEach((date, index) => {
+          if (date) {
+            timelines.push({ phase: index + 1, target_date: date, stage: 'SIT' });
+          }
+        });
+      }
+      
+      // Add UAT phases
+      timelinePhases.uat.forEach((date, index) => {
+        if (date) {
+          timelines.push({ phase: index + 1, target_date: date, stage: 'UAT' });
+        }
+      });
+      
+      // Add GO_LIVE phases
+      timelinePhases.goLive.forEach((date, index) => {
+        if (date) {
+          timelines.push({ phase: index + 1, target_date: date, stage: 'GO_LIVE' });
+        }
+      });
+
       const pksiData = {
         aplikasi_id: formData.aplikasiId || undefined,
         nama_pksi: formData.namaPksi,
         jenis_pksi: formData.jenisPksi,
         tanggal_pengajuan: formData.tanggalPengajuan || undefined,
         pic_satker_ba: formData.picSatkerBA.length > 0 ? formData.picSatkerBA.join(',') : undefined,
-        target_usreq: formData.targetUsreq || undefined,
-        target_sit: formData.jenisPksi === 'Mendesak' ? (formData.targetUat || undefined) : (formData.targetSit || undefined),
-        target_uat: formData.targetUat || undefined,
-        target_go_live: formData.targetGoLive || undefined,
+        timelines: timelines.length > 0 ? timelines : undefined,
       };
 
       const createdPksi = await createPksiDocument(pksiData);
@@ -617,64 +652,39 @@ const AddPksi = () => {
                 Usulan Jadwal Pelaksanaan PKSI
               </Typography>
             </AccordionSummary>
-            <AccordionDetails sx={{ px: 2.5, pb: 3, pt: 2 }}>
-              {/* Phase 1 — Connected to backend */}
-              <PhaseTimeline
-                phaseNumber={1}
-                targetUsreq={formData.targetUsreq}
-                targetSit={formData.targetSit}
-                targetUat={formData.targetUat}
-                targetGoLive={formData.targetGoLive}
-                hideSit={formData.jenisPksi === 'Mendesak'}
-                onChangeUsreq={(v) => setFormData(p => ({ ...p, targetUsreq: v ? lastDayOfMonth(v) : '' }))}
-                onChangeSit={(v) => setFormData(p => ({ ...p, targetSit: v ? lastDayOfMonth(v) : '' }))}
-                onChangeUat={(v) => setFormData(p => ({ ...p, targetUat: v ? lastDayOfMonth(v) : '' }))}
-                onChangeGoLive={(v) => setFormData(p => ({ ...p, targetGoLive: v ? lastDayOfMonth(v) : '' }))}
-              />
+            <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+              {/* Each timeline stage independently */}
+              {TIMELINE_CONFIGS.map((config) => {
+                // Skip SIT if Mendesak
+                if (config.key === 'sit' && formData.jenisPksi === 'Mendesak') {
+                  return null;
+                }
+                
+                return (
+                  <TimelineStage
+                    key={config.key}
+                    label={config.label}
+                    stages={timelinePhases[config.key]}
+                    gradient={config.gradient}
+                    rgb={config.rgb}
+                    onChange={(phaseIndex, value) => handleTimelineChange(config.key, phaseIndex, value)}
+                    onAddPhase={() => handleAddPhase(config.key)}
+                    onRemovePhase={(phaseIndex) => handleRemovePhase(config.key, phaseIndex)}
+                  />
+                );
+              })}
 
-              {/* Additional phases — Dummy (not connected to backend) */}
-              {timelinePhases.map((phase, idx) => (
-                <PhaseTimeline
-                  key={phase.id}
-                  phaseNumber={idx + 2}
-                  targetUsreq={phase.targetUsreq}
-                  targetSit={phase.targetSit}
-                  targetUat={phase.targetUat}
-                  targetGoLive={phase.targetGoLive}
-                  onChangeUsreq={(v) => updatePhase(phase.id, 'targetUsreq', v ? lastDayOfMonth(v) : '')}
-                  onChangeSit={(v) => updatePhase(phase.id, 'targetSit', v ? lastDayOfMonth(v) : '')}
-                  onChangeUat={(v) => updatePhase(phase.id, 'targetUat', v ? lastDayOfMonth(v) : '')}
-                  onChangeGoLive={(v) => updatePhase(phase.id, 'targetGoLive', v ? lastDayOfMonth(v) : '')}
-                  onRemove={() => removePhase(phase.id)}
-                  hideSit={formData.jenisPksi === 'Mendesak'}
-                />
-              ))}
-
-              {/* Add Phase Button */}
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                <Button
-                  variant="outlined"
-                  startIcon={<AddIcon />}
-                  onClick={addPhase}
-                  sx={{
-                    borderRadius: '14px',
-                    borderColor: 'rgba(99,102,241,0.3)',
-                    color: '#6366F1',
-                    fontWeight: 600,
-                    fontSize: '0.82rem',
-                    px: 3,
-                    py: 1,
-                    textTransform: 'none',
-                    backdropFilter: 'blur(10px)',
-                    background: 'rgba(99,102,241,0.04)',
-                    '&:hover': {
-                      borderColor: '#6366F1',
-                      background: 'rgba(99,102,241,0.08)',
-                    },
-                  }}
-                >
-                  Tambah Tahap
-                </Button>
+              <Box sx={{
+                mt: 2,
+                p: 2,
+                borderRadius: '12px',
+                background: 'rgba(99,102,241,0.04)',
+                border: '1px solid rgba(99,102,241,0.1)',
+              }}>
+                <Typography sx={{ fontSize: '0.8rem', color: '#6366F1', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box component="span" sx={{ fontSize: '1rem' }}>💡</Box>
+                  Tip: Setiap timeline dapat memiliki fase yang berbeda. Misal Target Usreq 1 fase, tetapi Target SIT 2 fase.
+                </Typography>
               </Box>
             </AccordionDetails>
           </Accordion>
