@@ -53,17 +53,11 @@ import {
   updateParameters,
   type FormasiEfektifDashboardResponse,
   type FormasiByLevel,
-  type DeveloperItem,
   type ParameterItem,
 } from '../api/formasiEfektifApi';
 
 // ==================== REUSABLE COMPONENTS ====================
 // Helper function to format formasi value with rounding
-const formatFormasiValue = (value: number): string => {
-  const rounded = Math.round(value);
-  const original = value.toFixed(2);
-  return `${rounded} orang (${original})`;
-};
 interface SummaryCardProps {
   title: string;
   data: FormasiByLevel;

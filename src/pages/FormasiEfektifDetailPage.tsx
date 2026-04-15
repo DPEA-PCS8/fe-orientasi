@@ -47,8 +47,6 @@ import {
   type FormasiEfektifDetailResponse,
   type ManHourByLevel,
   type FormasiByLevel,
-  type PksiDetailItem,
-  type Fs2DetailItem,
   type ParameterItem,
 } from '../api/formasiEfektifApi';
 
