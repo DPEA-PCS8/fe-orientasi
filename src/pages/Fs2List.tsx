@@ -79,7 +79,6 @@ import {
 import { getAllAplikasi, type AplikasiData } from '../api/aplikasiApi';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
-import { getAllTeams, type Team } from '../api/teamApi';
 import { 
   uploadFs2TempFiles, 
   moveFs2TempFilesToPermanent, 
@@ -353,8 +352,6 @@ function Fs2List() {
   const [aplikasiList, setAplikasiList] = useState<AplikasiData[]>([]);
   const [bidangList, setBidangList] = useState<BidangData[]>([]);
   const [skpaList, setSkpaList] = useState<SkpaData[]>([]);
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [isLoadingTeams, setIsLoadingTeams] = useState(false);
 
   // Form state for Add/Edit modal
   const [formData, setFormData] = useState<Fs2DocumentRequest>({
@@ -491,22 +488,17 @@ function Fs2List() {
   // Fetch reference data
   useEffect(() => {
     const fetchReferenceData = async () => {
-      setIsLoadingTeams(true);
       try {
-        const [aplikasiRes, bidang, skpaRes, teamsData] = await Promise.all([
+        const [aplikasiRes, bidang, skpaRes] = await Promise.all([
           getAllAplikasi(),
           getAllBidang(),
           getAllSkpa(),
-          getAllTeams(),
         ]);
         setAplikasiList(aplikasiRes.data || []);
         setBidangList(bidang);
         setSkpaList(skpaRes.data || []);
-        setTeams(teamsData);
       } catch (error) {
         console.error('Failed to fetch reference data:', error);
-      } finally {
-        setIsLoadingTeams(false);
       }
     };
     fetchReferenceData();
