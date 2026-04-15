@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Box,
   TextField,
@@ -338,7 +339,9 @@ const PROGRES_COLORS: Record<string, { bg: string; text: string }> = {
 
 function Fs2Disetujui() {
   const { isCollapsed } = useSidebar();
-  const [keyword, setKeyword] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialSearch = searchParams.get('search') || '';
+  const [keyword, setKeyword] = useState(initialSearch);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [orderBy, setOrderBy] = useState<keyof Fs2DisetujuiData>('namaAplikasi');
@@ -561,6 +564,22 @@ function Fs2Disetujui() {
   useEffect(() => {
     fetchFs2Data();
   }, [fetchFs2Data]);
+
+  // Auto-open modal when id parameter is present in URL
+  useEffect(() => {
+    const idParam = searchParams.get('id');
+    if (idParam && rawData.length > 0 && !isLoading && !openEditModal) {
+      const fs2 = rawData.find(f => f.id === idParam);
+      if (fs2) {
+        // Remove id param from URL to avoid re-triggering
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('id');
+        setSearchParams(newParams, { replace: true });
+        // Open modal
+        handleOpenViewModal(fs2.id);
+      }
+    }
+  }, [rawData, isLoading, searchParams, openEditModal]);
 
   const handleRequestSort = (property: keyof Fs2DisetujuiData) => {
     const isAsc = orderBy === property && order === 'asc';

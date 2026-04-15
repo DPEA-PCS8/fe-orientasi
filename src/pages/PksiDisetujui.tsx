@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Box,
   TextField,
@@ -469,7 +470,9 @@ const TimelineStage = ({ label, stages, gradient, rgb, onChange, onAddPhase, onR
 
 function PksiDisetujui() {
   const { isCollapsed } = useSidebar();
-  const [keyword, setKeyword] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialSearch = searchParams.get('search') || '';
+  const [keyword, setKeyword] = useState(initialSearch);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [pksiData, setPksiData] = useState<PksiData[]>([]);
@@ -887,6 +890,22 @@ function PksiDisetujui() {
   useEffect(() => {
     fetchPksiData();
   }, [fetchPksiData]);
+
+  // Auto-open modal when id parameter is present in URL
+  useEffect(() => {
+    const idParam = searchParams.get('id');
+    if (idParam && pksiData.length > 0 && !isLoading && !openEditDialog) {
+      const pksi = pksiData.find(p => p.id === idParam);
+      if (pksi) {
+        // Remove id param from URL to avoid re-triggering
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('id');
+        setSearchParams(newParams, { replace: true });
+        // Open modal
+        handleViewClick(pksi.id);
+      }
+    }
+  }, [pksiData, isLoading, searchParams, openEditDialog]);
 
   // Fetch SKPA lookup data (for Bidang resolution)
   useEffect(() => {
