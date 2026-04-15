@@ -77,6 +77,7 @@ import {
 interface Fs2DisetujuiData {
   id: string;
   namaAplikasi: string;
+  namaFs2: string;
   progres: string;
   progresStatus: string;
   tanggalProgres: string;
@@ -134,7 +135,7 @@ const PROGRES_LABELS: Record<string, string> = {
   ASESMEN: 'Asesmen',
   CODING: 'Coding',
   PDKK: 'PDKK',
-  DEPLOY_SELESAI: 'Deploy/Selesai',
+  DEPLOY_SELESAI: 'Deploy',
 };
 
 const PROGRES_STATUS_LABELS: Record<string, string> = {
@@ -219,6 +220,7 @@ const transformApiData = (apiData: Fs2DocumentData): Fs2DisetujuiData => {
   return {
     id: apiData.id,
     namaAplikasi: apiData.nama_aplikasi || '-',
+    namaFs2: apiData.nama_fs2 || '-',
     progres: apiData.progres || '-',
     progresStatus: apiData.progres_status || '-',
     tanggalProgres: apiData.tanggal_progres || '-',
@@ -383,6 +385,7 @@ function Fs2Disetujui() {
   const COLUMN_OPTIONS = useMemo(() => [
     { id: 'no', label: 'No', width: 50 },
     { id: 'namaAplikasi', label: 'Nama Aplikasi', width: 160 },
+    { id: 'namaFs2', label: 'Nama FS2', width: 180 },
     { id: 'progres', label: 'Progres', width: 100 },
     { id: 'fasePengajuan', label: 'Fase Pengajuan', width: 130 },
     { id: 'iku', label: 'IKU', width: 80 },
@@ -2052,6 +2055,15 @@ function Fs2Disetujui() {
                   Nama Aplikasi
                 </TableSortLabel>
               </TableCell>
+              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 180, ...(stickyColumns.has('namaFs2') && { position: 'sticky', left: getStickyLeft('namaFs2'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaFs2') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                <TableSortLabel
+                  active={orderBy === 'namaFs2'}
+                  direction={orderBy === 'namaFs2' ? order : 'asc'}
+                  onClick={() => handleRequestSort('namaFs2')}
+                >
+                  Nama FS2
+                </TableSortLabel>
+              </TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100, ...(stickyColumns.has('progres') && { position: 'sticky', left: getStickyLeft('progres'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('progres') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Progres</TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 130, ...(stickyColumns.has('fasePengajuan') && { position: 'sticky', left: getStickyLeft('fasePengajuan'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('fasePengajuan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Fase Pengajuan</TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 80, ...(stickyColumns.has('iku') && { position: 'sticky', left: getStickyLeft('iku'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('iku') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>IKU</TableCell>
@@ -2146,6 +2158,10 @@ function Fs2Disetujui() {
                     <TableCell sx={{ py: 1, px: 2, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 160, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                       <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>{row.namaAplikasi}</Typography>
                     </TableCell>
+                    {/* Nama FS2 */}
+                    <TableCell sx={{ py: 1, px: 2, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 180, ...(stickyColumns.has('namaFs2') && { position: 'sticky', left: getStickyLeft('namaFs2'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('namaFs2') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>{row.namaFs2}</Typography>
+                    </TableCell>
                     {/* Progres */}
                     <TableCell sx={{ py: 1, px: 2, minWidth: 180, ...(stickyColumns.has('progres') && { position: 'sticky', left: getStickyLeft('progres'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('progres') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -2159,7 +2175,7 @@ function Fs2Disetujui() {
                             {PROGRES_STATUS_LABELS[row.progresStatus] || row.progresStatus}
                           </Typography>
                         )}
-                        {row.tanggalProgres && row.tanggalProgres !== '-' && (
+                        {row.tanggalProgres && row.tanggalProgres !== '-' && row.progresStatus !== 'BELUM_DIMULAI' && (
                           <Typography variant="caption" sx={{ color: '#86868b', fontSize: '0.6rem' }}>
                             {new Date(row.tanggalProgres).toLocaleDateString('id-ID')}
                           </Typography>
@@ -2614,6 +2630,25 @@ function Fs2Disetujui() {
                     letterSpacing: '0.05em',
                     fontWeight: 500,
                   }}>
+                    Nama FS2
+                  </Typography>
+                  <Typography sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f',
+                    fontSize: '0.9rem',
+                  }}>
+                    {selectedFs2.nama_fs2 || '-'}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ 
+                    fontSize: '0.7rem', 
+                    color: '#86868b', 
+                    mb: 0.5,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    fontWeight: 500,
+                  }}>
                     SKPA
                   </Typography>
                   {selectedFs2.kode_skpa ? (
@@ -2698,7 +2733,14 @@ function Fs2Disetujui() {
                   <Select
                     value={editFormData.progres_status || ''}
                     label="Status"
-                    onChange={(e) => setEditFormData({ ...editFormData, progres_status: e.target.value })}
+                    onChange={(e) => {
+                      const newStatus = e.target.value;
+                      setEditFormData({
+                        ...editFormData,
+                        progres_status: newStatus,
+                        tanggal_progres: newStatus === 'BELUM_DIMULAI' ? '' : editFormData.tanggal_progres,
+                      });
+                    }}
                     sx={{
                       borderRadius: '14px',
                       backgroundColor: 'rgba(255, 255, 255, 0.7)',
@@ -2736,6 +2778,7 @@ function Fs2Disetujui() {
                   size="small"
                   value={editFormData.tanggal_progres || ''}
                   onChange={(e) => setEditFormData({ ...editFormData, tanggal_progres: e.target.value })}
+                  disabled={editFormData.progres_status === 'BELUM_DIMULAI'}
                   fullWidth
                   slotProps={{ inputLabel: { shrink: true } }}
                   sx={{
@@ -2761,6 +2804,10 @@ function Fs2Disetujui() {
                           borderColor: '#31A24C',
                           borderWidth: '1.5px',
                         },
+                      },
+                      '&.Mui-disabled': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        opacity: 0.6,
                       },
                     },
                   }}

@@ -97,6 +97,7 @@ import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/Sid
 interface Fs2Data {
   id: string;
   namaAplikasi: string;
+  namaFs2: string;
   statusTahapan: string;
   skpa: string;
   urgensi: string;
@@ -116,6 +117,7 @@ const transformApiData = (apiData: Fs2DocumentData): Fs2Data => {
   return {
     id: apiData.id,
     namaAplikasi: apiData.nama_aplikasi || '-',
+    namaFs2: apiData.nama_fs2 || '-',
     statusTahapan: apiData.status_tahapan || '-',
     skpa: apiData.kode_skpa || apiData.nama_skpa || '-',
     urgensi: apiData.urgensi || '-',
@@ -306,6 +308,7 @@ function Fs2List() {
   const COLUMN_OPTIONS = useMemo(() => [
     { id: 'no', label: 'No', width: 50 },
     { id: 'namaAplikasi', label: 'Nama Aplikasi', width: 150 },
+    { id: 'namaFs2', label: 'Nama FS2', width: 180 },
     { id: 'statusTahapan', label: 'Status Tahapan Aplikasi', width: 180 },
     { id: 'skpa', label: 'SKPA', width: 100 },
     // { id: 'urgensi', label: 'Urgensi', width: 100 }, // HIDDEN as per requirement
@@ -356,6 +359,7 @@ function Fs2List() {
   // Form state for Add/Edit modal
   const [formData, setFormData] = useState<Fs2DocumentRequest>({
     aplikasi_id: '',
+    nama_fs2: '',
     bidang_id: '',
     skpa_id: '',
     tanggal_pengajuan: new Date().toISOString().split('T')[0],
@@ -866,8 +870,9 @@ function Fs2List() {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    // Section 1: Informasi Dasar (only validate 1.1-1.4)
+    // Section 1: Informasi Dasar (only validate 1.1-1.5)
     if (!formData.aplikasi_id) newErrors.aplikasi_id = "Nama Aplikasi wajib dipilih";
+    if (!formData.nama_fs2 || formData.nama_fs2.trim() === '') newErrors.nama_fs2 = "Nama FS2 wajib diisi";
     if (!formData.status_tahapan) newErrors.status_tahapan = "Status Tahapan wajib dipilih";
     if (!formData.skpa_id) newErrors.skpa_id = "SKPA wajib dipilih";
     // if (!formData.urgensi) newErrors.urgensi = "Urgensi wajib dipilih"; // HIDDEN as per requirement
@@ -902,7 +907,13 @@ function Fs2List() {
     setSuccessMessage('');
 
     try {
-      const createdFs2 = await createFs2Document(formData);
+      // Auto-set tanggal_berkas_fs2 to current date when creating FS2 with uploaded files
+      const dataToSubmit = { ...formData };
+      if (uploadedFileData.length > 0 && !dataToSubmit.tanggal_berkas_fs2) {
+        dataToSubmit.tanggal_berkas_fs2 = new Date().toISOString().split('T')[0];
+      }
+      
+      const createdFs2 = await createFs2Document(dataToSubmit);
       
       // Move temp files to permanent storage
       if (sessionId && uploadedFileData.length > 0) {
@@ -929,6 +940,7 @@ function Fs2List() {
       setSelectedFs2ForEdit(fs2);
       setFormData({
         aplikasi_id: fs2.aplikasi_id || '',
+        nama_fs2: fs2.nama_fs2 || '',
         bidang_id: fs2.bidang_id || '',
         skpa_id: fs2.skpa_id || '',
         tanggal_pengajuan: fs2.tanggal_pengajuan || '',
@@ -989,6 +1001,12 @@ function Fs2List() {
 
   const handleEditFs2 = async () => {
     if (!selectedFs2ForEdit) return;
+    
+    // Validate: check if nama_fs2 is filled
+    if (!formData.nama_fs2 || formData.nama_fs2.trim() === '') {
+      setErrors(prev => ({ ...prev, nama_fs2: "Nama FS2 wajib diisi" }));
+      return;
+    }
     
     // Validate: check if there are existing files
     if (existingFs2Files.length === 0) {
@@ -1986,6 +2004,25 @@ function Fs2List() {
                   Nama Aplikasi
                 </TableSortLabel>
               </TableCell>
+              <TableCell 
+                sortDirection={orderBy === 'namaFs2' ? order : false}
+                sx={{ 
+                  fontWeight: 600, 
+                  color: '#1d1d1f', 
+                  py: 2,
+                  minWidth: 180,
+                  ...(stickyColumns.has('namaFs2') && { position: 'sticky', left: getStickyLeft('namaFs2'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                  ...(isLastStickyColumn('namaFs2') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+                }}
+              >
+                <TableSortLabel
+                  active={orderBy === 'namaFs2'}
+                  direction={orderBy === 'namaFs2' ? order : 'asc'}
+                  onClick={() => handleRequestSort('namaFs2')}
+                >
+                  Nama FS2
+                </TableSortLabel>
+              </TableCell>
               <TableCell sx={{ 
                 fontWeight: 600, 
                 color: '#1d1d1f', 
@@ -2124,6 +2161,24 @@ function Fs2List() {
                         }}
                       >
                         {row.namaAplikasi}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ 
+                      py: 2, 
+                      whiteSpace: 'normal', 
+                      wordWrap: 'break-word',
+                      minWidth: 180,
+                      ...(stickyColumns.has('namaFs2') && { position: 'sticky', left: getStickyLeft('namaFs2'), zIndex: 1, bgcolor: '#fff' }),
+                      ...(isLastStickyColumn('namaFs2') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+                    }}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          color: '#1d1d1f',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        {row.namaFs2}
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ 
@@ -2513,11 +2568,21 @@ function Fs2List() {
                     )}
                     size="small"
                   />
+                  <GlassTextField
+                    label="1.2 Nama FS2"
+                    size="small"
+                    value={formData.nama_fs2 || ''}
+                    onChange={(e) => setFormData({ ...formData, nama_fs2: e.target.value })}
+                    required
+                    error={!!errors.nama_fs2}
+                    helperText={errors.nama_fs2}
+                    fullWidth
+                  />
                 <FormControl fullWidth size="small" error={!!errors.status_tahapan}>
-                  <InputLabel>1.2 Status Tahapan Aplikasi *</InputLabel>
+                  <InputLabel>1.3 Status Tahapan Aplikasi *</InputLabel>
                   <Select
                     value={formData.status_tahapan}
-                    label="1.2 Status Tahapan Aplikasi *"
+                    label="1.3 Status Tahapan Aplikasi *"
                     onChange={(e) => {
                       const value = e.target.value;
                       handleSelectChange('status_tahapan', value);
@@ -2555,7 +2620,7 @@ function Fs2List() {
                   renderInput={(params) => (
                     <GlassTextField 
                       {...params} 
-                      label="1.3 Satuan Kerja Pemilik Aplikasi (SKPA)" 
+                      label="1.4 Satuan Kerja Pemilik Aplikasi (SKPA)" 
                       required 
                       size="small"
                       error={!!errors.skpa_id}
@@ -2565,7 +2630,7 @@ function Fs2List() {
                   size="small"
                 />
                 <GlassTextField
-                  label="1.4 Tanggal Pengajuan"
+                  label="1.5 Tanggal Pengajuan"
                   type="date"
                   size="small"
                   value={formData.tanggal_pengajuan || ''}
@@ -3096,11 +3161,19 @@ function Fs2List() {
                     )}
                     size="small"
                   />
+                  <GlassTextField
+                    label="1.2 Nama FS2"
+                    size="small"
+                    value={formData.nama_fs2 || ''}
+                    onChange={(e) => setFormData({ ...formData, nama_fs2: e.target.value })}
+                    required
+                    fullWidth
+                  />
                 <FormControl fullWidth size="small">
-                  <InputLabel>1.2 Status Tahapan Aplikasi</InputLabel>
+                  <InputLabel>1.3 Status Tahapan Aplikasi</InputLabel>
                   <Select
                     value={formData.status_tahapan}
-                    label="1.2 Status Tahapan Aplikasi"
+                    label="1.3 Status Tahapan Aplikasi"
                     onChange={(e) => {
                       const value = e.target.value;
                       setFormData({ ...formData, status_tahapan: value, fase_pengajuan: value });
@@ -3129,12 +3202,12 @@ function Fs2List() {
                   value={skpaList.find(s => s.id === formData.skpa_id) || null}
                   onChange={(_, newValue) => setFormData({ ...formData, skpa_id: newValue?.id || '' })}
                   renderInput={(params) => (
-                    <GlassTextField {...params} label="1.3 Satuan Kerja Pemilik Aplikasi (SKPA)" required size="small" />
+                    <GlassTextField {...params} label="1.4 Satuan Kerja Pemilik Aplikasi (SKPA)" required size="small" />
                   )}
                   size="small"
                 />
                 <GlassTextField
-                  label="1.4 Tanggal Pengajuan"
+                  label="1.5 Tanggal Pengajuan"
                   type="date"
                   size="small"
                   value={formData.tanggal_pengajuan || ''}

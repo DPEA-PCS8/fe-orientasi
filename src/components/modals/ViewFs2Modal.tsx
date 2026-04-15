@@ -93,7 +93,7 @@ const PROGRES_LABELS: Record<string, string> = {
   ASESMEN: 'Asesmen',
   CODING: 'Coding',
   PDKK: 'PDKK',
-  DEPLOY_SELESAI: 'Deploy/Selesai',
+  DEPLOY_SELESAI: 'Deploy',
 };
 
 const PROGRES_STATUS_LABELS: Record<string, string> = {
@@ -574,6 +574,14 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                   </Typography>
                   <Typography variant="body1" sx={{ fontWeight: 500, color: '#1d1d1f' }}>
                     {fs2Data.nama_aplikasi || '-'}
+                  </Typography>
+                </InfoRow>
+                <InfoRow>
+                  <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Nama FS2
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500, color: '#1d1d1f' }}>
+                    {fs2Data.nama_fs2 || '-'}
                   </Typography>
                 </InfoRow>
                 <InfoRow>
