@@ -279,8 +279,13 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     ? groupTimelinesByStage(apiData.timelines)
     : {
         usreq: apiData.target_usreq ? [apiData.target_usreq] : (apiData.tahap1_akhir ? [apiData.tahap1_akhir] : []),
+        pengadaan: [],
+        desain: [],
+        coding: [],
+        unitTest: [],
         sit: apiData.target_sit ? [apiData.target_sit] : (apiData.tahap5_akhir ? [apiData.tahap5_akhir] : []),
         uat: apiData.target_uat ? [apiData.target_uat] : [],
+        deployment: [],
         goLive: apiData.target_go_live ? [apiData.target_go_live] : (apiData.tahap7_akhir ? [apiData.tahap7_akhir] : []),
       };
   
@@ -313,8 +318,13 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     anggaranTahunDepan: apiData.anggaran_tahun_depan || '',
     // Timeline
     targetUsreq: timelineGroups.usreq,
+    targetPengadaan: timelineGroups.pengadaan,
+    targetDesain: timelineGroups.desain,
+    targetCoding: timelineGroups.coding,
+    targetUnitTest: timelineGroups.unitTest,
     targetSit: timelineGroups.sit,
     targetUat: timelineGroups.uat,
+    targetDeployment: timelineGroups.deployment,
     targetGoLive: timelineGroups.goLive,
     // Rencana PKSI (T01/T02)
     statusT01T02: apiData.status_t01_t02 || '',
