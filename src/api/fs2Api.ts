@@ -263,7 +263,8 @@ export async function getFs2DocumentById(id: string): Promise<Fs2DocumentData> {
  */
 export async function searchFs2Documents(params: {
   search?: string;
-  bidang_id?: string;
+  aplikasi_id?: string;
+  status_tahapan?: string;
   skpa_id?: string;
   status?: string;
   year?: number;
@@ -274,7 +275,8 @@ export async function searchFs2Documents(params: {
 }): Promise<Fs2SearchResponse> {
   const queryParams = new URLSearchParams();
   if (params.search) queryParams.append('search', params.search);
-  if (params.bidang_id) queryParams.append('bidang_id', params.bidang_id);
+  if (params.aplikasi_id) queryParams.append('aplikasi_id', params.aplikasi_id);
+  if (params.status_tahapan) queryParams.append('status_tahapan', params.status_tahapan);
   if (params.skpa_id) queryParams.append('skpa_id', params.skpa_id);
   if (params.status) queryParams.append('status', params.status);
   if (params.year !== undefined) queryParams.append('year', params.year.toString());
@@ -297,6 +299,7 @@ export async function searchApprovedFs2Documents(params: {
   bidang_id?: string;
   skpa_id?: string;
   progres?: string;
+  progres_status?: string;
   fase_pengajuan?: string;
   mekanisme?: string;
   pelaksanaan?: string;
@@ -311,6 +314,7 @@ export async function searchApprovedFs2Documents(params: {
   if (params.bidang_id) queryParams.append('bidang_id', params.bidang_id);
   if (params.skpa_id) queryParams.append('skpa_id', params.skpa_id);
   if (params.progres) queryParams.append('progres', params.progres);
+  if (params.progres_status) queryParams.append('progres_status', params.progres_status);
   if (params.fase_pengajuan) queryParams.append('fase_pengajuan', params.fase_pengajuan);
   if (params.mekanisme) queryParams.append('mekanisme', params.mekanisme);
   if (params.pelaksanaan) queryParams.append('pelaksanaan', params.pelaksanaan);
@@ -391,7 +395,8 @@ export async function getFs2Changelogs(fs2Id: string): Promise<Fs2ChangelogsResp
  */
 export async function downloadAllFs2Excel(params?: {
   search?: string;
-  bidang_id?: string;
+  aplikasi_id?: string;
+  status_tahapan?: string;
   skpa_id?: string;
   status?: string;
   year?: number;
@@ -404,7 +409,8 @@ export async function downloadAllFs2Excel(params?: {
   // Build query string
   const queryParams = new URLSearchParams();
   if (params?.search) queryParams.append('search', params.search);
-  if (params?.bidang_id) queryParams.append('bidang_id', params.bidang_id);
+  if (params?.aplikasi_id) queryParams.append('aplikasi_id', params.aplikasi_id);
+  if (params?.status_tahapan) queryParams.append('status_tahapan', params.status_tahapan);
   if (params?.skpa_id) queryParams.append('skpa_id', params.skpa_id);
   if (params?.status) queryParams.append('status', params.status);
   if (params?.year) queryParams.append('year', params.year.toString());

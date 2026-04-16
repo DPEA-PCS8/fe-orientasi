@@ -96,6 +96,13 @@ const PROGRES_LABELS: Record<string, string> = {
   DEPLOY_SELESAI: 'Deploy',
 };
 
+const PROGRES_COLORS: Record<string, { bg: string; text: string }> = {
+  ASESMEN: { bg: 'rgba(59, 130, 246, 0.15)', text: '#3B82F6' },
+  CODING: { bg: 'rgba(168, 85, 247, 0.15)', text: '#A855F7' },
+  PDKK: { bg: 'rgba(249, 115, 22, 0.15)', text: '#F97316' },
+  DEPLOY_SELESAI: { bg: 'rgba(34, 197, 94, 0.15)', text: '#22C55E' },
+};
+
 const PROGRES_STATUS_LABELS: Record<string, string> = {
   BELUM_DIMULAI: 'Belum Dimulai',
   DALAM_PROSES: 'Dalam Proses',
@@ -798,9 +805,22 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Progres</Typography>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography variant="body2" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
-                          {PROGRES_LABELS[fs2Data.progres || ''] || fs2Data.progres || '-'}
-                        </Typography>
+                        {fs2Data.progres && (
+                          <Chip 
+                            label={PROGRES_LABELS[fs2Data.progres] || fs2Data.progres} 
+                            size="small" 
+                            sx={{ 
+                              width: 'fit-content', 
+                              bgcolor: PROGRES_COLORS[fs2Data.progres]?.bg || '#f0f0f0',
+                              color: PROGRES_COLORS[fs2Data.progres]?.text || '#1d1d1f',
+                              fontWeight: 600,
+                              border: `1px solid ${PROGRES_COLORS[fs2Data.progres]?.text || '#ccc'}`,
+                            }} 
+                          />
+                        )}
+                        {!fs2Data.progres && (
+                          <Chip label="-" size="small" sx={{ width: 'fit-content', bgcolor: '#f0f0f0', color: '#1d1d1f', fontWeight: 600 }} />
+                        )}
                         {fs2Data.progres_status && (
                           <Typography variant="caption" sx={{ 
                             color: fs2Data.progres_status === 'SELESAI' ? '#059669' : fs2Data.progres_status === 'DALAM_PROSES' ? '#D97706' : '#86868b',
@@ -809,9 +829,9 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                             Status: {PROGRES_STATUS_LABELS[fs2Data.progres_status] || fs2Data.progres_status}
                           </Typography>
                         )}
-                        {fs2Data.tanggal_progres && (
+                        {(fs2Data.progres_status === 'BELUM_DIMULAI' || fs2Data.tanggal_progres) && (
                           <Typography variant="caption" sx={{ color: '#86868b' }}>
-                            Tanggal: {formatDate(fs2Data.tanggal_progres)}
+                            Tanggal: {fs2Data.progres_status === 'BELUM_DIMULAI' ? '-' : formatDate(fs2Data.tanggal_progres)}
                           </Typography>
                         )}
                       </Box>
