@@ -15,6 +15,7 @@ export interface Fs2FileData {
   blob_url: string;
   file_type: string; // ND, FS2, CD, FS2A, FS2B, F45, F46, NDBA
   created_at: string;
+  tanggal_dokumen: string | null;
   version: number;
   file_group_id: string | null;
   display_name: string | null;
@@ -35,7 +36,7 @@ export interface Fs2FileResponse {
  * @param files - The files to upload
  * @param fileType - The file type: ND, FS2, CD, FS2A, FS2B, F45, F46, NDBA
  */
-export async function uploadFs2Files(fs2Id: string, files: File[], fileType: string = 'FS2'): Promise<Fs2FileData[]> {
+export async function uploadFs2Files(fs2Id: string, files: File[], fileType: string = 'FS2', tanggalDokumen?: string): Promise<Fs2FileData[]> {
   const token = getAuthToken();
   
   if (!token) {
@@ -46,6 +47,9 @@ export async function uploadFs2Files(fs2Id: string, files: File[], fileType: str
   files.forEach((file) => {
     formData.append('files', file);
   });
+  if (tanggalDokumen) {
+    formData.append('tanggal_dokumen', tanggalDokumen);
+  }
 
   const response = await fetch(`${BASE_URL}/fs2/files/upload/${fs2Id}?fileType=${fileType}`, {
     method: 'POST',
@@ -71,7 +75,7 @@ export async function uploadFs2Files(fs2Id: string, files: File[], fileType: str
  * @param files - The files to upload
  * @param fileType - The file type: ND, FS2, CD, FS2A, FS2B, F45, F46, NDBA
  */
-export async function uploadFs2TempFiles(sessionId: string, files: File[], fileType: string = 'FS2'): Promise<Fs2FileData[]> {
+export async function uploadFs2TempFiles(sessionId: string, files: File[], fileType: string = 'FS2', tanggalDokumen?: string): Promise<Fs2FileData[]> {
   const token = getAuthToken();
   
   if (!token) {
@@ -82,6 +86,9 @@ export async function uploadFs2TempFiles(sessionId: string, files: File[], fileT
   files.forEach((file) => {
     formData.append('files', file);
   });
+  if (tanggalDokumen) {
+    formData.append('tanggal_dokumen', tanggalDokumen);
+  }
 
   const response = await fetch(`${BASE_URL}/fs2/files/temp/upload/${sessionId}?fileType=${fileType}`, {
     method: 'POST',

@@ -152,6 +152,12 @@ export const FileVersionHistory: React.FC<FileVersionHistoryProps> = ({
                       <span>{formatFileSize(file.file_size)}</span>
                       <span className="separator">•</span>
                       <span>{formatDate(file.created_at)}</span>
+                      {file.tanggal_dokumen && (
+                        <>
+                          <span className="separator">•</span>
+                          <span>Tgl. Dok: {new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <button 

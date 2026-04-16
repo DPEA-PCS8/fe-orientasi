@@ -89,6 +89,8 @@ interface PksiData {
   jangkaWaktu: string;
   tanggalPengajuan: string;
   linkDocsT01: string;
+  jenisPksi: string;
+  isMendesak: boolean;
   progress: string;
   // New fields
   programRbsi: string;
@@ -155,21 +157,24 @@ const PROGRESS_OPTIONS = [
 ] as const;
 
 type TahapanDateField = 'targetUsreq' | 'tanggalPengadaan' | 'tanggalDesain' | 'tanggalCoding' | 'tanggalUnitTest' | 'targetSit' | 'targetUat' | 'targetGoLive';
+type PksiTargetField = 'targetUsreq' | 'targetPengadaan' | 'targetDesain' | 'targetCoding' | 'targetUnitTest' | 'targetSit' | 'targetUat' | 'targetDeployment' | 'targetGoLive';
 
 const TAHAPAN_CONFIG: Array<{
   key: typeof PROGRESS_OPTIONS[number];
   label: string;
   dateField: TahapanDateField | null;
+  stageKey: string;
+  pksiTargetField: PksiTargetField;
 }> = [
-  { key: 'Penyusunan Usreq', label: 'Penyusunan Usreq', dateField: 'targetUsreq' },
-  { key: 'Pengadaan',         label: 'Pengadaan',         dateField: 'tanggalPengadaan' },
-  { key: 'Desain',            label: 'Desain',            dateField: 'tanggalDesain' },
-  { key: 'Coding',            label: 'Coding',            dateField: 'tanggalCoding' },
-  { key: 'Unit Test',         label: 'Unit Test',         dateField: 'tanggalUnitTest' },
-  { key: 'SIT',               label: 'SIT',               dateField: 'targetSit' },
-  { key: 'UAT',               label: 'UAT',               dateField: 'targetUat' },
-  { key: 'Deployment',        label: 'Deployment',        dateField: 'targetGoLive' },
-  { key: 'Selesai',           label: 'Selesai',           dateField: null },
+  { key: 'Penyusunan Usreq', label: 'Penyusunan Usreq', dateField: 'targetUsreq',      stageKey: 'USREQ',       pksiTargetField: 'targetUsreq' },
+  { key: 'Pengadaan',         label: 'Pengadaan',         dateField: 'tanggalPengadaan', stageKey: 'PENGADAAN',   pksiTargetField: 'targetPengadaan' },
+  { key: 'Desain',            label: 'Desain',            dateField: 'tanggalDesain',    stageKey: 'DESAIN',      pksiTargetField: 'targetDesain' },
+  { key: 'Coding',            label: 'Coding',            dateField: 'tanggalCoding',    stageKey: 'CODING',      pksiTargetField: 'targetCoding' },
+  { key: 'Unit Test',         label: 'Unit Test',         dateField: 'tanggalUnitTest',  stageKey: 'UNIT_TEST',   pksiTargetField: 'targetUnitTest' },
+  { key: 'SIT',               label: 'SIT',               dateField: 'targetSit',        stageKey: 'SIT',         pksiTargetField: 'targetSit' },
+  { key: 'UAT',               label: 'UAT',               dateField: 'targetUat',        stageKey: 'UAT',         pksiTargetField: 'targetUat' },
+  { key: 'Deployment',        label: 'Deployment',        dateField: null,               stageKey: 'DEPLOYMENT',  pksiTargetField: 'targetDeployment' },
+  { key: 'Selesai',           label: 'Selesai',           dateField: null,               stageKey: 'GO_LIVE',     pksiTargetField: 'targetGoLive' },
 ];
 
 const calculateJangkaWaktu = (apiData: PksiDocumentData): string => {
@@ -274,8 +279,13 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     ? groupTimelinesByStage(apiData.timelines)
     : {
         usreq: apiData.target_usreq ? [apiData.target_usreq] : (apiData.tahap1_akhir ? [apiData.tahap1_akhir] : []),
+        pengadaan: [],
+        desain: [],
+        coding: [],
+        unitTest: [],
         sit: apiData.target_sit ? [apiData.target_sit] : (apiData.tahap5_akhir ? [apiData.tahap5_akhir] : []),
         uat: apiData.target_uat ? [apiData.target_uat] : [],
+        deployment: [],
         goLive: apiData.target_go_live ? [apiData.target_go_live] : (apiData.tahap7_akhir ? [apiData.tahap7_akhir] : []),
         pengadaan: apiData.tanggal_pengadaan ? [apiData.tanggal_pengadaan] : [],
         desain: apiData.tanggal_desain ? [apiData.tanggal_desain] : [],
@@ -302,6 +312,8 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     jangkaWaktu: jangkaWaktu,
     tanggalPengajuan: apiData.tanggal_pengajuan || apiData.created_at || '',
     linkDocsT01: '',
+    jenisPksi: apiData.jenis_pksi || '-',
+    isMendesak: apiData.jenis_pksi?.toLowerCase() === 'mendesak',
     progress: apiData.progress || 'Penyusunan Usreq',
     programRbsi: apiData.program_rbsi || apiData.program_inisiatif_rbsi?.split(' - ')[0] || '-',
     inisiatifRbsi: apiData.inisiatif_rbsi || apiData.program_inisiatif_rbsi?.split(' - ')[1] || '-',
@@ -311,8 +323,13 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     anggaranTahunDepan: apiData.anggaran_tahun_depan || '',
     // Timeline
     targetUsreq: timelineGroups.usreq,
+    targetPengadaan: timelineGroups.pengadaan,
+    targetDesain: timelineGroups.desain,
+    targetCoding: timelineGroups.coding,
+    targetUnitTest: timelineGroups.unitTest,
     targetSit: timelineGroups.sit,
     targetUat: timelineGroups.uat,
+    targetDeployment: timelineGroups.deployment,
     targetGoLive: timelineGroups.goLive,
     targetPengadaan: timelineGroups.pengadaan,
     targetDesain: timelineGroups.desain,
@@ -788,6 +805,8 @@ function PksiDisetujui() {
   // File upload state for T01 and T11 - API-based
   const [filesT01Data, setFilesT01Data] = useState<PksiFileData[]>([]);
   const [filesT11Data, setFilesT11Data] = useState<PksiFileData[]>([]);
+  const [pendingFilesT01, setPendingFilesT01] = useState<Array<{ file: File; tanggal: string }>>([]);
+  const [pendingFilesT11, setPendingFilesT11] = useState<Array<{ file: File; tanggal: string }>>([]); 
   const [isDraggingT01, setIsDraggingT01] = useState(false);
   const [isDraggingT11, setIsDraggingT11] = useState(false);
   const [isUploadingT01, setIsUploadingT01] = useState(false);
@@ -966,12 +985,22 @@ function PksiDisetujui() {
     setIsSubmittingEdit(true);
     // Helper: extract first date from a possibly comma-separated string
     const firstDate = (val: string) => val ? val.split(',')[0].trim() || undefined : undefined;
+
+    // Derive effective progress from tahapan statuses (last one that is Dalam proses or Selesai)
+    let effectiveProgress = editForm.progress;
+    for (const option of PROGRESS_OPTIONS) {
+      const s = tahapanStatuses[option] || 'Belum dimulai';
+      if (s === 'Dalam proses' || s === 'Selesai') {
+        effectiveProgress = option;
+      }
+    }
+
     try {
       await updatePksiApproval(selectedPksiForEdit.id, {
         iku: editForm.iku,
         inhouse_outsource: editForm.inhouseOutsource,
         team_id: editForm.teamId || undefined,
-        progress: editForm.progress,
+        progress: effectiveProgress,
         // New fields (removed program_rbsi, inisiatif_rbsi is read-only)
         anggaran_total: editForm.anggaranTotal || undefined,
         anggaran_tahun_ini: editForm.anggaranTahunIni || undefined,
@@ -1015,6 +1044,8 @@ function PksiDisetujui() {
       // Reset file states
       setFilesT01Data([]);
       setFilesT11Data([]);
+      setPendingFilesT01([]);
+      setPendingFilesT11([]);
       // setIsLoadingFiles(false);
       setIsUploadingT01(false);
       setIsUploadingT11(false);
@@ -1058,6 +1089,8 @@ function PksiDisetujui() {
     // Reset file states
     setFilesT01Data([]);
     setFilesT11Data([]);
+    setPendingFilesT01([]);
+    setPendingFilesT11([]);
     // setIsLoadingFiles(false);
     setIsUploadingT01(false);
     setIsUploadingT11(false);
@@ -1423,47 +1456,42 @@ function PksiDisetujui() {
     setPage(0);
   };
 
-  // File handling functions for T01 - API-based
-  const handleFileSelectT01 = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // File handling functions for T01 - stage then upload with per-file date
+  const handleFileSelectT01 = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (files && files.length > 0 && selectedPksiForEdit) {
-      setIsUploadingT01(true);
-      try {
-        // Explicitly pass 'T01' as fileType for T01 documents
-        const uploadedData = await uploadPksiFiles(selectedPksiForEdit.id, Array.from(files), 'T01');
-        console.log('[T01 Upload] Received data:', JSON.stringify(uploadedData, null, 2));
-        const uploadArray = Array.isArray(uploadedData) ? uploadedData : [];
-        console.log('[T01 Upload] Setting files state:', JSON.stringify(uploadArray, null, 2));
-        setFilesT01Data(prev => [...prev, ...uploadArray]);
-        // Auto-update status based on files
-        setEditForm(prev => ({ ...prev, statusT01T02: 'Diterima' }));
-      } catch (error) {
-        console.error('Failed to upload T01 files:', error);
-      } finally {
-        setIsUploadingT01(false);
-      }
+    if (files && files.length > 0) {
+      const newPending = Array.from(files).map(file => ({ file, tanggal: '' }));
+      setPendingFilesT01(prev => [...prev, ...newPending]);
     }
     event.target.value = '';
   };
 
-  const handleDropT01 = async (event: React.DragEvent<HTMLElement>) => {
+  const handleDropT01 = (event: React.DragEvent<HTMLElement>) => {
     event.preventDefault();
     setIsDraggingT01(false);
     const files = event.dataTransfer.files;
-    if (files && files.length > 0 && selectedPksiForEdit) {
-      setIsUploadingT01(true);
-      try {
-        // Explicitly pass 'T01' as fileType for T01 documents
-        const uploadedData = await uploadPksiFiles(selectedPksiForEdit.id, Array.from(files), 'T01');
-        const uploadArray = Array.isArray(uploadedData) ? uploadedData : [];
-        setFilesT01Data(prev => [...prev, ...uploadArray]);
-        // Auto-update status based on files
-        setEditForm(prev => ({ ...prev, statusT01T02: 'Diterima' }));
-      } catch (error) {
-        console.error('Failed to upload T01 files:', error);
-      } finally {
-        setIsUploadingT01(false);
+    if (files && files.length > 0) {
+      const newPending = Array.from(files).map(file => ({ file, tanggal: '' }));
+      setPendingFilesT01(prev => [...prev, ...newPending]);
+    }
+  };
+
+  const handleUploadPendingT01 = async () => {
+    if (pendingFilesT01.length === 0 || !selectedPksiForEdit) return;
+    setIsUploadingT01(true);
+    try {
+      const results: PksiFileData[] = [];
+      for (const pending of pendingFilesT01) {
+        const uploaded = await uploadPksiFiles(selectedPksiForEdit.id, [pending.file], 'T01', pending.tanggal || undefined);
+        results.push(...(Array.isArray(uploaded) ? uploaded : []));
       }
+      setFilesT01Data(prev => [...prev, ...results]);
+      setPendingFilesT01([]);
+      setEditForm(prev => ({ ...prev, statusT01T02: 'Diterima' }));
+    } catch (error) {
+      console.error('Failed to upload T01 files:', error);
+    } finally {
+      setIsUploadingT01(false);
     }
   };
 
@@ -1520,45 +1548,42 @@ function PksiDisetujui() {
     return contentType.startsWith('image/') || contentType === 'application/pdf';
   };
 
-  // File handling functions for T11 - API-based (similar structure to T01)
-  const handleFileSelectT11 = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // File handling functions for T11 - stage then upload with per-file date
+  const handleFileSelectT11 = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (files && files.length > 0 && selectedPksiForEdit) {
-      setIsUploadingT11(true);
-      try {
-        // Pass 'T11' as fileType for T11 documents
-        const uploadedData = await uploadPksiFiles(selectedPksiForEdit.id, Array.from(files), 'T11');
-        const uploadArray = Array.isArray(uploadedData) ? uploadedData : [];
-        setFilesT11Data(prev => [...prev, ...uploadArray]);
-        // Auto-update status based on files
-        setEditForm(prev => ({ ...prev, statusT11: 'Diterima' }));
-      } catch (error) {
-        console.error('Failed to upload T11 files:', error);
-      } finally {
-        setIsUploadingT11(false);
-      }
+    if (files && files.length > 0) {
+      const newPending = Array.from(files).map(file => ({ file, tanggal: '' }));
+      setPendingFilesT11(prev => [...prev, ...newPending]);
     }
     event.target.value = '';
   };
 
-  const handleDropT11 = async (event: React.DragEvent<HTMLElement>) => {
+  const handleDropT11 = (event: React.DragEvent<HTMLElement>) => {
     event.preventDefault();
     setIsDraggingT11(false);
     const files = event.dataTransfer.files;
-    if (files && files.length > 0 && selectedPksiForEdit) {
-      setIsUploadingT11(true);
-      try {
-        // Pass 'T11' as fileType for T11 documents
-        const uploadedData = await uploadPksiFiles(selectedPksiForEdit.id, Array.from(files), 'T11');
-        const uploadArray = Array.isArray(uploadedData) ? uploadedData : [];
-        setFilesT11Data(prev => [...prev, ...uploadArray]);
-        // Auto-update status based on files
-        setEditForm(prev => ({ ...prev, statusT11: 'Diterima' }));
-      } catch (error) {
-        console.error('Failed to upload T11 files:', error);
-      } finally {
-        setIsUploadingT11(false);
+    if (files && files.length > 0) {
+      const newPending = Array.from(files).map(file => ({ file, tanggal: '' }));
+      setPendingFilesT11(prev => [...prev, ...newPending]);
+    }
+  };
+
+  const handleUploadPendingT11 = async () => {
+    if (pendingFilesT11.length === 0 || !selectedPksiForEdit) return;
+    setIsUploadingT11(true);
+    try {
+      const results: PksiFileData[] = [];
+      for (const pending of pendingFilesT11) {
+        const uploaded = await uploadPksiFiles(selectedPksiForEdit.id, [pending.file], 'T11', pending.tanggal || undefined);
+        results.push(...(Array.isArray(uploaded) ? uploaded : []));
       }
+      setFilesT11Data(prev => [...prev, ...results]);
+      setPendingFilesT11([]);
+      setEditForm(prev => ({ ...prev, statusT11: 'Diterima' }));
+    } catch (error) {
+      console.error('Failed to upload T11 files:', error);
+    } finally {
+      setIsUploadingT11(false);
     }
   };
 
@@ -2771,6 +2796,7 @@ function PksiDisetujui() {
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', textAlign: 'center', fontSize: '0.8rem', minWidth: 50, ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>No</TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Nama Aplikasi</TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 180, ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Nama PKSI</TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120 }}>Jenis PKSI</TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>SKPA</TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Bidang</TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160, ...(stickyColumns.has('inisiatifRbsi') && { position: 'sticky', left: getStickyLeft('inisiatifRbsi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('inisiatifRbsi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Inisiatif RBSI</TableCell>
@@ -2926,7 +2952,7 @@ function PksiDisetujui() {
                   }}
                 >
                   {/* No */}
-                  <TableCell sx={{ color: '#86868b', py: 1, px: 2, textAlign: 'center', fontWeight: 500, fontSize: '0.8rem', minWidth: 50, ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                  <TableCell sx={{ color: '#86868b', py: 1, px: 2, textAlign: 'center', fontWeight: 500, fontSize: '0.8rem', minWidth: 50, boxShadow: item.isMendesak ? 'inset 4px 0 0 #FF3B30' : 'none', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('no') && { boxShadow: item.isMendesak ? 'inset 4px 0 0 #FF3B30, 2px 0 5px -2px rgba(0,0,0,0.1)' : '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     {page * rowsPerPage + index + 1}
                   </TableCell>
                   {/* Nama Aplikasi */}
@@ -2940,6 +2966,12 @@ function PksiDisetujui() {
                   <TableCell sx={{ py: 1, px: 2, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 180, ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     <Typography variant="body2" sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.8rem', lineHeight: 1.4 }}>
                       {item.namaPksi}
+                    </Typography>
+                  </TableCell>
+                  {/* Jenis PKSI */}
+                  <TableCell sx={{ py: 1, px: 2, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 120 }}>
+                    <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
+                      {item.jenisPksi}
                     </Typography>
                   </TableCell>
                   {/* SKPA */}
@@ -3047,35 +3079,63 @@ function PksiDisetujui() {
                   </TableCell>
                   {/* Progres */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
-                    <Chip
-                      label={item.progress}
-                      size="small"
-                      sx={{
-                        background: (() => {
-                          const progressIndex = PROGRESS_OPTIONS.indexOf(item.progress as typeof PROGRESS_OPTIONS[number]);
-                          if (progressIndex === -1) return 'linear-gradient(135deg, rgba(156, 163, 175, 0.2) 0%, rgba(107, 114, 128, 0.15) 100%)';
-                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return 'linear-gradient(135deg, rgba(74, 222, 128, 0.25) 0%, rgba(34, 197, 94, 0.2) 100%)';
-                          if (progressIndex >= 6) return 'linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(59, 130, 246, 0.15) 100%)';
-                          if (progressIndex >= 3) return 'linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)';
-                          return 'linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(245, 158, 11, 0.15) 100%)';
-                        })(),
-                        color: (() => {
-                          const progressIndex = PROGRESS_OPTIONS.indexOf(item.progress as typeof PROGRESS_OPTIONS[number]);
-                          if (progressIndex === -1) return '#4B5563';
-                          if (progressIndex === PROGRESS_OPTIONS.length - 1) return '#15803D';
-                          if (progressIndex >= 6) return '#1D4ED8';
-                          if (progressIndex >= 3) return '#7C3AED';
-                          return '#B45309';
-                        })(),
-                        fontWeight: 600,
-                        fontSize: '0.7rem',
-                        height: 24,
-                        borderRadius: '12px',
-                        border: '1px solid rgba(255, 255, 255, 0.5)',
-                        backdropFilter: 'blur(10px)',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
-                      }}
-                    />
+                    {(() => {
+                      // Compute effective progress: last tahapan with status Dalam proses or Selesai
+                      const tahapanStatusMap: Record<string, string> = {
+                        'Penyusunan Usreq': item.tahapanStatusUsreq,
+                        'Pengadaan':        item.tahapanStatusPengadaan,
+                        'Desain':           item.tahapanStatusDesain,
+                        'Coding':           item.tahapanStatusCoding,
+                        'Unit Test':        item.tahapanStatusUnitTest,
+                        'SIT':              item.tahapanStatusSit,
+                        'UAT':              item.tahapanStatusUat,
+                        'Deployment':       item.tahapanStatusDeployment,
+                        'Selesai':          item.tahapanStatusSelesai,
+                      };
+                      let effectiveProgress = item.progress;
+                      for (const option of PROGRESS_OPTIONS) {
+                        const s = tahapanStatusMap[option];
+                        if (s === 'Dalam proses' || s === 'Selesai') {
+                          effectiveProgress = option;
+                        }
+                      }
+                      const progressIndex = PROGRESS_OPTIONS.indexOf(effectiveProgress as typeof PROGRESS_OPTIONS[number]);
+                      const bg = progressIndex === -1
+                        ? 'linear-gradient(135deg, rgba(156, 163, 175, 0.2) 0%, rgba(107, 114, 128, 0.15) 100%)'
+                        : progressIndex === PROGRESS_OPTIONS.length - 1
+                          ? 'linear-gradient(135deg, rgba(74, 222, 128, 0.25) 0%, rgba(34, 197, 94, 0.2) 100%)'
+                          : progressIndex >= 6
+                            ? 'linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(59, 130, 246, 0.15) 100%)'
+                            : progressIndex >= 3
+                              ? 'linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)'
+                              : 'linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(245, 158, 11, 0.15) 100%)';
+                      const color = progressIndex === -1
+                        ? '#4B5563'
+                        : progressIndex === PROGRESS_OPTIONS.length - 1
+                          ? '#15803D'
+                          : progressIndex >= 6
+                            ? '#1D4ED8'
+                            : progressIndex >= 3
+                              ? '#7C3AED'
+                              : '#B45309';
+                      return (
+                        <Chip
+                          label={effectiveProgress}
+                          size="small"
+                          sx={{
+                            background: bg,
+                            color,
+                            fontWeight: 600,
+                            fontSize: '0.7rem',
+                            height: 24,
+                            borderRadius: '12px',
+                            border: '1px solid rgba(255, 255, 255, 0.5)',
+                            backdropFilter: 'blur(10px)',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                          }}
+                        />
+                      );
+                    })()}
                   </TableCell>
                   {/* Anggaran - Total */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(59, 130, 246, 0.04)' }}>
@@ -3569,7 +3629,7 @@ function PksiDisetujui() {
                         )}
                       </Box>
                     }
-                    secondary={formatFileSize(file.file_size)}
+                    secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
                     primaryTypographyProps={{
                       sx: { fontWeight: 500, color: '#1d1d1f', fontSize: '0.9rem' },
                     }}
@@ -4098,13 +4158,21 @@ function PksiDisetujui() {
               <Table size="small">
                 <TableHead>
                   <TableRow sx={{ bgcolor: 'rgba(217,119,6,0.08)' }}>
-                    <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#D97706', py: 1.2, width: '35%' }}>Tahapan</TableCell>
-                    <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#D97706', py: 1.2, width: '28%' }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#D97706', py: 1.2 }}>Tanggal Penyelesaian</TableCell>
+                    <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#D97706', py: 1.2, width: '22%' }}>Tahapan</TableCell>
+                    <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#D97706', py: 1.2, width: '22%' }}>Status</TableCell>
+                    <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#D97706', py: 1.2, width: '18%' }}>Tgl. Target</TableCell>
+                    <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#D97706', py: 1.2, width: '18%' }}>Tanggal Penyelesaian</TableCell>
+                    <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#D97706', py: 1.2 }}>Ketepatan Waktu</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {TAHAPAN_CONFIG.map((tahapan) => {
+                  {TAHAPAN_CONFIG
+                    .filter(tahapan => {
+                      if (!selectedPksiForEdit) return true;
+                      const targetDates = selectedPksiForEdit[tahapan.pksiTargetField] as string[];
+                      return Array.isArray(targetDates) && targetDates.filter(d => d && d !== '-').length > 0;
+                    })
+                    .map((tahapan) => {
                     const status    = tahapanStatuses[tahapan.key] || 'Belum dimulai';
                     const isSelesai = status === 'Selesai';
                     const isDalam   = status === 'Dalam proses';
@@ -4112,6 +4180,44 @@ function PksiDisetujui() {
                     const dateValue = tahapan.dateField
                       ? ((editForm as Record<string, string>)[tahapan.dateField] || '').split(',')[0].trim().substring(0, 10)
                       : '';
+
+                    // Target date from PksiData target arrays
+                    const targetDates = selectedPksiForEdit
+                      ? (selectedPksiForEdit[tahapan.pksiTargetField] as string[]).filter(d => d && d !== '-')
+                      : [];
+                    const targetDate = targetDates.length > 0 ? targetDates[targetDates.length - 1] : null;
+                    const displayTarget = targetDate ? targetDate.substring(0, 10) : '—';
+
+                    // Ketepatan waktu
+                    let ketepatanLabel: string | null = null;
+                    let ketepatanColor = '#6B7280';
+                    let ketepatanBg = '#F3F4F6';
+                    if (isSelesai && dateValue && targetDate) {
+                      const completion = new Date(dateValue);
+                      const target = new Date(targetDate);
+                      if (completion <= target) {
+                        ketepatanLabel = 'Tepat Waktu';
+                        ketepatanColor = '#15803D';
+                        ketepatanBg = '#F0FDF4';
+                      } else {
+                        ketepatanLabel = 'Terlambat';
+                        ketepatanColor = '#DC2626';
+                        ketepatanBg = '#FEF2F2';
+                      }
+                    } else if (isDalam && targetDate) {
+                      const today = new Date();
+                      const target = new Date(targetDate);
+                      if (today <= target) {
+                        ketepatanLabel = 'Dalam Waktu';
+                        ketepatanColor = '#2563EB';
+                        ketepatanBg = '#EFF6FF';
+                      } else {
+                        ketepatanLabel = 'Melewati Target';
+                        ketepatanColor = '#D97706';
+                        ketepatanBg = '#FFFBEB';
+                      }
+                    }
+
                     return (
                       <TableRow
                         key={tahapan.key}
@@ -4170,6 +4276,9 @@ function PksiDisetujui() {
                             <MenuItem value="Selesai" sx={{ fontSize: '0.78rem', color: '#15803D', fontWeight: 500 }}>Selesai</MenuItem>
                           </Select>
                         </TableCell>
+                        <TableCell sx={{ fontSize: '0.8rem', py: 1, color: targetDate ? '#7C3AED' : '#86868b' }}>
+                          {displayTarget}
+                        </TableCell>
                         <TableCell sx={{ py: 1 }}>
                           {tahapan.dateField ? (
                             isSelesai && dateValue ? (
@@ -4186,6 +4295,13 @@ function PksiDisetujui() {
                             ) : (
                               <Typography sx={{ fontSize: '0.78rem', color: '#86868b' }}>—</Typography>
                             )
+                          ) : (
+                            <Typography sx={{ fontSize: '0.78rem', color: '#86868b' }}>—</Typography>
+                          )}
+                        </TableCell>
+                        <TableCell sx={{ py: 1 }}>
+                          {ketepatanLabel ? (
+                            <Chip label={ketepatanLabel} size="small" sx={{ bgcolor: ketepatanBg, color: ketepatanColor, fontWeight: 600, fontSize: '0.7rem', height: 20 }} />
                           ) : (
                             <Typography sx={{ fontSize: '0.78rem', color: '#86868b' }}>—</Typography>
                           )}
@@ -4396,6 +4512,50 @@ function PksiDisetujui() {
             )}
           </label>
 
+          {/* T01/T02 Pending Files – set date per file then upload */}
+          {pendingFilesT01.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.8rem', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <FileIcon sx={{ color: '#D97706', fontSize: 18 }} />
+                File akan diupload ({pendingFilesT01.length})
+              </Typography>
+              <Stack spacing={1.5}>
+                {pendingFilesT01.map((pending, index) => (
+                  <Box key={index} sx={{ p: 1.5, background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.06) 0%, rgba(217, 119, 6, 0.02) 100%)', borderRadius: '12px', border: '1px solid rgba(217, 119, 6, 0.2)' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+                      <FileIcon sx={{ color: '#D97706', fontSize: 18, flexShrink: 0 }} />
+                      <Typography sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pending.file.name}</Typography>
+                      <Typography sx={{ color: '#86868b', fontSize: '0.7rem', whiteSpace: 'nowrap', mx: 1 }}>{formatFileSize(pending.file.size)}</Typography>
+                      <IconButton size="small" onClick={() => setPendingFilesT01(prev => prev.filter((_, i) => i !== index))} sx={{ color: '#DC2626', width: 28, height: 28, borderRadius: '8px', background: 'rgba(220,38,38,0.08)', '&:hover': { background: 'rgba(220,38,38,0.15)' } }}>
+                        <DeleteIcon sx={{ fontSize: 15 }} />
+                      </IconButton>
+                    </Box>
+                    <TextField
+                      fullWidth
+                      label="Tanggal Dokumen"
+                      type="date"
+                      size="small"
+                      value={pending.tanggal}
+                      onChange={(e) => setPendingFilesT01(prev => prev.map((p, i) => i === index ? { ...p, tanggal: e.target.value } : p))}
+                      InputLabelProps={{ shrink: true }}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.7)', '&.Mui-focused fieldset': { borderColor: '#D97706' } }, '& .MuiInputLabel-root.Mui-focused': { color: '#D97706' } }}
+                    />
+                  </Box>
+                ))}
+              </Stack>
+              <Button
+                variant="contained"
+                fullWidth
+                onClick={handleUploadPendingT01}
+                disabled={isUploadingT01}
+                startIcon={isUploadingT01 ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <CloudUploadIcon />}
+                sx={{ mt: 1.5, background: 'linear-gradient(145deg, #D97706 0%, #F59E0B 100%)', borderRadius: '12px', fontWeight: 600, '&:hover': { background: 'linear-gradient(145deg, #B45309 0%, #D97706 100%)' } }}
+              >
+                {isUploadingT01 ? 'Mengupload...' : `Upload ${pendingFilesT01.length} File T01`}
+              </Button>
+            </Box>
+          )}
+
           {/* T01/T02 Files List */}
           {filesT01Data.length > 0 && (
             <Box sx={{ mb: 3 }}>
@@ -4449,7 +4609,7 @@ function PksiDisetujui() {
                         {file.display_name || file.original_name || file.file_name || 'File tidak bernama'}
                       </Typography>
                       <Typography sx={{ color: '#86868b', fontSize: '0.7rem' }}>
-                        {formatFileSize(file.file_size)}
+                        {formatFileSize(file.file_size)}{file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -4615,6 +4775,50 @@ function PksiDisetujui() {
             )}
           </label>
 
+          {/* T11 Pending Files – set date per file then upload */}
+          {pendingFilesT11.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.8rem', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <FileIcon sx={{ color: '#059669', fontSize: 18 }} />
+                File akan diupload ({pendingFilesT11.length})
+              </Typography>
+              <Stack spacing={1.5}>
+                {pendingFilesT11.map((pending, index) => (
+                  <Box key={index} sx={{ p: 1.5, background: 'linear-gradient(145deg, rgba(5, 150, 105, 0.06) 0%, rgba(5, 150, 105, 0.02) 100%)', borderRadius: '12px', border: '1px solid rgba(5, 150, 105, 0.2)' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+                      <FileIcon sx={{ color: '#059669', fontSize: 18, flexShrink: 0 }} />
+                      <Typography sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pending.file.name}</Typography>
+                      <Typography sx={{ color: '#86868b', fontSize: '0.7rem', whiteSpace: 'nowrap', mx: 1 }}>{formatFileSize(pending.file.size)}</Typography>
+                      <IconButton size="small" onClick={() => setPendingFilesT11(prev => prev.filter((_, i) => i !== index))} sx={{ color: '#DC2626', width: 28, height: 28, borderRadius: '8px', background: 'rgba(220,38,38,0.08)', '&:hover': { background: 'rgba(220,38,38,0.15)' } }}>
+                        <DeleteIcon sx={{ fontSize: 15 }} />
+                      </IconButton>
+                    </Box>
+                    <TextField
+                      fullWidth
+                      label="Tanggal Dokumen"
+                      type="date"
+                      size="small"
+                      value={pending.tanggal}
+                      onChange={(e) => setPendingFilesT11(prev => prev.map((p, i) => i === index ? { ...p, tanggal: e.target.value } : p))}
+                      InputLabelProps={{ shrink: true }}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.7)', '&.Mui-focused fieldset': { borderColor: '#059669' } }, '& .MuiInputLabel-root.Mui-focused': { color: '#059669' } }}
+                    />
+                  </Box>
+                ))}
+              </Stack>
+              <Button
+                variant="contained"
+                fullWidth
+                onClick={handleUploadPendingT11}
+                disabled={isUploadingT11}
+                startIcon={isUploadingT11 ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <CloudUploadIcon />}
+                sx={{ mt: 1.5, background: 'linear-gradient(145deg, #059669 0%, #10B981 100%)', borderRadius: '12px', fontWeight: 600, '&:hover': { background: 'linear-gradient(145deg, #047857 0%, #059669 100%)' } }}
+              >
+                {isUploadingT11 ? 'Mengupload...' : `Upload ${pendingFilesT11.length} File T11`}
+              </Button>
+            </Box>
+          )}
+
           {/* T11 Files List */}
           {filesT11Data.length > 0 && (
             <Box sx={{ mb: 3 }}>
@@ -4668,7 +4872,7 @@ function PksiDisetujui() {
                         {file.display_name || file.original_name || file.file_name || 'File tidak bernama'}
                       </Typography>
                       <Typography sx={{ color: '#86868b', fontSize: '0.7rem' }}>
-                        {formatFileSize(file.file_size)}
+                        {formatFileSize(file.file_size)}{file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', gap: 0.5 }}>

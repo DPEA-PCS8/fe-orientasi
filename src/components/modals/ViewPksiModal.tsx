@@ -66,16 +66,17 @@ const TAHAPAN_VIEW_CONFIG: Array<{
   label: string;
   dateField: keyof PksiDocumentData | null;
   statusField: keyof PksiDocumentData | null;
+  stageKey: string;
 }> = [
-  { key: 'Penyusunan Usreq', label: 'Penyusunan Usreq', dateField: 'target_usreq',   statusField: 'tahapan_status_usreq' },
-  { key: 'Pengadaan',         label: 'Pengadaan',         dateField: 'tanggal_pengadaan', statusField: 'tahapan_status_pengadaan' },
-  { key: 'Desain',            label: 'Desain',            dateField: 'tanggal_desain',    statusField: 'tahapan_status_desain' },
-  { key: 'Coding',            label: 'Coding',            dateField: 'tanggal_coding',    statusField: 'tahapan_status_coding' },
-  { key: 'Unit Test',         label: 'Unit Test',         dateField: 'tanggal_unit_test', statusField: 'tahapan_status_unit_test' },
-  { key: 'SIT',               label: 'SIT',               dateField: 'target_sit',        statusField: 'tahapan_status_sit' },
-  { key: 'UAT',               label: 'UAT',               dateField: 'target_uat',        statusField: 'tahapan_status_uat' },
-  { key: 'Deployment',        label: 'Deployment',        dateField: 'target_go_live',    statusField: 'tahapan_status_deployment' },
-  { key: 'Selesai',           label: 'Selesai',           dateField: null,                statusField: 'tahapan_status_selesai' },
+  { key: 'Penyusunan Usreq', label: 'Penyusunan Usreq', dateField: 'target_usreq',      statusField: 'tahapan_status_usreq',      stageKey: 'USREQ' },
+  { key: 'Pengadaan',         label: 'Pengadaan',         dateField: 'tanggal_pengadaan', statusField: 'tahapan_status_pengadaan',  stageKey: 'PENGADAAN' },
+  { key: 'Desain',            label: 'Desain',            dateField: 'tanggal_desain',    statusField: 'tahapan_status_desain',     stageKey: 'DESAIN' },
+  { key: 'Coding',            label: 'Coding',            dateField: 'tanggal_coding',    statusField: 'tahapan_status_coding',     stageKey: 'CODING' },
+  { key: 'Unit Test',         label: 'Unit Test',         dateField: 'tanggal_unit_test', statusField: 'tahapan_status_unit_test',  stageKey: 'UNIT_TEST' },
+  { key: 'SIT',               label: 'SIT',               dateField: 'target_sit',        statusField: 'tahapan_status_sit',        stageKey: 'SIT' },
+  { key: 'UAT',               label: 'UAT',               dateField: 'target_uat',        statusField: 'tahapan_status_uat',        stageKey: 'UAT' },
+  { key: 'Deployment',        label: 'Deployment',        dateField: null,                statusField: 'tahapan_status_deployment', stageKey: 'DEPLOYMENT' },
+  { key: 'Selesai',           label: 'Selesai',           dateField: null,                statusField: 'tahapan_status_selesai',    stageKey: 'GO_LIVE' },
 ];
 
 // Glass Card Component
@@ -490,34 +491,8 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
 
               {/* Progress Stepper */}
               <Box sx={{ mb: 3, p: 3, borderRadius: '12px', bgcolor: 'rgba(139, 92, 246, 0.02)', border: '1px solid rgba(139, 92, 246, 0.08)' }}>
-                <Stepper 
-                  activeStep={(() => {
-                    const stages = ['USREQ', 'PENGADAAN', 'DESAIN', 'CODING', 'UNIT_TEST', 'SIT', 'UAT', 'DEPLOYMENT', 'GO_LIVE'];
-                    const hasData = (stage: string) => {
-                      const phases = (pksiData.timelines || []).filter(t => t.stage === stage);
-                      return phases.length > 0;
-                    };
-                    // Find the last stage with data
-                    for (let i = stages.length - 1; i >= 0; i--) {
-                      if (hasData(stages[i])) return i + 1;
-                    }
-                    return 0;
-                  })()} 
-                  orientation="horizontal"
-                  sx={{
-                    '& .MuiStepConnector-root': {
-                      top: 20,
-                    },
-                    '& .MuiStepConnector-line': {
-                      borderColor: 'rgba(139, 92, 246, 0.2)',
-                      borderTopWidth: 2,
-                    },
-                    '& .MuiStep-root': {
-                      padding: 0,
-                    },
-                  }}
-                >
-                  {[
+                {(() => {
+                  const ALL_STAGES = [
                     { stage: 'USREQ', label: 'USREQ' },
                     { stage: 'PENGADAAN', label: 'Pengadaan' },
                     { stage: 'DESAIN', label: 'Desain' },
@@ -527,35 +502,43 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                     { stage: 'UAT', label: 'UAT' },
                     { stage: 'DEPLOYMENT', label: 'Deployment' },
                     { stage: 'GO_LIVE', label: 'Go Live' },
-                  ].map(({ stage, label }) => {
+                  ];
+                  const presentStageKeys = new Set((pksiData.timelines || []).map(t => t.stage));
+                  const visibleStages = ALL_STAGES.filter(s => presentStageKeys.has(s.stage as typeof presentStageKeys extends Set<infer U> ? U : never));
+                  const activeStep = (() => {
+                    for (let i = visibleStages.length - 1; i >= 0; i--) {
+                      const phases = (pksiData.timelines || []).filter(t => t.stage === visibleStages[i].stage);
+                      if (phases.length > 0) return i + 1;
+                    }
+                    return 0;
+                  })();
+                  return (
+                <Stepper
+                  activeStep={activeStep}
+                  orientation="horizontal"
+                  sx={{
+                    '& .MuiStepConnector-root': { top: 20 },
+                    '& .MuiStepConnector-line': { borderColor: 'rgba(139, 92, 246, 0.2)', borderTopWidth: 2 },
+                    '& .MuiStep-root': { padding: 0 },
+                  }}
+                >
+                  {visibleStages.map(({ stage, label }) => {
                     const phases = (pksiData.timelines || []).filter(t => t.stage === stage).sort((a, b) => a.phase - b.phase);
                     const hasData = phases.length > 0;
-                    
                     return (
                       <Step key={stage}>
                         <StepLabel
                           sx={{
                             flexDirection: 'column',
-                            '& .MuiStepLabel-iconContainer': {
-                              paddingRight: 0,
-                              marginBottom: 0.5,
-                            },
-                            '& .MuiStepLabel-labelContainer': {
-                              textAlign: 'center',
-                            },
+                            '& .MuiStepLabel-iconContainer': { paddingRight: 0, marginBottom: 0.5 },
+                            '& .MuiStepLabel-labelContainer': { textAlign: 'center' },
                           }}
                           StepIconProps={{
                             sx: {
                               color: hasData ? 'rgba(139, 92, 246, 0.2)' : 'rgba(156, 163, 175, 0.15)',
-                              '&.Mui-active': {
-                                color: 'rgba(139, 92, 246, 0.3)',
-                              },
-                              '&.Mui-completed': {
-                                color: 'rgba(139, 92, 246, 0.2)',
-                              },
-                              '& .MuiStepIcon-text': {
-                                display: 'none',
-                              },
+                              '&.Mui-active': { color: 'rgba(139, 92, 246, 0.3)' },
+                              '&.Mui-completed': { color: 'rgba(139, 92, 246, 0.2)' },
+                              '& .MuiStepIcon-text': { display: 'none' },
                             },
                           }}
                         >
@@ -571,15 +554,131 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                               ))}
                             </Box>
                           ) : (
-                            <Typography variant="caption" sx={{ color: '#D1D5DB', fontSize: '0.65rem' }}>
-                              -
-                            </Typography>
+                            <Typography variant="caption" sx={{ color: '#D1D5DB', fontSize: '0.65rem' }}>-</Typography>
                           )}
                         </StepLabel>
                       </Step>
                     );
                   })}
                 </Stepper>
+                  );
+                })()}
+              </Box>
+
+              {/* Progres Tahapan Table */}
+              <Box sx={{ mb: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#D97706' }} />
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#D97706' }}>Progres Tahapan</Typography>
+                </Box>
+                <TableContainer component={Paper} sx={{ borderRadius: '12px', boxShadow: 'none', border: '1px solid rgba(217,119,6,0.15)', overflow: 'hidden' }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: 'rgba(217,119,6,0.06)' }}>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.78rem', color: '#D97706', py: 1.1, width: '25%' }}>Tahapan</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.78rem', color: '#D97706', py: 1.1, width: '20%' }}>Status</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.78rem', color: '#D97706', py: 1.1, width: '20%' }}>Tgl. Target</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.78rem', color: '#D97706', py: 1.1, width: '20%' }}>Tanggal Penyelesaian</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.78rem', color: '#D97706', py: 1.1 }}>Ketepatan Waktu</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {(() => {
+                        const presentStages = new Set((pksiData.timelines || []).map(t => t.stage));
+                        return TAHAPAN_VIEW_CONFIG
+                          .filter(tahapan => presentStages.has(tahapan.stageKey as Parameters<typeof presentStages.has>[0]))
+                          .map((tahapan) => {
+                          const savedStatus = tahapan.statusField
+                            ? (pksiData[tahapan.statusField] as string | undefined)
+                            : undefined;
+                          let status: string;
+                          if (savedStatus) {
+                            status = savedStatus;
+                          } else {
+                            const progressIdx = PROGRESS_OPTIONS_VIEW.indexOf(pksiData.progress as typeof PROGRESS_OPTIONS_VIEW[number]);
+                            const tahapanIdx  = PROGRESS_OPTIONS_VIEW.indexOf(tahapan.key);
+                            const isDoneFallback   = tahapanIdx < progressIdx;
+                            const isActiveFallback = tahapanIdx === progressIdx;
+                            status = isDoneFallback ? 'Selesai' : isActiveFallback ? 'Dalam proses' : 'Belum dimulai';
+                          }
+                          const isSelesai  = status === 'Selesai';
+                          const isDalam    = status === 'Dalam proses';
+                          const chipColor  = isSelesai ? '#15803D' : isDalam ? '#D97706' : '#6B7280';
+                          const chipBg     = isSelesai ? '#F0FDF4' : isDalam ? '#FFFBEB' : '#F3F4F6';
+
+                          const timelinePhases = (pksiData.timelines || [])
+                            .filter(t => t.stage === tahapan.stageKey)
+                            .sort((a, b) => a.phase - b.phase);
+                          const targetDate = timelinePhases.length > 0
+                            ? timelinePhases[timelinePhases.length - 1].target_date
+                            : null;
+                          const displayTarget = targetDate ? formatMonthYear(targetDate) : '—';
+
+                          const rawDate = (isSelesai && tahapan.dateField)
+                            ? (pksiData[tahapan.dateField] as string | undefined)
+                            : undefined;
+                          const displayDate = rawDate ? rawDate.split(',')[0].trim().substring(0, 10) : null;
+
+                          let ketepatanLabel: string | null = null;
+                          let ketepatanColor = '#6B7280';
+                          let ketepatanBg = '#F3F4F6';
+                          if (isSelesai && displayDate && targetDate) {
+                            const completion = new Date(displayDate);
+                            const target = new Date(targetDate);
+                            if (completion <= target) {
+                              ketepatanLabel = 'Tepat Waktu';
+                              ketepatanColor = '#15803D';
+                              ketepatanBg = '#F0FDF4';
+                            } else {
+                              ketepatanLabel = 'Terlambat';
+                              ketepatanColor = '#DC2626';
+                              ketepatanBg = '#FEF2F2';
+                            }
+                          } else if (isDalam && targetDate) {
+                            const today = new Date();
+                            const target = new Date(targetDate);
+                            if (today <= target) {
+                              ketepatanLabel = 'Dalam Waktu';
+                              ketepatanColor = '#2563EB';
+                              ketepatanBg = '#EFF6FF';
+                            } else {
+                              ketepatanLabel = 'Melewati Target';
+                              ketepatanColor = '#D97706';
+                              ketepatanBg = '#FFFBEB';
+                            }
+                          }
+
+                          return (
+                            <TableRow
+                              key={tahapan.key}
+                              sx={{ '&:last-child td': { borderBottom: 0 }, bgcolor: isDalam ? 'rgba(217,119,6,0.03)' : 'transparent' }}
+                            >
+                              <TableCell sx={{ fontSize: '0.8rem', py: 0.9, fontWeight: isDalam ? 600 : 400, color: isDalam ? '#92400E' : '#1d1d1f' }}>
+                                {tahapan.label}
+                              </TableCell>
+                              <TableCell sx={{ py: 0.9 }}>
+                                <Chip label={status} size="small" sx={{ bgcolor: chipBg, color: chipColor, fontWeight: 600, fontSize: '0.7rem', height: 20 }} />
+                              </TableCell>
+                              <TableCell sx={{ fontSize: '0.8rem', py: 0.9, color: targetDate ? '#7C3AED' : '#86868b' }}>
+                                {displayTarget}
+                              </TableCell>
+                              <TableCell sx={{ fontSize: '0.8rem', py: 0.9, color: displayDate ? '#15803D' : '#86868b' }}>
+                                {displayDate || '—'}
+                              </TableCell>
+                              <TableCell sx={{ py: 0.9 }}>
+                                {ketepatanLabel ? (
+                                  <Chip label={ketepatanLabel} size="small" sx={{ bgcolor: ketepatanBg, color: ketepatanColor, fontWeight: 600, fontSize: '0.7rem', height: 20 }} />
+                                ) : (
+                                  <Typography sx={{ fontSize: '0.78rem', color: '#86868b' }}>—</Typography>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        });
+                      })()}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               </Box>
             </GlassCard>
 
@@ -623,68 +722,6 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.inisiatif_rbsi || pksiData.program_inisiatif_rbsi || '-'}</Typography>
                     </InfoRow>
                   </Box>
-                </Box>
-
-                {/* Progres Tahapan Table */}
-                <Box sx={{ mb: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#D97706' }} />
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#D97706' }}>Progres Tahapan</Typography>
-                  </Box>
-                  <TableContainer component={Paper} sx={{ borderRadius: '12px', boxShadow: 'none', border: '1px solid rgba(217,119,6,0.15)', overflow: 'hidden' }}>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow sx={{ bgcolor: 'rgba(217,119,6,0.06)' }}>
-                          <TableCell sx={{ fontWeight: 600, fontSize: '0.78rem', color: '#D97706', py: 1.1, width: '38%' }}>Tahapan</TableCell>
-                          <TableCell sx={{ fontWeight: 600, fontSize: '0.78rem', color: '#D97706', py: 1.1, width: '30%' }}>Status</TableCell>
-                          <TableCell sx={{ fontWeight: 600, fontSize: '0.78rem', color: '#D97706', py: 1.1 }}>Tanggal Penyelesaian</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {TAHAPAN_VIEW_CONFIG.map((tahapan) => {
-                          // Use saved per-tahapan status if available, else derive from progress
-                          const savedStatus = tahapan.statusField
-                            ? (pksiData[tahapan.statusField] as string | undefined)
-                            : undefined;
-                          let status: string;
-                          if (savedStatus) {
-                            status = savedStatus;
-                          } else {
-                            const progressIdx = PROGRESS_OPTIONS_VIEW.indexOf(pksiData.progress as typeof PROGRESS_OPTIONS_VIEW[number]);
-                            const tahapanIdx  = PROGRESS_OPTIONS_VIEW.indexOf(tahapan.key);
-                            const isDoneFallback   = tahapanIdx < progressIdx;
-                            const isActiveFallback = tahapanIdx === progressIdx;
-                            status = isDoneFallback ? 'Selesai' : isActiveFallback ? 'Dalam proses' : 'Belum dimulai';
-                          }
-                          const isSelesai  = status === 'Selesai';
-                          const isDalam    = status === 'Dalam proses';
-                          const chipColor  = isSelesai ? '#15803D' : isDalam ? '#D97706' : '#6B7280';
-                          const chipBg     = isSelesai ? '#F0FDF4' : isDalam ? '#FFFBEB' : '#F3F4F6';
-                          // Only show date when the tahapan is actually completed
-                          const rawDate     = (isSelesai && tahapan.dateField)
-                            ? (pksiData[tahapan.dateField] as string | undefined)
-                            : undefined;
-                          const displayDate = rawDate ? rawDate.split(',')[0].trim().substring(0, 10) : null;
-                          return (
-                            <TableRow
-                              key={tahapan.key}
-                              sx={{ '&:last-child td': { borderBottom: 0 }, bgcolor: isDalam ? 'rgba(217,119,6,0.03)' : 'transparent' }}
-                            >
-                              <TableCell sx={{ fontSize: '0.8rem', py: 0.9, fontWeight: isDalam ? 600 : 400, color: isDalam ? '#92400E' : '#1d1d1f' }}>
-                                {tahapan.label}
-                              </TableCell>
-                              <TableCell sx={{ py: 0.9 }}>
-                                <Chip label={status} size="small" sx={{ bgcolor: chipBg, color: chipColor, fontWeight: 600, fontSize: '0.7rem', height: 20 }} />
-                              </TableCell>
-                              <TableCell sx={{ fontSize: '0.8rem', py: 0.9, color: displayDate ? '#15803D' : '#86868b' }}>
-                                {displayDate || '—'}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
                 </Box>
 
                 {/* Anggaran */}
@@ -852,7 +889,7 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                                   )}
                                 </Box>
                               }
-                              secondary={formatFileSize(file.file_size)}
+                              secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
                               primaryTypographyProps={{
                                 sx: {
                                   fontWeight: 500,
@@ -917,123 +954,6 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                     )}
                   </Box>
 
-                  {/* T11 - Spesifikasi Kebutuhan */}
-                  <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                        Spesifikasi Kebutuhan (T11)
-                      </Typography>
-                      {pksiFiles.filter(f => f.file_type === 'T11').some(f => (f.version || 1) > 1) && (
-                        <FileVersionHistory
-                          documentId={pksiId || ''}
-                          fileType="T11"
-                          documentType="pksi"
-                          isOpen={false}
-                          onClose={() => {}}
-                        />
-                      )}
-                    </Box>
-                    {pksiFiles.filter(f => f.file_type === 'T11' && f.is_latest_version !== false).length > 0 ? (
-                      <List dense sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px', p: 1 }}>
-                        {pksiFiles.filter(f => f.file_type === 'T11' && f.is_latest_version !== false).map((file, index, arr) => (
-                          <ListItem
-                            key={file.id}
-                            sx={{
-                              borderRadius: '8px',
-                              mb: index < arr.length - 1 ? 1 : 0,
-                              bgcolor: 'white',
-                              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-                              '&:hover': {
-                                bgcolor: 'rgba(255, 255, 255, 0.9)',
-                              },
-                            }}
-                          >
-                            <ListItemIcon sx={{ minWidth: 40 }}>
-                              <FileIcon sx={{ color: '#0891B2', fontSize: 24 }} />
-                            </ListItemIcon>
-                            <ListItemText
-                              primary={
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <span>{file.display_name || file.original_name}</span>
-                                  {file.version && file.version > 1 && (
-                                    <Chip
-                                      label={`V${file.version}`}
-                                      size="small"
-                                      sx={{
-                                        height: 18,
-                                        fontSize: '0.7rem',
-                                        fontWeight: 600,
-                                        bgcolor: '#0891B2',
-                                        color: 'white',
-                                      }}
-                                    />
-                                  )}
-                                </Box>
-                              }
-                              secondary={formatFileSize(file.file_size)}
-                              primaryTypographyProps={{
-                                sx: {
-                                  fontWeight: 500,
-                                  color: '#1d1d1f',
-                                  fontSize: '0.9rem',
-                                },
-                              }}
-                              secondaryTypographyProps={{
-                                sx: { color: '#86868b', fontSize: '0.75rem' },
-                              }}
-                            />
-                            <ListItemSecondaryAction>
-                              {(file.content_type === 'application/pdf' || file.content_type?.startsWith('image/')) && (
-                                <IconButton
-                                  edge="end"
-                                  size="small"
-                                  onClick={() => handleViewFile(file)}
-                                  sx={{
-                                    color: '#0891B2',
-                                    mr: 1,
-                                    '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' },
-                                  }}
-                                  title="Lihat"
-                                >
-                                  <VisibilityIcon fontSize="small" />
-                                </IconButton>
-                              )}
-                              <IconButton
-                                edge="end"
-                                size="small"
-                                onClick={() => handleDownload(file)}
-                                disabled={downloadingFileId === file.id}
-                                sx={{
-                                  color: '#059669',
-                                  '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' },
-                                }}
-                                title="Download"
-                              >
-                                {downloadingFileId === file.id ? (
-                                  <CircularProgress size={18} sx={{ color: '#059669' }} />
-                                ) : (
-                                  <DownloadIcon fontSize="small" />
-                                )}
-                              </IconButton>
-                            </ListItemSecondaryAction>
-                          </ListItem>
-                        ))}
-                      </List>
-                    ) : (
-                      <Box
-                        sx={{
-                          p: 2,
-                          textAlign: 'center',
-                          borderRadius: '12px',
-                          bgcolor: 'rgba(245, 245, 247, 0.8)',
-                        }}
-                      >
-                        <Typography variant="body2" sx={{ color: '#86868b' }}>
-                          Belum ada dokumen Spesifikasi Kebutuhan
-                        </Typography>
-                      </Box>
-                    )}
-                  </Box>
                 </Box>
               )}
             </GlassCard>

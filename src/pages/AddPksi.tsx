@@ -271,7 +271,7 @@ const AddPksi = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<Array<{ file: File; tanggal: string }>>([]);
   const [uploadedFileData, setUploadedFileData] = useState<PksiFileData[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -309,35 +309,46 @@ const AddPksi = () => {
     fetchSkpaOptions();
   }, []);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (files && files.length > 0 && sessionId) {
-      const file = files[0];
-      
-      // Delete existing file if any (single file upload)
-      if (uploadedFileData.length > 0 && uploadedFileData[0]?.id) {
-        try {
-          await deletePksiFile(uploadedFileData[0].id);
-        } catch (error) {
-          console.error('Failed to delete existing file:', error);
-        }
-      }
-      
-      setIsUploading(true);
-      setErrorMessage('');
-      try {
-        const uploadedData = await uploadPksiTempFiles(sessionId, [file]);
-        setUploadedFiles([file]);
-        setUploadedFileData(uploadedData);
-      } catch (error) {
-        console.error('Failed to upload file:', error);
-        setErrorMessage('Gagal mengupload file. Silakan coba lagi.');
-      } finally {
-        setIsUploading(false);
-      }
+    if (files && files.length > 0) {
+      const newPending = Array.from(files).map(file => ({ file, tanggal: '' }));
+      setPendingFiles(prev => [...prev, ...newPending]);
     }
-    // Reset input value to allow uploading same file again
     event.target.value = '';
+  };
+
+  const handlePendingDateChange = (index: number, date: string) => {
+    setPendingFiles(prev => prev.map((p, i) => i === index ? { ...p, tanggal: date } : p));
+  };
+
+  const handleRemovePending = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUploadPendingFiles = async () => {
+    if (pendingFiles.length === 0 || !sessionId) return;
+    setIsUploading(true);
+    setErrorMessage('');
+    try {
+      const results: PksiFileData[] = [];
+      for (const pending of pendingFiles) {
+        const uploaded = await uploadPksiTempFiles(
+          sessionId,
+          [pending.file],
+          'T01',
+          pending.tanggal || undefined
+        );
+        results.push(...uploaded);
+      }
+      setUploadedFileData(prev => [...prev, ...results]);
+      setPendingFiles([]);
+    } catch (error) {
+      console.error('Failed to upload files:', error);
+      setErrorMessage('Gagal mengupload file. Silakan coba lagi.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleRemoveFile = async (index: number) => {
@@ -349,7 +360,6 @@ const AddPksi = () => {
         console.error('Failed to delete file:', error);
       }
     }
-    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
     setUploadedFileData((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -728,66 +738,102 @@ const AddPksi = () => {
                     borderRadius: 2,
                     p: 3,
                     textAlign: 'center',
-                    cursor: isUploading ? 'not-allowed' : 'pointer',
-                    opacity: isUploading ? 0.7 : 1,
+                    cursor: 'pointer',
                     transition: 'all 0.2s ease-in-out',
                     '&:hover': {
-                      borderColor: isUploading ? '#e5e5e7' : '#DA251C',
-                      bgcolor: isUploading ? 'transparent' : 'rgba(218, 37, 28, 0.04)',
+                      borderColor: '#DA251C',
+                      bgcolor: 'rgba(218, 37, 28, 0.04)',
                     },
                   }}
-                  onClick={() => !isUploading && document.getElementById('pksi-file-upload-input')?.click()}
+                  onClick={() => document.getElementById('pksi-file-upload-input')?.click()}
                 >
                   <input
                     id="pksi-file-upload-input"
                     type="file"
                     hidden
+                    multiple
                     onChange={handleFileUpload}
                     accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-                    disabled={isUploading}
                   />
-                  {isUploading ? (
-                    <>
-                      <CircularProgress size={48} sx={{ color: '#DA251C', mb: 1 }} />
-                      <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
-                        Mengupload file...
-                      </Typography>
-                    </>
-                  ) : (
-                    <>
-                      <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
-                      <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
-                        Klik untuk upload file
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
-                        atau drag & drop file di sini
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
-                        Format yang didukung: PDF, Word, Excel, Gambar (max 20MB)
-                      </Typography>
-                    </>
-                  )}
+                  <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
+                  <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                    Klik untuk upload file (bisa pilih beberapa)
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
+                    atau drag & drop file di sini
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
+                    Format yang didukung: PDF, Word, Excel, Gambar (max 20MB)
+                  </Typography>
                 </Box>
 
-                {uploadedFiles.length > 0 && (
+                {pendingFiles.length > 0 && (
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600, color: '#1d1d1f' }}>
+                      File akan diupload ({pendingFiles.length})
+                    </Typography>
+                    <Stack spacing={1.5}>
+                      {pendingFiles.map((pending, index) => (
+                        <Box
+                          key={index}
+                          sx={{ p: 1.5, bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px', border: '1px solid #e5e5e7' }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                            <FileIcon sx={{ color: '#DA251C', mr: 1, fontSize: 20 }} />
+                            <Typography variant="body2" sx={{ fontWeight: 500, color: '#1d1d1f', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {pending.file.name}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: '#86868b', mx: 1, whiteSpace: 'nowrap' }}>
+                              {formatFileSize(pending.file.size)}
+                            </Typography>
+                            <IconButton size="small" onClick={() => handleRemovePending(index)} sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                          <TextField
+                            fullWidth
+                            label="Tanggal Dokumen"
+                            type="date"
+                            size="small"
+                            value={pending.tanggal}
+                            onChange={(e) => handlePendingDateChange(index, e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                          />
+                        </Box>
+                      ))}
+                    </Stack>
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      onClick={handleUploadPendingFiles}
+                      disabled={isUploading}
+                      startIcon={isUploading ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <CloudUploadIcon />}
+                      sx={{ mt: 1.5, background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)', '&:hover': { background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)' } }}
+                    >
+                      {isUploading ? 'Mengupload...' : `Upload ${pendingFiles.length} File`}
+                    </Button>
+                  </Box>
+                )}
+
+                {uploadedFileData.length > 0 && (
                   <Box>
                     <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>
-                      File yang diupload ({uploadedFiles.length})
+                      File yang diupload ({uploadedFileData.length})
                     </Typography>
                     <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px' }}>
-                      {uploadedFiles.map((file, index) => (
+                      {uploadedFileData.map((fileData, index) => (
                         <ListItem
-                          key={index}
+                          key={fileData.id || index}
                           sx={{
-                            borderBottom: index < uploadedFiles.length - 1 ? '1px solid #e5e5e7' : 'none',
+                            borderBottom: index < uploadedFileData.length - 1 ? '1px solid #e5e5e7' : 'none',
                           }}
                         >
                           <ListItemIcon>
                             <FileIcon sx={{ color: '#DA251C' }} />
                           </ListItemIcon>
                           <ListItemText
-                            primary={file.name}
-                            secondary={formatFileSize(file.size)}
+                            primary={fileData.original_name}
+                            secondary={formatFileSize(fileData.file_size)}
                             primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }}
                             secondaryTypographyProps={{ sx: { color: '#86868b' } }}
                           />

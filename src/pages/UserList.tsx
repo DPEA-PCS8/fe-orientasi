@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Box,
   TextField,
@@ -21,6 +20,14 @@ import {
   MenuItem,
   Link,
   Chip,
+  Snackbar,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  Select,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -29,8 +36,11 @@ import {
   KeyboardArrowDown as ArrowDownIcon,
   OpenInNew as OpenInNewIcon,
   Close as CloseIcon,
+  Edit as EditIcon,
+  TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material';
 import { Popover, Checkbox, FormControlLabel, FormGroup } from '@mui/material';
+import { AddPksiModal } from '../components/modals';
 
 // Interface untuk data PKSI
 interface PksiData {
@@ -39,111 +49,114 @@ interface PksiData {
   jangkaWaktu: string;
   tanggalPengajuan: string;
   linkDocsT01: string;
+  jenisPksi: string;
+  isMendesak: boolean;
   status: 'pending' | 'disetujui' | 'tidak_disetujui';
+  progress?: string;
 }
 
 // Dummy data PKSI - 100 entries
 const DUMMY_PKSI: PksiData[] = [
-  { id: '1', namaPksi: 'SIP Perbankan Modul Penyusunan KYBPR - KYBPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-01T10:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/abc123', status: 'pending' },
-  { id: '2', namaPksi: 'SIP Perbankan Modul Manajemen Pemeriksaan BPR/BPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-03T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/def456', status: 'disetujui' },
-  { id: '3', namaPksi: 'Supervision Dashboard Perbankan', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-05T09:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/ghi789', status: 'tidak_disetujui' },
-  { id: '4', namaPksi: 'Sistem Informasi Pengawasan Konglomerasi Keuangan (SIPKK) Modul Financial Conglomerate Ratio (FICOR)', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-06T08:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/jkl012', status: 'pending' },
-  { id: '5', namaPksi: 'Sistem Informasi Penanganan Dugaan Pelanggaran (SIPEDANG)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-07T16:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/mno345', status: 'disetujui' },
-  { id: '6', namaPksi: 'Sistem Informasi Pengawasan Profesi Penunjang Akuntan Publik dan Kantor Akuntan Publik', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-08T10:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/pqr678', status: 'pending' },
-  { id: '7', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Profil Nasabah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-09T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/stu901', status: 'disetujui' },
-  { id: '8', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Analisis Kinerja Perusahaan Efek dan MKBD Mingguan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-09T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/vwx234', status: 'tidak_disetujui' },
-  { id: '9', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal – Konsultan Hukum', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-09T13:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/yza567', status: 'pending' },
-  { id: '10', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal - Penilai', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-09T14:20:00Z', linkDocsT01: 'https://docs.google.com/document/d/bcd890', status: 'disetujui' },
-  { id: '11', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal - Notaris', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-10T09:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/efg123', status: 'pending' },
-  { id: '12', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Industri Pengelolaan Investasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-10T10:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/hij456', status: 'tidak_disetujui' },
-  { id: '13', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Laporan Keuangan Manajer Investasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-10T11:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/klm789', status: 'disetujui' },
-  { id: '14', namaPksi: 'Enhancement Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Monitoring Laporan Emiten dan Perusahaan Publik (Tahap 3)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-10T12:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/nop012', status: 'pending' },
-  { id: '15', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Factbook SRO, Layanan Urun Dana (LUD), dan Lembaga Penunjang (Bank Kustodian, Biro Administrasi Efek, Wali Amanat, PPDES, Perusahaan Pemeringkat Efek)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-10T14:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/qrs345', status: 'disetujui' },
-  { id: '16', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal Terpadu (SIPM) - Modul Penanganan Keberatan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-10T15:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/tuv678', status: 'tidak_disetujui' },
-  { id: '17', namaPksi: 'SIP IKNB - Enhancement Modul Pemeriksaan Langsung Asuransi dan Reasuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-10T16:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/wxy901', status: 'pending' },
-  { id: '18', namaPksi: 'SIP IKNB - Enhancement Modul Pemeriksaan Langsung Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T08:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/zab234', status: 'disetujui' },
-  { id: '19', namaPksi: 'SIP IKNB - Enhancement Modul Sanksi Asuransi dan Reasuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/cde567', status: 'pending' },
-  { id: '20', namaPksi: 'SIP IKNB - Enhancement Modul Sanksi Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/fgh890', status: 'tidak_disetujui' },
-  { id: '21', namaPksi: 'SIP IKNB - Enhancement Modul Tindak Lanjut Hasil Pengawasan (TLHP) Asuransi dan Reasuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T12:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/ijk123', status: 'disetujui' },
-  { id: '22', namaPksi: 'SIP IKNB - Enhancement Modul Tindak Lanjut Hasil Pengawasan (TLHP) Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T13:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/lmn456', status: 'pending' },
-  { id: '23', namaPksi: 'SIP IKNB - Pelaporan Tindak Lanjut Rekomendasi Hasil Pemeriksaan Langsung Dana Pensiun', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/opq789', status: 'tidak_disetujui' },
-  { id: '24', namaPksi: 'SIP IKNB ALB - Pengembangan Sistem Informasi Analisis Laporan Keuangan Perusahaan Asuransi dan Reasuransi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T15:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/rst012', status: 'disetujui' },
-  { id: '25', namaPksi: 'SIP IKNB ALB - Pengembangan Sistem Informasi Analisis Laporan Keuangan Perusahaan Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T17:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/uvw345', status: 'pending' },
-  { id: '26', namaPksi: 'Enhancement SIP IKNB ALB Dana Pensiun - Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T08:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/xyz678', status: 'disetujui' },
-  { id: '27', namaPksi: 'Pengembangan SI IKNB Modul Analisis Laporan Berkala Non Keuangan (ALB-NK) Jasa Penunjang', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T09:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/abc901', status: 'tidak_disetujui' },
-  { id: '28', namaPksi: 'SIP IKNB ALB - Analisis Laporan Keuangan – Laporan Rencana Bisnis LPBBTI', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/def234', status: 'pending' },
-  { id: '29', namaPksi: 'SIP IKNB ALB - Analisis Laporan Keuangan (ALK ) - Laporan Berkala LPBBTI', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/ghi567', status: 'disetujui' },
-  { id: '30', namaPksi: 'SIP IKNB - Pengembangan SI IKNB Modul Monitoring Sanksi dan Rekomendasi Hasil Pemeriksaan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T13:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/jkl890', status: 'pending' },
-  { id: '31', namaPksi: 'Enhancement SIP IKNB Modul Sanksi Lembaga Pembiayaan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/mno123', status: 'tidak_disetujui' },
-  { id: '32', namaPksi: 'Enhancement Website OJK', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T16:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/pqr456', status: 'disetujui' },
-  { id: '33', namaPksi: 'Pejabat Pengelola Informasi dan Dokumentasi [PPID] OJK Mobile Apps', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T17:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/stu789', status: 'pending' },
-  { id: '34', namaPksi: 'Enhancement Sistem Pengolahan Data Program Satu Rekening Satu Pelajar (KEJAR)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-13T08:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/vwx012', status: 'disetujui' },
-  { id: '35', namaPksi: 'Enhancement Aplikasi Portal Perlindungan Konsumen (APPK) Tahun 2024', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-13T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/yza345', status: 'tidak_disetujui' },
-  { id: '36', namaPksi: 'Sistem Pengawasan Perilaku Pelaku Usaha Jasa Keuangan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-13T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/bcd678', status: 'pending' },
-  { id: '37', namaPksi: 'Sistem Informasi ARK Terintegrasi (CACM OJK)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-13T12:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/efg901', status: 'disetujui' },
-  { id: '38', namaPksi: 'Sistem Informasi ARK Terintegrasi (GRC OJK)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-13T13:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/hij234', status: 'pending' },
-  { id: '39', namaPksi: 'Sistem Informasi ARK Terintegrasi (E-KYE OJK)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-13T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/klm567', status: 'tidak_disetujui' },
-  { id: '40', namaPksi: 'Enhancement Repository and Conversion Engine (RACE) Tahun 2024', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-13T15:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/nop890', status: 'disetujui' },
-  { id: '41', namaPksi: 'SIP Perbankan Modul Penyusunan KYBPR - KYBPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-13T17:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/qrs123', status: 'pending' },
-  { id: '42', namaPksi: 'SIP Perbankan Modul Manajemen Pemeriksaan BPR/BPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-14T08:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/tuv456', status: 'disetujui' },
-  { id: '43', namaPksi: 'Supervision Dashboard Perbankan', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-14T09:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/wxy789', status: 'tidak_disetujui' },
-  { id: '44', namaPksi: 'Sistem Informasi Pengawasan Konglomerasi Keuangan (SIPKK) Modul Financial Conglomerate Ratio (FICOR)', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-14T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/zab012', status: 'pending' },
-  { id: '45', namaPksi: 'Sistem Informasi Penanganan Dugaan Pelanggaran (SIPEDANG)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-14T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/cde345', status: 'disetujui' },
-  { id: '46', namaPksi: 'Sistem Informasi Pengawasan Profesi Penunjang Akuntan Publik dan Kantor Akuntan Publik', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-14T13:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/fgh678', status: 'pending' },
-  { id: '47', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Profil Nasabah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-14T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/ijk901', status: 'tidak_disetujui' },
-  { id: '48', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Analisis Kinerja Perusahaan Efek dan MKBD Mingguan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-14T16:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/lmn234', status: 'pending' },
-  { id: '49', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal – Konsultan Hukum', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-14T17:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/opq567', status: 'disetujui' },
-  { id: '50', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal - Penilai', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T08:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/rst890', status: 'tidak_disetujui' },
-  { id: '51', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal - Notaris', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/uvw123', status: 'pending' },
-  { id: '52', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Industri Pengelolaan Investasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/xyz456', status: 'disetujui' },
-  { id: '53', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Laporan Keuangan Manajer Investasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T12:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/abc789', status: 'tidak_disetujui' },
-  { id: '54', namaPksi: 'Enhancement Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Monitoring Laporan Emiten dan Perusahaan Publik (Tahap 3)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T13:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/def012', status: 'pending' },
-  { id: '55', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Factbook SRO, Layanan Urun Dana (LUD), dan Lembaga Penunjang (Bank Kustodian, Biro Administrasi Efek, Wali Amanat, PPDES, Perusahaan Pemeringkat Efek)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/ghi345', status: 'disetujui' },
-  { id: '56', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal Terpadu (SIPM) - Modul Penanganan Keberatan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T15:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/jkl678', status: 'tidak_disetujui' },
-  { id: '57', namaPksi: 'SIP IKNB - Enhancement Modul Pemeriksaan Langsung Asuransi dan Reasuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T17:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/mno901', status: 'pending' },
-  { id: '58', namaPksi: 'SIP IKNB - Enhancement Modul Pemeriksaan Langsung Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T08:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/pqr234', status: 'disetujui' },
-  { id: '59', namaPksi: 'SIP IKNB - Enhancement Modul Sanksi Asuransi dan Reasuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T09:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/stu567', status: 'tidak_disetujui' },
-  { id: '60', namaPksi: 'SIP IKNB - Enhancement Modul Sanksi Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/vwx890', status: 'pending' },
-  { id: '61', namaPksi: 'SIP IKNB - Enhancement Modul Tindak Lanjut Hasil Pengawasan (TLHP) Asuransi dan Reasuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/yza123', status: 'disetujui' },
-  { id: '62', namaPksi: 'SIP IKNB - Enhancement Modul Tindak Lanjut Hasil Pengawasan (TLHP) Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T13:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/bcd456', status: 'tidak_disetujui' },
-  { id: '63', namaPksi: 'SIP IKNB - Pelaporan Tindak Lanjut Rekomendasi Hasil Pemeriksaan Langsung Dana Pensiun', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/efg789', status: 'pending' },
-  { id: '64', namaPksi: 'SIP IKNB ALB - Pengembangan Sistem Informasi Analisis Laporan Keuangan Perusahaan Asuransi dan Reasuransi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T16:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/hij012', status: 'disetujui' },
-  { id: '65', namaPksi: 'SIP IKNB ALB - Pengembangan Sistem Informasi Analisis Laporan Keuangan Perusahaan Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T17:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/klm345', status: 'tidak_disetujui' },
-  { id: '66', namaPksi: 'Enhancement SIP IKNB ALB Dana Pensiun - Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T08:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/nop678', status: 'pending' },
-  { id: '67', namaPksi: 'Pengembangan SI IKNB Modul Analisis Laporan Berkala Non Keuangan (ALB-NK) Jasa Penunjang', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/qrs901', status: 'disetujui' },
-  { id: '68', namaPksi: 'SIP IKNB ALB - Analisis Laporan Keuangan – Laporan Rencana Bisnis LPBBTI', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/tuv234', status: 'tidak_disetujui' },
-  { id: '69', namaPksi: 'SIP IKNB ALB - Analisis Laporan Keuangan (ALK ) - Laporan Berkala LPBBTI', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T12:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/wxy567', status: 'pending' },
-  { id: '70', namaPksi: 'SIP IKNB - Pengembangan SI IKNB Modul Monitoring Sanksi dan Rekomendasi Hasil Pemeriksaan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T13:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/zab890', status: 'disetujui' },
-  { id: '71', namaPksi: 'Enhancement SIP IKNB Modul Sanksi Lembaga Pembiayaan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/cde123', status: 'tidak_disetujui' },
-  { id: '72', namaPksi: 'Enhancement Website OJK', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T15:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/fgh456', status: 'pending' },
-  { id: '73', namaPksi: 'Pejabat Pengelola Informasi dan Dokumentasi [PPID] OJK Mobile Apps', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T17:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/ijk789', status: 'disetujui' },
-  { id: '74', namaPksi: 'Enhancement Sistem Pengolahan Data Program Satu Rekening Satu Pelajar (KEJAR)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-18T08:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/lmn012', status: 'tidak_disetujui' },
-  { id: '75', namaPksi: 'Enhancement Aplikasi Portal Perlindungan Konsumen (APPK) Tahun 2024', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-18T09:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/opq345', status: 'pending' },
-  { id: '76', namaPksi: 'Sistem Pengawasan Perilaku Pelaku Usaha Jasa Keuangan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-18T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/rst678', status: 'disetujui' },
-  { id: '77', namaPksi: 'Sistem Informasi ARK Terintegrasi (CACM OJK)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-18T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/uvw901', status: 'tidak_disetujui' },
-  { id: '78', namaPksi: 'Sistem Informasi ARK Terintegrasi (GRC OJK)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-18T13:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/xyz234', status: 'pending' },
-  { id: '79', namaPksi: 'Sistem Informasi ARK Terintegrasi (E-KYE OJK)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-18T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/abc567', status: 'disetujui' },
-  { id: '80', namaPksi: 'Enhancement Repository and Conversion Engine (RACE) Tahun 2024', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-18T16:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/def890', status: 'tidak_disetujui' },
-  { id: '81', namaPksi: 'SIP Perbankan Modul Penyusunan KYBPR - KYBPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-18T17:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/ghi123', status: 'pending' },
-  { id: '82', namaPksi: 'SIP Perbankan Modul Manajemen Pemeriksaan BPR/BPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-19T08:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/jkl456', status: 'disetujui' },
-  { id: '83', namaPksi: 'Supervision Dashboard Perbankan', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-19T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/mno789', status: 'tidak_disetujui' },
-  { id: '84', namaPksi: 'Sistem Informasi Pengawasan Konglomerasi Keuangan (SIPKK) Modul Financial Conglomerate Ratio (FICOR)', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-19T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/pqr012', status: 'pending' },
-  { id: '85', namaPksi: 'Sistem Informasi Penanganan Dugaan Pelanggaran (SIPEDANG)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-19T12:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/stu345', status: 'disetujui' },
-  { id: '86', namaPksi: 'Sistem Informasi Pengawasan Profesi Penunjang Akuntan Publik dan Kantor Akuntan Publik', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-19T13:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/vwx678', status: 'tidak_disetujui' },
-  { id: '87', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Profil Nasabah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-19T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/yza901', status: 'pending' },
-  { id: '88', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Analisis Kinerja Perusahaan Efek dan MKBD Mingguan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-19T15:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/bcd234', status: 'disetujui' },
-  { id: '89', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal – Konsultan Hukum', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-19T17:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/efg567', status: 'tidak_disetujui' },
-  { id: '90', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal - Penilai', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T08:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/hij890', status: 'pending' },
-  { id: '91', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal - Notaris', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T09:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/klm123', status: 'disetujui' },
-  { id: '92', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Industri Pengelolaan Investasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/nop456', status: 'tidak_disetujui' },
-  { id: '93', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Laporan Keuangan Manajer Investasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/qrs789', status: 'pending' },
-  { id: '94', namaPksi: 'Enhancement Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Monitoring Laporan Emiten dan Perusahaan Publik (Tahap 3)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T13:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/tuv012', status: 'disetujui' },
-  { id: '95', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Factbook SRO, Layanan Urun Dana (LUD), dan Lembaga Penunjang (Bank Kustodian, Biro Administrasi Efek, Wali Amanat, PPDES, Perusahaan Pemeringkat Efek)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/wxy345', status: 'tidak_disetujui' },
-  { id: '96', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal Terpadu (SIPM) - Modul Penanganan Keberatan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T16:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/zab678', status: 'pending' },
-  { id: '97', namaPksi: 'SIP IKNB - Enhancement Modul Pemeriksaan Langsung Asuransi dan Reasuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T17:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/cde901', status: 'disetujui' },
-  { id: '98', namaPksi: 'SIP IKNB - Enhancement Modul Pemeriksaan Langsung Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-21T08:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/fgh234', status: 'tidak_disetujui' },
-  { id: '99', namaPksi: 'SIP IKNB - Enhancement Modul Sanksi Asuransi dan Reasuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-21T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/ijk567', status: 'pending' },
-  { id: '100', namaPksi: 'Enhancement Repository and Conversion Engine (RACE) Tahun 2024', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-21T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/lmn890', status: 'disetujui' },
+  { id: '1', namaPksi: 'SIP Perbankan Modul Penyusunan KYBPR - KYBPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-01T10:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/abc123', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '2', namaPksi: 'SIP Perbankan Modul Manajemen Pemeriksaan BPR/BPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-03T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/def456', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '3', namaPksi: 'Supervision Dashboard Perbankan', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-05T09:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/ghi789', jenisPksi: 'Reguler', isMendesak: false, status: 'tidak_disetujui' },
+  { id: '4', namaPksi: 'Sistem Informasi Pengawasan Konglomerasi Keuangan (SIPKK) Modul Financial Conglomerate Ratio (FICOR)', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-06T08:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/jkl012', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '5', namaPksi: 'Sistem Informasi Penanganan Dugaan Pelanggaran (SIPEDANG)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-07T16:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/mno345', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '6', namaPksi: 'Sistem Informasi Pengawasan Profesi Penunjang Akuntan Publik dan Kantor Akuntan Publik', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-08T10:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/pqr678', jenisPksi: 'Reguler', isMendesak: false, status: 'pending' },
+  { id: '7', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Profil Nasabah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-09T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/stu901', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '8', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Analisis Kinerja Perusahaan Efek dan MKBD Mingguan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-09T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/vwx234', jenisPksi: 'Mendesak', isMendesak: true, status: 'tidak_disetujui' },
+  { id: '9', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal – Konsultan Hukum', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-09T13:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/yza567', jenisPksi: 'Reguler', isMendesak: false, status: 'pending' },
+  { id: '10', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal - Penilai', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-09T14:20:00Z', linkDocsT01: 'https://docs.google.com/document/d/bcd890', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '11', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal - Notaris', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-10T09:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/efg123', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '12', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Industri Pengelolaan Investasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-10T10:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/hij456', jenisPksi: 'Reguler', isMendesak: false, status: 'tidak_disetujui' },
+  { id: '13', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Laporan Keuangan Manajer Investasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-10T11:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/klm789', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '14', namaPksi: 'Enhancement Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Monitoring Laporan Emiten dan Perusahaan Publik (Tahap 3)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-10T12:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/nop012', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '15', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Factbook SRO, Layanan Urun Dana (LUD), dan Lembaga Penunjang (Bank Kustodian, Biro Administrasi Efek, Wali Amanat, PPDES, Perusahaan Pemeringkat Efek)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-10T14:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/qrs345', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '16', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal Terpadu (SIPM) - Modul Penanganan Keberatan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-10T15:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/tuv678', jenisPksi: 'Mendesak', isMendesak: true, status: 'tidak_disetujui' },
+  { id: '17', namaPksi: 'SIP IKNB - Enhancement Modul Pemeriksaan Langsung Asuransi dan Reasuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-10T16:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/wxy901', jenisPksi: 'Reguler', isMendesak: false, status: 'pending' },
+  { id: '18', namaPksi: 'SIP IKNB - Enhancement Modul Pemeriksaan Langsung Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T08:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/zab234', jenisPksi: 'Mendesak', isMendesak: true, status: 'disetujui' },
+  { id: '19', namaPksi: 'SIP IKNB - Enhancement Modul Sanksi Asuransi dan Reasuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/cde567', jenisPksi: 'Reguler', isMendesak: false, status: 'pending' },
+  { id: '20', namaPksi: 'SIP IKNB - Enhancement Modul Sanksi Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/fgh890', jenisPksi: 'Mendesak', isMendesak: true, status: 'tidak_disetujui' },
+  { id: '21', namaPksi: 'SIP IKNB - Enhancement Modul Tindak Lanjut Hasil Pengawasan (TLHP) Asuransi dan Reasuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T12:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/ijk123', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '22', namaPksi: 'SIP IKNB - Enhancement Modul Tindak Lanjut Hasil Pengawasan (TLHP) Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T13:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/lmn456', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '23', namaPksi: 'SIP IKNB - Pelaporan Tindak Lanjut Rekomendasi Hasil Pemeriksaan Langsung Dana Pensiun', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/opq789', jenisPksi: 'Reguler', isMendesak: false, status: 'tidak_disetujui' },
+  { id: '24', namaPksi: 'SIP IKNB ALB - Pengembangan Sistem Informasi Analisis Laporan Keuangan Perusahaan Asuransi dan Reasuransi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T15:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/rst012', jenisPksi: 'Mendesak', isMendesak: true, status: 'disetujui' },
+  { id: '25', namaPksi: 'SIP IKNB ALB - Pengembangan Sistem Informasi Analisis Laporan Keuangan Perusahaan Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-11T17:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/uvw345', jenisPksi: 'Reguler', isMendesak: false, status: 'pending' },
+  { id: '26', namaPksi: 'Enhancement SIP IKNB ALB Dana Pensiun - Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T08:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/xyz678', jenisPksi: 'Mendesak', isMendesak: true, status: 'disetujui' },
+  { id: '27', namaPksi: 'Pengembangan SI IKNB Modul Analisis Laporan Berkala Non Keuangan (ALB-NK) Jasa Penunjang', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T09:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/abc901', jenisPksi: 'Reguler', isMendesak: false, status: 'tidak_disetujui' },
+  { id: '28', namaPksi: 'SIP IKNB ALB - Analisis Laporan Keuangan – Laporan Rencana Bisnis LPBBTI', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/def234', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '29', namaPksi: 'SIP IKNB ALB - Analisis Laporan Keuangan (ALK ) - Laporan Berkala LPBBTI', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/ghi567', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '30', namaPksi: 'SIP IKNB - Pengembangan SI IKNB Modul Monitoring Sanksi dan Rekomendasi Hasil Pemeriksaan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T13:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/jkl890', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '31', namaPksi: 'Enhancement SIP IKNB Modul Sanksi Lembaga Pembiayaan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/mno123', jenisPksi: 'Reguler', isMendesak: false, status: 'tidak_disetujui' },
+  { id: '32', namaPksi: 'Enhancement Website OJK', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T16:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/pqr456', jenisPksi: 'Mendesak', isMendesak: true, status: 'disetujui' },
+  { id: '33', namaPksi: 'Pejabat Pengelola Informasi dan Dokumentasi [PPID] OJK Mobile Apps', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-12T17:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/stu789', jenisPksi: 'Reguler', isMendesak: false, status: 'pending' },
+  { id: '34', namaPksi: 'Enhancement Sistem Pengolahan Data Program Satu Rekening Satu Pelajar (KEJAR)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-13T08:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/vwx012', jenisPksi: 'Mendesak', isMendesak: true, status: 'disetujui' },
+  { id: '35', namaPksi: 'Enhancement Aplikasi Portal Perlindungan Konsumen (APPK) Tahun 2024', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-13T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/yza345', jenisPksi: 'Reguler', isMendesak: false, status: 'tidak_disetujui' },
+  { id: '36', namaPksi: 'Sistem Pengawasan Perilaku Pelaku Usaha Jasa Keuangan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-13T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/bcd678', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '37', namaPksi: 'Sistem Informasi ARK Terintegrasi (CACM OJK)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-13T12:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/efg901', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '38', namaPksi: 'Sistem Informasi ARK Terintegrasi (GRC OJK)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-13T13:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/hij234', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '39', namaPksi: 'Sistem Informasi ARK Terintegrasi (E-KYE OJK)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-13T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/klm567', jenisPksi: 'Reguler', isMendesak: false, status: 'tidak_disetujui' },
+  { id: '40', namaPksi: 'Enhancement Repository and Conversion Engine (RACE) Tahun 2024', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-13T15:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/nop890', jenisPksi: 'Mendesak', isMendesak: true, status: 'disetujui' },
+  { id: '41', namaPksi: 'SIP Perbankan Modul Penyusunan KYBPR - KYBPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-13T17:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/qrs123', jenisPksi: 'Reguler', isMendesak: false, status: 'pending' },
+  { id: '42', namaPksi: 'SIP Perbankan Modul Manajemen Pemeriksaan BPR/BPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-14T08:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/tuv456', jenisPksi: 'Mendesak', isMendesak: true, status: 'disetujui' },
+  { id: '43', namaPksi: 'Supervision Dashboard Perbankan', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-14T09:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/wxy789', jenisPksi: 'Reguler', isMendesak: false, status: 'tidak_disetujui' },
+  { id: '44', namaPksi: 'Sistem Informasi Pengawasan Konglomerasi Keuangan (SIPKK) Modul Financial Conglomerate Ratio (FICOR)', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-14T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/zab012', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '45', namaPksi: 'Sistem Informasi Penanganan Dugaan Pelanggaran (SIPEDANG)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-14T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/cde345', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '46', namaPksi: 'Sistem Informasi Pengawasan Profesi Penunjang Akuntan Publik dan Kantor Akuntan Publik', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-14T13:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/fgh678', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '47', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Profil Nasabah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-14T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/ijk901', jenisPksi: 'Reguler', isMendesak: false, status: 'tidak_disetujui' },
+  { id: '48', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Analisis Kinerja Perusahaan Efek dan MKBD Mingguan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-14T16:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/lmn234', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '49', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal – Konsultan Hukum', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-14T17:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/opq567', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '50', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal - Penilai', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T08:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/rst890', jenisPksi: 'Mendesak', isMendesak: true, status: 'tidak_disetujui' },
+  { id: '51', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal - Notaris', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/uvw123', jenisPksi: 'Reguler', isMendesak: false, status: 'pending' },
+  { id: '52', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Industri Pengelolaan Investasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/xyz456', jenisPksi: 'Mendesak', isMendesak: true, status: 'disetujui' },
+  { id: '53', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Laporan Keuangan Manajer Investasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T12:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/abc789', jenisPksi: 'Reguler', isMendesak: false, status: 'tidak_disetujui' },
+  { id: '54', namaPksi: 'Enhancement Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Monitoring Laporan Emiten dan Perusahaan Publik (Tahap 3)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T13:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/def012', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '55', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Factbook SRO, Layanan Urun Dana (LUD), dan Lembaga Penunjang (Bank Kustodian, Biro Administrasi Efek, Wali Amanat, PPDES, Perusahaan Pemeringkat Efek)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/ghi345', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '56', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal Terpadu (SIPM) - Modul Penanganan Keberatan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T15:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/jkl678', jenisPksi: 'Mendesak', isMendesak: true, status: 'tidak_disetujui' },
+  { id: '57', namaPksi: 'SIP IKNB - Enhancement Modul Pemeriksaan Langsung Asuransi dan Reasuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-15T17:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/mno901', jenisPksi: 'Reguler', isMendesak: false, status: 'pending' },
+  { id: '58', namaPksi: 'SIP IKNB - Enhancement Modul Pemeriksaan Langsung Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T08:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/pqr234', jenisPksi: 'Mendesak', isMendesak: true, status: 'disetujui' },
+  { id: '59', namaPksi: 'SIP IKNB - Enhancement Modul Sanksi Asuransi dan Reasuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T09:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/stu567', jenisPksi: 'Reguler', isMendesak: false, status: 'tidak_disetujui' },
+  { id: '60', namaPksi: 'SIP IKNB - Enhancement Modul Sanksi Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/vwx890', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '61', namaPksi: 'SIP IKNB - Enhancement Modul Tindak Lanjut Hasil Pengawasan (TLHP) Asuransi dan Reasuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/yza123', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '62', namaPksi: 'SIP IKNB - Enhancement Modul Tindak Lanjut Hasil Pengawasan (TLHP) Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T13:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/bcd456', jenisPksi: 'Mendesak', isMendesak: true, status: 'tidak_disetujui' },
+  { id: '63', namaPksi: 'SIP IKNB - Pelaporan Tindak Lanjut Rekomendasi Hasil Pemeriksaan Langsung Dana Pensiun', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/efg789', jenisPksi: 'Reguler', isMendesak: false, status: 'pending' },
+  { id: '64', namaPksi: 'SIP IKNB ALB - Pengembangan Sistem Informasi Analisis Laporan Keuangan Perusahaan Asuransi dan Reasuransi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T16:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/hij012', jenisPksi: 'Mendesak', isMendesak: true, status: 'disetujui' },
+  { id: '65', namaPksi: 'SIP IKNB ALB - Pengembangan Sistem Informasi Analisis Laporan Keuangan Perusahaan Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-16T17:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/klm345', jenisPksi: 'Reguler', isMendesak: false, status: 'tidak_disetujui' },
+  { id: '66', namaPksi: 'Enhancement SIP IKNB ALB Dana Pensiun - Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T08:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/nop678', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '67', namaPksi: 'Pengembangan SI IKNB Modul Analisis Laporan Berkala Non Keuangan (ALB-NK) Jasa Penunjang', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/qrs901', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '68', namaPksi: 'SIP IKNB ALB - Analisis Laporan Keuangan – Laporan Rencana Bisnis LPBBTI', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/tuv234', jenisPksi: 'Mendesak', isMendesak: true, status: 'tidak_disetujui' },
+  { id: '69', namaPksi: 'SIP IKNB ALB - Analisis Laporan Keuangan (ALK ) - Laporan Berkala LPBBTI', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T12:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/wxy567', jenisPksi: 'Reguler', isMendesak: false, status: 'pending' },
+  { id: '70', namaPksi: 'SIP IKNB - Pengembangan SI IKNB Modul Monitoring Sanksi dan Rekomendasi Hasil Pemeriksaan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T13:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/zab890', jenisPksi: 'Mendesak', isMendesak: true, status: 'disetujui' },
+  { id: '71', namaPksi: 'Enhancement SIP IKNB Modul Sanksi Lembaga Pembiayaan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/cde123', jenisPksi: 'Reguler', isMendesak: false, status: 'tidak_disetujui' },
+  { id: '72', namaPksi: 'Enhancement Website OJK', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T15:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/fgh456', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '73', namaPksi: 'Pejabat Pengelola Informasi dan Dokumentasi [PPID] OJK Mobile Apps', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-17T17:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/ijk789', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '74', namaPksi: 'Enhancement Sistem Pengolahan Data Program Satu Rekening Satu Pelajar (KEJAR)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-18T08:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/lmn012', jenisPksi: 'Mendesak', isMendesak: true, status: 'tidak_disetujui' },
+  { id: '75', namaPksi: 'Enhancement Aplikasi Portal Perlindungan Konsumen (APPK) Tahun 2024', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-18T09:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/opq345', jenisPksi: 'Reguler', isMendesak: false, status: 'pending' },
+  { id: '76', namaPksi: 'Sistem Pengawasan Perilaku Pelaku Usaha Jasa Keuangan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-18T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/rst678', jenisPksi: 'Mendesak', isMendesak: true, status: 'disetujui' },
+  { id: '77', namaPksi: 'Sistem Informasi ARK Terintegrasi (CACM OJK)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-18T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/uvw901', jenisPksi: 'Reguler', isMendesak: false, status: 'tidak_disetujui' },
+  { id: '78', namaPksi: 'Sistem Informasi ARK Terintegrasi (GRC OJK)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-18T13:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/xyz234', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '79', namaPksi: 'Sistem Informasi ARK Terintegrasi (E-KYE OJK)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-18T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/abc567', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '80', namaPksi: 'Enhancement Repository and Conversion Engine (RACE) Tahun 2024', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-18T16:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/def890', jenisPksi: 'Mendesak', isMendesak: true, status: 'tidak_disetujui' },
+  { id: '81', namaPksi: 'SIP Perbankan Modul Penyusunan KYBPR - KYBPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-18T17:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/ghi123', jenisPksi: 'Reguler', isMendesak: false, status: 'pending' },
+  { id: '82', namaPksi: 'SIP Perbankan Modul Manajemen Pemeriksaan BPR/BPRS', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-19T08:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/jkl456', jenisPksi: 'Mendesak', isMendesak: true, status: 'disetujui' },
+  { id: '83', namaPksi: 'Supervision Dashboard Perbankan', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-19T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/mno789', jenisPksi: 'Reguler', isMendesak: false, status: 'tidak_disetujui' },
+  { id: '84', namaPksi: 'Sistem Informasi Pengawasan Konglomerasi Keuangan (SIPKK) Modul Financial Conglomerate Ratio (FICOR)', jangkaWaktu: 'Single Year', tanggalPengajuan: '2026-02-19T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/pqr012', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '85', namaPksi: 'Sistem Informasi Penanganan Dugaan Pelanggaran (SIPEDANG)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-19T12:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/stu345', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '86', namaPksi: 'Sistem Informasi Pengawasan Profesi Penunjang Akuntan Publik dan Kantor Akuntan Publik', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-19T13:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/vwx678', jenisPksi: 'Mendesak', isMendesak: true, status: 'tidak_disetujui' },
+  { id: '87', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Profil Nasabah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-19T14:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/yza901', jenisPksi: 'Reguler', isMendesak: false, status: 'pending' },
+  { id: '88', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Analisis Kinerja Perusahaan Efek dan MKBD Mingguan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-19T15:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/bcd234', jenisPksi: 'Mendesak', isMendesak: true, status: 'disetujui' },
+  { id: '89', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal – Konsultan Hukum', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-19T17:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/efg567', jenisPksi: 'Reguler', isMendesak: false, status: 'tidak_disetujui' },
+  { id: '90', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal - Penilai', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T08:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/hij890', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '91', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Profesi Penunjang Pasar Modal - Notaris', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T09:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/klm123', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '92', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Industri Pengelolaan Investasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T11:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/nop456', jenisPksi: 'Mendesak', isMendesak: true, status: 'tidak_disetujui' },
+  { id: '93', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Pengawasan Laporan Keuangan Manajer Investasi', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T12:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/qrs789', jenisPksi: 'Reguler', isMendesak: false, status: 'pending' },
+  { id: '94', namaPksi: 'Enhancement Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Monitoring Laporan Emiten dan Perusahaan Publik (Tahap 3)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T13:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/tuv012', jenisPksi: 'Mendesak', isMendesak: true, status: 'disetujui' },
+  { id: '95', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal (SIPM) Tahun 2024 - Modul Factbook SRO, Layanan Urun Dana (LUD), dan Lembaga Penunjang (Bank Kustodian, Biro Administrasi Efek, Wali Amanat, PPDES, Perusahaan Pemeringkat Efek)', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T14:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/wxy345', jenisPksi: 'Reguler', isMendesak: false, status: 'tidak_disetujui' },
+  { id: '96', namaPksi: 'Pengembangan Sistem Informasi Pengawasan Pasar Modal Terpadu (SIPM) - Modul Penanganan Keberatan', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T16:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/zab678', jenisPksi: 'Mendesak', isMendesak: true, status: 'pending' },
+  { id: '97', namaPksi: 'SIP IKNB - Enhancement Modul Pemeriksaan Langsung Asuransi dan Reasuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-20T17:15:00Z', linkDocsT01: 'https://docs.google.com/document/d/cde901', jenisPksi: 'Reguler', isMendesak: false, status: 'disetujui' },
+  { id: '98', namaPksi: 'SIP IKNB - Enhancement Modul Pemeriksaan Langsung Asuransi dan Reasuransi Syariah', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-21T08:00:00Z', linkDocsT01: 'https://docs.google.com/document/d/fgh234', jenisPksi: 'Mendesak', isMendesak: true, status: 'tidak_disetujui' },
+  { id: '99', namaPksi: 'SIP IKNB - Enhancement Modul Sanksi Asuransi dan Reasuransi Konvensional', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-21T09:30:00Z', linkDocsT01: 'https://docs.google.com/document/d/ijk567', jenisPksi: 'Reguler', isMendesak: false, status: 'pending' },
+  { id: '100', namaPksi: 'Enhancement Repository and Conversion Engine (RACE) Tahun 2024', jangkaWaktu: 'Multiyears 2024-2025', tanggalPengajuan: '2026-02-21T10:45:00Z', linkDocsT01: 'https://docs.google.com/document/d/lmn890', jenisPksi: 'Mendesak', isMendesak: true, status: 'disetujui' },
 ];
 
 type Order = 'asc' | 'desc';
@@ -153,6 +166,35 @@ const STATUS_LABELS: Record<PksiData['status'], string> = {
   pending: 'Pending',
   disetujui: 'Disetujui',
   tidak_disetujui: 'Tidak Disetujui',
+};
+
+const PROGRESS_OPTIONS = [
+  'Penyusunan Usreq', 'Pengadaan', 'Desain', 'Coding',
+  'Unit Test', 'SIT', 'UAT', 'Deployment', 'Selesai',
+];
+
+const getProgressColor = (progress?: string): { bg: string; color: string } => {
+  switch (progress) {
+    case 'Selesai': return { bg: 'rgba(46,125,50,0.12)', color: '#2e7d32' };
+    case 'Deployment': return { bg: 'rgba(156,39,176,0.12)', color: '#7b1fa2' };
+    case 'UAT': return { bg: 'rgba(2,136,209,0.12)', color: '#0277bd' };
+    case 'SIT': return { bg: 'rgba(0,150,136,0.12)', color: '#00695c' };
+    case 'Unit Test': return { bg: 'rgba(33,150,243,0.12)', color: '#1565c0' };
+    case 'Coding': return { bg: 'rgba(3,169,244,0.12)', color: '#0288d1' };
+    case 'Desain': return { bg: 'rgba(103,58,183,0.12)', color: '#512da8' };
+    case 'Pengadaan': return { bg: 'rgba(255,152,0,0.12)', color: '#e65100' };
+    default: return { bg: 'rgba(237,108,2,0.12)', color: '#bf360c' };
+  }
+};
+
+// Liquid glass style constants
+const GLASS_DIALOG_PAPER_SX = {
+  borderRadius: '20px',
+  background: 'rgba(255, 255, 255, 0.82)',
+  backdropFilter: 'blur(40px) saturate(200%)',
+  WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+  border: '1px solid rgba(255, 255, 255, 0.5)',
+  boxShadow: '0 20px 60px rgba(0,0,0,0.15), 0 1px 0 rgba(255,255,255,0.8) inset',
 };
 
 // Status color mapping
@@ -168,7 +210,6 @@ const getStatusColor = (status: PksiData['status']) => {
 };
 
 const UserList = () => {
-  const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -185,6 +226,23 @@ const UserList = () => {
   const [selectedJangkaWaktu, setSelectedJangkaWaktu] = useState<Set<string>>(new Set());
   const [selectedStatus, setSelectedStatus] = useState<Set<string>>(new Set());
 
+  // Edit progress dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingPksi, setEditingPksi] = useState<PksiData | null>(null);
+  const [editProgress, setEditProgress] = useState('');
+  const [editTanggal, setEditTanggal] = useState('');
+
+  // Add PKSI modal
+  const [addModalOpen, setAddModalOpen] = useState(false);
+
+  // Toast notification
+  const [toast, setToast] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
+    open: false, message: '', severity: 'success',
+  });
+  const showToast = (message: string, severity: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ open: true, message, severity });
+  };
+
   const handleStatusMenuOpen = (event: React.MouseEvent<HTMLElement>, pksiId: string) => {
     setAnchorEl(event.currentTarget);
     setSelectedPksiId(pksiId);
@@ -197,11 +255,12 @@ const UserList = () => {
 
   const handleStatusChange = (newStatus: PksiData['status']) => {
     if (selectedPksiId) {
-      setPksiData(prev => 
-        prev.map(item => 
+      setPksiData(prev =>
+        prev.map(item =>
           item.id === selectedPksiId ? { ...item, status: newStatus } : item
         )
       );
+      showToast(`Status berhasil diubah ke "${STATUS_LABELS[newStatus]}"`, 'success');
     }
     handleStatusMenuClose();
   };
@@ -212,6 +271,45 @@ const UserList = () => {
 
   const handleFilterClose = () => {
     setFilterAnchorEl(null);
+  };
+
+  const handleEditOpen = (item: PksiData) => {
+    setEditingPksi(item);
+    setEditProgress(item.progress || 'Penyusunan Usreq');
+    // Convert ISO date to YYYY-MM-DD for input[type=date]
+    const d = new Date(item.tanggalPengajuan);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    setEditTanggal(`${yyyy}-${mm}-${dd}`);
+    setEditDialogOpen(true);
+  };
+
+  const handleEditClose = () => {
+    setEditDialogOpen(false);
+    setEditingPksi(null);
+  };
+
+  const handleEditSave = () => {
+    if (!editingPksi) return;
+    try {
+      setPksiData(prev =>
+        prev.map(item =>
+          item.id === editingPksi.id
+            ? { ...item, progress: editProgress, tanggalPengajuan: editTanggal ? new Date(editTanggal).toISOString() : item.tanggalPengajuan }
+            : item
+        )
+      );
+      showToast('Progress dan tanggal berhasil diperbarui', 'success');
+      handleEditClose();
+    } catch {
+      showToast('Gagal memperbarui data. Silakan coba lagi.', 'error');
+    }
+  };
+
+  const handleAddSuccess = () => {
+    setAddModalOpen(false);
+    showToast('PKSI baru berhasil ditambahkan!', 'success');
   };
 
   const handleJangkaWaktuChange = (jangkaWaktu: string) => {
@@ -240,7 +338,7 @@ const UserList = () => {
   };
 
   const filteredPksi = (() => {
-    let result = pksiData.filter(item => {
+    const result = pksiData.filter(item => {
       // Keyword filter
       const matchKeyword = item.namaPksi.toLowerCase().includes(keyword.toLowerCase());
       
@@ -377,13 +475,16 @@ const UserList = () => {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => navigate('/add-pksi')}
+            onClick={() => setAddModalOpen(true)}
             sx={{
               background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
               fontWeight: 500,
               px: 2.5,
+              borderRadius: '12px',
+              boxShadow: '0 4px 15px rgba(218, 37, 28, 0.3)',
               '&:hover': {
                 background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
+                boxShadow: '0 6px 20px rgba(218, 37, 28, 0.4)',
               },
             }}
           >
@@ -407,8 +508,12 @@ const UserList = () => {
           PaperProps={{
             sx: {
               mt: 1,
-              borderRadius: 2,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+              borderRadius: '16px',
+              background: 'rgba(255,255,255,0.88)',
+              backdropFilter: 'blur(24px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+              border: '1px solid rgba(255,255,255,0.5)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
             },
           }}
         >
@@ -557,12 +662,14 @@ const UserList = () => {
                     Status
                   </TableSortLabel>
                 </TableCell>
+                <TableCell sx={{ minWidth: 160 }}>Progress</TableCell>
+                <TableCell sx={{ minWidth: 100, textAlign: 'center' }}>Aksi</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {paginatedPksi.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} sx={{ py: 8, textAlign: 'center' }}>
+                  <TableCell colSpan={8} sx={{ py: 8, textAlign: 'center' }}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <SearchIcon sx={{ fontSize: 48, color: '#d1d1d6', mb: 2 }} />
                       <Typography variant="body1" sx={{ color: '#86868b', fontWeight: 500 }}>
@@ -582,7 +689,7 @@ const UserList = () => {
                       '&:last-child td': { borderBottom: 0 },
                     }}
                   >
-                    <TableCell sx={{ pl: 3, color: '#86868b', fontSize: '0.875rem' }}>
+                    <TableCell sx={{ pl: 3, color: '#86868b', fontSize: '0.875rem', boxShadow: item.isMendesak ? 'inset 4px 0 0 #FF3B30' : 'none', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
                       {page * rowsPerPage + index + 1}
                     </TableCell>
                     <TableCell>
@@ -671,6 +778,52 @@ const UserList = () => {
                         </Button>
                       </Tooltip>
                     </TableCell>
+                    {/* Progress chip */}
+                    <TableCell>
+                      <Box
+                        sx={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                          px: 1.5,
+                          py: 0.5,
+                          borderRadius: '20px',
+                          bgcolor: getProgressColor(item.progress).bg,
+                          color: getProgressColor(item.progress).color,
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          backdropFilter: 'blur(8px)',
+                          border: `1px solid ${getProgressColor(item.progress).color}22`,
+                        }}
+                      >
+                        <TrendingUpIcon sx={{ fontSize: 13 }} />
+                        {item.progress || 'Penyusunan Usreq'}
+                      </Box>
+                    </TableCell>
+                    {/* Edit action */}
+                    <TableCell sx={{ textAlign: 'center' }}>
+                      <Tooltip title="Edit Progress & Tanggal">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditOpen(item)}
+                          sx={{
+                            background: 'rgba(218, 37, 28, 0.06)',
+                            backdropFilter: 'blur(8px)',
+                            border: '1px solid rgba(218, 37, 28, 0.12)',
+                            borderRadius: '10px',
+                            color: '#DA251C',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              background: 'rgba(218, 37, 28, 0.12)',
+                              transform: 'scale(1.08)',
+                              boxShadow: '0 4px 12px rgba(218,37,28,0.2)',
+                            },
+                          }}
+                        >
+                          <EditIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -683,55 +836,38 @@ const UserList = () => {
           anchorEl={anchorEl}
           open={Boolean(anchorEl)}
           onClose={handleStatusMenuClose}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'left',
-          }}
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'left',
-          }}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
           PaperProps={{
             sx: {
               mt: 0.5,
-              borderRadius: 2,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+              borderRadius: '16px',
+              background: 'rgba(255,255,255,0.88)',
+              backdropFilter: 'blur(24px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+              border: '1px solid rgba(255,255,255,0.5)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+              overflow: 'hidden',
             },
           }}
         >
-          <MenuItem 
+          <MenuItem
             onClick={() => handleStatusChange('disetujui')}
-            sx={{ 
-              color: '#2e7d32',
-              '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.08)' },
-            }}
+            sx={{ '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.08)' }, borderRadius: '8px', mx: 0.5, my: 0.25 }}
           >
-            <Chip 
-              label="Disetujui" 
-              size="small"
-              sx={{ 
-                bgcolor: 'rgba(46, 125, 50, 0.1)', 
-                color: '#2e7d32',
-                fontWeight: 500,
-              }} 
-            />
+            <Chip label="Disetujui" size="small" sx={{ bgcolor: 'rgba(46,125,50,0.1)', color: '#2e7d32', fontWeight: 500 }} />
           </MenuItem>
-          <MenuItem 
+          <MenuItem
             onClick={() => handleStatusChange('tidak_disetujui')}
-            sx={{ 
-              color: '#d32f2f',
-              '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.08)' },
-            }}
+            sx={{ '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.08)' }, borderRadius: '8px', mx: 0.5, my: 0.25 }}
           >
-            <Chip 
-              label="Tidak Disetujui" 
-              size="small"
-              sx={{ 
-                bgcolor: 'rgba(211, 47, 47, 0.1)', 
-                color: '#d32f2f',
-                fontWeight: 500,
-              }} 
-            />
+            <Chip label="Tidak Disetujui" size="small" sx={{ bgcolor: 'rgba(211,47,47,0.1)', color: '#d32f2f', fontWeight: 500 }} />
+          </MenuItem>
+          <MenuItem
+            onClick={() => handleStatusChange('pending')}
+            sx={{ '&:hover': { bgcolor: 'rgba(237,108,2,0.08)' }, borderRadius: '8px', mx: 0.5, my: 0.25 }}
+          >
+            <Chip label="Pending" size="small" sx={{ bgcolor: 'rgba(237,108,2,0.1)', color: '#ed6c02', fontWeight: 500 }} />
           </MenuItem>
         </Menu>
 
@@ -772,6 +908,287 @@ const UserList = () => {
           />
         </Box>
       </Paper>
+
+      {/* ── Edit Progress & Tanggal Dialog (Liquid Glass) ── */}
+      <Dialog
+        open={editDialogOpen}
+        onClose={handleEditClose}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{
+          backdrop: {
+            sx: {
+              background: 'rgba(0, 0, 0, 0.18)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+            },
+          },
+        }}
+        PaperProps={{ sx: GLASS_DIALOG_PAPER_SX }}
+      >
+        <DialogTitle
+          sx={{
+            px: 3,
+            pt: 3,
+            pb: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: '#1d1d1f', letterSpacing: '-0.02em' }}>
+              Edit Progress PKSI
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 400 }}>
+              {editingPksi?.namaPksi}
+            </Typography>
+          </Box>
+          <IconButton
+            onClick={handleEditClose}
+            size="small"
+            sx={{
+              background: 'rgba(0,0,0,0.05)',
+              backdropFilter: 'blur(8px)',
+              borderRadius: '10px',
+              '&:hover': { background: 'rgba(0,0,0,0.1)' },
+            }}
+          >
+            <CloseIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ px: 3, pb: 1, pt: 2 }}>
+          {/* Progress selector */}
+          <Box sx={{ mb: 2.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1 }}>
+              Progress Tahapan
+            </Typography>
+            <FormControl fullWidth>
+              <Select
+                value={editProgress}
+                onChange={(e) => setEditProgress(e.target.value)}
+                size="small"
+                sx={{
+                  borderRadius: '12px',
+                  background: 'rgba(255,255,255,0.7)',
+                  backdropFilter: 'blur(12px)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0,0,0,0.1)',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(218,37,28,0.4)',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#DA251C',
+                    borderWidth: 2,
+                  },
+                }}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      borderRadius: '14px',
+                      background: 'rgba(255,255,255,0.9)',
+                      backdropFilter: 'blur(24px) saturate(180%)',
+                      border: '1px solid rgba(255,255,255,0.6)',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+                    },
+                  },
+                }}
+              >
+                {PROGRESS_OPTIONS.map((opt) => (
+                  <MenuItem
+                    key={opt}
+                    value={opt}
+                    sx={{
+                      borderRadius: '8px',
+                      mx: 0.5,
+                      my: 0.25,
+                      '&.Mui-selected': {
+                        background: 'rgba(218,37,28,0.08)',
+                        color: '#DA251C',
+                        fontWeight: 600,
+                      },
+                      '&:hover': { background: 'rgba(218,37,28,0.06)' },
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          bgcolor: getProgressColor(opt).color,
+                          flexShrink: 0,
+                        }}
+                      />
+                      {opt}
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Preview chip */}
+            {editProgress && (
+              <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="caption" sx={{ color: '#86868b' }}>Preview:</Typography>
+                <Box
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    px: 1.5,
+                    py: 0.4,
+                    borderRadius: '20px',
+                    bgcolor: getProgressColor(editProgress).bg,
+                    color: getProgressColor(editProgress).color,
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    border: `1px solid ${getProgressColor(editProgress).color}22`,
+                  }}
+                >
+                  <TrendingUpIcon sx={{ fontSize: 13 }} />
+                  {editProgress}
+                </Box>
+              </Box>
+            )}
+          </Box>
+
+          {/* Date picker */}
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1 }}>
+              Tanggal Pengajuan
+            </Typography>
+            <Box
+              sx={{
+                position: 'relative',
+                borderRadius: '12px',
+                background: 'rgba(255,255,255,0.7)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(0,0,0,0.1)',
+                transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+                '&:focus-within': {
+                  borderColor: '#DA251C',
+                  borderWidth: '2px',
+                  boxShadow: '0 0 0 3px rgba(218,37,28,0.08)',
+                },
+              }}
+            >
+              <input
+                type="date"
+                value={editTanggal}
+                onChange={(e) => setEditTanggal(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  border: 'none',
+                  outline: 'none',
+                  background: 'transparent',
+                  fontSize: '0.875rem',
+                  color: '#1d1d1f',
+                  fontFamily: 'inherit',
+                  borderRadius: '12px',
+                  boxSizing: 'border-box',
+                  cursor: 'pointer',
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                }}
+              />
+            </Box>
+            {editTanggal && (
+              <Typography variant="caption" sx={{ color: '#86868b', mt: 0.75, display: 'block' }}>
+                {new Date(editTanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </Typography>
+            )}
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 3, pt: 2, gap: 1 }}>
+          <Button
+            onClick={handleEditClose}
+            sx={{
+              borderRadius: '12px',
+              px: 2.5,
+              py: 1,
+              color: '#86868b',
+              background: 'rgba(0,0,0,0.04)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(0,0,0,0.08)',
+              fontWeight: 500,
+              '&:hover': { background: 'rgba(0,0,0,0.08)' },
+            }}
+          >
+            Batal
+          </Button>
+          <Button
+            onClick={handleEditSave}
+            variant="contained"
+            sx={{
+              borderRadius: '12px',
+              px: 3,
+              py: 1,
+              fontWeight: 600,
+              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+              boxShadow: '0 4px 15px rgba(218,37,28,0.35)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
+                boxShadow: '0 6px 20px rgba(218,37,28,0.45)',
+                transform: 'translateY(-1px)',
+              },
+              transition: 'all 0.2s ease',
+            }}
+          >
+            Simpan Perubahan
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Add PKSI Modal ── */}
+      <AddPksiModal
+        open={addModalOpen}
+        onClose={() => {
+          setAddModalOpen(false);
+        }}
+        onSuccess={handleAddSuccess}
+      />
+
+      {/* ── Toast Notification ── */}
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={3500}
+        onClose={(_event, reason) => {
+          if (reason === 'clickaway') return;
+          setToast(prev => ({ ...prev, open: false }));
+        }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setToast(prev => ({ ...prev, open: false }))}
+          severity={toast.severity}
+          variant="filled"
+          sx={{
+            borderRadius: '14px',
+            background: toast.severity === 'success'
+              ? 'linear-gradient(135deg, rgba(46,125,50,0.92), rgba(76,175,80,0.92))'
+              : toast.severity === 'error'
+              ? 'linear-gradient(135deg, rgba(211,47,47,0.92), rgba(239,83,80,0.92))'
+              : 'linear-gradient(135deg, rgba(2,136,209,0.92), rgba(3,169,244,0.92))',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid rgba(255,255,255,0.25)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            color: '#fff',
+            fontWeight: 500,
+            minWidth: 280,
+            '& .MuiAlert-icon': { color: 'rgba(255,255,255,0.9)' },
+            '& .MuiAlert-action .MuiIconButton-root': { color: 'rgba(255,255,255,0.8)' },
+          }}
+        >
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
