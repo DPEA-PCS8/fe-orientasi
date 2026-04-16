@@ -77,7 +77,6 @@ import {
   type Fs2DocumentRequest 
 } from '../api/fs2Api';
 import { getAllAplikasi, type AplikasiData } from '../api/aplikasiApi';
-import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { 
   uploadFs2TempFiles, 
@@ -290,7 +289,8 @@ function Fs2List() {
   // Filter state
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedStatus, setSelectedStatus] = useState<Set<string>>(new Set());
-  const [selectedBidangFilter, setSelectedBidangFilter] = useState<string>('');
+  const [selectedAplikasiFilter, setSelectedAplikasiFilter] = useState<string>('');
+  const [selectedStatusTahapanFilter, setSelectedStatusTahapanFilter] = useState<string>('');
   const [selectedSkpaFilter, setSelectedSkpaFilter] = useState<string>('');
   
   // Year filter (exposed in toolbar) - default to current year, filters by tanggal_pengajuan
@@ -353,7 +353,6 @@ function Fs2List() {
 
   // Reference data for dropdowns
   const [aplikasiList, setAplikasiList] = useState<AplikasiData[]>([]);
-  const [bidangList, setBidangList] = useState<BidangData[]>([]);
   const [skpaList, setSkpaList] = useState<SkpaData[]>([]);
 
   // Form state for Add/Edit modal
@@ -466,7 +465,8 @@ function Fs2List() {
       const response = await searchFs2Documents({
         search: keyword || undefined,
         status: statusFilter,
-        bidang_id: selectedBidangFilter || undefined,
+        aplikasi_id: selectedAplikasiFilter || undefined,
+        status_tahapan: selectedStatusTahapanFilter || undefined,
         skpa_id: selectedSkpaFilter || undefined,
         year: yearFilter,
         start_month: startMonthFilter,
@@ -487,19 +487,17 @@ function Fs2List() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, page, rowsPerPage, selectedStatus, selectedBidangFilter, selectedSkpaFilter, selectedYearFilter, selectedStartMonth, selectedEndMonth]);
+  }, [keyword, page, rowsPerPage, selectedStatus, selectedAplikasiFilter, selectedStatusTahapanFilter, selectedSkpaFilter, selectedYearFilter, selectedStartMonth, selectedEndMonth]);
 
   // Fetch reference data
   useEffect(() => {
     const fetchReferenceData = async () => {
       try {
-        const [aplikasiRes, bidang, skpaRes] = await Promise.all([
+        const [aplikasiRes, skpaRes] = await Promise.all([
           getAllAplikasi(),
-          getAllBidang(),
           getAllSkpa(),
         ]);
         setAplikasiList(aplikasiRes.data || []);
-        setBidangList(bidang);
         setSkpaList(skpaRes.data || []);
       } catch (error) {
         console.error('Failed to fetch reference data:', error);
@@ -593,8 +591,12 @@ function Fs2List() {
 
   const clearFilters = () => {
     setSelectedStatus(new Set());
-    setSelectedBidangFilter('');
+    setSelectedAplikasiFilter('');
+    setSelectedStatusTahapanFilter('');
     setSelectedSkpaFilter('');
+    setSelectedYearFilter(new Date().getFullYear().toString());
+    setSelectedStartMonth('');
+    setSelectedEndMonth('');
   };
 
   // Accordion change handler for Add/Edit modal
@@ -782,10 +784,11 @@ function Fs2List() {
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (selectedStatus.size > 0) count++;
-    if (selectedBidangFilter) count++;
+    if (selectedAplikasiFilter) count++;
+    if (selectedStatusTahapanFilter) count++;
     if (selectedSkpaFilter) count++;
     return count;
-  }, [selectedStatus, selectedBidangFilter, selectedSkpaFilter]);
+  }, [selectedStatus, selectedAplikasiFilter, selectedStatusTahapanFilter, selectedSkpaFilter]);
 
   // Add modal handlers
   const handleOpenAddModal = () => {
@@ -1255,7 +1258,8 @@ function Fs2List() {
       
       await downloadAllFs2Excel({
         search: keyword || undefined,
-        bidang_id: selectedBidangFilter || undefined,
+        aplikasi_id: selectedAplikasiFilter || undefined,
+        status_tahapan: selectedStatusTahapanFilter || undefined,
         skpa_id: selectedSkpaFilter || undefined,
         status: statusFilter,
         year: selectedYearFilter ? parseInt(selectedYearFilter, 10) : undefined,
@@ -1775,18 +1779,18 @@ function Fs2List() {
 
           <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
 
-          {/* Bidang Filter */}
+          {/* Nama Aplikasi Filter */}
           <Box sx={{ mb: 2.5 }}>
             <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
-              Bidang
+              Nama Aplikasi
             </Typography>
             <FormControl fullWidth size="small">
-              <InputLabel id="bidang-filter-label">Pilih Bidang</InputLabel>
+              <InputLabel id="aplikasi-filter-label">Pilih Aplikasi</InputLabel>
               <Select
-                labelId="bidang-filter-label"
-                value={selectedBidangFilter}
-                label="Pilih Bidang"
-                onChange={(e) => setSelectedBidangFilter(e.target.value)}
+                labelId="aplikasi-filter-label"
+                value={selectedAplikasiFilter}
+                label="Pilih Aplikasi"
+                onChange={(e) => setSelectedAplikasiFilter(e.target.value)}
                 sx={{
                   borderRadius: '8px',
                   '& .MuiOutlinedInput-notchedOutline': {
@@ -1800,10 +1804,44 @@ function Fs2List() {
                   },
                 }}
               >
-                <MenuItem value=""><em>Semua Bidang</em></MenuItem>
-                {bidangList.map((bidang) => (
-                  <MenuItem key={bidang.id} value={bidang.id}>{bidang.nama_bidang}</MenuItem>
+                <MenuItem value=""><em>Semua Aplikasi</em></MenuItem>
+                {aplikasiList.map((aplikasi) => (
+                  <MenuItem key={aplikasi.id} value={aplikasi.id}>{aplikasi.nama_aplikasi}</MenuItem>
                 ))}
+              </Select>
+            </FormControl>
+          </Box>
+
+          <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
+          {/* Status Tahapan Filter */}
+          <Box sx={{ mb: 2.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+              Status Tahapan Aplikasi
+            </Typography>
+            <FormControl fullWidth size="small">
+              <InputLabel id="status-tahapan-filter-label">Pilih Status Tahapan</InputLabel>
+              <Select
+                labelId="status-tahapan-filter-label"
+                value={selectedStatusTahapanFilter}
+                label="Pilih Status Tahapan"
+                onChange={(e) => setSelectedStatusTahapanFilter(e.target.value)}
+                sx={{
+                  borderRadius: '8px',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#e5e5e7',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#DA251C',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#DA251C',
+                  },
+                }}
+              >
+                <MenuItem value=""><em>Semua Status Tahapan</em></MenuItem>
+                <MenuItem value="DESAIN">Desain</MenuItem>
+                <MenuItem value="PEMELIHARAAN">Pemeliharaan</MenuItem>
               </Select>
             </FormControl>
           </Box>

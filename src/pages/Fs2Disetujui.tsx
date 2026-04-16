@@ -361,6 +361,7 @@ function Fs2Disetujui() {
   // Filter state
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedProgres, setSelectedProgres] = useState<Set<string>>(new Set());
+  const [selectedProgresStatus, setSelectedProgresStatus] = useState<Set<string>>(new Set());
   const [selectedFase, setSelectedFase] = useState<Set<string>>(new Set());
   const [selectedMekanisme, setSelectedMekanisme] = useState<Set<string>>(new Set());
   const [selectedPelaksanaan, setSelectedPelaksanaan] = useState<Set<string>>(new Set());
@@ -502,6 +503,7 @@ function Fs2Disetujui() {
     setIsLoading(true);
     try {
       const progresFilter = selectedProgres.size === 1 ? Array.from(selectedProgres)[0] : undefined;
+      const progresStatusFilter = selectedProgresStatus.size === 1 ? Array.from(selectedProgresStatus)[0] : undefined;
       const faseFilter = selectedFase.size === 1 ? Array.from(selectedFase)[0] : undefined;
       const mekanismeFilter = selectedMekanisme.size === 1 ? Array.from(selectedMekanisme)[0] : undefined;
       const pelaksanaanFilter = selectedPelaksanaan.size === 1 ? Array.from(selectedPelaksanaan)[0] : undefined;
@@ -518,6 +520,7 @@ function Fs2Disetujui() {
         bidang_id: selectedBidangFilter || undefined,
         skpa_id: selectedSkpaFilter || undefined,
         progres: progresFilter,
+        progres_status: progresStatusFilter,
         fase_pengajuan: faseFilter,
         mekanisme: mekanismeFilter,
         pelaksanaan: pelaksanaanFilter,
@@ -540,7 +543,7 @@ function Fs2Disetujui() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, page, rowsPerPage, selectedProgres, selectedFase, selectedMekanisme, selectedPelaksanaan, selectedBidangFilter, selectedSkpaFilter, selectedYearFilter, selectedStartMonth, selectedEndMonth]);
+  }, [keyword, page, rowsPerPage, selectedProgres, selectedProgresStatus, selectedFase, selectedMekanisme, selectedPelaksanaan, selectedBidangFilter, selectedSkpaFilter, selectedYearFilter, selectedStartMonth, selectedEndMonth]);
 
   // Fetch reference data
   useEffect(() => {
@@ -610,6 +613,7 @@ function Fs2Disetujui() {
 
   const clearFilters = () => {
     setSelectedProgres(new Set());
+    setSelectedProgresStatus(new Set());
     setSelectedFase(new Set());
     setSelectedMekanisme(new Set());
     setSelectedPelaksanaan(new Set());
@@ -667,13 +671,14 @@ function Fs2Disetujui() {
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (selectedProgres.size > 0) count++;
+    if (selectedProgresStatus.size > 0) count++;
     if (selectedFase.size > 0) count++;
     if (selectedMekanisme.size > 0) count++;
     if (selectedPelaksanaan.size > 0) count++;
     if (selectedBidangFilter) count++;
     if (selectedSkpaFilter) count++;
     return count;
-  }, [selectedProgres, selectedFase, selectedMekanisme, selectedPelaksanaan, selectedBidangFilter, selectedSkpaFilter]);
+  }, [selectedProgres, selectedProgresStatus, selectedFase, selectedMekanisme, selectedPelaksanaan, selectedBidangFilter, selectedSkpaFilter]);
 
   // View modal handlers
   const handleOpenViewModal = (fs2Id: string) => {
@@ -1647,8 +1652,8 @@ function Fs2Disetujui() {
               },
             },
           }}>
-            {/* Row 1: Progres & Fase Pengajuan */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2.5 }}>
+            {/* Row 1: Progres, Status & Fase Pengajuan */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2, mb: 2.5 }}>
               {/* Progres Filter */}
               <Box>
                 <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1702,6 +1707,70 @@ function Fs2Disetujui() {
                           {...tagProps}
                           sx={{ 
                             bgcolor: '#31A24C', 
+                            color: 'white', 
+                            fontWeight: 500,
+                            '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } 
+                          }}
+                        />
+                      );
+                    })
+                  }
+                />
+              </Box>
+
+              {/* Status Progres Filter */}
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#DC2626' }} />
+                  Status
+                </Typography>
+                <Autocomplete
+                  multiple
+                  size="small"
+                  options={[...PROGRES_STATUS_OPTIONS]}
+                  getOptionLabel={(option) => PROGRES_STATUS_LABELS[option] || option}
+                  value={Array.from(selectedProgresStatus)}
+                  onChange={(_, newValue) => setSelectedProgresStatus(new Set(newValue))}
+                  disableCloseOnSelect
+                  renderOption={(props, option, { selected }) => {
+                    const { key, ...restProps } = props;
+                    return (
+                      <li key={key} {...restProps}>
+                        <Checkbox
+                          size="small"
+                          checked={selected}
+                          sx={{ mr: 1, '&.Mui-checked': { color: '#DC2626' } }}
+                        />
+                        {PROGRES_STATUS_LABELS[option] || option}
+                      </li>
+                    );
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={selectedProgresStatus.size === 0 ? 'Pilih Status' : ''}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '12px',
+                          bgcolor: 'rgba(255, 255, 255, 0.9)',
+                          '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.1)' },
+                          '&:hover fieldset': { borderColor: '#DC2626' },
+                          '&.Mui-focused fieldset': { borderColor: '#DC2626', borderWidth: 2 },
+                        },
+                      }}
+                    />
+                  )}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return (
+                        <Chip
+                          key={key}
+                          label={PROGRES_STATUS_LABELS[option] || option}
+                          size="small"
+                          {...tagProps}
+                          sx={{ 
+                            bgcolor: '#DC2626', 
                             color: 'white', 
                             fontWeight: 500,
                             '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } 
