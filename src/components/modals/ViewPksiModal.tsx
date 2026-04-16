@@ -504,7 +504,7 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                     { stage: 'GO_LIVE', label: 'Go Live' },
                   ];
                   const presentStageKeys = new Set((pksiData.timelines || []).map(t => t.stage));
-                  const visibleStages = ALL_STAGES.filter(s => presentStageKeys.has(s.stage));
+                  const visibleStages = ALL_STAGES.filter(s => presentStageKeys.has(s.stage as typeof presentStageKeys extends Set<infer U> ? U : never));
                   const activeStep = (() => {
                     for (let i = visibleStages.length - 1; i >= 0; i--) {
                       const phases = (pksiData.timelines || []).filter(t => t.stage === visibleStages[i].stage);
@@ -586,7 +586,7 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                       {(() => {
                         const presentStages = new Set((pksiData.timelines || []).map(t => t.stage));
                         return TAHAPAN_VIEW_CONFIG
-                          .filter(tahapan => presentStages.has(tahapan.stageKey))
+                          .filter(tahapan => presentStages.has(tahapan.stageKey as Parameters<typeof presentStages.has>[0]))
                           .map((tahapan) => {
                           const savedStatus = tahapan.statusField
                             ? (pksiData[tahapan.statusField] as string | undefined)
