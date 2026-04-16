@@ -841,7 +841,7 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                                   )}
                                 </Box>
                               }
-                              secondary={formatFileSize(file.file_size)}
+                              secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
                               primaryTypographyProps={{
                                 sx: {
                                   fontWeight: 500,
@@ -906,123 +906,6 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                     )}
                   </Box>
 
-                  {/* T11 - Spesifikasi Kebutuhan */}
-                  <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                        Spesifikasi Kebutuhan (T11)
-                      </Typography>
-                      {pksiFiles.filter(f => f.file_type === 'T11').some(f => (f.version || 1) > 1) && (
-                        <FileVersionHistory
-                          documentId={pksiId || ''}
-                          fileType="T11"
-                          documentType="pksi"
-                          isOpen={false}
-                          onClose={() => {}}
-                        />
-                      )}
-                    </Box>
-                    {pksiFiles.filter(f => f.file_type === 'T11' && f.is_latest_version !== false).length > 0 ? (
-                      <List dense sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px', p: 1 }}>
-                        {pksiFiles.filter(f => f.file_type === 'T11' && f.is_latest_version !== false).map((file, index, arr) => (
-                          <ListItem
-                            key={file.id}
-                            sx={{
-                              borderRadius: '8px',
-                              mb: index < arr.length - 1 ? 1 : 0,
-                              bgcolor: 'white',
-                              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-                              '&:hover': {
-                                bgcolor: 'rgba(255, 255, 255, 0.9)',
-                              },
-                            }}
-                          >
-                            <ListItemIcon sx={{ minWidth: 40 }}>
-                              <FileIcon sx={{ color: '#0891B2', fontSize: 24 }} />
-                            </ListItemIcon>
-                            <ListItemText
-                              primary={
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <span>{file.display_name || file.original_name}</span>
-                                  {file.version && file.version > 1 && (
-                                    <Chip
-                                      label={`V${file.version}`}
-                                      size="small"
-                                      sx={{
-                                        height: 18,
-                                        fontSize: '0.7rem',
-                                        fontWeight: 600,
-                                        bgcolor: '#0891B2',
-                                        color: 'white',
-                                      }}
-                                    />
-                                  )}
-                                </Box>
-                              }
-                              secondary={formatFileSize(file.file_size)}
-                              primaryTypographyProps={{
-                                sx: {
-                                  fontWeight: 500,
-                                  color: '#1d1d1f',
-                                  fontSize: '0.9rem',
-                                },
-                              }}
-                              secondaryTypographyProps={{
-                                sx: { color: '#86868b', fontSize: '0.75rem' },
-                              }}
-                            />
-                            <ListItemSecondaryAction>
-                              {(file.content_type === 'application/pdf' || file.content_type?.startsWith('image/')) && (
-                                <IconButton
-                                  edge="end"
-                                  size="small"
-                                  onClick={() => handleViewFile(file)}
-                                  sx={{
-                                    color: '#0891B2',
-                                    mr: 1,
-                                    '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' },
-                                  }}
-                                  title="Lihat"
-                                >
-                                  <VisibilityIcon fontSize="small" />
-                                </IconButton>
-                              )}
-                              <IconButton
-                                edge="end"
-                                size="small"
-                                onClick={() => handleDownload(file)}
-                                disabled={downloadingFileId === file.id}
-                                sx={{
-                                  color: '#059669',
-                                  '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' },
-                                }}
-                                title="Download"
-                              >
-                                {downloadingFileId === file.id ? (
-                                  <CircularProgress size={18} sx={{ color: '#059669' }} />
-                                ) : (
-                                  <DownloadIcon fontSize="small" />
-                                )}
-                              </IconButton>
-                            </ListItemSecondaryAction>
-                          </ListItem>
-                        ))}
-                      </List>
-                    ) : (
-                      <Box
-                        sx={{
-                          p: 2,
-                          textAlign: 'center',
-                          borderRadius: '12px',
-                          bgcolor: 'rgba(245, 245, 247, 0.8)',
-                        }}
-                      >
-                        <Typography variant="body2" sx={{ color: '#86868b' }}>
-                          Belum ada dokumen Spesifikasi Kebutuhan
-                        </Typography>
-                      </Box>
-                    )}
-                  </Box>
                 </Box>
               )}
             </GlassCard>

@@ -266,6 +266,8 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
   const [filesT11, setFilesT11] = useState<PksiFileData[]>([]);
   const [isUploadingT01, setIsUploadingT01] = useState(false);
   const [isUploadingT11, setIsUploadingT11] = useState(false);
+  const [pendingFilesT01, setPendingFilesT01] = useState<Array<{ file: File; tanggal: string }>>([]);
+  const [pendingFilesT11, setPendingFilesT11] = useState<Array<{ file: File; tanggal: string }>>([]); 
   const [errorMessage, setErrorMessage] = useState('');
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -291,34 +293,52 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
     setExpandedSection(isExpanded ? panel : false);
   };
 
-  const handleFileUploadT01 = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUploadT01 = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (files && files.length > 0 && pksiData?.id) {
-      setIsUploadingT01(true); setErrorMessage('');
-      try {
-        await uploadPksiFiles(pksiData.id, [files[0]], 'T01');
-        const all = await getPksiFiles(pksiData.id);
-        setFilesT01(all.filter(f => f.file_type === 'T01' || !f.file_type));
-        setFilesT11(all.filter(f => f.file_type === 'T11'));
-      } catch (error) { console.error('Upload T01 failed:', error); setErrorMessage('Gagal mengupload file T01.'); }
-      finally { setIsUploadingT01(false); }
+    if (files && files.length > 0) {
+      const newPending = Array.from(files).map(file => ({ file, tanggal: '' }));
+      setPendingFilesT01(prev => [...prev, ...newPending]);
     }
     event.target.value = '';
   };
 
-  const handleFileUploadT11 = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUploadT11 = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (files && files.length > 0 && pksiData?.id) {
-      setIsUploadingT11(true); setErrorMessage('');
-      try {
-        await uploadPksiFiles(pksiData.id, [files[0]], 'T11');
-        const all = await getPksiFiles(pksiData.id);
-        setFilesT01(all.filter(f => f.file_type === 'T01' || !f.file_type));
-        setFilesT11(all.filter(f => f.file_type === 'T11'));
-      } catch (error) { console.error('Upload T11 failed:', error); setErrorMessage('Gagal mengupload file T11.'); }
-      finally { setIsUploadingT11(false); }
+    if (files && files.length > 0) {
+      const newPending = Array.from(files).map(file => ({ file, tanggal: '' }));
+      setPendingFilesT11(prev => [...prev, ...newPending]);
     }
     event.target.value = '';
+  };
+
+  const handleUploadPendingT01 = async () => {
+    if (pendingFilesT01.length === 0 || !pksiData?.id) return;
+    setIsUploadingT01(true); setErrorMessage('');
+    try {
+      for (const pending of pendingFilesT01) {
+        await uploadPksiFiles(pksiData.id, [pending.file], 'T01', pending.tanggal || undefined);
+      }
+      const all = await getPksiFiles(pksiData.id);
+      setFilesT01(all.filter(f => f.file_type === 'T01' || !f.file_type));
+      setFilesT11(all.filter(f => f.file_type === 'T11'));
+      setPendingFilesT01([]);
+    } catch (error) { console.error('Upload T01 failed:', error); setErrorMessage('Gagal mengupload file T01.'); }
+    finally { setIsUploadingT01(false); }
+  };
+
+  const handleUploadPendingT11 = async () => {
+    if (pendingFilesT11.length === 0 || !pksiData?.id) return;
+    setIsUploadingT11(true); setErrorMessage('');
+    try {
+      for (const pending of pendingFilesT11) {
+        await uploadPksiFiles(pksiData.id, [pending.file], 'T11', pending.tanggal || undefined);
+      }
+      const all = await getPksiFiles(pksiData.id);
+      setFilesT01(all.filter(f => f.file_type === 'T01' || !f.file_type));
+      setFilesT11(all.filter(f => f.file_type === 'T11'));
+      setPendingFilesT11([]);
+    } catch (error) { console.error('Upload T11 failed:', error); setErrorMessage('Gagal mengupload file T11.'); }
+    finally { setIsUploadingT11(false); }
   };
 
   const handleRemoveFile = async (fileId: string, fileType: string) => {
@@ -526,20 +546,45 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
     setFormData({ namaPksi: '', aplikasiId: '', tanggalPengajuan: '', picSatkerBA: [], programInisiatifRBSI: '', jenisPksi: 'Reguler' });
     setTimelinePhases({ usreq: [currentMonthValue()], sit: [currentMonthValue()], uat: [currentMonthValue()], goLive: [currentMonthValue()] });
     setErrors({}); setExpandedSection('jadwal'); setFilesT01([]); setFilesT11([]);
-    setIsUploadingT01(false); setIsUploadingT11(false); setErrorMessage('');
+    setIsUploadingT01(false); setIsUploadingT11(false); setPendingFilesT01([]); setPendingFilesT11([]); setErrorMessage('');
     setPreviewOpen(false); setPreviewFile(null);
     setSelectedRbsi(null); setSelectedProgram(null); setSelectedInisiatif(null);
     setSelectedYear(null); setLoadedInisiatifId(null); onClose();
   };
 
-  const renderFileSection = (title: string, fileType: string, files: PksiFileData[], isUploading: boolean, handleUpload: (e: React.ChangeEvent<HTMLInputElement>) => void, uploadId: string, iconColor: string) => (
+  const renderFileSection = (title: string, fileType: string, files: PksiFileData[], isUploading: boolean, uploadId: string, iconColor: string, pendingFiles: Array<{ file: File; tanggal: string }>, onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void, onPendingDateChange: (index: number, date: string) => void, onRemovePending: (index: number) => void, onUploadPending: () => void) => (
     <Box>
       <Typography variant="subtitle1" sx={{ mb: 1.5, fontWeight: 600, color: '#1d1d1f' }}>{title}</Typography>
-      <Box sx={{ border: '2px dashed #e5e5e7', borderRadius: 2, p: 3, textAlign: 'center', cursor: isUploading ? 'not-allowed' : 'pointer', opacity: isUploading ? 0.7 : 1, transition: 'all 0.2s ease-in-out', '&:hover': { borderColor: isUploading ? '#e5e5e7' : iconColor, bgcolor: isUploading ? 'transparent' : `${iconColor}08` } }}
-        onClick={() => !isUploading && document.getElementById(uploadId)?.click()}>
-        <input id={uploadId} type="file" hidden onChange={handleUpload} accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" disabled={isUploading} />
-        {isUploading ? (<><CircularProgress size={48} sx={{ color: iconColor, mb: 1 }} /><Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>Mengupload file...</Typography></>) : (<><CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} /><Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>Klik untuk upload file {title}</Typography><Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>atau drag & drop file di sini</Typography><Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>Format: PDF, Word, Excel, Gambar (max 20MB)</Typography></>)}
+      <Box sx={{ border: '2px dashed #e5e5e7', borderRadius: 2, p: 3, textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s ease-in-out', '&:hover': { borderColor: iconColor, bgcolor: `${iconColor}08` } }}
+        onClick={() => document.getElementById(uploadId)?.click()}>
+        <input id={uploadId} type="file" hidden multiple onChange={onFileSelect} accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" />
+        <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
+        <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>Klik untuk upload file {title} (bisa pilih beberapa)</Typography>
+        <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>atau drag & drop file di sini</Typography>
+        <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>Format: PDF, Word, Excel, Gambar (max 20MB)</Typography>
       </Box>
+      {pendingFiles.length > 0 && (
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600, color: '#1d1d1f' }}>File akan diupload ({pendingFiles.length})</Typography>
+          <Stack spacing={1.5}>
+            {pendingFiles.map((pending, index) => (
+              <Box key={index} sx={{ p: 1.5, bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px', border: '1px solid #e5e5e7' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <FileIcon sx={{ color: iconColor, mr: 1, fontSize: 20 }} />
+                  <Typography variant="body2" sx={{ fontWeight: 500, color: '#1d1d1f', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pending.file.name}</Typography>
+                  <Typography variant="caption" sx={{ color: '#86868b', mx: 1, whiteSpace: 'nowrap' }}>{formatFileSize(pending.file.size)}</Typography>
+                  <IconButton size="small" onClick={() => onRemovePending(index)} sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}><DeleteIcon fontSize="small" /></IconButton>
+                </Box>
+                <TextField fullWidth label="Tanggal Dokumen" type="date" size="small" value={pending.tanggal} onChange={(e) => onPendingDateChange(index, e.target.value)} InputLabelProps={{ shrink: true }} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px', '&.Mui-focused fieldset': { borderColor: iconColor } }, '& .MuiInputLabel-root.Mui-focused': { color: iconColor } }} />
+              </Box>
+            ))}
+          </Stack>
+          <Button variant="contained" fullWidth onClick={onUploadPending} disabled={isUploading} startIcon={isUploading ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <CloudUploadIcon />}
+            sx={{ mt: 1.5, bgcolor: iconColor, '&:hover': { bgcolor: iconColor, filter: 'brightness(0.9)' } }}>
+            {isUploading ? 'Mengupload...' : `Upload ${pendingFiles.length} File`}
+          </Button>
+        </Box>
+      )}
       {files.length > 0 && (
         <Box sx={{ mt: 2 }}>
           <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>File {title} ({files.length})</Typography>
@@ -547,7 +592,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
             {files.map((file, index) => (
               <ListItem key={file.id} sx={{ borderBottom: index < files.length - 1 ? '1px solid #e5e5e7' : 'none' }}>
                 <ListItemIcon><FileIcon sx={{ color: iconColor }} /></ListItemIcon>
-                <ListItemText primary={file.original_name} secondary={formatFileSize(file.file_size)} primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }} secondaryTypographyProps={{ sx: { color: '#86868b' } }} />
+                <ListItemText primary={file.original_name} secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`} primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }} secondaryTypographyProps={{ sx: { color: '#86868b' } }} />
                 <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
                   {isPreviewable(file.content_type) && <IconButton edge="end" size="small" onClick={() => handlePreview(file)} sx={{ color: '#0891B2', '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' } }} title="Preview"><VisibilityIcon fontSize="small" /></IconButton>}
                   <IconButton edge="end" size="small" onClick={() => handleDownload(file)} disabled={downloadingFileId === file.id} sx={{ color: '#059669', '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' } }} title="Download">{downloadingFileId === file.id ? <CircularProgress size={18} sx={{ color: '#059669' }} /> : <DownloadIcon fontSize="small" />}</IconButton>
@@ -676,8 +721,8 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
                 <Stack spacing={3}>
                   {errorMessage && <Typography color="error" variant="body2">{errorMessage}</Typography>}
-                  {renderFileSection('Rencana PKSI (T01/T02)', 'T01', filesT01, isUploadingT01, handleFileUploadT01, 'edit-pksi-file-upload-t01', '#DA251C')}
-                  {renderFileSection('Spesifikasi Kebutuhan (T11)', 'T11', filesT11, isUploadingT11, handleFileUploadT11, 'edit-pksi-file-upload-t11', '#0891B2')}
+                  {renderFileSection('Rencana PKSI (T01/T02)', 'T01', filesT01, isUploadingT01, 'edit-pksi-file-upload-t01', '#DA251C', pendingFilesT01, handleFileUploadT01, (i, d) => setPendingFilesT01(prev => prev.map((p, idx) => idx === i ? { ...p, tanggal: d } : p)), (i) => setPendingFilesT01(prev => prev.filter((_, idx) => idx !== i)), handleUploadPendingT01)}
+                  {renderFileSection('Spesifikasi Kebutuhan (T11)', 'T11', filesT11, isUploadingT11, 'edit-pksi-file-upload-t11', '#0891B2', pendingFilesT11, handleFileUploadT11, (i, d) => setPendingFilesT11(prev => prev.map((p, idx) => idx === i ? { ...p, tanggal: d } : p)), (i) => setPendingFilesT11(prev => prev.filter((_, idx) => idx !== i)), handleUploadPendingT11)}
                 </Stack>
               </AccordionDetails>
             </Accordion>

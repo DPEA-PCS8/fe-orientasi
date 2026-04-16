@@ -15,6 +15,7 @@ export interface PksiFileData {
   blob_url: string;
   file_type: string; // T01 = Rencana PKSI, T11 = Spesifikasi Kebutuhan, T01_ND, T11_ND
   created_at: string;
+  tanggal_dokumen: string | null;
   version: number;
   file_group_id: string | null;
   display_name: string | null;
@@ -35,7 +36,7 @@ export interface PksiFileResponse {
  * @param files - The files to upload
  * @param fileType - The file type: T01 (Rencana PKSI) or T11 (Spesifikasi Kebutuhan)
  */
-export async function uploadPksiFiles(pksiId: string, files: File[], fileType: string = 'T01'): Promise<PksiFileData[]> {
+export async function uploadPksiFiles(pksiId: string, files: File[], fileType: string = 'T01', tanggalDokumen?: string): Promise<PksiFileData[]> {
   const token = getAuthToken();
   
   if (!token) {
@@ -46,6 +47,9 @@ export async function uploadPksiFiles(pksiId: string, files: File[], fileType: s
   files.forEach((file) => {
     formData.append('files', file);
   });
+  if (tanggalDokumen) {
+    formData.append('tanggal_dokumen', tanggalDokumen);
+  }
 
   const response = await fetch(`${BASE_URL}/pksi/files/upload/${pksiId}?fileType=${fileType}`, {
     method: 'POST',
@@ -71,7 +75,7 @@ export async function uploadPksiFiles(pksiId: string, files: File[], fileType: s
  * @param files - The files to upload
  * @param fileType - The file type: T01 (Rencana PKSI) or T11 (Spesifikasi Kebutuhan)
  */
-export async function uploadPksiTempFiles(sessionId: string, files: File[], fileType: string = 'T01'): Promise<PksiFileData[]> {
+export async function uploadPksiTempFiles(sessionId: string, files: File[], fileType: string = 'T01', tanggalDokumen?: string): Promise<PksiFileData[]> {
   const token = getAuthToken();
   
   if (!token) {
@@ -82,6 +86,9 @@ export async function uploadPksiTempFiles(sessionId: string, files: File[], file
   files.forEach((file) => {
     formData.append('files', file);
   });
+  if (tanggalDokumen) {
+    formData.append('tanggal_dokumen', tanggalDokumen);
+  }
 
   const response = await fetch(`${BASE_URL}/pksi/files/temp/upload/${sessionId}?fileType=${fileType}`, {
     method: 'POST',
@@ -327,7 +334,7 @@ export async function deletePksiFilesByPksiId(pksiId: string): Promise<void> {
  * @param file - The file to upload
  * @param fileType - The file type: T01, T11, T01_ND, T11_ND
  */
-export async function uploadPksiFileVersion(pksiId: string, file: File, fileType: string): Promise<PksiFileData> {
+export async function uploadPksiFileVersion(pksiId: string, file: File, fileType: string, tanggalDokumen?: string): Promise<PksiFileData> {
   const token = getAuthToken();
   
   if (!token) {
@@ -336,6 +343,9 @@ export async function uploadPksiFileVersion(pksiId: string, file: File, fileType
 
   const formData = new FormData();
   formData.append('file', file);
+  if (tanggalDokumen) {
+    formData.append('tanggal_dokumen', tanggalDokumen);
+  }
 
   const response = await fetch(`${BASE_URL}/pksi/files/version/${pksiId}?fileType=${fileType}`, {
     method: 'POST',

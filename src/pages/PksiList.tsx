@@ -1795,7 +1795,7 @@ function PksiList() {
                       fontWeight: 500,
                       fontSize: '0.8rem',
                       minWidth: 50,
-                      borderLeft: item.isMendesak ? '4px solid #FF3B30' : 'none',
+                      boxShadow: item.isMendesak ? 'inset 4px 0 0 #FF3B30' : 'none',
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 1, bgcolor: '#fff' }),
                       ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
