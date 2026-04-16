@@ -545,6 +545,9 @@ export default function FormasiEfektifDetailPage() {
         onClose={() => setCalculationDialogOpen(false)}
         maxWidth="md"
         fullWidth
+        slotProps={{
+          paper: { sx: { backgroundColor: 'white' } }
+        }}
       >
         <DialogTitle>
           <Box display="flex" alignItems="center" gap={1}>
@@ -605,10 +608,10 @@ export default function FormasiEfektifDetailPage() {
                   </Box>
                 </Box>
                 <Box component="tr" sx={{ bgcolor: '#e3f2fd' }}>
-                  <Box component="td" sx={{ py: 1.5, pr: 2, fontWeight: 'bold', color: 'primary.main' }}>
+                  <Box component="td" sx={{ py: 1.5, pr: 2, pl:2, fontWeight: 'bold', color: 'primary.main' }}>
                     Formasi Efektif Manajer
                   </Box>
-                  <Box component="td" sx={{ py: 1.5, textAlign: 'right', fontWeight: 'bold', fontSize: '1.1rem', fontFamily: 'monospace', color: 'primary.main' }}>
+                  <Box component="td" sx={{ py: 1.5, pr:2, textAlign: 'right', fontWeight: 'bold', fontSize: '1.1rem', fontFamily: 'monospace', color: 'primary.main' }}>
                     {Math.round(summary.formasi_efektif.manajer)} orang ({summary.formasi_efektif.manajer.toFixed(2)})
                   </Box>
                 </Box>
@@ -664,10 +667,10 @@ export default function FormasiEfektifDetailPage() {
                   </Box>
                 </Box>
                 <Box component="tr" sx={{ bgcolor: '#f3e5f5' }}>
-                  <Box component="td" sx={{ py: 1.5, pr: 2, fontWeight: 'bold', color: 'secondary.main' }}>
+                  <Box component="td" sx={{ py: 1.5, pr: 2, pl:2, fontWeight: 'bold', color: 'secondary.main' }}>
                     Formasi Efektif Asisten Manajer
                   </Box>
-                  <Box component="td" sx={{ py: 1.5, textAlign: 'right', fontWeight: 'bold', fontSize: '1.1rem', fontFamily: 'monospace', color: 'secondary.main' }}>
+                  <Box component="td" sx={{ py: 1.5, pr:2, textAlign: 'right', fontWeight: 'bold', fontSize: '1.1rem', fontFamily: 'monospace', color: 'secondary.main' }}>
                     {Math.round(summary.formasi_efektif.asisten_manajer)} orang ({summary.formasi_efektif.asisten_manajer.toFixed(2)})
                   </Box>
                 </Box>
@@ -678,15 +681,17 @@ export default function FormasiEfektifDetailPage() {
           <Divider sx={{ my: 2 }} />
 
           {/* Total Summary */}
-          <Box sx={{ bgcolor: '#f5f5f5', p: 2, borderRadius: 1 }}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Total Formasi Efektif
-            </Typography>
-            <Box display="flex" justifyContent="space-between">
-              <Typography variant="body2" color="text.secondary">
-                Total Man Hour: {summary.total_man_hour.total.toLocaleString('id-ID', { maximumFractionDigits: 2 })} jam ÷ 2112
-              </Typography>
-              <Typography variant="h6" fontWeight="bold" color="primary">
+          <Box sx={{ bgcolor: '#f5f5f5',px:2, borderRadius: 1 }}>
+            <Box display="flex" alignItems="center" justifyContent="space-between" minHeight={72}>
+              <Box>
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                  Total Formasi Efektif
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Total Man Hour: {summary.total_man_hour.total.toLocaleString('id-ID', { maximumFractionDigits: 2 })} jam ÷ 2112
+                </Typography>
+              </Box>
+              <Typography variant="h6" fontWeight="bold" color="primary" sx={{ ml: 2 }}>
                 {Math.round(summary.formasi_efektif.total)} orang ({summary.formasi_efektif.total.toFixed(2)})
               </Typography>
             </Box>
