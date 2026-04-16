@@ -279,19 +279,14 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     ? groupTimelinesByStage(apiData.timelines)
     : {
         usreq: apiData.target_usreq ? [apiData.target_usreq] : (apiData.tahap1_akhir ? [apiData.tahap1_akhir] : []),
-        pengadaan: [],
-        desain: [],
-        coding: [],
-        unitTest: [],
-        sit: apiData.target_sit ? [apiData.target_sit] : (apiData.tahap5_akhir ? [apiData.tahap5_akhir] : []),
-        uat: apiData.target_uat ? [apiData.target_uat] : [],
-        deployment: [],
-        goLive: apiData.target_go_live ? [apiData.target_go_live] : (apiData.tahap7_akhir ? [apiData.tahap7_akhir] : []),
         pengadaan: apiData.tanggal_pengadaan ? [apiData.tanggal_pengadaan] : [],
         desain: apiData.tanggal_desain ? [apiData.tanggal_desain] : [],
         coding: apiData.tanggal_coding ? [apiData.tanggal_coding] : [],
         unitTest: apiData.tanggal_unit_test ? [apiData.tanggal_unit_test] : [],
+        sit: apiData.target_sit ? [apiData.target_sit] : (apiData.tahap5_akhir ? [apiData.tahap5_akhir] : []),
+        uat: apiData.target_uat ? [apiData.target_uat] : [],
         deployment: [],
+        goLive: apiData.target_go_live ? [apiData.target_go_live] : (apiData.tahap7_akhir ? [apiData.tahap7_akhir] : []),
       };
   
   return {
@@ -331,11 +326,6 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     targetUat: timelineGroups.uat,
     targetDeployment: timelineGroups.deployment,
     targetGoLive: timelineGroups.goLive,
-    targetPengadaan: timelineGroups.pengadaan,
-    targetDesain: timelineGroups.desain,
-    targetCoding: timelineGroups.coding,
-    targetUnitTest: timelineGroups.unitTest,
-    targetDeployment: timelineGroups.deployment,
     // Rencana PKSI (T01/T02)
     statusT01T02: apiData.status_t01_t02 || '',
     berkasT01T02: apiData.berkas_t01_t02 || '',
