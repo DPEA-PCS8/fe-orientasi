@@ -73,6 +73,8 @@ interface PksiData {
   jangkaWaktu: string;
   tanggalPengajuan: string;
   linkDocsT01: string;
+  jenisPksi: string;
+  isMendesak: boolean;
   status: 'pending' | 'disetujui' | 'tidak_disetujui';
   // Timeline fields - support multiple phases per stage
   targetUsreq: string[];
@@ -185,6 +187,8 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     jangkaWaktu: jangkaWaktu,
     tanggalPengajuan: apiData.tanggal_pengajuan || apiData.created_at || '',
     linkDocsT01: '', // Will be populated when document upload is implemented
+    jenisPksi: apiData.jenis_pksi || '-',
+    isMendesak: apiData.jenis_pksi?.toLowerCase() === 'mendesak',
     status: mapStatus(apiData.status),
     // Timeline - use grouped timelines
     targetUsreq: timelineGroups.usreq,
@@ -1708,6 +1712,9 @@ function PksiList() {
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 200, ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                   Nama PKSI
                 </TableCell>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150 }}>
+                  Jenis PKSI
+                </TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                   SKPA
                 </TableCell>
@@ -1750,7 +1757,7 @@ function PksiList() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={11} sx={{ textAlign: 'center', py: 6 }}>
+                  <TableCell colSpan={14} sx={{ textAlign: 'center', py: 6 }}>
                     <CircularProgress size={40} sx={{ color: '#DA251C' }} />
                     <Typography variant="body2" sx={{ mt: 2, color: '#86868b' }}>
                       Memuat data...
@@ -1759,7 +1766,7 @@ function PksiList() {
                 </TableRow>
               ) : paginatedPksi.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} sx={{ textAlign: 'center', py: 6 }}>
+                  <TableCell colSpan={14} sx={{ textAlign: 'center', py: 6 }}>
                     <Typography variant="body2" sx={{ color: '#86868b' }}>
                       Tidak ada data PKSI ditemukan
                     </Typography>
@@ -1788,6 +1795,8 @@ function PksiList() {
                       fontWeight: 500,
                       fontSize: '0.8rem',
                       minWidth: 50,
+                      borderLeft: item.isMendesak ? '4px solid #FF3B30' : 'none',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 1, bgcolor: '#fff' }),
                       ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                     }}
@@ -1834,6 +1843,24 @@ function PksiList() {
                       }}
                     >
                       {item.namaPksi}
+                    </Typography>
+                  </TableCell>
+                  {/* Jenis PKSI */}
+                  <TableCell sx={{ 
+                    py: 1.5,
+                    px: 2,
+                    whiteSpace: 'normal',
+                    wordWrap: 'break-word',
+                    minWidth: 150,
+                  }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#1d1d1f',
+                        fontSize: '0.8rem',
+                      }}
+                    >
+                      {item.jenisPksi}
                     </Typography>
                   </TableCell>
                   {/* SKPA */}

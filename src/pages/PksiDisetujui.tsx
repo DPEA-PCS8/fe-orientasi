@@ -117,6 +117,21 @@ interface PksiData {
   kontrakDetailPembayaran: string;
   // BA Deploy
   baDeploy: string;
+  // Per-tahapan completion dates
+  tanggalPengadaan: string;
+  tanggalDesain: string;
+  tanggalCoding: string;
+  tanggalUnitTest: string;
+  // Per-tahapan statuses
+  tahapanStatusUsreq: string;
+  tahapanStatusPengadaan: string;
+  tahapanStatusDesain: string;
+  tahapanStatusCoding: string;
+  tahapanStatusUnitTest: string;
+  tahapanStatusSit: string;
+  tahapanStatusUat: string;
+  tahapanStatusDeployment: string;
+  tahapanStatusSelesai: string;
 }
 
 // Progress options for PKSI Disetujui
@@ -131,6 +146,24 @@ const PROGRESS_OPTIONS = [
   'Deployment',
   'Selesai',
 ] as const;
+
+type TahapanDateField = 'targetUsreq' | 'tanggalPengadaan' | 'tanggalDesain' | 'tanggalCoding' | 'tanggalUnitTest' | 'targetSit' | 'targetUat' | 'targetGoLive';
+
+const TAHAPAN_CONFIG: Array<{
+  key: typeof PROGRESS_OPTIONS[number];
+  label: string;
+  dateField: TahapanDateField | null;
+}> = [
+  { key: 'Penyusunan Usreq', label: 'Penyusunan Usreq', dateField: 'targetUsreq' },
+  { key: 'Pengadaan',         label: 'Pengadaan',         dateField: 'tanggalPengadaan' },
+  { key: 'Desain',            label: 'Desain',            dateField: 'tanggalDesain' },
+  { key: 'Coding',            label: 'Coding',            dateField: 'tanggalCoding' },
+  { key: 'Unit Test',         label: 'Unit Test',         dateField: 'tanggalUnitTest' },
+  { key: 'SIT',               label: 'SIT',               dateField: 'targetSit' },
+  { key: 'UAT',               label: 'UAT',               dateField: 'targetUat' },
+  { key: 'Deployment',        label: 'Deployment',        dateField: 'targetGoLive' },
+  { key: 'Selesai',           label: 'Selesai',           dateField: null },
+];
 
 const calculateJangkaWaktu = (apiData: PksiDocumentData): string => {
   const startDates = [apiData.tahap1_awal, apiData.tahap5_awal, apiData.tahap7_awal]
@@ -212,19 +245,19 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
   const timelineGroups = apiData.timelines && apiData.timelines.length > 0
     ? groupTimelinesByStage(apiData.timelines)
     : {
-        usreq: apiData.target_usreq ? [apiData.target_usreq] : (apiData.tahap1_akhir ? [apiData.tahap1_akhir] : ['2026-06-30']),
-        sit: apiData.target_sit ? [apiData.target_sit] : (apiData.tahap5_akhir ? [apiData.tahap5_akhir] : ['2026-09-30']),
-        uat: apiData.target_uat ? [apiData.target_uat] : ['2026-11-15'],
-        goLive: apiData.target_go_live ? [apiData.target_go_live] : (apiData.tahap7_akhir ? [apiData.tahap7_akhir] : ['2026-12-31']),
+        usreq: apiData.target_usreq ? [apiData.target_usreq] : (apiData.tahap1_akhir ? [apiData.tahap1_akhir] : []),
+        sit: apiData.target_sit ? [apiData.target_sit] : (apiData.tahap5_akhir ? [apiData.tahap5_akhir] : []),
+        uat: apiData.target_uat ? [apiData.target_uat] : [],
+        goLive: apiData.target_go_live ? [apiData.target_go_live] : (apiData.tahap7_akhir ? [apiData.tahap7_akhir] : []),
       };
   
   return {
     id: apiData.id,
     namaPksi: apiData.nama_pksi,
     namaAplikasi: apiData.nama_aplikasi || '-',
-    picSatkerBA: apiData.pic_satker_names || apiData.pic_satker_ba || '-', // Display kode_skpa names
-    picSatkerUuids: apiData.pic_satker_ba || '', // Original UUIDs for bidang lookup
-    bidang: '', // Will be resolved from SKPA lookup
+    picSatkerBA: apiData.pic_satker_names || apiData.pic_satker_ba || '-',
+    picSatkerUuids: apiData.pic_satker_ba || '',
+    bidang: '',
     pic: apiData.pic_approval_name || apiData.pic_approval || apiData.pengelola_aplikasi || '-',
     picUuid: apiData.pic_approval || '',
     anggotaTim: apiData.anggota_tim_names || apiData.anggota_tim || apiData.pengguna_aplikasi || '-',
@@ -235,37 +268,51 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     inhouseOutsource: apiData.inhouse_outsource || '-',
     jangkaWaktu: jangkaWaktu,
     tanggalPengajuan: apiData.tanggal_pengajuan || apiData.created_at || '',
-    linkDocsT01: '', // Not available in API response
+    linkDocsT01: '',
     progress: apiData.progress || 'Penyusunan Usreq',
-    // New fields - read from backend or fallback to program_inisiatif_rbsi split
     programRbsi: apiData.program_rbsi || apiData.program_inisiatif_rbsi?.split(' - ')[0] || '-',
     inisiatifRbsi: apiData.inisiatif_rbsi || apiData.program_inisiatif_rbsi?.split(' - ')[1] || '-',
-    // Anggaran - with dummy data
-    anggaranTotal: apiData.anggaran_total || 'Rp 2.500.000.000',
-    anggaranTahunIni: apiData.anggaran_tahun_ini || `Rp 1.500.000.000 (${new Date().getFullYear()})`,
-    anggaranTahunDepan: apiData.anggaran_tahun_depan || (jangkaWaktu.includes('Multiyears') ? `Rp 1.000.000.000 (${new Date().getFullYear() + 1})` : '-'),
-    // Timeline - use grouped timelines
+    // Anggaran
+    anggaranTotal: apiData.anggaran_total || '',
+    anggaranTahunIni: apiData.anggaran_tahun_ini || '',
+    anggaranTahunDepan: apiData.anggaran_tahun_depan || '',
+    // Timeline
     targetUsreq: timelineGroups.usreq,
     targetSit: timelineGroups.sit,
     targetUat: timelineGroups.uat,
     targetGoLive: timelineGroups.goLive,
-    // Rencana PKSI (T01/T02) - with dummy data
-    statusT01T02: apiData.status_t01_t02 || 'Diterima',
-    berkasT01T02: apiData.berkas_t01_t02 || 'T01_T02_Rencana_PKSI_v2.pdf',
-    // Spesifikasi Kebutuhan (T11) - with dummy data
-    statusT11: apiData.status_t11 || 'Diterima',
-    berkasT11: apiData.berkas_t11 || 'T11_Spesifikasi_Kebutuhan_v1.pdf',
-    // CD Prinsip - with dummy data
-    statusCd: apiData.status_cd || 'Diterima',
-    nomorCd: apiData.nomor_cd || `CD-${Math.floor(Math.random() * 900 + 100)}/PCS8/${new Date().getFullYear()}`,
-    // Kontrak - with dummy data
-    kontrakTanggalMulai: apiData.kontrak_tanggal_mulai || '2026-07-01',
-    kontrakTanggalSelesai: apiData.kontrak_tanggal_selesai || '2026-12-31',
-    kontrakNilai: apiData.kontrak_nilai || 'Rp 2.250.000.000',
-    kontrakJumlahTermin: apiData.kontrak_jumlah_termin || '3 Termin',
-    kontrakDetailPembayaran: apiData.kontrak_detail_pembayaran || '40% - 40% - 20%',
-    // BA Deploy - with dummy data
-    baDeploy: apiData.ba_deploy || `BA-DEPLOY-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 999)).padStart(3, '0')}`,
+    // Rencana PKSI (T01/T02)
+    statusT01T02: apiData.status_t01_t02 || '',
+    berkasT01T02: apiData.berkas_t01_t02 || '',
+    // Spesifikasi Kebutuhan (T11)
+    statusT11: apiData.status_t11 || '',
+    berkasT11: apiData.berkas_t11 || '',
+    // CD Prinsip
+    statusCd: apiData.status_cd || '',
+    nomorCd: apiData.nomor_cd || '',
+    // Kontrak
+    kontrakTanggalMulai: apiData.kontrak_tanggal_mulai || '',
+    kontrakTanggalSelesai: apiData.kontrak_tanggal_selesai || '',
+    kontrakNilai: apiData.kontrak_nilai || '',
+    kontrakJumlahTermin: apiData.kontrak_jumlah_termin || '',
+    kontrakDetailPembayaran: apiData.kontrak_detail_pembayaran || '',
+    // BA Deploy
+    baDeploy: apiData.ba_deploy || '',
+    // Per-tahapan completion dates
+    tanggalPengadaan: apiData.tanggal_pengadaan || '',
+    tanggalDesain: apiData.tanggal_desain || '',
+    tanggalCoding: apiData.tanggal_coding || '',
+    tanggalUnitTest: apiData.tanggal_unit_test || '',
+    // Per-tahapan statuses
+    tahapanStatusUsreq: apiData.tahapan_status_usreq || '',
+    tahapanStatusPengadaan: apiData.tahapan_status_pengadaan || '',
+    tahapanStatusDesain: apiData.tahapan_status_desain || '',
+    tahapanStatusCoding: apiData.tahapan_status_coding || '',
+    tahapanStatusUnitTest: apiData.tahapan_status_unit_test || '',
+    tahapanStatusSit: apiData.tahapan_status_sit || '',
+    tahapanStatusUat: apiData.tahapan_status_uat || '',
+    tahapanStatusDeployment: apiData.tahapan_status_deployment || '',
+    tahapanStatusSelesai: apiData.tahapan_status_selesai || '',
   };
 };
 
@@ -580,6 +627,10 @@ function PksiDisetujui() {
     targetSit: '',
     targetUat: '',
     targetGoLive: '',
+    tanggalPengadaan: '',
+    tanggalDesain: '',
+    tanggalCoding: '',
+    tanggalUnitTest: '',
     statusT01T02: '',
     berkasT01T02: '',
     statusT11: '',
@@ -603,6 +654,17 @@ function PksiDisetujui() {
   });
 
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+
+  // Per-tahapan individual statuses (independent selects)
+  const [tahapanStatuses, setTahapanStatuses] = useState<Record<string, string>>({});
+
+  // Date picker dialog state (opened when status = Selesai)
+  const [datePickerState, setDatePickerState] = useState<{
+    open: boolean;
+    tahapanKey: string;
+    dateField: TahapanDateField | null;
+    value: string;
+  }>({ open: false, tahapanKey: '', dateField: null, value: '' });
 
   // File upload state for T01 and T11 - API-based
   const [filesT01Data, setFilesT01Data] = useState<PksiFileData[]>([]);
@@ -669,6 +731,10 @@ function PksiDisetujui() {
       targetSit: Array.isArray(pksi.targetSit) ? pksi.targetSit.filter(d => d !== '-').join(', ') : (pksi.targetSit !== '-' ? pksi.targetSit : ''),
       targetUat: Array.isArray(pksi.targetUat) ? pksi.targetUat.filter(d => d !== '-').join(', ') : (pksi.targetUat !== '-' ? pksi.targetUat : ''),
       targetGoLive: Array.isArray(pksi.targetGoLive) ? pksi.targetGoLive.filter(d => d !== '-').join(', ') : (pksi.targetGoLive !== '-' ? pksi.targetGoLive : ''),
+      tanggalPengadaan: pksi.tanggalPengadaan || '',
+      tanggalDesain: pksi.tanggalDesain || '',
+      tanggalCoding: pksi.tanggalCoding || '',
+      tanggalUnitTest: pksi.tanggalUnitTest || '',
       statusT01T02: pksi.statusT01T02 !== '-' ? pksi.statusT01T02 : '',
       berkasT01T02: pksi.berkasT01T02 !== '-' ? pksi.berkasT01T02 : '',
       statusT11: pksi.statusT11 !== '-' ? pksi.statusT11 : '',
@@ -718,7 +784,34 @@ function PksiDisetujui() {
     } finally {
       // setIsLoadingFiles(false);
     }
-    
+
+    // Initialize per-tahapan statuses from saved API data (fallback to progress-derived)
+    const savedStatuses: Record<string, string> = {
+      'Penyusunan Usreq': pksi.tahapanStatusUsreq,
+      'Pengadaan':         pksi.tahapanStatusPengadaan,
+      'Desain':            pksi.tahapanStatusDesain,
+      'Coding':            pksi.tahapanStatusCoding,
+      'Unit Test':         pksi.tahapanStatusUnitTest,
+      'SIT':               pksi.tahapanStatusSit,
+      'UAT':               pksi.tahapanStatusUat,
+      'Deployment':        pksi.tahapanStatusDeployment,
+      'Selesai':           pksi.tahapanStatusSelesai,
+    };
+    // If no statuses saved yet, derive from progress
+    const hasSavedStatuses = Object.values(savedStatuses).some(v => v && v.length > 0);
+    if (hasSavedStatuses) {
+      setTahapanStatuses(savedStatuses);
+    } else {
+      const initProgress = pksi.progress || 'Penyusunan Usreq';
+      const initProgressIdx = PROGRESS_OPTIONS.indexOf(initProgress as typeof PROGRESS_OPTIONS[number]);
+      const initStatuses: Record<string, string> = {};
+      TAHAPAN_CONFIG.forEach((t) => {
+        const tIdx = PROGRESS_OPTIONS.indexOf(t.key);
+        initStatuses[t.key] = tIdx < initProgressIdx ? 'Selesai' : tIdx === initProgressIdx ? 'Dalam proses' : 'Belum dimulai';
+      });
+      setTahapanStatuses(initStatuses);
+    }
+
     setOpenEditDialog(true);
   };
 
@@ -726,6 +819,8 @@ function PksiDisetujui() {
     if (!selectedPksiForEdit) return;
 
     setIsSubmittingEdit(true);
+    // Helper: extract first date from a possibly comma-separated string
+    const firstDate = (val: string) => val ? val.split(',')[0].trim() || undefined : undefined;
     try {
       await updatePksiApproval(selectedPksiForEdit.id, {
         iku: editForm.iku,
@@ -736,11 +831,23 @@ function PksiDisetujui() {
         anggaran_total: editForm.anggaranTotal || undefined,
         anggaran_tahun_ini: editForm.anggaranTahunIni || undefined,
         anggaran_tahun_depan: editForm.anggaranTahunDepan || undefined,
-        // Send first phase of each timeline stage
-        target_usreq: timelinePhases.usreq.length > 0 ? timelinePhases.usreq[0] : undefined,
-        target_sit: timelinePhases.sit.length > 0 ? timelinePhases.sit[0] : undefined,
-        target_uat: timelinePhases.uat.length > 0 ? timelinePhases.uat[0] : undefined,
-        target_go_live: timelinePhases.goLive.length > 0 ? timelinePhases.goLive[0] : undefined,
+        target_usreq: firstDate(editForm.targetUsreq),
+        target_sit: firstDate(editForm.targetSit),
+        target_uat: firstDate(editForm.targetUat),
+        target_go_live: firstDate(editForm.targetGoLive),
+        tanggal_pengadaan: editForm.tanggalPengadaan || undefined,
+        tanggal_desain: editForm.tanggalDesain || undefined,
+        tanggal_coding: editForm.tanggalCoding || undefined,
+        tanggal_unit_test: editForm.tanggalUnitTest || undefined,
+        tahapan_status_usreq: tahapanStatuses['Penyusunan Usreq'] || undefined,
+        tahapan_status_pengadaan: tahapanStatuses['Pengadaan'] || undefined,
+        tahapan_status_desain: tahapanStatuses['Desain'] || undefined,
+        tahapan_status_coding: tahapanStatuses['Coding'] || undefined,
+        tahapan_status_unit_test: tahapanStatuses['Unit Test'] || undefined,
+        tahapan_status_sit: tahapanStatuses['SIT'] || undefined,
+        tahapan_status_uat: tahapanStatuses['UAT'] || undefined,
+        tahapan_status_deployment: tahapanStatuses['Deployment'] || undefined,
+        tahapan_status_selesai: tahapanStatuses['Selesai'] || undefined,
         status_t01_t02: editForm.statusT01T02 || undefined,
         berkas_t01_t02: editForm.berkasT01T02 || undefined,
         status_t11: editForm.statusT11 || undefined,
@@ -759,6 +866,7 @@ function PksiDisetujui() {
       fetchPksiData();
       setOpenEditDialog(false);
       setSelectedPksiForEdit(null);
+      setTahapanStatuses({});
       // Reset file states
       setFilesT01Data([]);
       setFilesT11Data([]);
@@ -801,6 +909,7 @@ function PksiDisetujui() {
   const handleEditCancel = () => {
     setOpenEditDialog(false);
     setSelectedPksiForEdit(null);
+    setTahapanStatuses({});
     // Reset file states
     setFilesT01Data([]);
     setFilesT11Data([]);
@@ -3596,50 +3705,114 @@ function PksiDisetujui() {
             </FormControl>
           </Box>
 
-          {/* Progress Field - Full Width */}
-          <FormControl fullWidth sx={{ mt: 2 }}>
-            <InputLabel 
-              id="edit-progress-label"
-              sx={{ '&.Mui-focused': { color: '#D97706' } }}
-            >
-              Progres
-            </InputLabel>
-            <Select
-              labelId="edit-progress-label"
-              value={editForm.progress}
-              label="Progres"
-              onChange={(e) => setEditForm({ ...editForm, progress: e.target.value })}
-              sx={{
-                borderRadius: '14px',
-                backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                backdropFilter: 'blur(10px)',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(0, 0, 0, 0.08)',
-                },
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(217, 119, 6, 0.3)',
-                  },
-                },
-                '&.Mui-focused': {
-                  backgroundColor: 'rgba(255, 255, 255, 1)',
-                  boxShadow: '0 4px 20px rgba(217, 119, 6, 0.12)',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#D97706',
-                    borderWidth: '1.5px',
-                  },
-                },
-              }}
-            >
-              {PROGRESS_OPTIONS.map((option) => (
-                <MenuItem key={option} value={option}>
-                  {option}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          {/* Progress Tahapan Table */}
+          <Box sx={{ mt: 2 }}>
+            <Typography sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5, fontSize: '0.85rem' }}>
+              Progres Tahapan
+            </Typography>
+            <TableContainer component={Paper} sx={{ borderRadius: '14px', boxShadow: 'none', border: '1px solid rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: 'rgba(217,119,6,0.08)' }}>
+                    <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#D97706', py: 1.2, width: '35%' }}>Tahapan</TableCell>
+                    <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#D97706', py: 1.2, width: '28%' }}>Status</TableCell>
+                    <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#D97706', py: 1.2 }}>Tanggal Penyelesaian</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {TAHAPAN_CONFIG.map((tahapan) => {
+                    const status    = tahapanStatuses[tahapan.key] || 'Belum dimulai';
+                    const isSelesai = status === 'Selesai';
+                    const isDalam   = status === 'Dalam proses';
+                    const rowBg     = isSelesai ? 'rgba(21,128,61,0.025)' : isDalam ? 'rgba(217,119,6,0.025)' : 'transparent';
+                    const dateValue = tahapan.dateField
+                      ? ((editForm as Record<string, string>)[tahapan.dateField] || '').split(',')[0].trim().substring(0, 10)
+                      : '';
+                    return (
+                      <TableRow
+                        key={tahapan.key}
+                        sx={{ '&:last-child td': { borderBottom: 0 }, bgcolor: rowBg }}
+                      >
+                        <TableCell sx={{ fontSize: '0.82rem', py: 1, fontWeight: isDalam ? 600 : 400, color: isDalam ? '#D97706' : isSelesai ? '#15803D' : '#1d1d1f' }}>
+                          {tahapan.label}
+                        </TableCell>
+                        <TableCell sx={{ py: 0.7 }}>
+                          <Select
+                            size="small"
+                            value={status}
+                            onChange={(e) => {
+                              const newStatus = e.target.value;
+                              const newStatuses = { ...tahapanStatuses, [tahapan.key]: newStatus };
+                              setTahapanStatuses(newStatuses);
+                              // Sync progress: last tahapan that is Selesai or Dalam proses
+                              let derivedProgress = 'Penyusunan Usreq';
+                              for (const t of TAHAPAN_CONFIG) {
+                                const s = newStatuses[t.key] || 'Belum dimulai';
+                                if (s === 'Selesai' || s === 'Dalam proses') derivedProgress = t.key;
+                              }
+                              if (newStatus === 'Selesai' && tahapan.dateField) {
+                                // Open date picker to set completion date
+                                setDatePickerState({
+                                  open: true,
+                                  tahapanKey: tahapan.key,
+                                  dateField: tahapan.dateField,
+                                  value: ((editForm as Record<string, string>)[tahapan.dateField] || '').substring(0, 10),
+                                });
+                                setEditForm(prev => ({ ...prev, progress: derivedProgress }));
+                              } else {
+                                // Clear the date when status is not Selesai
+                                const newForm = tahapan.dateField
+                                  ? { ...editForm, progress: derivedProgress, [tahapan.dateField]: '' }
+                                  : { ...editForm, progress: derivedProgress };
+                                setEditForm(newForm);
+                              }
+                            }}
+                            sx={{
+                              fontSize: '0.78rem',
+                              height: 30,
+                              borderRadius: '8px',
+                              color: isSelesai ? '#15803D' : isDalam ? '#D97706' : '#6B7280',
+                              fontWeight: 600,
+                              bgcolor: isSelesai ? '#F0FDF4' : isDalam ? '#FFFBEB' : '#F3F4F6',
+                              '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+                              '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: isSelesai ? 'rgba(21,128,61,0.4)' : isDalam ? 'rgba(217,119,6,0.4)' : 'rgba(107,114,128,0.4)' },
+                              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: isSelesai ? '#15803D' : isDalam ? '#D97706' : '#6B7280', borderWidth: '1px' },
+                              '& .MuiSelect-icon': { color: isSelesai ? '#15803D' : isDalam ? '#D97706' : '#6B7280' },
+                              minWidth: 138,
+                            }}
+                          >
+                            <MenuItem value="Belum dimulai" sx={{ fontSize: '0.78rem' }}>Belum dimulai</MenuItem>
+                            <MenuItem value="Dalam proses" sx={{ fontSize: '0.78rem', color: '#D97706', fontWeight: 500 }}>Dalam proses</MenuItem>
+                            <MenuItem value="Selesai" sx={{ fontSize: '0.78rem', color: '#15803D', fontWeight: 500 }}>Selesai</MenuItem>
+                          </Select>
+                        </TableCell>
+                        <TableCell sx={{ py: 1 }}>
+                          {tahapan.dateField ? (
+                            isSelesai && dateValue ? (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Typography sx={{ fontSize: '0.8rem', color: '#15803D', fontWeight: 500 }}>{dateValue}</Typography>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => setDatePickerState({ open: true, tahapanKey: tahapan.key, dateField: tahapan.dateField!, value: dateValue })}
+                                  sx={{ p: 0.3, color: '#15803D', '&:hover': { bgcolor: 'rgba(21,128,61,0.1)' } }}
+                                >
+                                  <EditIcon sx={{ fontSize: 13 }} />
+                                </IconButton>
+                              </Box>
+                            ) : (
+                              <Typography sx={{ fontSize: '0.78rem', color: '#86868b' }}>—</Typography>
+                            )
+                          ) : (
+                            <Typography sx={{ fontSize: '0.78rem', color: '#86868b' }}>—</Typography>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
 
           {/* Divider - Anggaran Section */}
           <Box sx={{ mt: 3, mb: 2 }}>
@@ -4394,6 +4567,76 @@ function PksiDisetujui() {
             }}
           >
             {isSubmittingEdit ? 'Menyimpan...' : 'Simpan Perubahan'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Date Picker Dialog — opened when tahapan status set to Selesai */}
+      <Dialog
+        open={datePickerState.open}
+        onClose={() => setDatePickerState(prev => ({ ...prev, open: false }))}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            boxShadow: '0 32px 80px rgba(0,0,0,0.15)',
+            overflow: 'hidden',
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '0.95rem', pb: 0.5, pt: 2.5, px: 3, color: '#1d1d1f' }}>
+          Tanggal Penyelesaian
+        </DialogTitle>
+        <Box sx={{ px: 3, pb: 0.5 }}>
+          <Typography sx={{ fontSize: '0.8rem', color: '#15803D', fontWeight: 600 }}>
+            {datePickerState.tahapanKey}
+          </Typography>
+        </Box>
+        <DialogContent sx={{ px: 3, pt: 1.5, pb: 1 }}>
+          <TextField
+            fullWidth
+            type="date"
+            value={datePickerState.value}
+            onChange={(e) => setDatePickerState(prev => ({ ...prev, value: e.target.value }))}
+            InputLabelProps={{ shrink: true }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '12px',
+                '& fieldset': { borderColor: 'rgba(21,128,61,0.25)' },
+                '&:hover fieldset': { borderColor: 'rgba(21,128,61,0.5)' },
+                '&.Mui-focused fieldset': { borderColor: '#15803D' },
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            onClick={() => setDatePickerState(prev => ({ ...prev, open: false }))}
+            sx={{ borderRadius: '10px', color: '#6B7280', textTransform: 'none', fontWeight: 500 }}
+          >
+            Batal
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!datePickerState.value}
+            onClick={() => {
+              if (datePickerState.dateField) {
+                setEditForm(prev => ({ ...prev, [datePickerState.dateField!]: datePickerState.value }));
+              }
+              setDatePickerState(prev => ({ ...prev, open: false }));
+            }}
+            sx={{
+              borderRadius: '10px',
+              textTransform: 'none',
+              fontWeight: 600,
+              bgcolor: '#15803D',
+              boxShadow: '0 4px 12px rgba(21,128,61,0.3)',
+              '&:hover': { bgcolor: '#166534' },
+              '&:disabled': { bgcolor: 'rgba(21,128,61,0.3)', color: 'white' },
+            }}
+          >
+            Simpan Tanggal
           </Button>
         </DialogActions>
       </Dialog>
