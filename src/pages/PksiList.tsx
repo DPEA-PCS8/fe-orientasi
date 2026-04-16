@@ -218,6 +218,17 @@ const getStatusColor = (status: PksiData['status']) => {
   }
 };
 
+// Format date to show only month and year (e.g., "Apr 2026")
+const formatMonthYear = (dateString: string): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
+  } catch {
+    return '-';
+  }
+};
+
 // Color palette for SKPA chips
 const SKPA_COLORS = [
   { bg: '#DA251C', text: '#FFFFFF' }, // Red
@@ -548,6 +559,7 @@ function PksiList() {
         pic_approval_name: picName,
         anggota_tim: memberUuids.join(', '),
         anggota_tim_names: memberNames.join(', '),
+        team_id: approvalForm.teamId,
       });
       
       // Update local state after successful API call
@@ -1931,7 +1943,7 @@ function PksiList() {
                         {item.targetUsreq.map((date, idx) => (
                           <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                             {item.targetUsreq.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
-                            {new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            {formatMonthYear(date)}
                           </Typography>
                         ))}
                       </Box>
@@ -1946,7 +1958,7 @@ function PksiList() {
                         {item.targetSit.map((date, idx) => (
                           <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                             {item.targetSit.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
-                            {new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            {formatMonthYear(date)}
                           </Typography>
                         ))}
                       </Box>
@@ -1961,7 +1973,7 @@ function PksiList() {
                         {item.targetUat.map((date, idx) => (
                           <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                             {item.targetUat.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
-                            {new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            {formatMonthYear(date)}
                           </Typography>
                         ))}
                       </Box>
@@ -1976,7 +1988,7 @@ function PksiList() {
                         {item.targetGoLive.map((date, idx) => (
                           <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
                             {item.targetGoLive.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
-                            {new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            {formatMonthYear(date)}
                           </Typography>
                         ))}
                       </Box>

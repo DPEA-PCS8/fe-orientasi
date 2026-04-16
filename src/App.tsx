@@ -30,6 +30,8 @@ import AuditLogPage from './pages/AuditLogPage';
 import HistorisAplikasiPage from './pages/HistorisAplikasiPage';
 import Fs2List from './pages/Fs2List';
 import Fs2Disetujui from './pages/Fs2Disetujui';
+import FormasiEfektifPage from './pages/FormasiEfektifPage';
+import FormasiEfektifDetailPage from './pages/FormasiEfektifDetailPage';
 
 function App() {
   return (
@@ -185,6 +187,27 @@ function App() {
                 </Layout>
               </ProtectedRoute>
             } 
+          />
+          {/* Formasi Efektif Routes */}
+          <Route
+            path="/admin/formasi-efektif"
+            element={
+              <ProtectedRoute requireMenuPermission="FORMASI_EFEKTIF">
+                <Layout>
+                  <FormasiEfektifPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/formasi-efektif/detail"
+            element={
+              <ProtectedRoute requireMenuPermission="FORMASI_EFEKTIF">
+                <Layout>
+                  <FormasiEfektifDetailPage />
+                </Layout>
+              </ProtectedRoute>
+            }
           />
         <Route
           path="/skpa"

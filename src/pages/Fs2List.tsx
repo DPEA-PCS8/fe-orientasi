@@ -72,11 +72,11 @@ import {
   updateFs2Status, 
   createFs2Document,
   updateFs2Document,
+  downloadAllFs2Excel,
   type Fs2DocumentData,
   type Fs2DocumentRequest 
 } from '../api/fs2Api';
 import { getAllAplikasi, type AplikasiData } from '../api/aplikasiApi';
-import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { 
   uploadFs2TempFiles, 
@@ -96,6 +96,7 @@ import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/Sid
 interface Fs2Data {
   id: string;
   namaAplikasi: string;
+  namaFs2: string;
   statusTahapan: string;
   skpa: string;
   urgensi: string;
@@ -115,6 +116,7 @@ const transformApiData = (apiData: Fs2DocumentData): Fs2Data => {
   return {
     id: apiData.id,
     namaAplikasi: apiData.nama_aplikasi || '-',
+    namaFs2: apiData.nama_fs2 || '-',
     statusTahapan: apiData.status_tahapan || '-',
     skpa: apiData.kode_skpa || apiData.nama_skpa || '-',
     urgensi: apiData.urgensi || '-',
@@ -287,7 +289,8 @@ function Fs2List() {
   // Filter state
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedStatus, setSelectedStatus] = useState<Set<string>>(new Set());
-  const [selectedBidangFilter, setSelectedBidangFilter] = useState<string>('');
+  const [selectedAplikasiFilter, setSelectedAplikasiFilter] = useState<string>('');
+  const [selectedStatusTahapanFilter, setSelectedStatusTahapanFilter] = useState<string>('');
   const [selectedSkpaFilter, setSelectedSkpaFilter] = useState<string>('');
   
   // Year filter (exposed in toolbar) - default to current year, filters by tanggal_pengajuan
@@ -305,11 +308,13 @@ function Fs2List() {
   const COLUMN_OPTIONS = useMemo(() => [
     { id: 'no', label: 'No', width: 50 },
     { id: 'namaAplikasi', label: 'Nama Aplikasi', width: 150 },
+    { id: 'namaFs2', label: 'Nama FS2', width: 180 },
     { id: 'statusTahapan', label: 'Status Tahapan Aplikasi', width: 180 },
     { id: 'skpa', label: 'SKPA', width: 100 },
     // { id: 'urgensi', label: 'Urgensi', width: 100 }, // HIDDEN as per requirement
     { id: 'tanggalPengajuan', label: 'Tanggal Pengajuan', width: 150 },
     { id: 'docsFs2', label: 'Docs F.S.2', width: 90 },
+    { id: 'tglBerkasFs2', label: 'Tgl Berkas FS2', width: 130 },
     { id: 'status', label: 'Status', width: 130 },
   ], []);
 
@@ -348,12 +353,12 @@ function Fs2List() {
 
   // Reference data for dropdowns
   const [aplikasiList, setAplikasiList] = useState<AplikasiData[]>([]);
-  const [bidangList, setBidangList] = useState<BidangData[]>([]);
   const [skpaList, setSkpaList] = useState<SkpaData[]>([]);
 
   // Form state for Add/Edit modal
   const [formData, setFormData] = useState<Fs2DocumentRequest>({
     aplikasi_id: '',
+    nama_fs2: '',
     bidang_id: '',
     skpa_id: '',
     tanggal_pengajuan: new Date().toISOString().split('T')[0],
@@ -386,6 +391,7 @@ function Fs2List() {
     target_go_live: '',
     pernyataan_1: false,
     pernyataan_2: false,
+    tanggal_berkas_fs2: '',
   });
 
   // File upload state
@@ -403,6 +409,9 @@ function Fs2List() {
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [fs2ToDelete, setFs2ToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Excel download state
+  const [isDownloadingExcel, setIsDownloadingExcel] = useState(false);
 
   // Snackbar notifications
   const [snackbar, setSnackbar] = useState<{
@@ -456,7 +465,8 @@ function Fs2List() {
       const response = await searchFs2Documents({
         search: keyword || undefined,
         status: statusFilter,
-        bidang_id: selectedBidangFilter || undefined,
+        aplikasi_id: selectedAplikasiFilter || undefined,
+        status_tahapan: selectedStatusTahapanFilter || undefined,
         skpa_id: selectedSkpaFilter || undefined,
         year: yearFilter,
         start_month: startMonthFilter,
@@ -477,19 +487,17 @@ function Fs2List() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, page, rowsPerPage, selectedStatus, selectedBidangFilter, selectedSkpaFilter, selectedYearFilter, selectedStartMonth, selectedEndMonth]);
+  }, [keyword, page, rowsPerPage, selectedStatus, selectedAplikasiFilter, selectedStatusTahapanFilter, selectedSkpaFilter, selectedYearFilter, selectedStartMonth, selectedEndMonth]);
 
   // Fetch reference data
   useEffect(() => {
     const fetchReferenceData = async () => {
       try {
-        const [aplikasiRes, bidang, skpaRes] = await Promise.all([
+        const [aplikasiRes, skpaRes] = await Promise.all([
           getAllAplikasi(),
-          getAllBidang(),
           getAllSkpa(),
         ]);
         setAplikasiList(aplikasiRes.data || []);
-        setBidangList(bidang);
         setSkpaList(skpaRes.data || []);
       } catch (error) {
         console.error('Failed to fetch reference data:', error);
@@ -583,8 +591,12 @@ function Fs2List() {
 
   const clearFilters = () => {
     setSelectedStatus(new Set());
-    setSelectedBidangFilter('');
+    setSelectedAplikasiFilter('');
+    setSelectedStatusTahapanFilter('');
     setSelectedSkpaFilter('');
+    setSelectedYearFilter(new Date().getFullYear().toString());
+    setSelectedStartMonth('');
+    setSelectedEndMonth('');
   };
 
   // Accordion change handler for Add/Edit modal
@@ -772,10 +784,11 @@ function Fs2List() {
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (selectedStatus.size > 0) count++;
-    if (selectedBidangFilter) count++;
+    if (selectedAplikasiFilter) count++;
+    if (selectedStatusTahapanFilter) count++;
     if (selectedSkpaFilter) count++;
     return count;
-  }, [selectedStatus, selectedBidangFilter, selectedSkpaFilter]);
+  }, [selectedStatus, selectedAplikasiFilter, selectedStatusTahapanFilter, selectedSkpaFilter]);
 
   // Add modal handlers
   const handleOpenAddModal = () => {
@@ -860,8 +873,9 @@ function Fs2List() {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    // Section 1: Informasi Dasar (only validate 1.1-1.4)
+    // Section 1: Informasi Dasar (only validate 1.1-1.5)
     if (!formData.aplikasi_id) newErrors.aplikasi_id = "Nama Aplikasi wajib dipilih";
+    if (!formData.nama_fs2 || formData.nama_fs2.trim() === '') newErrors.nama_fs2 = "Nama FS2 wajib diisi";
     if (!formData.status_tahapan) newErrors.status_tahapan = "Status Tahapan wajib dipilih";
     if (!formData.skpa_id) newErrors.skpa_id = "SKPA wajib dipilih";
     // if (!formData.urgensi) newErrors.urgensi = "Urgensi wajib dipilih"; // HIDDEN as per requirement
@@ -871,7 +885,7 @@ function Fs2List() {
     if (!formData.target_deployment) newErrors.target_deployment = "Target Deployment wajib diisi";
     if (!formData.target_go_live) newErrors.target_go_live = "Target Go Live wajib diisi";
 
-    // Section 3: Upload Dokumen F.S.2 - WAJIB UPLOAD MINIMAL 1 FILE
+    // Section 3: Upload Berkas F.S.2 - WAJIB UPLOAD MINIMAL 1 FILE
     if (uploadedFiles.length === 0 && uploadedFileData.length === 0) {
       newErrors.upload_dokumen = "Dokumen F.S.2 wajib diupload!";
     }
@@ -896,7 +910,13 @@ function Fs2List() {
     setSuccessMessage('');
 
     try {
-      const createdFs2 = await createFs2Document(formData);
+      // Auto-set tanggal_berkas_fs2 to current date when creating FS2 with uploaded files
+      const dataToSubmit = { ...formData };
+      if (uploadedFileData.length > 0 && !dataToSubmit.tanggal_berkas_fs2) {
+        dataToSubmit.tanggal_berkas_fs2 = new Date().toISOString().split('T')[0];
+      }
+      
+      const createdFs2 = await createFs2Document(dataToSubmit);
       
       // Move temp files to permanent storage
       if (sessionId && uploadedFileData.length > 0) {
@@ -923,6 +943,7 @@ function Fs2List() {
       setSelectedFs2ForEdit(fs2);
       setFormData({
         aplikasi_id: fs2.aplikasi_id || '',
+        nama_fs2: fs2.nama_fs2 || '',
         bidang_id: fs2.bidang_id || '',
         skpa_id: fs2.skpa_id || '',
         tanggal_pengajuan: fs2.tanggal_pengajuan || '',
@@ -953,6 +974,7 @@ function Fs2List() {
         target_go_live: fs2.target_go_live || '',
         pernyataan_1: fs2.pernyataan_1 || false,
         pernyataan_2: fs2.pernyataan_2 || false,
+        tanggal_berkas_fs2: fs2.tanggal_berkas_fs2 || '',
         team_id: fs2.team_id || undefined,
       });
       
@@ -982,6 +1004,12 @@ function Fs2List() {
 
   const handleEditFs2 = async () => {
     if (!selectedFs2ForEdit) return;
+    
+    // Validate: check if nama_fs2 is filled
+    if (!formData.nama_fs2 || formData.nama_fs2.trim() === '') {
+      setErrors(prev => ({ ...prev, nama_fs2: "Nama FS2 wajib diisi" }));
+      return;
+    }
     
     // Validate: check if there are existing files
     if (existingFs2Files.length === 0) {
@@ -1214,8 +1242,50 @@ function Fs2List() {
     }
   };
 
+  // Handle Excel download
+  const handleDownloadExcel = async () => {
+    setIsDownloadingExcel(true);
+    try {
+      // Map status filter
+      const statusMapping: Record<string, string> = {
+        pending: 'PENDING',
+        disetujui: 'DISETUJUI',
+        tidak_disetujui: 'TIDAK_DISETUJUI',
+      };
+      const statusFilter = selectedStatus.size === 1 
+        ? statusMapping[Array.from(selectedStatus)[0]] 
+        : undefined;
+      
+      await downloadAllFs2Excel({
+        search: keyword || undefined,
+        aplikasi_id: selectedAplikasiFilter || undefined,
+        status_tahapan: selectedStatusTahapanFilter || undefined,
+        skpa_id: selectedSkpaFilter || undefined,
+        status: statusFilter,
+        year: selectedYearFilter ? parseInt(selectedYearFilter, 10) : undefined,
+        start_month: selectedStartMonth ? parseInt(selectedStartMonth, 10) : undefined,
+        end_month: selectedEndMonth ? parseInt(selectedEndMonth, 10) : undefined,
+      });
+      setSnackbar({
+        open: true,
+        message: 'File Excel berhasil diunduh',
+        severity: 'success',
+      });
+    } catch (error: unknown) {
+      console.error('Failed to download Excel:', error);
+      const errMsg = error instanceof Error ? error.message : 'Gagal mengunduh file Excel';
+      setSnackbar({
+        open: true,
+        message: errMsg,
+        severity: 'error',
+      });
+    } finally {
+      setIsDownloadingExcel(false);
+    }
+  };
+
   // Format date for display
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
     try {
       const date = new Date(dateString);
@@ -1579,6 +1649,27 @@ function Fs2List() {
               </Button>
             </Tooltip>
           </Box>
+          <Tooltip title="Download Excel">
+            <Button
+              variant="outlined"
+              onClick={handleDownloadExcel}
+              disabled={isDownloadingExcel}
+              sx={{
+                borderColor: 'rgba(0, 0, 0, 0.12)',
+                color: '#1d1d1f',
+                fontWeight: 500,
+                '&:hover': {
+                  bgcolor: 'rgba(0, 0, 0, 0.04)',
+                },
+              }}
+            >
+              {isDownloadingExcel ? (
+                <CircularProgress size={20} sx={{ color: '#1d1d1f' }} />
+              ) : (
+                <DownloadIcon />
+              )}
+            </Button>
+          </Tooltip>
           {fs2Permissions.canCreate && (
             <Button
               variant="contained"
@@ -1688,18 +1779,18 @@ function Fs2List() {
 
           <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
 
-          {/* Bidang Filter */}
+          {/* Nama Aplikasi Filter */}
           <Box sx={{ mb: 2.5 }}>
             <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
-              Bidang
+              Nama Aplikasi
             </Typography>
             <FormControl fullWidth size="small">
-              <InputLabel id="bidang-filter-label">Pilih Bidang</InputLabel>
+              <InputLabel id="aplikasi-filter-label">Pilih Aplikasi</InputLabel>
               <Select
-                labelId="bidang-filter-label"
-                value={selectedBidangFilter}
-                label="Pilih Bidang"
-                onChange={(e) => setSelectedBidangFilter(e.target.value)}
+                labelId="aplikasi-filter-label"
+                value={selectedAplikasiFilter}
+                label="Pilih Aplikasi"
+                onChange={(e) => setSelectedAplikasiFilter(e.target.value)}
                 sx={{
                   borderRadius: '8px',
                   '& .MuiOutlinedInput-notchedOutline': {
@@ -1713,10 +1804,44 @@ function Fs2List() {
                   },
                 }}
               >
-                <MenuItem value=""><em>Semua Bidang</em></MenuItem>
-                {bidangList.map((bidang) => (
-                  <MenuItem key={bidang.id} value={bidang.id}>{bidang.nama_bidang}</MenuItem>
+                <MenuItem value=""><em>Semua Aplikasi</em></MenuItem>
+                {aplikasiList.map((aplikasi) => (
+                  <MenuItem key={aplikasi.id} value={aplikasi.id}>{aplikasi.nama_aplikasi}</MenuItem>
                 ))}
+              </Select>
+            </FormControl>
+          </Box>
+
+          <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
+          {/* Status Tahapan Filter */}
+          <Box sx={{ mb: 2.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+              Status Tahapan Aplikasi
+            </Typography>
+            <FormControl fullWidth size="small">
+              <InputLabel id="status-tahapan-filter-label">Pilih Status Tahapan</InputLabel>
+              <Select
+                labelId="status-tahapan-filter-label"
+                value={selectedStatusTahapanFilter}
+                label="Pilih Status Tahapan"
+                onChange={(e) => setSelectedStatusTahapanFilter(e.target.value)}
+                sx={{
+                  borderRadius: '8px',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#e5e5e7',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#DA251C',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#DA251C',
+                  },
+                }}
+              >
+                <MenuItem value=""><em>Semua Status Tahapan</em></MenuItem>
+                <MenuItem value="DESAIN">Desain</MenuItem>
+                <MenuItem value="PEMELIHARAAN">Pemeliharaan</MenuItem>
               </Select>
             </FormControl>
           </Box>
@@ -1917,6 +2042,25 @@ function Fs2List() {
                   Nama Aplikasi
                 </TableSortLabel>
               </TableCell>
+              <TableCell 
+                sortDirection={orderBy === 'namaFs2' ? order : false}
+                sx={{ 
+                  fontWeight: 600, 
+                  color: '#1d1d1f', 
+                  py: 2,
+                  minWidth: 180,
+                  ...(stickyColumns.has('namaFs2') && { position: 'sticky', left: getStickyLeft('namaFs2'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                  ...(isLastStickyColumn('namaFs2') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+                }}
+              >
+                <TableSortLabel
+                  active={orderBy === 'namaFs2'}
+                  direction={orderBy === 'namaFs2' ? order : 'asc'}
+                  onClick={() => handleRequestSort('namaFs2')}
+                >
+                  Nama FS2
+                </TableSortLabel>
+              </TableCell>
               <TableCell sx={{ 
                 fontWeight: 600, 
                 color: '#1d1d1f', 
@@ -1971,6 +2115,16 @@ function Fs2List() {
               >
                 Docs F.S.2
               </TableCell>
+              <TableCell 
+                sx={{ 
+                  fontWeight: 600, 
+                  color: '#1d1d1f', 
+                  py: 2,
+                  minWidth: 130,
+                }}
+              >
+                Tgl Berkas FS2
+              </TableCell>
               <TableCell sx={{ 
                 fontWeight: 600, 
                 color: '#1d1d1f', 
@@ -1985,7 +2139,7 @@ function Fs2List() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={9} sx={{ textAlign: 'center', py: 6 }}>
+                <TableCell colSpan={10} sx={{ textAlign: 'center', py: 6 }}>
                   <CircularProgress size={40} sx={{ color: '#DA251C' }} />
                   <Typography variant="body2" sx={{ mt: 2, color: '#86868b' }}>
                     Memuat data...
@@ -1994,7 +2148,7 @@ function Fs2List() {
               </TableRow>
             ) : filteredFs2Data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} sx={{ textAlign: 'center', py: 6 }}>
+                <TableCell colSpan={10} sx={{ textAlign: 'center', py: 6 }}>
                   <Typography variant="body2" sx={{ color: '#86868b' }}>
                     Tidak ada data F.S.2 ditemukan
                   </Typography>
@@ -2045,6 +2199,24 @@ function Fs2List() {
                         }}
                       >
                         {row.namaAplikasi}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ 
+                      py: 2, 
+                      whiteSpace: 'normal', 
+                      wordWrap: 'break-word',
+                      minWidth: 180,
+                      ...(stickyColumns.has('namaFs2') && { position: 'sticky', left: getStickyLeft('namaFs2'), zIndex: 1, bgcolor: '#fff' }),
+                      ...(isLastStickyColumn('namaFs2') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+                    }}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          color: '#1d1d1f',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        {row.namaFs2}
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ 
@@ -2128,6 +2300,17 @@ function Fs2List() {
                           <OpenInNewIcon sx={{ fontSize: 16 }} />
                         </IconButton>
                       </Tooltip>
+                    </TableCell>
+                    <TableCell sx={{ py: 2, minWidth: 130 }}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          color: '#1d1d1f',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        {formatDate((rawData.find(d => d.id === row.id) as Fs2DocumentData)?.tanggal_berkas_fs2)}
+                      </Typography>
                     </TableCell>
                     <TableCell sx={{ 
                       py: 2,
@@ -2423,11 +2606,21 @@ function Fs2List() {
                     )}
                     size="small"
                   />
+                  <GlassTextField
+                    label="1.2 Nama FS2"
+                    size="small"
+                    value={formData.nama_fs2 || ''}
+                    onChange={(e) => setFormData({ ...formData, nama_fs2: e.target.value })}
+                    required
+                    error={!!errors.nama_fs2}
+                    helperText={errors.nama_fs2}
+                    fullWidth
+                  />
                 <FormControl fullWidth size="small" error={!!errors.status_tahapan}>
-                  <InputLabel>1.2 Status Tahapan Aplikasi *</InputLabel>
+                  <InputLabel>1.3 Status Tahapan Aplikasi *</InputLabel>
                   <Select
                     value={formData.status_tahapan}
-                    label="1.2 Status Tahapan Aplikasi *"
+                    label="1.3 Status Tahapan Aplikasi *"
                     onChange={(e) => {
                       const value = e.target.value;
                       handleSelectChange('status_tahapan', value);
@@ -2465,7 +2658,7 @@ function Fs2List() {
                   renderInput={(params) => (
                     <GlassTextField 
                       {...params} 
-                      label="1.3 Satuan Kerja Pemilik Aplikasi (SKPA)" 
+                      label="1.4 Satuan Kerja Pemilik Aplikasi (SKPA)" 
                       required 
                       size="small"
                       error={!!errors.skpa_id}
@@ -2475,7 +2668,7 @@ function Fs2List() {
                   size="small"
                 />
                 <GlassTextField
-                  label="1.4 Tanggal Pengajuan"
+                  label="1.5 Tanggal Pengajuan"
                   type="date"
                   size="small"
                   value={formData.tanggal_pengajuan || ''}
@@ -2727,11 +2920,33 @@ function Fs2List() {
                     letterSpacing: '-0.01em',
                   }}
                 >
-                  3. Upload Dokumen F.S.2
+                  3. Upload Berkas F.S.2
                 </Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
                 <Stack spacing={2}>
+                  {/* Tanggal Berkas FS2 */}
+                  <TextField
+                    label="Tanggal Berkas FS2"
+                    type="date"
+                    value={formData.tanggal_berkas_fs2 || ''}
+                    onChange={(e) => setFormData({ ...formData, tanggal_berkas_fs2: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                    fullWidth
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '12px',
+                        bgcolor: 'white',
+                        transition: 'all 0.2s ease',
+                        '&:hover': { boxShadow: '0 2px 8px rgba(0,0,0,0.08)' },
+                        '&.Mui-focused': {
+                          boxShadow: '0 4px 12px rgba(218, 37, 28, 0.15)',
+                          '& fieldset': { borderColor: '#DA251C', borderWidth: '2px' },
+                        },
+                      },
+                      '& .MuiInputLabel-root.Mui-focused': { color: '#DA251C', fontWeight: 600 },
+                    }}
+                  />
                   <Box
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={() => setIsDragging(false)}
@@ -2984,11 +3199,19 @@ function Fs2List() {
                     )}
                     size="small"
                   />
+                  <GlassTextField
+                    label="1.2 Nama FS2"
+                    size="small"
+                    value={formData.nama_fs2 || ''}
+                    onChange={(e) => setFormData({ ...formData, nama_fs2: e.target.value })}
+                    required
+                    fullWidth
+                  />
                 <FormControl fullWidth size="small">
-                  <InputLabel>1.2 Status Tahapan Aplikasi</InputLabel>
+                  <InputLabel>1.3 Status Tahapan Aplikasi</InputLabel>
                   <Select
                     value={formData.status_tahapan}
-                    label="1.2 Status Tahapan Aplikasi"
+                    label="1.3 Status Tahapan Aplikasi"
                     onChange={(e) => {
                       const value = e.target.value;
                       setFormData({ ...formData, status_tahapan: value, fase_pengajuan: value });
@@ -3017,12 +3240,12 @@ function Fs2List() {
                   value={skpaList.find(s => s.id === formData.skpa_id) || null}
                   onChange={(_, newValue) => setFormData({ ...formData, skpa_id: newValue?.id || '' })}
                   renderInput={(params) => (
-                    <GlassTextField {...params} label="1.3 Satuan Kerja Pemilik Aplikasi (SKPA)" required size="small" />
+                    <GlassTextField {...params} label="1.4 Satuan Kerja Pemilik Aplikasi (SKPA)" required size="small" />
                   )}
                   size="small"
                 />
                 <GlassTextField
-                  label="1.4 Tanggal Pengajuan"
+                  label="1.5 Tanggal Pengajuan"
                   type="date"
                   size="small"
                   value={formData.tanggal_pengajuan || ''}
@@ -3242,11 +3465,33 @@ function Fs2List() {
                     letterSpacing: '-0.01em',
                   }}
                 >
-                  3. Upload Dokumen F.S.2
+                  3. Upload Berkas F.S.2
                 </Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
                 <Stack spacing={2}>
+                  {/* Tanggal Berkas FS2 */}
+                  <TextField
+                    label="Tanggal Berkas FS2"
+                    type="date"
+                    value={formData.tanggal_berkas_fs2 || ''}
+                    onChange={(e) => setFormData({ ...formData, tanggal_berkas_fs2: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                    fullWidth
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '12px',
+                        bgcolor: 'white',
+                        transition: 'all 0.2s ease',
+                        '&:hover': { boxShadow: '0 2px 8px rgba(0,0,0,0.08)' },
+                        '&.Mui-focused': {
+                          boxShadow: '0 4px 12px rgba(218, 37, 28, 0.15)',
+                          '& fieldset': { borderColor: '#DA251C', borderWidth: '2px' },
+                        },
+                      },
+                      '& .MuiInputLabel-root.Mui-focused': { color: '#DA251C', fontWeight: 600 },
+                    }}
+                  />
                   {/* Existing Files Section */}
                   {isLoadingExistingFiles ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>

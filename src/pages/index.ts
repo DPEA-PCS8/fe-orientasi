@@ -8,3 +8,5 @@ export { default as RolePermissions } from './RolePermissions';
 export { default as Fs2List } from './Fs2List';
 export { default as Fs2Disetujui } from './Fs2Disetujui';
 export { default as KategoriRbsiPage } from './KategoriRbsiPage';
+export { default as FormasiEfektifPage } from './FormasiEfektifPage';
+export { default as FormasiEfektifDetailPage } from './FormasiEfektifDetailPage';

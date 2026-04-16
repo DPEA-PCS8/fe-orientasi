@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Box,
   TextField,
@@ -55,7 +56,7 @@ import {
   Download as DownloadIcon,
   AttachFile as AttachFileIcon,
 } from '@mui/icons-material';
-import { searchApprovedFs2Documents, updateFs2Document, type Fs2DocumentData, type Fs2DocumentRequest } from '../api/fs2Api';
+import { searchApprovedFs2Documents, updateFs2Document, downloadApprovedFs2Excel, type Fs2DocumentData, type Fs2DocumentRequest } from '../api/fs2Api';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getAllTeams, type Team } from '../api/teamApi';
@@ -76,7 +77,10 @@ import {
 interface Fs2DisetujuiData {
   id: string;
   namaAplikasi: string;
+  namaFs2: string;
   progres: string;
+  progresStatus: string;
+  tanggalProgres: string;
   fasePengajuan: string;
   iku: string;
   bidang: string;
@@ -94,21 +98,27 @@ interface Fs2DisetujuiData {
   tanggalNd: string;
   berkasNd: string;
   berkasFs2: string;
+  tanggalBerkasFs2: string;
   // CD Prinsip
   nomorCd: string;
   tanggalCd: string;
   berkasCd: string;
   berkasFs2a: string;
+  tanggalBerkasFs2a: string;
   berkasFs2b: string;
+  tanggalBerkasFs2b: string;
   // Pengujian
   targetPengujian: string;
   realisasiPengujian: string;
   berkasF45: string;
+  tanggalBerkasF45: string;
   berkasF46: string;
+  tanggalBerkasF46: string;
   // Deployment
   targetDeployment: string;
   realisasiDeployment: string;
   berkasNdBaDeployment: string;
+  tanggalBerkasNdBa: string;
   // Go Live
   targetGoLive: string;
   // Keterangan
@@ -116,6 +126,7 @@ interface Fs2DisetujuiData {
 }
 
 const PROGRES_OPTIONS = ['ASESMEN', 'CODING', 'PDKK', 'DEPLOY_SELESAI'] as const;
+const PROGRES_STATUS_OPTIONS = ['BELUM_DIMULAI', 'DALAM_PROSES', 'SELESAI'] as const;
 const FASE_PENGAJUAN_OPTIONS = ['DESAIN', 'PEMELIHARAAN'] as const;
 const MEKANISME_OPTIONS = ['INHOUSE', 'OUTSOURCE'] as const;
 const PELAKSANAAN_OPTIONS = ['SINGLE_YEAR', 'MULTIYEARS'] as const;
@@ -124,7 +135,13 @@ const PROGRES_LABELS: Record<string, string> = {
   ASESMEN: 'Asesmen',
   CODING: 'Coding',
   PDKK: 'PDKK',
-  DEPLOY_SELESAI: 'Deploy/Selesai',
+  DEPLOY_SELESAI: 'Deploy',
+};
+
+const PROGRES_STATUS_LABELS: Record<string, string> = {
+  BELUM_DIMULAI: 'Belum Dimulai',
+  DALAM_PROSES: 'Dalam Proses',
+  SELESAI: 'Selesai',
 };
 
 const FASE_LABELS: Record<string, string> = {
@@ -203,7 +220,10 @@ const transformApiData = (apiData: Fs2DocumentData): Fs2DisetujuiData => {
   return {
     id: apiData.id,
     namaAplikasi: apiData.nama_aplikasi || '-',
+    namaFs2: apiData.nama_fs2 || '-',
     progres: apiData.progres || '-',
+    progresStatus: apiData.progres_status || '-',
+    tanggalProgres: apiData.tanggal_progres || '-',
     fasePengajuan: apiData.fase_pengajuan || '-',
     iku: apiData.iku || '-',
     bidang: apiData.nama_bidang || '-',
@@ -221,21 +241,27 @@ const transformApiData = (apiData: Fs2DocumentData): Fs2DisetujuiData => {
     tanggalNd: apiData.tanggal_nd || '-',
     berkasNd: apiData.berkas_nd || '',
     berkasFs2: apiData.berkas_fs2 || '',
+    tanggalBerkasFs2: apiData.tanggal_berkas_fs2 || '-',
     // CD Prinsip
     nomorCd: apiData.nomor_cd || '-',
     tanggalCd: apiData.tanggal_cd || '-',
     berkasCd: apiData.berkas_cd || '',
     berkasFs2a: apiData.berkas_fs2a || '',
+    tanggalBerkasFs2a: apiData.tanggal_berkas_fs2a || '-',
     berkasFs2b: apiData.berkas_fs2b || '',
+    tanggalBerkasFs2b: apiData.tanggal_berkas_fs2b || '-',
     // Pengujian - format as Month Year
     targetPengujian: formatMonthYear(apiData.target_pengujian),
     realisasiPengujian: formatMonthYear(apiData.realisasi_pengujian),
     berkasF45: apiData.berkas_f45 || '',
+    tanggalBerkasF45: apiData.tanggal_berkas_f45 || '-',
     berkasF46: apiData.berkas_f46 || '',
+    tanggalBerkasF46: apiData.tanggal_berkas_f46 || '-',
     // Deployment - format as Month Year
     targetDeployment: formatMonthYear(apiData.target_deployment),
     realisasiDeployment: formatMonthYear(apiData.realisasi_deployment),
     berkasNdBaDeployment: apiData.berkas_nd_ba_deployment || '',
+    tanggalBerkasNdBa: apiData.tanggal_berkas_nd_ba || '-',
     // Go Live - format as Month Year
     targetGoLive: formatMonthYear(apiData.target_go_live),
     // Keterangan
@@ -315,7 +341,9 @@ const PROGRES_COLORS: Record<string, { bg: string; text: string }> = {
 
 function Fs2Disetujui() {
   const { isCollapsed } = useSidebar();
-  const [keyword, setKeyword] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialSearch = searchParams.get('search') || '';
+  const [keyword, setKeyword] = useState(initialSearch);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [orderBy, setOrderBy] = useState<keyof Fs2DisetujuiData>('namaAplikasi');
@@ -324,6 +352,7 @@ function Fs2Disetujui() {
   const [rawData, setRawData] = useState<Fs2DocumentData[]>([]);
   const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDownloadingExcel, setIsDownloadingExcel] = useState(false);
 
   // Permission check
   const { getMenuPermissions } = usePermissions();
@@ -332,6 +361,7 @@ function Fs2Disetujui() {
   // Filter state
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedProgres, setSelectedProgres] = useState<Set<string>>(new Set());
+  const [selectedProgresStatus, setSelectedProgresStatus] = useState<Set<string>>(new Set());
   const [selectedFase, setSelectedFase] = useState<Set<string>>(new Set());
   const [selectedMekanisme, setSelectedMekanisme] = useState<Set<string>>(new Set());
   const [selectedPelaksanaan, setSelectedPelaksanaan] = useState<Set<string>>(new Set());
@@ -356,6 +386,7 @@ function Fs2Disetujui() {
   const COLUMN_OPTIONS = useMemo(() => [
     { id: 'no', label: 'No', width: 50 },
     { id: 'namaAplikasi', label: 'Nama Aplikasi', width: 160 },
+    { id: 'namaFs2', label: 'Nama FS2', width: 180 },
     { id: 'progres', label: 'Progres', width: 100 },
     { id: 'fasePengajuan', label: 'Fase Pengajuan', width: 130 },
     { id: 'iku', label: 'IKU', width: 80 },
@@ -472,6 +503,7 @@ function Fs2Disetujui() {
     setIsLoading(true);
     try {
       const progresFilter = selectedProgres.size === 1 ? Array.from(selectedProgres)[0] : undefined;
+      const progresStatusFilter = selectedProgresStatus.size === 1 ? Array.from(selectedProgresStatus)[0] : undefined;
       const faseFilter = selectedFase.size === 1 ? Array.from(selectedFase)[0] : undefined;
       const mekanismeFilter = selectedMekanisme.size === 1 ? Array.from(selectedMekanisme)[0] : undefined;
       const pelaksanaanFilter = selectedPelaksanaan.size === 1 ? Array.from(selectedPelaksanaan)[0] : undefined;
@@ -488,6 +520,7 @@ function Fs2Disetujui() {
         bidang_id: selectedBidangFilter || undefined,
         skpa_id: selectedSkpaFilter || undefined,
         progres: progresFilter,
+        progres_status: progresStatusFilter,
         fase_pengajuan: faseFilter,
         mekanisme: mekanismeFilter,
         pelaksanaan: pelaksanaanFilter,
@@ -510,7 +543,7 @@ function Fs2Disetujui() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, page, rowsPerPage, selectedProgres, selectedFase, selectedMekanisme, selectedPelaksanaan, selectedBidangFilter, selectedSkpaFilter, selectedYearFilter, selectedStartMonth, selectedEndMonth]);
+  }, [keyword, page, rowsPerPage, selectedProgres, selectedProgresStatus, selectedFase, selectedMekanisme, selectedPelaksanaan, selectedBidangFilter, selectedSkpaFilter, selectedYearFilter, selectedStartMonth, selectedEndMonth]);
 
   // Fetch reference data
   useEffect(() => {
@@ -538,6 +571,22 @@ function Fs2Disetujui() {
     fetchFs2Data();
   }, [fetchFs2Data]);
 
+  // Auto-open modal when id parameter is present in URL
+  useEffect(() => {
+    const idParam = searchParams.get('id');
+    if (idParam && rawData.length > 0 && !isLoading && !openEditModal) {
+      const fs2 = rawData.find(f => f.id === idParam);
+      if (fs2) {
+        // Remove id param from URL to avoid re-triggering
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('id');
+        setSearchParams(newParams, { replace: true });
+        // Open modal
+        handleOpenViewModal(fs2.id);
+      }
+    }
+  }, [rawData, isLoading, searchParams, openEditModal]);
+
   const handleRequestSort = (property: keyof Fs2DisetujuiData) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
@@ -564,6 +613,7 @@ function Fs2Disetujui() {
 
   const clearFilters = () => {
     setSelectedProgres(new Set());
+    setSelectedProgresStatus(new Set());
     setSelectedFase(new Set());
     setSelectedMekanisme(new Set());
     setSelectedPelaksanaan(new Set());
@@ -621,13 +671,14 @@ function Fs2Disetujui() {
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (selectedProgres.size > 0) count++;
+    if (selectedProgresStatus.size > 0) count++;
     if (selectedFase.size > 0) count++;
     if (selectedMekanisme.size > 0) count++;
     if (selectedPelaksanaan.size > 0) count++;
     if (selectedBidangFilter) count++;
     if (selectedSkpaFilter) count++;
     return count;
-  }, [selectedProgres, selectedFase, selectedMekanisme, selectedPelaksanaan, selectedBidangFilter, selectedSkpaFilter]);
+  }, [selectedProgres, selectedProgresStatus, selectedFase, selectedMekanisme, selectedPelaksanaan, selectedBidangFilter, selectedSkpaFilter]);
 
   // View modal handlers
   const handleOpenViewModal = (fs2Id: string) => {
@@ -709,6 +760,8 @@ function Fs2Disetujui() {
       setSelectedFs2(fs2);
       setEditFormData({
         progres: fs2.progres || '',
+        progres_status: fs2.progres_status || '',
+        tanggal_progres: fs2.tanggal_progres || '',
         fase_pengajuan: fs2.fase_pengajuan || '',
         iku: fs2.iku || '',
         mekanisme: fs2.mekanisme || '',
@@ -724,15 +777,21 @@ function Fs2Disetujui() {
         // Dokumen Pengajuan F.S.2
         nomor_nd: fs2.nomor_nd || '',
         tanggal_nd: fs2.tanggal_nd || '',
+        tanggal_berkas_fs2: fs2.tanggal_berkas_fs2 || '',
         // CD Prinsip
         nomor_cd: fs2.nomor_cd || '',
         tanggal_cd: fs2.tanggal_cd || '',
+        tanggal_berkas_fs2a: fs2.tanggal_berkas_fs2a || '',
+        tanggal_berkas_fs2b: fs2.tanggal_berkas_fs2b || '',
         // Pengujian
         target_pengujian: fs2.target_pengujian || '',
         realisasi_pengujian: fs2.realisasi_pengujian || '',
+        tanggal_berkas_f45: fs2.tanggal_berkas_f45 || '',
+        tanggal_berkas_f46: fs2.tanggal_berkas_f46 || '',
         // Deployment
         target_deployment: fs2.target_deployment || '',
         realisasi_deployment: fs2.realisasi_deployment || '',
+        tanggal_berkas_nd_ba: fs2.tanggal_berkas_nd_ba || '',
         // Go Live
         target_go_live: fs2.target_go_live || '',
         // Keterangan
@@ -984,6 +1043,46 @@ function Fs2Disetujui() {
       console.error('Failed to update F.S.2:', error);
       const errMsg = error instanceof Error ? error.message : 'Gagal memperbarui F.S.2';
       setSnackbar({ open: true, message: errMsg, severity: 'error' });
+    }
+  };
+
+  // Handle Excel download
+  const handleDownloadExcel = async () => {
+    setIsDownloadingExcel(true);
+    try {
+      // Get first selected filter value if any
+      const progresFilter = selectedProgres.size === 1 ? Array.from(selectedProgres)[0] : undefined;
+      const faseFilter = selectedFase.size === 1 ? Array.from(selectedFase)[0] : undefined;
+      const mekanismeFilter = selectedMekanisme.size === 1 ? Array.from(selectedMekanisme)[0] : undefined;
+      const pelaksanaanFilter = selectedPelaksanaan.size === 1 ? Array.from(selectedPelaksanaan)[0] : undefined;
+      
+      await downloadApprovedFs2Excel({
+        search: keyword || undefined,
+        bidang_id: selectedBidangFilter || undefined,
+        skpa_id: selectedSkpaFilter || undefined,
+        progres: progresFilter,
+        fase_pengajuan: faseFilter,
+        mekanisme: mekanismeFilter,
+        pelaksanaan: pelaksanaanFilter,
+        year: selectedYearFilter ? parseInt(selectedYearFilter, 10) : undefined,
+        start_month: selectedStartMonth ? parseInt(selectedStartMonth, 10) : undefined,
+        end_month: selectedEndMonth ? parseInt(selectedEndMonth, 10) : undefined,
+      });
+      setSnackbar({
+        open: true,
+        message: 'File Excel berhasil diunduh',
+        severity: 'success',
+      });
+    } catch (error: unknown) {
+      console.error('Failed to download Excel:', error);
+      const errMsg = error instanceof Error ? error.message : 'Gagal mengunduh file Excel';
+      setSnackbar({
+        open: true,
+        message: errMsg,
+        severity: 'error',
+      });
+    } finally {
+      setIsDownloadingExcel(false);
     }
   };
 
@@ -1362,6 +1461,28 @@ function Fs2Disetujui() {
                 )}
               </Button>
             </Tooltip>
+            
+            {/* Download Excel Button */}
+            <Tooltip title="Download Excel">
+              <Button
+                variant="text"
+                onClick={handleDownloadExcel}
+                disabled={isDownloadingExcel}
+                sx={{
+                  color: '#86868b',
+                  fontWeight: 500,
+                  '&:hover': {
+                    bgcolor: 'rgba(0, 0, 0, 0.04)',
+                  },
+                }}
+              >
+                {isDownloadingExcel ? (
+                  <CircularProgress size={20} sx={{ color: '#86868b' }} />
+                ) : (
+                  <DownloadIcon />
+                )}
+              </Button>
+            </Tooltip>
           </Box>
         </Box>
 
@@ -1531,8 +1652,8 @@ function Fs2Disetujui() {
               },
             },
           }}>
-            {/* Row 1: Progres & Fase Pengajuan */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2.5 }}>
+            {/* Row 1: Progres, Status & Fase Pengajuan */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2, mb: 2.5 }}>
               {/* Progres Filter */}
               <Box>
                 <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1586,6 +1707,70 @@ function Fs2Disetujui() {
                           {...tagProps}
                           sx={{ 
                             bgcolor: '#31A24C', 
+                            color: 'white', 
+                            fontWeight: 500,
+                            '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } 
+                          }}
+                        />
+                      );
+                    })
+                  }
+                />
+              </Box>
+
+              {/* Status Progres Filter */}
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#DC2626' }} />
+                  Status
+                </Typography>
+                <Autocomplete
+                  multiple
+                  size="small"
+                  options={[...PROGRES_STATUS_OPTIONS]}
+                  getOptionLabel={(option) => PROGRES_STATUS_LABELS[option] || option}
+                  value={Array.from(selectedProgresStatus)}
+                  onChange={(_, newValue) => setSelectedProgresStatus(new Set(newValue))}
+                  disableCloseOnSelect
+                  renderOption={(props, option, { selected }) => {
+                    const { key, ...restProps } = props;
+                    return (
+                      <li key={key} {...restProps}>
+                        <Checkbox
+                          size="small"
+                          checked={selected}
+                          sx={{ mr: 1, '&.Mui-checked': { color: '#DC2626' } }}
+                        />
+                        {PROGRES_STATUS_LABELS[option] || option}
+                      </li>
+                    );
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={selectedProgresStatus.size === 0 ? 'Pilih Status' : ''}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '12px',
+                          bgcolor: 'rgba(255, 255, 255, 0.9)',
+                          '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.1)' },
+                          '&:hover fieldset': { borderColor: '#DC2626' },
+                          '&.Mui-focused fieldset': { borderColor: '#DC2626', borderWidth: 2 },
+                        },
+                      }}
+                    />
+                  )}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return (
+                        <Chip
+                          key={key}
+                          label={PROGRES_STATUS_LABELS[option] || option}
+                          size="small"
+                          {...tagProps}
+                          sx={{ 
+                            bgcolor: '#DC2626', 
                             color: 'white', 
                             fontWeight: 500,
                             '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } 
@@ -1939,6 +2124,15 @@ function Fs2Disetujui() {
                   Nama Aplikasi
                 </TableSortLabel>
               </TableCell>
+              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 180, ...(stickyColumns.has('namaFs2') && { position: 'sticky', left: getStickyLeft('namaFs2'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaFs2') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                <TableSortLabel
+                  active={orderBy === 'namaFs2'}
+                  direction={orderBy === 'namaFs2' ? order : 'asc'}
+                  onClick={() => handleRequestSort('namaFs2')}
+                >
+                  Nama FS2
+                </TableSortLabel>
+              </TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100, ...(stickyColumns.has('progres') && { position: 'sticky', left: getStickyLeft('progres'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('progres') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Progres</TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 130, ...(stickyColumns.has('fasePengajuan') && { position: 'sticky', left: getStickyLeft('fasePengajuan'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('fasePengajuan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Fase Pengajuan</TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 80, ...(stickyColumns.has('iku') && { position: 'sticky', left: getStickyLeft('iku'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('iku') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>IKU</TableCell>
@@ -1949,13 +2143,13 @@ function Fs2Disetujui() {
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('pic') && { position: 'sticky', left: getStickyLeft('pic'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('pic') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>PIC</TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 160, ...(stickyColumns.has('anggotaTim') && { position: 'sticky', left: getStickyLeft('anggotaTim'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('anggotaTim') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Anggota Tim</TableCell>
               {/* Dokumen Pengajuan F.S.2 - grouped */}
-              <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(49, 162, 76, 0.08)' }}>Dokumen Pengajuan F.S.2</TableCell>
+              <TableCell colSpan={5} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(49, 162, 76, 0.08)' }}>Dokumen Pengajuan F.S.2</TableCell>
               {/* CD Prinsip - grouped */}
-              <TableCell colSpan={5} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(37, 99, 235, 0.08)' }}>CD Prinsip Persetujuan FS2</TableCell>
+              <TableCell colSpan={7} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(37, 99, 235, 0.08)' }}>CD Prinsip Persetujuan FS2</TableCell>
               {/* Pengujian - grouped */}
-              <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(217, 119, 6, 0.08)' }}>Pengujian</TableCell>
+              <TableCell colSpan={6} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(217, 119, 6, 0.08)' }}>Pengujian</TableCell>
               {/* Deployment - grouped */}
-              <TableCell colSpan={3} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(124, 58, 237, 0.08)' }}>Deployment</TableCell>
+              <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(124, 58, 237, 0.08)' }}>Deployment</TableCell>
               {/* Go Live - grouped */}
               <TableCell colSpan={1} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem', bgcolor: 'rgba(5, 150, 105, 0.08)' }}>Go Live</TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150 }}>Keterangan</TableCell>
@@ -1968,21 +2162,27 @@ function Fs2Disetujui() {
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(49, 162, 76, 0.04)' }}>Tanggal</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(49, 162, 76, 0.04)' }}>Berkas ND</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(49, 162, 76, 0.04)' }}>Berkas F.S.2</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(49, 162, 76, 0.04)' }}>Tgl Berkas FS2</TableCell>
               {/* CD Prinsip sub-headers */}
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Nomor CD Prinsip</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Tanggal</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Berkas CD Prinsip</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Berkas F.S.2A</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Tgl Berkas FS2A</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Berkas F.S.2B</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Tgl Berkas FS2B</TableCell>
               {/* Pengujian sub-headers */}
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(217, 119, 6, 0.04)' }}>Target</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(217, 119, 6, 0.04)' }}>Realisasi</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(217, 119, 6, 0.04)' }}>Berkas F45</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(217, 119, 6, 0.04)' }}>Tgl Berkas F45</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(217, 119, 6, 0.04)' }}>Berkas F46</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(217, 119, 6, 0.04)' }}>Tgl Berkas F46</TableCell>
               {/* Deployment sub-headers */}
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(124, 58, 237, 0.04)' }}>Target</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(124, 58, 237, 0.04)' }}>Realisasi</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(124, 58, 237, 0.04)' }}>Berkas ND/BA</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(124, 58, 237, 0.04)' }}>Tgl Berkas NDBA</TableCell>
               {/* Go Live sub-headers */}
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(5, 150, 105, 0.04)' }}>Target</TableCell>
             </TableRow>
@@ -1990,13 +2190,13 @@ function Fs2Disetujui() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={28} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={36} align="center" sx={{ py: 4 }}>
                   <CircularProgress size={32} />
                 </TableCell>
               </TableRow>
             ) : filteredFs2Data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={28} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={36} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">Tidak ada data F.S.2 Disetujui</Typography>
                 </TableCell>
               </TableRow>
@@ -2027,9 +2227,29 @@ function Fs2Disetujui() {
                     <TableCell sx={{ py: 1, px: 2, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 160, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                       <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>{row.namaAplikasi}</Typography>
                     </TableCell>
+                    {/* Nama FS2 */}
+                    <TableCell sx={{ py: 1, px: 2, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 180, ...(stickyColumns.has('namaFs2') && { position: 'sticky', left: getStickyLeft('namaFs2'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('namaFs2') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>{row.namaFs2}</Typography>
+                    </TableCell>
                     {/* Progres */}
-                    <TableCell sx={{ py: 1, px: 2, minWidth: 100, ...(stickyColumns.has('progres') && { position: 'sticky', left: getStickyLeft('progres'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('progres') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
-                      <Chip label={PROGRES_LABELS[row.progres] || row.progres} size="small" sx={{ bgcolor: progresColor.bg, color: progresColor.text, fontWeight: 500, fontSize: '0.7rem' }} />
+                    <TableCell sx={{ py: 1, px: 2, minWidth: 180, ...(stickyColumns.has('progres') && { position: 'sticky', left: getStickyLeft('progres'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('progres') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Chip label={PROGRES_LABELS[row.progres] || row.progres} size="small" sx={{ bgcolor: progresColor.bg, color: progresColor.text, fontWeight: 500, fontSize: '0.7rem' }} />
+                        {row.progresStatus && row.progresStatus !== '-' && (
+                          <Typography variant="caption" sx={{ 
+                            color: row.progresStatus === 'SELESAI' ? '#059669' : row.progresStatus === 'DALAM_PROSES' ? '#D97706' : '#86868b',
+                            fontWeight: 500,
+                            fontSize: '0.65rem',
+                          }}>
+                            {PROGRES_STATUS_LABELS[row.progresStatus] || row.progresStatus}
+                          </Typography>
+                        )}
+                        {row.tanggalProgres && row.tanggalProgres !== '-' && row.progresStatus !== 'BELUM_DIMULAI' && (
+                          <Typography variant="caption" sx={{ color: '#86868b', fontSize: '0.6rem' }}>
+                            {new Date(row.tanggalProgres).toLocaleDateString('id-ID')}
+                          </Typography>
+                        )}
+                      </Box>
                     </TableCell>
                     {/* Fase Pengajuan */}
                     <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 130, ...(stickyColumns.has('fasePengajuan') && { position: 'sticky', left: getStickyLeft('fasePengajuan'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('fasePengajuan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>{FASE_LABELS[row.fasePengajuan] || row.fasePengajuan}</TableCell>
@@ -2109,6 +2329,8 @@ function Fs2Disetujui() {
                         </Button>
                       ) : <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>}
                     </TableCell>
+                    {/* Dokumen Pengajuan F.S.2 - Tanggal Berkas FS2 */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(49, 162, 76, 0.02)' }}>{row.tanggalBerkasFs2}</TableCell>
                     {/* CD Prinsip - Nomor CD */}
                     <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.02)' }}>{row.nomorCd}</TableCell>
                     {/* CD Prinsip - Tanggal */}
@@ -2167,6 +2389,8 @@ function Fs2Disetujui() {
                         </Button>
                       ) : <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>}
                     </TableCell>
+                    {/* CD Prinsip - Tanggal Berkas FS2A */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.02)' }}>{row.tanggalBerkasFs2a}</TableCell>
                     {/* CD Prinsip - Berkas F.S.2B */}
                     <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 80, bgcolor: 'rgba(37, 99, 235, 0.02)' }}>
                       {row.berkasFs2b ? (
@@ -2194,6 +2418,8 @@ function Fs2Disetujui() {
                         </Button>
                       ) : <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>}
                     </TableCell>
+                    {/* CD Prinsip - Tanggal Berkas FS2B */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.02)' }}>{row.tanggalBerkasFs2b}</TableCell>
                     {/* Pengujian - Target */}
                     <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(217, 119, 6, 0.02)' }}>{row.targetPengujian}</TableCell>
                     {/* Pengujian - Realisasi */}
@@ -2225,6 +2451,8 @@ function Fs2Disetujui() {
                         </Button>
                       ) : <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>}
                     </TableCell>
+                    {/* Pengujian - Tanggal Berkas F45 */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(217, 119, 6, 0.02)' }}>{row.tanggalBerkasF45}</TableCell>
                     {/* Pengujian - Berkas F46 */}
                     <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 80, bgcolor: 'rgba(217, 119, 6, 0.02)' }}>
                       {row.berkasF46 ? (
@@ -2252,6 +2480,8 @@ function Fs2Disetujui() {
                         </Button>
                       ) : <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>}
                     </TableCell>
+                    {/* Pengujian - Tanggal Berkas F46 */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(217, 119, 6, 0.02)' }}>{row.tanggalBerkasF46}</TableCell>
                     {/* Deployment - Target */}
                     <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(124, 58, 237, 0.02)' }}>{row.targetDeployment}</TableCell>
                     {/* Deployment - Realisasi */}
@@ -2283,6 +2513,8 @@ function Fs2Disetujui() {
                         </Button>
                       ) : <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>}
                     </TableCell>
+                    {/* Deployment - Tanggal Berkas NDBA */}
+                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(124, 58, 237, 0.02)' }}>{row.tanggalBerkasNdBa}</TableCell>
                     {/* Go Live - Target */}
                     <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 100, bgcolor: 'rgba(5, 150, 105, 0.02)' }}>{row.targetGoLive}</TableCell>
                     {/* Keterangan */}
@@ -2467,6 +2699,25 @@ function Fs2Disetujui() {
                     letterSpacing: '0.05em',
                     fontWeight: 500,
                   }}>
+                    Nama FS2
+                  </Typography>
+                  <Typography sx={{ 
+                    fontWeight: 600, 
+                    color: '#1d1d1f',
+                    fontSize: '0.9rem',
+                  }}>
+                    {selectedFs2.nama_fs2 || '-'}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ 
+                    fontSize: '0.7rem', 
+                    color: '#86868b', 
+                    mb: 0.5,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    fontWeight: 500,
+                  }}>
                     SKPA
                   </Typography>
                   {selectedFs2.kode_skpa ? (
@@ -2496,43 +2747,144 @@ function Fs2Disetujui() {
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#31A24C' }} />
               Informasi Umum
             </Typography>
+            
+            {/* Progres Section with Status and Date */}
+            <Box sx={{ 
+              p: 2, 
+              mb: 2, 
+              borderRadius: '12px', 
+              bgcolor: 'rgba(255, 255, 255, 0.6)',
+              border: '1px dashed rgba(49, 162, 76, 0.3)',
+            }}>
+              <Typography variant="body2" sx={{ mb: 1.5, fontWeight: 600, color: '#1d1d1f', fontSize: '0.85rem' }}>
+                Progres Pengembangan
+              </Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2 }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel sx={{ '&.Mui-focused': { color: '#31A24C' } }}>Progres</InputLabel>
+                  <Select
+                    value={editFormData.progres || ''}
+                    label="Progres"
+                    onChange={(e) => setEditFormData({ ...editFormData, progres: e.target.value })}
+                    sx={{
+                      borderRadius: '14px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                      backdropFilter: 'blur(10px)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.08)',
+                        transition: 'all 0.3s ease',
+                      },
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderColor: 'rgba(49, 162, 76, 0.3)',
+                        },
+                      },
+                      '&.Mui-focused': {
+                        backgroundColor: 'rgba(255, 255, 255, 1)',
+                        boxShadow: '0 4px 20px rgba(49, 162, 76, 0.12)',
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderColor: '#31A24C',
+                          borderWidth: '1.5px',
+                        },
+                      },
+                    }}
+                  >
+                    {PROGRES_OPTIONS.map((option) => (
+                      <MenuItem key={option} value={option}>{PROGRES_LABELS[option]}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl fullWidth size="small">
+                  <InputLabel sx={{ '&.Mui-focused': { color: '#31A24C' } }}>Status</InputLabel>
+                  <Select
+                    value={editFormData.progres_status || ''}
+                    label="Status"
+                    onChange={(e) => {
+                      const newStatus = e.target.value;
+                      setEditFormData({
+                        ...editFormData,
+                        progres_status: newStatus,
+                        tanggal_progres: newStatus === 'BELUM_DIMULAI' ? '' : editFormData.tanggal_progres,
+                      });
+                    }}
+                    sx={{
+                      borderRadius: '14px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                      backdropFilter: 'blur(10px)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.08)',
+                        transition: 'all 0.3s ease',
+                      },
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderColor: 'rgba(49, 162, 76, 0.3)',
+                        },
+                      },
+                      '&.Mui-focused': {
+                        backgroundColor: 'rgba(255, 255, 255, 1)',
+                        boxShadow: '0 4px 20px rgba(49, 162, 76, 0.12)',
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderColor: '#31A24C',
+                          borderWidth: '1.5px',
+                        },
+                      },
+                    }}
+                  >
+                    {PROGRES_STATUS_OPTIONS.map((option) => (
+                      <MenuItem key={option} value={option}>{PROGRES_STATUS_LABELS[option]}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <TextField
+                  label="Tanggal Update"
+                  type="date"
+                  size="small"
+                  value={editFormData.tanggal_progres || ''}
+                  onChange={(e) => setEditFormData({ ...editFormData, tanggal_progres: e.target.value })}
+                  disabled={editFormData.progres_status === 'BELUM_DIMULAI'}
+                  fullWidth
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '14px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                      backdropFilter: 'blur(10px)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.08)',
+                        transition: 'all 0.3s ease',
+                      },
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderColor: 'rgba(49, 162, 76, 0.3)',
+                        },
+                      },
+                      '&.Mui-focused': {
+                        backgroundColor: 'rgba(255, 255, 255, 1)',
+                        boxShadow: '0 4px 20px rgba(49, 162, 76, 0.12)',
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderColor: '#31A24C',
+                          borderWidth: '1.5px',
+                        },
+                      },
+                      '&.Mui-disabled': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        opacity: 0.6,
+                      },
+                    },
+                  }}
+                />
+              </Box>
+            </Box>
+
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel sx={{ '&.Mui-focused': { color: '#31A24C' } }}>Progres</InputLabel>
-              <Select
-                value={editFormData.progres || ''}
-                label="Progres"
-                onChange={(e) => setEditFormData({ ...editFormData, progres: e.target.value })}
-                sx={{
-                  borderRadius: '14px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                  backdropFilter: 'blur(10px)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 0, 0, 0.08)',
-                    transition: 'all 0.3s ease',
-                  },
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(49, 162, 76, 0.3)',
-                    },
-                  },
-                  '&.Mui-focused': {
-                    backgroundColor: 'rgba(255, 255, 255, 1)',
-                    boxShadow: '0 4px 20px rgba(49, 162, 76, 0.12)',
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#31A24C',
-                      borderWidth: '1.5px',
-                    },
-                  },
-                }}
-              >
-                {PROGRES_OPTIONS.map((option) => (
-                  <MenuItem key={option} value={option}>{PROGRES_LABELS[option]}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
 
             <FormControl fullWidth size="small">
               <InputLabel sx={{ '&.Mui-focused': { color: '#31A24C' } }}>Fase Pengajuan</InputLabel>
@@ -2734,9 +3086,20 @@ function Fs2Disetujui() {
               value={editFormData.team_id || ''}
               label="Tim *"
               onChange={(e) => {
+                const selectedTeamId = e.target.value;
+                const selectedTeam = teams.find(t => t.id === selectedTeamId);
+                
+                // Populate PIC and Anggota Tim from selected team
+                const picId = selectedTeam?.pic?.uuid || '';
+                const anggotaTimUuids = selectedTeam?.members?.map(m => m.uuid).join(',') || '';
+                const anggotaTimNames = selectedTeam?.members?.map(m => m.fullName).join(', ') || '';
+                
                 setEditFormData({ 
                   ...editFormData, 
-                  team_id: e.target.value,
+                  team_id: selectedTeamId,
+                  pic_id: picId,
+                  anggota_tim: anggotaTimUuids,
+                  anggota_tim_names: anggotaTimNames,
                 });
               }}
               disabled={isLoadingTeams}
@@ -2850,7 +3213,7 @@ function Fs2Disetujui() {
                 fullWidth
               />
               <TextField
-                label="Tanggal ND"
+                label="Tanggal Berkas ND"
                 type="date"
                 size="small"
                 value={editFormData.tanggal_nd || ''}
@@ -3013,6 +3376,18 @@ function Fs2Disetujui() {
                 </List>
               )}
             </Box>
+
+            {/* Tanggal Berkas F.S.2 */}
+            <TextField
+              label="Tanggal Berkas F.S.2"
+              type="date"
+              size="small"
+              value={editFormData.tanggal_berkas_fs2 || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, tanggal_berkas_fs2: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+              sx={{ mt: 1 }}
+            />
           </Box>
 
           {/* CD Prinsip Persetujuan FS2 Section */}
@@ -3030,7 +3405,7 @@ function Fs2Disetujui() {
                 fullWidth
               />
               <TextField
-                label="Tanggal CD"
+                label="Tanggal Berkas CD Prinsip Persetujuan FS2"
                 type="date"
                 size="small"
                 value={editFormData.tanggal_cd || ''}
@@ -3194,6 +3569,18 @@ function Fs2Disetujui() {
               )}
             </Box>
 
+            {/* Tanggal Berkas F.S.2A */}
+            <TextField
+              label="Tanggal Berkas F.S.2A"
+              type="date"
+              size="small"
+              value={editFormData.tanggal_berkas_fs2a || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, tanggal_berkas_fs2a: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+              sx={{ mb: 2 }}
+            />
+
             {/* Berkas F.S.2B Dropzone */}
             <Box>
               <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas F.S.2B</Typography>
@@ -3270,6 +3657,17 @@ function Fs2Disetujui() {
                 </List>
               )}
             </Box>
+
+            {/* Tanggal Berkas F.S.2B */}
+            <TextField
+              label="Tanggal Berkas F.S.2B"
+              type="date"
+              size="small"
+              value={editFormData.tanggal_berkas_fs2b || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, tanggal_berkas_fs2b: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
           </Box>
 
           {/* Pengujian Section */}
@@ -3289,6 +3687,7 @@ function Fs2Disetujui() {
                     <Select
                       value={getMonthFromDate(editFormData.target_pengujian)}
                       label="Bulan"
+                      disabled={true}
                       onChange={(e) => setEditFormData({ 
                         ...editFormData, 
                         target_pengujian: buildDateFromMonthYear(e.target.value, getYearFromDate(editFormData.target_pengujian))
@@ -3305,6 +3704,7 @@ function Fs2Disetujui() {
                     <Select
                       value={getYearFromDate(editFormData.target_pengujian)}
                       label="Tahun"
+                      disabled={true}
                       onChange={(e) => setEditFormData({ 
                         ...editFormData, 
                         target_pengujian: buildDateFromMonthYear(getMonthFromDate(editFormData.target_pengujian), e.target.value)
@@ -3328,10 +3728,14 @@ function Fs2Disetujui() {
                     <Select
                       value={getMonthFromDate(editFormData.realisasi_pengujian)}
                       label="Bulan"
-                      onChange={(e) => setEditFormData({ 
-                        ...editFormData, 
-                        realisasi_pengujian: buildDateFromMonthYear(e.target.value, getYearFromDate(editFormData.realisasi_pengujian))
-                      })}
+                      onChange={(e) => {
+                        const selectedMonth = e.target.value;
+                        const currentYear = getYearFromDate(editFormData.realisasi_pengujian) || new Date().getFullYear().toString();
+                        setEditFormData({ 
+                          ...editFormData, 
+                          realisasi_pengujian: buildDateFromMonthYear(selectedMonth, currentYear)
+                        });
+                      }}
                       sx={{ borderRadius: '8px' }}
                     >
                       {MONTH_OPTIONS.map((month) => (
@@ -3344,10 +3748,14 @@ function Fs2Disetujui() {
                     <Select
                       value={getYearFromDate(editFormData.realisasi_pengujian)}
                       label="Tahun"
-                      onChange={(e) => setEditFormData({ 
-                        ...editFormData, 
-                        realisasi_pengujian: buildDateFromMonthYear(getMonthFromDate(editFormData.realisasi_pengujian), e.target.value)
-                      })}
+                      onChange={(e) => {
+                        const selectedYear = e.target.value;
+                        const currentMonth = getMonthFromDate(editFormData.realisasi_pengujian) || '01';
+                        setEditFormData({ 
+                          ...editFormData, 
+                          realisasi_pengujian: buildDateFromMonthYear(currentMonth, selectedYear)
+                        });
+                      }}
                       sx={{ borderRadius: '8px' }}
                     >
                       {YEAR_OPTIONS.map((year) => (
@@ -3436,6 +3844,18 @@ function Fs2Disetujui() {
               )}
             </Box>
 
+            {/* Tanggal Berkas F45 */}
+            <TextField
+              label="Tanggal Berkas F45"
+              type="date"
+              size="small"
+              value={editFormData.tanggal_berkas_f45 || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, tanggal_berkas_f45: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+              sx={{ mb: 2 }}
+            />
+
             {/* Berkas F46 Dropzone */}
             <Box>
               <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas F46</Typography>
@@ -3512,6 +3932,17 @@ function Fs2Disetujui() {
                 </List>
               )}
             </Box>
+
+            {/* Tanggal Berkas F46 */}
+            <TextField
+              label="Tanggal Berkas F46"
+              type="date"
+              size="small"
+              value={editFormData.tanggal_berkas_f46 || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, tanggal_berkas_f46: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
           </Box>
 
           {/* Deployment Section */}
@@ -3531,6 +3962,7 @@ function Fs2Disetujui() {
                     <Select
                       value={getMonthFromDate(editFormData.target_deployment)}
                       label="Bulan"
+                      disabled={true}
                       onChange={(e) => setEditFormData({ 
                         ...editFormData, 
                         target_deployment: buildDateFromMonthYear(e.target.value, getYearFromDate(editFormData.target_deployment))
@@ -3547,6 +3979,7 @@ function Fs2Disetujui() {
                     <Select
                       value={getYearFromDate(editFormData.target_deployment)}
                       label="Tahun"
+                      disabled={true}
                       onChange={(e) => setEditFormData({ 
                         ...editFormData, 
                         target_deployment: buildDateFromMonthYear(getMonthFromDate(editFormData.target_deployment), e.target.value)
@@ -3570,10 +4003,14 @@ function Fs2Disetujui() {
                     <Select
                       value={getMonthFromDate(editFormData.realisasi_deployment)}
                       label="Bulan"
-                      onChange={(e) => setEditFormData({ 
-                        ...editFormData, 
-                        realisasi_deployment: buildDateFromMonthYear(e.target.value, getYearFromDate(editFormData.realisasi_deployment))
-                      })}
+                      onChange={(e) => {
+                        const selectedMonth = e.target.value;
+                        const currentYear = getYearFromDate(editFormData.realisasi_deployment) || new Date().getFullYear().toString();
+                        setEditFormData({ 
+                          ...editFormData, 
+                          realisasi_deployment: buildDateFromMonthYear(selectedMonth, currentYear)
+                        });
+                      }}
                       sx={{ borderRadius: '8px' }}
                     >
                       {MONTH_OPTIONS.map((month) => (
@@ -3586,10 +4023,14 @@ function Fs2Disetujui() {
                     <Select
                       value={getYearFromDate(editFormData.realisasi_deployment)}
                       label="Tahun"
-                      onChange={(e) => setEditFormData({ 
-                        ...editFormData, 
-                        realisasi_deployment: buildDateFromMonthYear(getMonthFromDate(editFormData.realisasi_deployment), e.target.value)
-                      })}
+                      onChange={(e) => {
+                        const selectedYear = e.target.value;
+                        const currentMonth = getMonthFromDate(editFormData.realisasi_deployment) || '01';
+                        setEditFormData({ 
+                          ...editFormData, 
+                          realisasi_deployment: buildDateFromMonthYear(currentMonth, selectedYear)
+                        });
+                      }}
                       sx={{ borderRadius: '8px' }}
                     >
                       {YEAR_OPTIONS.map((year) => (
@@ -3677,6 +4118,17 @@ function Fs2Disetujui() {
                 </List>
               )}
             </Box>
+
+            {/* Tanggal Berkas ND/BA */}
+            <TextField
+              label="Tanggal Berkas ND/BA"
+              type="date"
+              size="small"
+              value={editFormData.tanggal_berkas_nd_ba || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, tanggal_berkas_nd_ba: e.target.value })}
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
           </Box>
 
           {/* Go Live & Keterangan Section */}
@@ -3696,6 +4148,7 @@ function Fs2Disetujui() {
                     <Select
                       value={getMonthFromDate(editFormData.target_go_live)}
                       label="Bulan"
+                      disabled={true}
                       onChange={(e) => setEditFormData({ 
                         ...editFormData, 
                         target_go_live: buildDateFromMonthYear(e.target.value, getYearFromDate(editFormData.target_go_live))
@@ -3712,6 +4165,7 @@ function Fs2Disetujui() {
                     <Select
                       value={getYearFromDate(editFormData.target_go_live)}
                       label="Tahun"
+                      disabled={true}
                       onChange={(e) => setEditFormData({ 
                         ...editFormData, 
                         target_go_live: buildDateFromMonthYear(getMonthFromDate(editFormData.target_go_live), e.target.value)

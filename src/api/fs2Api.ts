@@ -1,4 +1,5 @@
 import { apiRequest } from './apiClient';
+import { getAuthToken } from './authApi';
 
 const BASE_URL = '/api';
 
@@ -11,6 +12,7 @@ export interface Fs2DocumentData {
   aplikasi_id?: string;
   nama_aplikasi?: string;
   kode_aplikasi?: string;
+  nama_fs2?: string;
   tanggal_pengajuan?: string;
   bidang_id?: string;
   nama_bidang?: string;
@@ -62,6 +64,8 @@ export interface Fs2DocumentData {
   
   // Fields for F.S.2 Disetujui
   progres?: string;
+  progres_status?: string;
+  tanggal_progres?: string;
   fase_pengajuan?: string;
   iku?: string;
   mekanisme?: string;
@@ -83,22 +87,28 @@ export interface Fs2DocumentData {
   tanggal_nd?: string;
   berkas_nd?: string;
   berkas_fs2?: string;
+  tanggal_berkas_fs2?: string;
   
   // Monitoring Fields - CD Prinsip
   nomor_cd?: string;
   tanggal_cd?: string;
   berkas_cd?: string;
   berkas_fs2a?: string;
+  tanggal_berkas_fs2a?: string;
   berkas_fs2b?: string;
+  tanggal_berkas_fs2b?: string;
   
   // Monitoring Fields - Pengujian
   realisasi_pengujian?: string;
   berkas_f45?: string;
+  tanggal_berkas_f45?: string;
   berkas_f46?: string;
+  tanggal_berkas_f46?: string;
   
   // Monitoring Fields - Deployment
   realisasi_deployment?: string;
   berkas_nd_ba_deployment?: string;
+  tanggal_berkas_nd_ba?: string;
   
   // Monitoring Fields - Keterangan
   keterangan?: string;
@@ -121,6 +131,7 @@ export interface Fs2SearchResponse {
 
 export interface Fs2DocumentRequest {
   aplikasi_id?: string;
+  nama_fs2?: string;
   tanggal_pengajuan?: string;
   bidang_id?: string;
   skpa_id?: string;
@@ -169,6 +180,8 @@ export interface Fs2DocumentRequest {
   
   // Fields for F.S.2 Disetujui
   progres?: string;
+  progres_status?: string;
+  tanggal_progres?: string;
   fase_pengajuan?: string;
   iku?: string;
   mekanisme?: string;
@@ -188,22 +201,28 @@ export interface Fs2DocumentRequest {
   tanggal_nd?: string;
   berkas_nd?: string;
   berkas_fs2?: string;
+  tanggal_berkas_fs2?: string;
   
   // Monitoring Fields - CD Prinsip
   nomor_cd?: string;
   tanggal_cd?: string;
   berkas_cd?: string;
   berkas_fs2a?: string;
+  tanggal_berkas_fs2a?: string;
   berkas_fs2b?: string;
+  tanggal_berkas_fs2b?: string;
   
   // Monitoring Fields - Pengujian
   realisasi_pengujian?: string;
   berkas_f45?: string;
+  tanggal_berkas_f45?: string;
   berkas_f46?: string;
+  tanggal_berkas_f46?: string;
   
   // Monitoring Fields - Deployment
   realisasi_deployment?: string;
   berkas_nd_ba_deployment?: string;
+  tanggal_berkas_nd_ba?: string;
   
   // Monitoring Fields - Keterangan
   keterangan?: string;
@@ -244,7 +263,8 @@ export async function getFs2DocumentById(id: string): Promise<Fs2DocumentData> {
  */
 export async function searchFs2Documents(params: {
   search?: string;
-  bidang_id?: string;
+  aplikasi_id?: string;
+  status_tahapan?: string;
   skpa_id?: string;
   status?: string;
   year?: number;
@@ -255,7 +275,8 @@ export async function searchFs2Documents(params: {
 }): Promise<Fs2SearchResponse> {
   const queryParams = new URLSearchParams();
   if (params.search) queryParams.append('search', params.search);
-  if (params.bidang_id) queryParams.append('bidang_id', params.bidang_id);
+  if (params.aplikasi_id) queryParams.append('aplikasi_id', params.aplikasi_id);
+  if (params.status_tahapan) queryParams.append('status_tahapan', params.status_tahapan);
   if (params.skpa_id) queryParams.append('skpa_id', params.skpa_id);
   if (params.status) queryParams.append('status', params.status);
   if (params.year !== undefined) queryParams.append('year', params.year.toString());
@@ -278,6 +299,7 @@ export async function searchApprovedFs2Documents(params: {
   bidang_id?: string;
   skpa_id?: string;
   progres?: string;
+  progres_status?: string;
   fase_pengajuan?: string;
   mekanisme?: string;
   pelaksanaan?: string;
@@ -292,6 +314,7 @@ export async function searchApprovedFs2Documents(params: {
   if (params.bidang_id) queryParams.append('bidang_id', params.bidang_id);
   if (params.skpa_id) queryParams.append('skpa_id', params.skpa_id);
   if (params.progres) queryParams.append('progres', params.progres);
+  if (params.progres_status) queryParams.append('progres_status', params.progres_status);
   if (params.fase_pengajuan) queryParams.append('fase_pengajuan', params.fase_pengajuan);
   if (params.mekanisme) queryParams.append('mekanisme', params.mekanisme);
   if (params.pelaksanaan) queryParams.append('pelaksanaan', params.pelaksanaan);
@@ -365,4 +388,178 @@ export async function getFs2Changelogs(fs2Id: string): Promise<Fs2ChangelogsResp
     `${BASE_URL}/fs2/${fs2Id}/changelogs`
   );
   return { changelogs: response.data };
+}
+
+/**
+ * Download all F.S.2 documents as Excel file
+ */
+export async function downloadAllFs2Excel(params?: {
+  search?: string;
+  aplikasi_id?: string;
+  status_tahapan?: string;
+  skpa_id?: string;
+  status?: string;
+  year?: number;
+  start_month?: number;
+  end_month?: number;
+}): Promise<void> {
+  const token = getAuthToken();
+  const API_KEY = 'da39b92f-a1b8-46d5-a10c-d08b1cc92218';
+  
+  // Build query string
+  const queryParams = new URLSearchParams();
+  if (params?.search) queryParams.append('search', params.search);
+  if (params?.aplikasi_id) queryParams.append('aplikasi_id', params.aplikasi_id);
+  if (params?.status_tahapan) queryParams.append('status_tahapan', params.status_tahapan);
+  if (params?.skpa_id) queryParams.append('skpa_id', params.skpa_id);
+  if (params?.status) queryParams.append('status', params.status);
+  if (params?.year) queryParams.append('year', params.year.toString());
+  if (params?.start_month) queryParams.append('start_month', params.start_month.toString());
+  if (params?.end_month) queryParams.append('end_month', params.end_month.toString());
+  
+  const queryString = queryParams.toString();
+  const url = `${BASE_URL}/fs2/export${queryString ? `?${queryString}` : ''}`;
+  
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'APIKey': API_KEY,
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (response.status === 401) {
+    throw new Error('Sesi telah berakhir. Silakan login kembali.');
+  }
+
+  if (!response.ok) {
+    let errorMessage = 'Gagal mengunduh file Excel';
+    try {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      }
+    } catch {
+      // Ignore JSON parse error, use default message
+    }
+    throw new Error(errorMessage);
+  }
+
+  // Verify response is actually a file (not JSON error)
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Gagal mengunduh file Excel');
+  }
+
+  // Get filename from Content-Disposition header or use default
+  const contentDisposition = response.headers.get('Content-Disposition');
+  let filename = `Semua_FS2_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.xlsx`;
+  if (contentDisposition) {
+    const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+    if (filenameMatch && filenameMatch[1]) {
+      filename = filenameMatch[1].replace(/['"]/g, '');
+    }
+  }
+
+  // Create blob and trigger download
+  const blob = await response.blob();
+  const urlBlob = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = urlBlob;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(urlBlob);
+}
+
+/**
+ * Download approved F.S.2 documents (Monitoring) as Excel file
+ */
+export async function downloadApprovedFs2Excel(params?: {
+  search?: string;
+  bidang_id?: string;
+  skpa_id?: string;
+  progres?: string;
+  fase_pengajuan?: string;
+  mekanisme?: string;
+  pelaksanaan?: string;
+  year?: number;
+  start_month?: number;
+  end_month?: number;
+}): Promise<void> {
+  const token = getAuthToken();
+  const API_KEY = 'da39b92f-a1b8-46d5-a10c-d08b1cc92218';
+  
+  // Build query string
+  const queryParams = new URLSearchParams();
+  if (params?.search) queryParams.append('search', params.search);
+  if (params?.bidang_id) queryParams.append('bidang_id', params.bidang_id);
+  if (params?.skpa_id) queryParams.append('skpa_id', params.skpa_id);
+  if (params?.progres) queryParams.append('progres', params.progres);
+  if (params?.fase_pengajuan) queryParams.append('fase_pengajuan', params.fase_pengajuan);
+  if (params?.mekanisme) queryParams.append('mekanisme', params.mekanisme);
+  if (params?.pelaksanaan) queryParams.append('pelaksanaan', params.pelaksanaan);
+  if (params?.year) queryParams.append('year', params.year.toString());
+  if (params?.start_month) queryParams.append('start_month', params.start_month.toString());
+  if (params?.end_month) queryParams.append('end_month', params.end_month.toString());
+  
+  const queryString = queryParams.toString();
+  const url = `${BASE_URL}/fs2/approved/export${queryString ? `?${queryString}` : ''}`;
+  
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'APIKey': API_KEY,
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (response.status === 401) {
+    throw new Error('Sesi telah berakhir. Silakan login kembali.');
+  }
+
+  if (!response.ok) {
+    let errorMessage = 'Gagal mengunduh file Excel';
+    try {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      }
+    } catch {
+      // Ignore JSON parse error, use default message
+    }
+    throw new Error(errorMessage);
+  }
+
+  // Verify response is actually a file (not JSON error)
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Gagal mengunduh file Excel');
+  }
+
+  // Get filename from Content-Disposition header or use default
+  const contentDisposition = response.headers.get('Content-Disposition');
+  let filename = `Monitoring_FS2_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.xlsx`;
+  if (contentDisposition) {
+    const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+    if (filenameMatch && filenameMatch[1]) {
+      filename = filenameMatch[1].replace(/['"]/g, '');
+    }
+  }
+
+  // Create blob and trigger download
+  const blob = await response.blob();
+  const urlBlob = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = urlBlob;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(urlBlob);
 }

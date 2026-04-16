@@ -38,6 +38,7 @@ import {
   ChevronLeftRounded,
   ChevronRightRounded,
   GroupsRounded,
+  CalculateRounded,
 } from '@mui/icons-material';
 import { Chip } from '@mui/material';
 import { isAdmin, getUserRoles } from '../api/authApi';
@@ -247,6 +248,7 @@ const Sidebar = () => {
             { label: 'User Management', icon: <ManageAccountsRounded />, href: '/admin/user-roles', menuCode: 'USER_MANAGEMENT' },
             { label: 'Role Permissions', icon: <SecurityRounded />, href: '/admin/role-permissions', menuCode: 'ROLE_PERMISSIONS' },
             { label: 'Team Management', icon: <GroupsRounded />, href: '/admin/team-management', menuCode: 'TEAM_MANAGEMENT' },
+            { label: 'Formasi Efektif', icon: <CalculateRounded />, href: '/admin/formasi-efektif', menuCode: 'FORMASI_EFEKTIF' },
           ],
         },
         { label: 'Settings', icon: <SettingsRounded />, href: '/settings', menuCode: 'SETTINGS' },
