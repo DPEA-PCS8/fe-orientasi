@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Box,
   TextField,
@@ -21,6 +20,14 @@ import {
   MenuItem,
   Link,
   Chip,
+  Snackbar,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  Select,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -29,8 +36,11 @@ import {
   KeyboardArrowDown as ArrowDownIcon,
   OpenInNew as OpenInNewIcon,
   Close as CloseIcon,
+  Edit as EditIcon,
+  TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material';
 import { Popover, Checkbox, FormControlLabel, FormGroup } from '@mui/material';
+import { AddPksiModal } from '../components/modals';
 
 // Interface untuk data PKSI
 interface PksiData {
@@ -42,6 +52,7 @@ interface PksiData {
   jenisPksi: string;
   isMendesak: boolean;
   status: 'pending' | 'disetujui' | 'tidak_disetujui';
+  progress?: string;
 }
 
 // Dummy data PKSI - 100 entries
@@ -157,6 +168,35 @@ const STATUS_LABELS: Record<PksiData['status'], string> = {
   tidak_disetujui: 'Tidak Disetujui',
 };
 
+const PROGRESS_OPTIONS = [
+  'Penyusunan Usreq', 'Pengadaan', 'Desain', 'Coding',
+  'Unit Test', 'SIT', 'UAT', 'Deployment', 'Selesai',
+];
+
+const getProgressColor = (progress?: string): { bg: string; color: string } => {
+  switch (progress) {
+    case 'Selesai': return { bg: 'rgba(46,125,50,0.12)', color: '#2e7d32' };
+    case 'Deployment': return { bg: 'rgba(156,39,176,0.12)', color: '#7b1fa2' };
+    case 'UAT': return { bg: 'rgba(2,136,209,0.12)', color: '#0277bd' };
+    case 'SIT': return { bg: 'rgba(0,150,136,0.12)', color: '#00695c' };
+    case 'Unit Test': return { bg: 'rgba(33,150,243,0.12)', color: '#1565c0' };
+    case 'Coding': return { bg: 'rgba(3,169,244,0.12)', color: '#0288d1' };
+    case 'Desain': return { bg: 'rgba(103,58,183,0.12)', color: '#512da8' };
+    case 'Pengadaan': return { bg: 'rgba(255,152,0,0.12)', color: '#e65100' };
+    default: return { bg: 'rgba(237,108,2,0.12)', color: '#bf360c' };
+  }
+};
+
+// Liquid glass style constants
+const GLASS_DIALOG_PAPER_SX = {
+  borderRadius: '20px',
+  background: 'rgba(255, 255, 255, 0.82)',
+  backdropFilter: 'blur(40px) saturate(200%)',
+  WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+  border: '1px solid rgba(255, 255, 255, 0.5)',
+  boxShadow: '0 20px 60px rgba(0,0,0,0.15), 0 1px 0 rgba(255,255,255,0.8) inset',
+};
+
 // Status color mapping
 const getStatusColor = (status: PksiData['status']) => {
   switch (status) {
@@ -170,7 +210,6 @@ const getStatusColor = (status: PksiData['status']) => {
 };
 
 const UserList = () => {
-  const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -187,6 +226,23 @@ const UserList = () => {
   const [selectedJangkaWaktu, setSelectedJangkaWaktu] = useState<Set<string>>(new Set());
   const [selectedStatus, setSelectedStatus] = useState<Set<string>>(new Set());
 
+  // Edit progress dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingPksi, setEditingPksi] = useState<PksiData | null>(null);
+  const [editProgress, setEditProgress] = useState('');
+  const [editTanggal, setEditTanggal] = useState('');
+
+  // Add PKSI modal
+  const [addModalOpen, setAddModalOpen] = useState(false);
+
+  // Toast notification
+  const [toast, setToast] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
+    open: false, message: '', severity: 'success',
+  });
+  const showToast = (message: string, severity: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ open: true, message, severity });
+  };
+
   const handleStatusMenuOpen = (event: React.MouseEvent<HTMLElement>, pksiId: string) => {
     setAnchorEl(event.currentTarget);
     setSelectedPksiId(pksiId);
@@ -199,11 +255,12 @@ const UserList = () => {
 
   const handleStatusChange = (newStatus: PksiData['status']) => {
     if (selectedPksiId) {
-      setPksiData(prev => 
-        prev.map(item => 
+      setPksiData(prev =>
+        prev.map(item =>
           item.id === selectedPksiId ? { ...item, status: newStatus } : item
         )
       );
+      showToast(`Status berhasil diubah ke "${STATUS_LABELS[newStatus]}"`, 'success');
     }
     handleStatusMenuClose();
   };
@@ -214,6 +271,45 @@ const UserList = () => {
 
   const handleFilterClose = () => {
     setFilterAnchorEl(null);
+  };
+
+  const handleEditOpen = (item: PksiData) => {
+    setEditingPksi(item);
+    setEditProgress(item.progress || 'Penyusunan Usreq');
+    // Convert ISO date to YYYY-MM-DD for input[type=date]
+    const d = new Date(item.tanggalPengajuan);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    setEditTanggal(`${yyyy}-${mm}-${dd}`);
+    setEditDialogOpen(true);
+  };
+
+  const handleEditClose = () => {
+    setEditDialogOpen(false);
+    setEditingPksi(null);
+  };
+
+  const handleEditSave = () => {
+    if (!editingPksi) return;
+    try {
+      setPksiData(prev =>
+        prev.map(item =>
+          item.id === editingPksi.id
+            ? { ...item, progress: editProgress, tanggalPengajuan: editTanggal ? new Date(editTanggal).toISOString() : item.tanggalPengajuan }
+            : item
+        )
+      );
+      showToast('Progress dan tanggal berhasil diperbarui', 'success');
+      handleEditClose();
+    } catch {
+      showToast('Gagal memperbarui data. Silakan coba lagi.', 'error');
+    }
+  };
+
+  const handleAddSuccess = () => {
+    setAddModalOpen(false);
+    showToast('PKSI baru berhasil ditambahkan!', 'success');
   };
 
   const handleJangkaWaktuChange = (jangkaWaktu: string) => {
@@ -242,7 +338,7 @@ const UserList = () => {
   };
 
   const filteredPksi = (() => {
-    let result = pksiData.filter(item => {
+    const result = pksiData.filter(item => {
       // Keyword filter
       const matchKeyword = item.namaPksi.toLowerCase().includes(keyword.toLowerCase());
       
@@ -379,13 +475,16 @@ const UserList = () => {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => navigate('/add-pksi')}
+            onClick={() => setAddModalOpen(true)}
             sx={{
               background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
               fontWeight: 500,
               px: 2.5,
+              borderRadius: '12px',
+              boxShadow: '0 4px 15px rgba(218, 37, 28, 0.3)',
               '&:hover': {
                 background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
+                boxShadow: '0 6px 20px rgba(218, 37, 28, 0.4)',
               },
             }}
           >
@@ -409,8 +508,12 @@ const UserList = () => {
           PaperProps={{
             sx: {
               mt: 1,
-              borderRadius: 2,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+              borderRadius: '16px',
+              background: 'rgba(255,255,255,0.88)',
+              backdropFilter: 'blur(24px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+              border: '1px solid rgba(255,255,255,0.5)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
             },
           }}
         >
@@ -559,12 +662,14 @@ const UserList = () => {
                     Status
                   </TableSortLabel>
                 </TableCell>
+                <TableCell sx={{ minWidth: 160 }}>Progress</TableCell>
+                <TableCell sx={{ minWidth: 100, textAlign: 'center' }}>Aksi</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {paginatedPksi.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} sx={{ py: 8, textAlign: 'center' }}>
+                  <TableCell colSpan={8} sx={{ py: 8, textAlign: 'center' }}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <SearchIcon sx={{ fontSize: 48, color: '#d1d1d6', mb: 2 }} />
                       <Typography variant="body1" sx={{ color: '#86868b', fontWeight: 500 }}>
@@ -673,6 +778,52 @@ const UserList = () => {
                         </Button>
                       </Tooltip>
                     </TableCell>
+                    {/* Progress chip */}
+                    <TableCell>
+                      <Box
+                        sx={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                          px: 1.5,
+                          py: 0.5,
+                          borderRadius: '20px',
+                          bgcolor: getProgressColor(item.progress).bg,
+                          color: getProgressColor(item.progress).color,
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          backdropFilter: 'blur(8px)',
+                          border: `1px solid ${getProgressColor(item.progress).color}22`,
+                        }}
+                      >
+                        <TrendingUpIcon sx={{ fontSize: 13 }} />
+                        {item.progress || 'Penyusunan Usreq'}
+                      </Box>
+                    </TableCell>
+                    {/* Edit action */}
+                    <TableCell sx={{ textAlign: 'center' }}>
+                      <Tooltip title="Edit Progress & Tanggal">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditOpen(item)}
+                          sx={{
+                            background: 'rgba(218, 37, 28, 0.06)',
+                            backdropFilter: 'blur(8px)',
+                            border: '1px solid rgba(218, 37, 28, 0.12)',
+                            borderRadius: '10px',
+                            color: '#DA251C',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              background: 'rgba(218, 37, 28, 0.12)',
+                              transform: 'scale(1.08)',
+                              boxShadow: '0 4px 12px rgba(218,37,28,0.2)',
+                            },
+                          }}
+                        >
+                          <EditIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -685,55 +836,38 @@ const UserList = () => {
           anchorEl={anchorEl}
           open={Boolean(anchorEl)}
           onClose={handleStatusMenuClose}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'left',
-          }}
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'left',
-          }}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
           PaperProps={{
             sx: {
               mt: 0.5,
-              borderRadius: 2,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+              borderRadius: '16px',
+              background: 'rgba(255,255,255,0.88)',
+              backdropFilter: 'blur(24px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+              border: '1px solid rgba(255,255,255,0.5)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+              overflow: 'hidden',
             },
           }}
         >
-          <MenuItem 
+          <MenuItem
             onClick={() => handleStatusChange('disetujui')}
-            sx={{ 
-              color: '#2e7d32',
-              '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.08)' },
-            }}
+            sx={{ '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.08)' }, borderRadius: '8px', mx: 0.5, my: 0.25 }}
           >
-            <Chip 
-              label="Disetujui" 
-              size="small"
-              sx={{ 
-                bgcolor: 'rgba(46, 125, 50, 0.1)', 
-                color: '#2e7d32',
-                fontWeight: 500,
-              }} 
-            />
+            <Chip label="Disetujui" size="small" sx={{ bgcolor: 'rgba(46,125,50,0.1)', color: '#2e7d32', fontWeight: 500 }} />
           </MenuItem>
-          <MenuItem 
+          <MenuItem
             onClick={() => handleStatusChange('tidak_disetujui')}
-            sx={{ 
-              color: '#d32f2f',
-              '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.08)' },
-            }}
+            sx={{ '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.08)' }, borderRadius: '8px', mx: 0.5, my: 0.25 }}
           >
-            <Chip 
-              label="Tidak Disetujui" 
-              size="small"
-              sx={{ 
-                bgcolor: 'rgba(211, 47, 47, 0.1)', 
-                color: '#d32f2f',
-                fontWeight: 500,
-              }} 
-            />
+            <Chip label="Tidak Disetujui" size="small" sx={{ bgcolor: 'rgba(211,47,47,0.1)', color: '#d32f2f', fontWeight: 500 }} />
+          </MenuItem>
+          <MenuItem
+            onClick={() => handleStatusChange('pending')}
+            sx={{ '&:hover': { bgcolor: 'rgba(237,108,2,0.08)' }, borderRadius: '8px', mx: 0.5, my: 0.25 }}
+          >
+            <Chip label="Pending" size="small" sx={{ bgcolor: 'rgba(237,108,2,0.1)', color: '#ed6c02', fontWeight: 500 }} />
           </MenuItem>
         </Menu>
 
@@ -774,6 +908,287 @@ const UserList = () => {
           />
         </Box>
       </Paper>
+
+      {/* ── Edit Progress & Tanggal Dialog (Liquid Glass) ── */}
+      <Dialog
+        open={editDialogOpen}
+        onClose={handleEditClose}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{
+          backdrop: {
+            sx: {
+              background: 'rgba(0, 0, 0, 0.18)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+            },
+          },
+        }}
+        PaperProps={{ sx: GLASS_DIALOG_PAPER_SX }}
+      >
+        <DialogTitle
+          sx={{
+            px: 3,
+            pt: 3,
+            pb: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: '#1d1d1f', letterSpacing: '-0.02em' }}>
+              Edit Progress PKSI
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 400 }}>
+              {editingPksi?.namaPksi}
+            </Typography>
+          </Box>
+          <IconButton
+            onClick={handleEditClose}
+            size="small"
+            sx={{
+              background: 'rgba(0,0,0,0.05)',
+              backdropFilter: 'blur(8px)',
+              borderRadius: '10px',
+              '&:hover': { background: 'rgba(0,0,0,0.1)' },
+            }}
+          >
+            <CloseIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ px: 3, pb: 1, pt: 2 }}>
+          {/* Progress selector */}
+          <Box sx={{ mb: 2.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1 }}>
+              Progress Tahapan
+            </Typography>
+            <FormControl fullWidth>
+              <Select
+                value={editProgress}
+                onChange={(e) => setEditProgress(e.target.value)}
+                size="small"
+                sx={{
+                  borderRadius: '12px',
+                  background: 'rgba(255,255,255,0.7)',
+                  backdropFilter: 'blur(12px)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(0,0,0,0.1)',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(218,37,28,0.4)',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#DA251C',
+                    borderWidth: 2,
+                  },
+                }}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      borderRadius: '14px',
+                      background: 'rgba(255,255,255,0.9)',
+                      backdropFilter: 'blur(24px) saturate(180%)',
+                      border: '1px solid rgba(255,255,255,0.6)',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+                    },
+                  },
+                }}
+              >
+                {PROGRESS_OPTIONS.map((opt) => (
+                  <MenuItem
+                    key={opt}
+                    value={opt}
+                    sx={{
+                      borderRadius: '8px',
+                      mx: 0.5,
+                      my: 0.25,
+                      '&.Mui-selected': {
+                        background: 'rgba(218,37,28,0.08)',
+                        color: '#DA251C',
+                        fontWeight: 600,
+                      },
+                      '&:hover': { background: 'rgba(218,37,28,0.06)' },
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          bgcolor: getProgressColor(opt).color,
+                          flexShrink: 0,
+                        }}
+                      />
+                      {opt}
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Preview chip */}
+            {editProgress && (
+              <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="caption" sx={{ color: '#86868b' }}>Preview:</Typography>
+                <Box
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    px: 1.5,
+                    py: 0.4,
+                    borderRadius: '20px',
+                    bgcolor: getProgressColor(editProgress).bg,
+                    color: getProgressColor(editProgress).color,
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    border: `1px solid ${getProgressColor(editProgress).color}22`,
+                  }}
+                >
+                  <TrendingUpIcon sx={{ fontSize: 13 }} />
+                  {editProgress}
+                </Box>
+              </Box>
+            )}
+          </Box>
+
+          {/* Date picker */}
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1 }}>
+              Tanggal Pengajuan
+            </Typography>
+            <Box
+              sx={{
+                position: 'relative',
+                borderRadius: '12px',
+                background: 'rgba(255,255,255,0.7)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(0,0,0,0.1)',
+                transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+                '&:focus-within': {
+                  borderColor: '#DA251C',
+                  borderWidth: '2px',
+                  boxShadow: '0 0 0 3px rgba(218,37,28,0.08)',
+                },
+              }}
+            >
+              <input
+                type="date"
+                value={editTanggal}
+                onChange={(e) => setEditTanggal(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  border: 'none',
+                  outline: 'none',
+                  background: 'transparent',
+                  fontSize: '0.875rem',
+                  color: '#1d1d1f',
+                  fontFamily: 'inherit',
+                  borderRadius: '12px',
+                  boxSizing: 'border-box',
+                  cursor: 'pointer',
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                }}
+              />
+            </Box>
+            {editTanggal && (
+              <Typography variant="caption" sx={{ color: '#86868b', mt: 0.75, display: 'block' }}>
+                {new Date(editTanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </Typography>
+            )}
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 3, pt: 2, gap: 1 }}>
+          <Button
+            onClick={handleEditClose}
+            sx={{
+              borderRadius: '12px',
+              px: 2.5,
+              py: 1,
+              color: '#86868b',
+              background: 'rgba(0,0,0,0.04)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(0,0,0,0.08)',
+              fontWeight: 500,
+              '&:hover': { background: 'rgba(0,0,0,0.08)' },
+            }}
+          >
+            Batal
+          </Button>
+          <Button
+            onClick={handleEditSave}
+            variant="contained"
+            sx={{
+              borderRadius: '12px',
+              px: 3,
+              py: 1,
+              fontWeight: 600,
+              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+              boxShadow: '0 4px 15px rgba(218,37,28,0.35)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
+                boxShadow: '0 6px 20px rgba(218,37,28,0.45)',
+                transform: 'translateY(-1px)',
+              },
+              transition: 'all 0.2s ease',
+            }}
+          >
+            Simpan Perubahan
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Add PKSI Modal ── */}
+      <AddPksiModal
+        open={addModalOpen}
+        onClose={() => {
+          setAddModalOpen(false);
+        }}
+        onSuccess={handleAddSuccess}
+      />
+
+      {/* ── Toast Notification ── */}
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={3500}
+        onClose={(_event, reason) => {
+          if (reason === 'clickaway') return;
+          setToast(prev => ({ ...prev, open: false }));
+        }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setToast(prev => ({ ...prev, open: false }))}
+          severity={toast.severity}
+          variant="filled"
+          sx={{
+            borderRadius: '14px',
+            background: toast.severity === 'success'
+              ? 'linear-gradient(135deg, rgba(46,125,50,0.92), rgba(76,175,80,0.92))'
+              : toast.severity === 'error'
+              ? 'linear-gradient(135deg, rgba(211,47,47,0.92), rgba(239,83,80,0.92))'
+              : 'linear-gradient(135deg, rgba(2,136,209,0.92), rgba(3,169,244,0.92))',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid rgba(255,255,255,0.25)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            color: '#fff',
+            fontWeight: 500,
+            minWidth: 280,
+            '& .MuiAlert-icon': { color: 'rgba(255,255,255,0.9)' },
+            '& .MuiAlert-action .MuiIconButton-root': { color: 'rgba(255,255,255,0.8)' },
+          }}
+        >
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
