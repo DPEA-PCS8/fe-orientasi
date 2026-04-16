@@ -316,11 +316,6 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     targetSit: timelineGroups.sit,
     targetUat: timelineGroups.uat,
     targetGoLive: timelineGroups.goLive,
-    targetPengadaan: timelineGroups.pengadaan,
-    targetDesain: timelineGroups.desain,
-    targetCoding: timelineGroups.coding,
-    targetUnitTest: timelineGroups.unitTest,
-    targetDeployment: timelineGroups.deployment,
     // Rencana PKSI (T01/T02)
     statusT01T02: apiData.status_t01_t02 || '',
     berkasT01T02: apiData.berkas_t01_t02 || '',
