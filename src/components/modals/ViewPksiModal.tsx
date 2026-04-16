@@ -17,6 +17,13 @@ import {
   ListItemIcon,
   ListItemText,
   ListItemSecondaryAction,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -38,6 +45,35 @@ import { getPksiFiles, downloadPksiFile, type PksiFileData } from '../../api/pks
 import FilePreviewModal from './FilePreviewModal';
 import PksiChangeLog from '../PksiChangeLog';
 import { FileVersionHistory } from '../FileVersionHistory';
+
+const PROGRESS_OPTIONS_VIEW = [
+  'Penyusunan Usreq',
+  'Pengadaan',
+  'Desain',
+  'Coding',
+  'Unit Test',
+  'SIT',
+  'UAT',
+  'Deployment',
+  'Selesai',
+] as const;
+
+const TAHAPAN_VIEW_CONFIG: Array<{
+  key: typeof PROGRESS_OPTIONS_VIEW[number];
+  label: string;
+  dateField: keyof PksiDocumentData | null;
+  statusField: keyof PksiDocumentData | null;
+}> = [
+  { key: 'Penyusunan Usreq', label: 'Penyusunan Usreq', dateField: 'target_usreq',   statusField: 'tahapan_status_usreq' },
+  { key: 'Pengadaan',         label: 'Pengadaan',         dateField: 'tanggal_pengadaan', statusField: 'tahapan_status_pengadaan' },
+  { key: 'Desain',            label: 'Desain',            dateField: 'tanggal_desain',    statusField: 'tahapan_status_desain' },
+  { key: 'Coding',            label: 'Coding',            dateField: 'tanggal_coding',    statusField: 'tahapan_status_coding' },
+  { key: 'Unit Test',         label: 'Unit Test',         dateField: 'tanggal_unit_test', statusField: 'tahapan_status_unit_test' },
+  { key: 'SIT',               label: 'SIT',               dateField: 'target_sit',        statusField: 'tahapan_status_sit' },
+  { key: 'UAT',               label: 'UAT',               dateField: 'target_uat',        statusField: 'tahapan_status_uat' },
+  { key: 'Deployment',        label: 'Deployment',        dateField: 'target_go_live',    statusField: 'tahapan_status_deployment' },
+  { key: 'Selesai',           label: 'Selesai',           dateField: null,                statusField: 'tahapan_status_selesai' },
+];
 
 // Glass Card Component
 const GlassCard = styled(Box)({
@@ -572,14 +608,72 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.inhouse_outsource || '-'}</Typography>
                     </InfoRow>
                     <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Progres</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontWeight: 500 }}>{pksiData.progress || '-'}</Typography>
-                    </InfoRow>
-                    <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Inisiatif RBSI</Typography>
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.inisiatif_rbsi || pksiData.program_inisiatif_rbsi || '-'}</Typography>
                     </InfoRow>
                   </Box>
+                </Box>
+
+                {/* Progres Tahapan Table */}
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#D97706' }} />
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#D97706' }}>Progres Tahapan</Typography>
+                  </Box>
+                  <TableContainer component={Paper} sx={{ borderRadius: '12px', boxShadow: 'none', border: '1px solid rgba(217,119,6,0.15)', overflow: 'hidden' }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow sx={{ bgcolor: 'rgba(217,119,6,0.06)' }}>
+                          <TableCell sx={{ fontWeight: 600, fontSize: '0.78rem', color: '#D97706', py: 1.1, width: '38%' }}>Tahapan</TableCell>
+                          <TableCell sx={{ fontWeight: 600, fontSize: '0.78rem', color: '#D97706', py: 1.1, width: '30%' }}>Status</TableCell>
+                          <TableCell sx={{ fontWeight: 600, fontSize: '0.78rem', color: '#D97706', py: 1.1 }}>Tanggal Penyelesaian</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {TAHAPAN_VIEW_CONFIG.map((tahapan) => {
+                          // Use saved per-tahapan status if available, else derive from progress
+                          const savedStatus = tahapan.statusField
+                            ? (pksiData[tahapan.statusField] as string | undefined)
+                            : undefined;
+                          let status: string;
+                          if (savedStatus) {
+                            status = savedStatus;
+                          } else {
+                            const progressIdx = PROGRESS_OPTIONS_VIEW.indexOf(pksiData.progress as typeof PROGRESS_OPTIONS_VIEW[number]);
+                            const tahapanIdx  = PROGRESS_OPTIONS_VIEW.indexOf(tahapan.key);
+                            const isDoneFallback   = tahapanIdx < progressIdx;
+                            const isActiveFallback = tahapanIdx === progressIdx;
+                            status = isDoneFallback ? 'Selesai' : isActiveFallback ? 'Dalam proses' : 'Belum dimulai';
+                          }
+                          const isSelesai  = status === 'Selesai';
+                          const isDalam    = status === 'Dalam proses';
+                          const chipColor  = isSelesai ? '#15803D' : isDalam ? '#D97706' : '#6B7280';
+                          const chipBg     = isSelesai ? '#F0FDF4' : isDalam ? '#FFFBEB' : '#F3F4F6';
+                          // Only show date when the tahapan is actually completed
+                          const rawDate     = (isSelesai && tahapan.dateField)
+                            ? (pksiData[tahapan.dateField] as string | undefined)
+                            : undefined;
+                          const displayDate = rawDate ? rawDate.split(',')[0].trim().substring(0, 10) : null;
+                          return (
+                            <TableRow
+                              key={tahapan.key}
+                              sx={{ '&:last-child td': { borderBottom: 0 }, bgcolor: isDalam ? 'rgba(217,119,6,0.03)' : 'transparent' }}
+                            >
+                              <TableCell sx={{ fontSize: '0.8rem', py: 0.9, fontWeight: isDalam ? 600 : 400, color: isDalam ? '#92400E' : '#1d1d1f' }}>
+                                {tahapan.label}
+                              </TableCell>
+                              <TableCell sx={{ py: 0.9 }}>
+                                <Chip label={status} size="small" sx={{ bgcolor: chipBg, color: chipColor, fontWeight: 600, fontSize: '0.7rem', height: 20 }} />
+                              </TableCell>
+                              <TableCell sx={{ fontSize: '0.8rem', py: 0.9, color: displayDate ? '#15803D' : '#86868b' }}>
+                                {displayDate || '—'}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
                 </Box>
 
                 {/* Anggaran */}

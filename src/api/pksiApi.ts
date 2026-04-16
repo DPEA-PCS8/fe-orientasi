@@ -100,6 +100,21 @@ export interface PksiDocumentData {
   kontrak_jumlah_termin?: string;
   kontrak_detail_pembayaran?: string;
   ba_deploy?: string;
+  // Per-tahapan completion dates
+  tanggal_pengadaan?: string;
+  tanggal_desain?: string;
+  tanggal_coding?: string;
+  tanggal_unit_test?: string;
+  // Per-tahapan statuses
+  tahapan_status_usreq?: string;
+  tahapan_status_pengadaan?: string;
+  tahapan_status_desain?: string;
+  tahapan_status_coding?: string;
+  tahapan_status_unit_test?: string;
+  tahapan_status_sit?: string;
+  tahapan_status_uat?: string;
+  tahapan_status_deployment?: string;
+  tahapan_status_selesai?: string;
   // Team
   team_id?: string;
   team_name?: string;
@@ -324,6 +339,21 @@ export interface UpdateApprovalRequest {
   target_sit?: string;
   target_uat?: string;
   target_go_live?: string;
+  // Per-tahapan completion dates
+  tanggal_pengadaan?: string;
+  tanggal_desain?: string;
+  tanggal_coding?: string;
+  tanggal_unit_test?: string;
+  // Per-tahapan statuses
+  tahapan_status_usreq?: string;
+  tahapan_status_pengadaan?: string;
+  tahapan_status_desain?: string;
+  tahapan_status_coding?: string;
+  tahapan_status_unit_test?: string;
+  tahapan_status_sit?: string;
+  tahapan_status_uat?: string;
+  tahapan_status_deployment?: string;
+  tahapan_status_selesai?: string;
   status_t01_t02?: string;
   berkas_t01_t02?: string;
   status_t11?: string;
