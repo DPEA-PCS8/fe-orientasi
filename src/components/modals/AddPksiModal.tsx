@@ -60,6 +60,7 @@ import {
   previewPksiFile,
   type PksiFileData 
 } from "../../api/pksiFileApi";
+import { StageSelector } from "../StageSelector";
 
 // Styled TextField with glass effect
 const GlassTextField = styled(TextField)({
@@ -145,6 +146,11 @@ interface TimelinePhases {
   sit: string[];
   uat: string[];
   goLive: string[];
+  pengadaan: string[];
+  desain: string[];
+  coding: string[];
+  unitTest: string[];
+  deployment: string[];
 }
 
 const TIMELINE_CONFIGS = [
@@ -152,6 +158,11 @@ const TIMELINE_CONFIGS = [
   { key: 'sit' as const, label: 'Target SIT', stage: 'SIT', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246' },
   { key: 'uat' as const, label: 'Target UAT/PDKK', stage: 'UAT', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11' },
   { key: 'goLive' as const, label: 'Target Go Live', stage: 'GO_LIVE', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
+  { key: 'pengadaan' as const, label: 'Target Pengadaan', stage: 'PENGADAAN', gradient: ['#EC4899', '#F472B6'], rgb: '236,72,153' },
+  { key: 'desain' as const, label: 'Target Desain', stage: 'DESAIN', gradient: ['#06B6D4', '#22D3EE'], rgb: '6,182,212' },
+  { key: 'coding' as const, label: 'Target Coding', stage: 'CODING', gradient: ['#8B5CF6', '#D8B4FE'], rgb: '139,92,246' },
+  { key: 'unitTest' as const, label: 'Target Unit Test', stage: 'UNIT_TEST', gradient: ['#F59E0B', '#FBBF24'], rgb: '245,158,11' },
+  { key: 'deployment' as const, label: 'Target Deployment', stage: 'DEPLOYMENT', gradient: ['#10B981', '#6EE7B7'], rgb: '16,185,129' },
 ];
 
 interface TimelineStageProps {
@@ -162,9 +173,10 @@ interface TimelineStageProps {
   onChange: (phaseIndex: number, value: string) => void;
   onAddPhase: () => void;
   onRemovePhase: (phaseIndex: number) => void;
+  onRemoveStage?: () => void;
 }
 
-const TimelineStage = ({ label, stages, gradient, rgb, onChange, onAddPhase, onRemovePhase }: TimelineStageProps) => {
+const TimelineStage = ({ label, stages, gradient, rgb, onChange, onAddPhase, onRemovePhase, onRemoveStage }: TimelineStageProps) => {
   return (
     <Box sx={{ mb: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
@@ -183,29 +195,43 @@ const TimelineStage = ({ label, stages, gradient, rgb, onChange, onAddPhase, onR
             {label}
           </Typography>
         </Box>
-        <Button
-          size="small"
-          startIcon={<AddIcon />}
-          onClick={onAddPhase}
-          sx={{
-            borderRadius: '10px',
-            borderColor: `rgba(${rgb},0.25)`,
-            color: gradient[0],
-            fontWeight: 600,
-            fontSize: '0.7rem',
-            px: 1.5,
-            py: 0.4,
-            textTransform: 'none',
-            background: `rgba(${rgb},0.04)`,
-            border: `1px solid rgba(${rgb},0.25)`,
-            '&:hover': {
-              borderColor: gradient[0],
-              background: `rgba(${rgb},0.08)`,
-            },
-          }}
-        >
-          Tambah Fase
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            size="small"
+            startIcon={<AddIcon />}
+            onClick={onAddPhase}
+            sx={{
+              borderRadius: '10px',
+              borderColor: `rgba(${rgb},0.25)`,
+              color: gradient[0],
+              fontWeight: 600,
+              fontSize: '0.7rem',
+              px: 1.5,
+              py: 0.4,
+              textTransform: 'none',
+              background: `rgba(${rgb},0.04)`,
+              border: `1px solid rgba(${rgb},0.25)`,
+              '&:hover': {
+                borderColor: gradient[0],
+                background: `rgba(${rgb},0.08)`,
+              },
+            }}
+          >
+            Tambah Fase
+          </Button>
+          {onRemoveStage && (
+            <IconButton
+              size="small"
+              onClick={onRemoveStage}
+              sx={{
+                color: '#EF4444',
+                '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.1)' },
+              }}
+            >
+              <CloseIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          )}
+        </Box>
       </Box>
 
       <Stack spacing={1.2}>
@@ -328,7 +354,17 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     sit: [currentMonthValue()],
     uat: [currentMonthValue()],
     goLive: [currentMonthValue()],
+    pengadaan: [currentMonthValue()],
+    desain: [currentMonthValue()],
+    coding: [currentMonthValue()],
+    unitTest: [currentMonthValue()],
+    deployment: [currentMonthValue()],
   });
+
+  // Selected stages to display in timeline (for dynamic form)
+  const [selectedStages, setSelectedStages] = useState<Set<string>>(
+    new Set(['usreq', 'sit', 'uat', 'goLive'])
+  );
 
   const handleTimelineChange = (stage: keyof TimelinePhases, phaseIndex: number, value: string) => {
     setTimelinePhases(prev => {
@@ -548,7 +584,13 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
       sit: [currentMonthValue()],
       uat: [currentMonthValue()],
       goLive: [currentMonthValue()],
+      pengadaan: [currentMonthValue()],
+      desain: [currentMonthValue()],
+      coding: [currentMonthValue()],
+      unitTest: [currentMonthValue()],
+      deployment: [currentMonthValue()],
     });
+    setSelectedStages(new Set(['usreq', 'sit', 'uat', 'goLive']));
     setSelectedRbsi(null);
     setSelectedProgram(null);
     setSelectedInisiatif(null);
@@ -595,15 +637,17 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
       // Convert timeline phases to backend format
       const timelines: any[] = [];
       
-      // Add USREQ phases
-      timelinePhases.usreq.forEach((date, index) => {
-        if (date) {
-          timelines.push({ phase: index + 1, target_date: date, stage: 'USREQ' });
-        }
-      });
+      // Only add stages that are selected
+      if (selectedStages.has('usreq')) {
+        timelinePhases.usreq.forEach((date, index) => {
+          if (date) {
+            timelines.push({ phase: index + 1, target_date: date, stage: 'USREQ' });
+          }
+        });
+      }
       
       // Add SIT phases (skip if Mendesak)
-      if (formData.jenisPksi !== 'Mendesak') {
+      if (selectedStages.has('sit') && formData.jenisPksi !== 'Mendesak') {
         timelinePhases.sit.forEach((date, index) => {
           if (date) {
             timelines.push({ phase: index + 1, target_date: date, stage: 'SIT' });
@@ -612,18 +656,67 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
       }
       
       // Add UAT phases
-      timelinePhases.uat.forEach((date, index) => {
-        if (date) {
-          timelines.push({ phase: index + 1, target_date: date, stage: 'UAT' });
-        }
-      });
+      if (selectedStages.has('uat')) {
+        timelinePhases.uat.forEach((date, index) => {
+          if (date) {
+            timelines.push({ phase: index + 1, target_date: date, stage: 'UAT' });
+          }
+        });
+      }
       
       // Add GO_LIVE phases
-      timelinePhases.goLive.forEach((date, index) => {
-        if (date) {
-          timelines.push({ phase: index + 1, target_date: date, stage: 'GO_LIVE' });
-        }
-      });
+      if (selectedStages.has('goLive')) {
+        timelinePhases.goLive.forEach((date, index) => {
+          if (date) {
+            timelines.push({ phase: index + 1, target_date: date, stage: 'GO_LIVE' });
+          }
+        });
+      }
+
+      // Add PENGADAAN phases
+      if (selectedStages.has('pengadaan')) {
+        timelinePhases.pengadaan.forEach((date, index) => {
+          if (date) {
+            timelines.push({ phase: index + 1, target_date: date, stage: 'PENGADAAN' });
+          }
+        });
+      }
+
+      // Add DESAIN phases
+      if (selectedStages.has('desain')) {
+        timelinePhases.desain.forEach((date, index) => {
+          if (date) {
+            timelines.push({ phase: index + 1, target_date: date, stage: 'DESAIN' });
+          }
+        });
+      }
+
+      // Add CODING phases
+      if (selectedStages.has('coding')) {
+        timelinePhases.coding.forEach((date, index) => {
+          if (date) {
+            timelines.push({ phase: index + 1, target_date: date, stage: 'CODING' });
+          }
+        });
+      }
+
+      // Add UNIT_TEST phases
+      if (selectedStages.has('unitTest')) {
+        timelinePhases.unitTest.forEach((date, index) => {
+          if (date) {
+            timelines.push({ phase: index + 1, target_date: date, stage: 'UNIT_TEST' });
+          }
+        });
+      }
+
+      // Add DEPLOYMENT phases
+      if (selectedStages.has('deployment')) {
+        timelinePhases.deployment.forEach((date, index) => {
+          if (date) {
+            timelines.push({ phase: index + 1, target_date: date, stage: 'DEPLOYMENT' });
+          }
+        });
+      }
 
       const requestData: PksiDocumentRequest = {
         aplikasi_id: formData.aplikasiId || undefined,
@@ -1165,10 +1258,19 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                 Usulan Jadwal Pelaksanaan
               </Typography>
             </AccordionSummary>
-            <AccordionDetails sx={{ pt: 1.5, pb: 2, px: 2 }}>
+            <AccordionDetails sx={{ pb: 2, px: 2 }}>
+              {/* Stage Selector for Dynamic Timeline */}
+              <StageSelector 
+                selectedStages={selectedStages}
+                onStagesChange={setSelectedStages}
+              />
+
               {/* Each timeline stage independently */}
               {TIMELINE_CONFIGS
-                .filter(config => formData.jenisPksi !== 'Mendesak' || config.key !== 'sit')
+                .filter(config => 
+                  selectedStages.has(config.key) && 
+                  (formData.jenisPksi !== 'Mendesak' || config.key !== 'sit')
+                )
                 .map((config) => (
                   <TimelineStage
                     key={config.key}
@@ -1179,6 +1281,11 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                     onChange={(phaseIndex, value) => handleTimelineChange(config.key, phaseIndex, value)}
                     onAddPhase={() => handleAddPhase(config.key)}
                     onRemovePhase={(phaseIndex) => handleRemovePhase(config.key, phaseIndex)}
+                    onRemoveStage={() => {
+                      const newSelected = new Set(selectedStages);
+                      newSelected.delete(config.key);
+                      setSelectedStages(newSelected);
+                    }}
                   />
                 ))}
             </AccordionDetails>

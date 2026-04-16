@@ -171,12 +171,16 @@ export const APPLICATION_STATUS = {
   AKTIF: 'AKTIF',
   IDLE: 'IDLE',
   DIAKHIRI: 'DIAKHIRI',
+  DALAM_PENGEMBANGAN: 'DALAM_PENGEMBANGAN',
+  BELUM_DIKEMBANGKAN: 'BELUM_DIKEMBANGKAN',
 } as const;
 
 export const APPLICATION_STATUS_LABELS: Record<string, string> = {
   AKTIF: 'Aktif',
   IDLE: 'Idle',
   DIAKHIRI: 'Diakhiri',
+  DALAM_PENGEMBANGAN: 'Dalam Pengembangan',
+  BELUM_DIKEMBANGKAN: 'Belum Dikembangkan',
 };
 
 export const ACCESS_TYPE = {
