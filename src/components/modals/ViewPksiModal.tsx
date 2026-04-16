@@ -24,6 +24,9 @@ import {
   TableHead,
   TableRow,
   Paper,
+  Stepper,
+  Step,
+  StepLabel,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -124,6 +127,17 @@ interface SkpaOption {
   kode_skpa: string;
   nama_skpa: string;
 }
+
+// Format date to show only month and year (e.g., "Apr 2026")
+const formatMonthYear = (dateString: string): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
+  } catch {
+    return '-';
+  }
+};
 
 const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, showMonitoringSection = false }) => {
   const [pksiData, setPksiData] = useState<PksiDocumentData | null>(null);
@@ -474,101 +488,98 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                 </Typography>
               </SectionHeader>
 
-              <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(139, 92, 246, 0.03)', border: '1px solid rgba(139, 92, 246, 0.1)' }}>
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, gap: 2 }}>
-                  {/* Target Usreq */}
-                  <InfoRow>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target Usreq</Typography>
-                    {(() => {
-                      const usreqPhases = (pksiData.timelines || []).filter(t => t.stage === 'USREQ').sort((a, b) => a.phase - b.phase);
-                      if (usreqPhases.length === 0) {
-                        return <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_usreq || '-'}</Typography>;
-                      }
-                      if (usreqPhases.length === 1) {
-                        return <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{usreqPhases[0].target_date || '-'}</Typography>;
-                      }
-                      return (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                          {usreqPhases.map((phase, idx) => (
-                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.875rem' }}>
-                              <span style={{ fontWeight: 600 }}>Fase {phase.phase}: </span>
-                              {phase.target_date}
+              {/* Progress Stepper */}
+              <Box sx={{ mb: 3, p: 3, borderRadius: '12px', bgcolor: 'rgba(139, 92, 246, 0.02)', border: '1px solid rgba(139, 92, 246, 0.08)' }}>
+                <Stepper 
+                  activeStep={(() => {
+                    const stages = ['USREQ', 'PENGADAAN', 'DESAIN', 'CODING', 'UNIT_TEST', 'SIT', 'UAT', 'DEPLOYMENT', 'GO_LIVE'];
+                    const hasData = (stage: string) => {
+                      const phases = (pksiData.timelines || []).filter(t => t.stage === stage);
+                      return phases.length > 0;
+                    };
+                    // Find the last stage with data
+                    for (let i = stages.length - 1; i >= 0; i--) {
+                      if (hasData(stages[i])) return i + 1;
+                    }
+                    return 0;
+                  })()} 
+                  orientation="horizontal"
+                  sx={{
+                    '& .MuiStepConnector-root': {
+                      top: 20,
+                    },
+                    '& .MuiStepConnector-line': {
+                      borderColor: 'rgba(139, 92, 246, 0.2)',
+                      borderTopWidth: 2,
+                    },
+                    '& .MuiStep-root': {
+                      padding: 0,
+                    },
+                  }}
+                >
+                  {[
+                    { stage: 'USREQ', label: 'USREQ' },
+                    { stage: 'PENGADAAN', label: 'Pengadaan' },
+                    { stage: 'DESAIN', label: 'Desain' },
+                    { stage: 'CODING', label: 'Coding' },
+                    { stage: 'UNIT_TEST', label: 'Unit Test' },
+                    { stage: 'SIT', label: 'SIT' },
+                    { stage: 'UAT', label: 'UAT' },
+                    { stage: 'DEPLOYMENT', label: 'Deployment' },
+                    { stage: 'GO_LIVE', label: 'Go Live' },
+                  ].map(({ stage, label }) => {
+                    const phases = (pksiData.timelines || []).filter(t => t.stage === stage).sort((a, b) => a.phase - b.phase);
+                    const hasData = phases.length > 0;
+                    
+                    return (
+                      <Step key={stage}>
+                        <StepLabel
+                          sx={{
+                            flexDirection: 'column',
+                            '& .MuiStepLabel-iconContainer': {
+                              paddingRight: 0,
+                              marginBottom: 0.5,
+                            },
+                            '& .MuiStepLabel-labelContainer': {
+                              textAlign: 'center',
+                            },
+                          }}
+                          StepIconProps={{
+                            sx: {
+                              color: hasData ? 'rgba(139, 92, 246, 0.2)' : 'rgba(156, 163, 175, 0.15)',
+                              '&.Mui-active': {
+                                color: 'rgba(139, 92, 246, 0.3)',
+                              },
+                              '&.Mui-completed': {
+                                color: 'rgba(139, 92, 246, 0.2)',
+                              },
+                              '& .MuiStepIcon-text': {
+                                display: 'none',
+                              },
+                            },
+                          }}
+                        >
+                          <Typography variant="caption" sx={{ color: '#1d1d1f', fontWeight: 500, fontSize: '0.7rem', mb: 0.5 }}>
+                            {label}
+                          </Typography>
+                          {phases.length > 0 ? (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                              {phases.map((phase, idx) => (
+                                <Typography key={idx} variant="caption" sx={{ color: '#6B7280', fontSize: '0.65rem' }}>
+                                  {phases.length > 1 ? `F${phase.phase}: ` : ''}{formatMonthYear(phase.target_date)}
+                                </Typography>
+                              ))}
+                            </Box>
+                          ) : (
+                            <Typography variant="caption" sx={{ color: '#D1D5DB', fontSize: '0.65rem' }}>
+                              -
                             </Typography>
-                          ))}
-                        </Box>
-                      );
-                    })()}
-                  </InfoRow>
-                  {/* Target SIT */}
-                  <InfoRow>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target SIT</Typography>
-                    {(() => {
-                      const sitPhases = (pksiData.timelines || []).filter(t => t.stage === 'SIT').sort((a, b) => a.phase - b.phase);
-                      if (sitPhases.length === 0) {
-                        return <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_sit || '-'}</Typography>;
-                      }
-                      if (sitPhases.length === 1) {
-                        return <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{sitPhases[0].target_date || '-'}</Typography>;
-                      }
-                      return (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                          {sitPhases.map((phase, idx) => (
-                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.875rem' }}>
-                              <span style={{ fontWeight: 600 }}>Fase {phase.phase}: </span>
-                              {phase.target_date}
-                            </Typography>
-                          ))}
-                        </Box>
-                      );
-                    })()}
-                  </InfoRow>
-                  {/* Target UAT */}
-                  <InfoRow>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target UAT/PDKK</Typography>
-                    {(() => {
-                      const uatPhases = (pksiData.timelines || []).filter(t => t.stage === 'UAT').sort((a, b) => a.phase - b.phase);
-                      if (uatPhases.length === 0) {
-                        return <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_uat || '-'}</Typography>;
-                      }
-                      if (uatPhases.length === 1) {
-                        return <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{uatPhases[0].target_date || '-'}</Typography>;
-                      }
-                      return (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                          {uatPhases.map((phase, idx) => (
-                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.875rem' }}>
-                              <span style={{ fontWeight: 600 }}>Fase {phase.phase}: </span>
-                              {phase.target_date}
-                            </Typography>
-                          ))}
-                        </Box>
-                      );
-                    })()}
-                  </InfoRow>
-                  {/* Target Go Live */}
-                  <InfoRow>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target Go Live</Typography>
-                    {(() => {
-                      const goLivePhases = (pksiData.timelines || []).filter(t => t.stage === 'GO_LIVE').sort((a, b) => a.phase - b.phase);
-                      if (goLivePhases.length === 0) {
-                        return <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.target_go_live || '-'}</Typography>;
-                      }
-                      if (goLivePhases.length === 1) {
-                        return <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{goLivePhases[0].target_date || '-'}</Typography>;
-                      }
-                      return (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                          {goLivePhases.map((phase, idx) => (
-                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.875rem' }}>
-                              <span style={{ fontWeight: 600 }}>Fase {phase.phase}: </span>
-                              {phase.target_date}
-                            </Typography>
-                          ))}
-                        </Box>
-                      );
-                    })()}
-                  </InfoRow>
-                </Box>
+                          )}
+                        </StepLabel>
+                      </Step>
+                    );
+                  })}
+                </Stepper>
               </Box>
             </GlassCard>
 

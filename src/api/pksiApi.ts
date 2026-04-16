@@ -7,8 +7,21 @@ const BASE_URL = '/api';
 export interface PksiTimeline {
   phase: number;
   target_date: string; // ISO date string (YYYY-MM-DD)
-  stage: 'USREQ' | 'SIT' | 'UAT' | 'GO_LIVE';
+  stage: 'USREQ' | 'SIT' | 'UAT' | 'GO_LIVE' | 'PENGADAAN' | 'DESAIN' | 'CODING' | 'UNIT_TEST' | 'DEPLOYMENT';
 }
+
+// All available timeline stages for dynamic selection
+export const TIMELINE_STAGE_OPTIONS = [
+  { key: 'usreq' as const, label: 'Target Usreq', stage: 'USREQ', gradient: ['#6366F1', '#818CF8'], rgb: '99,102,241' },
+  { key: 'sit' as const, label: 'Target SIT', stage: 'SIT', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246' },
+  { key: 'uat' as const, label: 'Target UAT/PDKK', stage: 'UAT', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11' },
+  { key: 'goLive' as const, label: 'Target Go Live', stage: 'GO_LIVE', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
+  { key: 'pengadaan' as const, label: 'Target Pengadaan', stage: 'PENGADAAN', gradient: ['#EC4899', '#F472B6'], rgb: '236,72,153' },
+  { key: 'desain' as const, label: 'Target Desain', stage: 'DESAIN', gradient: ['#06B6D4', '#22D3EE'], rgb: '6,182,212' },
+  { key: 'coding' as const, label: 'Target Coding', stage: 'CODING', gradient: ['#8B5CF6', '#D8B4FE'], rgb: '139,92,246' },
+  { key: 'unitTest' as const, label: 'Target Unit Test', stage: 'UNIT_TEST', gradient: ['#F59E0B', '#FBBF24'], rgb: '245,158,11' },
+  { key: 'deployment' as const, label: 'Target Deployment', stage: 'DEPLOYMENT', gradient: ['#10B981', '#6EE7B7'], rgb: '16,185,129' },
+] as const;
 
 // ==================== RESPONSE TYPES ====================
 

@@ -53,11 +53,13 @@ import {
   Download as DownloadIcon,
   CalendarMonth as CalendarIcon,
   AttachFile as AttachFileIcon,
+  ViewColumn as ViewColumnIcon,
 } from '@mui/icons-material';
 import { searchPksiDocuments, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getUserRoles } from '../api/authApi';
 import { ViewPksiModal, FilePreviewModal } from '../components/modals';
+import { StageSelector } from '../components/StageSelector';
 import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
 import { 
   uploadPksiFiles, 
@@ -95,11 +97,16 @@ interface PksiData {
   anggaranTotal: string;
   anggaranTahunIni: string;
   anggaranTahunDepan: string;
-  // Timeline (supports multiple phases per stage)
+  // Timeline (supports multiple phases per stage - 9 stages total)
   targetUsreq: string[];
   targetSit: string[];
   targetUat: string[];
   targetGoLive: string[];
+  targetPengadaan: string[];
+  targetDesain: string[];
+  targetCoding: string[];
+  targetUnitTest: string[];
+  targetDeployment: string[];
   // Rencana PKSI (T01/T02)
   statusT01T02: string;
   berkasT01T02: string;
@@ -197,9 +204,14 @@ const groupTimelinesByStage = (timelines: any[] | undefined): {
   sit: string[];
   uat: string[];
   goLive: string[];
+  pengadaan: string[];
+  desain: string[];
+  coding: string[];
+  unitTest: string[];
+  deployment: string[];
 } => {
   if (!timelines || timelines.length === 0) {
-    return { usreq: [], sit: [], uat: [], goLive: [] };
+    return { usreq: [], sit: [], uat: [], goLive: [], pengadaan: [], desain: [], coding: [], unitTest: [], deployment: [] };
   }
 
   const groups = {
@@ -207,18 +219,34 @@ const groupTimelinesByStage = (timelines: any[] | undefined): {
     sit: [] as string[],
     uat: [] as string[],
     goLive: [] as string[],
+    pengadaan: [] as string[],
+    desain: [] as string[],
+    coding: [] as string[],
+    unitTest: [] as string[],
+    deployment: [] as string[],
   };
 
-  // Group by stage
-  const stageMap: { [key: string]: { phase: number; date: string }[] } = {
-    USREQ: [],
-    SIT: [],
-    UAT: [],
-    GO_LIVE: [],
+  // Map backend stage names to group keys
+  const stageToGroupKey: { [key: string]: keyof typeof groups } = {
+    'USREQ': 'usreq',
+    'SIT': 'sit',
+    'UAT': 'uat',
+    'GO_LIVE': 'goLive',
+    'PENGADAAN': 'pengadaan',
+    'DESAIN': 'desain',
+    'CODING': 'coding',
+    'UNIT_TEST': 'unitTest',
+    'DEPLOYMENT': 'deployment',
   };
+
+  // Group by stage dynamically
+  const stageMap: { [key: string]: { phase: number; date: string }[] } = {};
 
   timelines.forEach(t => {
     if (t.stage && t.target_date) {
+      if (!stageMap[t.stage]) {
+        stageMap[t.stage] = [];
+      }
       stageMap[t.stage].push({ phase: t.phase || 1, date: t.target_date });
     }
   });
@@ -228,10 +256,10 @@ const groupTimelinesByStage = (timelines: any[] | undefined): {
     const sorted = stageMap[stage].sort((a, b) => a.phase - b.phase);
     const dates = sorted.map(item => item.date);
     
-    if (stage === 'USREQ') groups.usreq = dates;
-    else if (stage === 'SIT') groups.sit = dates;
-    else if (stage === 'UAT') groups.uat = dates;
-    else if (stage === 'GO_LIVE') groups.goLive = dates;
+    const groupKey = stageToGroupKey[stage];
+    if (groupKey) {
+      groups[groupKey] = dates;
+    }
   });
 
   return groups;
@@ -249,6 +277,11 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
         sit: apiData.target_sit ? [apiData.target_sit] : (apiData.tahap5_akhir ? [apiData.tahap5_akhir] : []),
         uat: apiData.target_uat ? [apiData.target_uat] : [],
         goLive: apiData.target_go_live ? [apiData.target_go_live] : (apiData.tahap7_akhir ? [apiData.tahap7_akhir] : []),
+        pengadaan: apiData.tanggal_pengadaan ? [apiData.tanggal_pengadaan] : [],
+        desain: apiData.tanggal_desain ? [apiData.tanggal_desain] : [],
+        coding: apiData.tanggal_coding ? [apiData.tanggal_coding] : [],
+        unitTest: apiData.tanggal_unit_test ? [apiData.tanggal_unit_test] : [],
+        deployment: [],
       };
   
   return {
@@ -281,6 +314,11 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     targetSit: timelineGroups.sit,
     targetUat: timelineGroups.uat,
     targetGoLive: timelineGroups.goLive,
+    targetPengadaan: timelineGroups.pengadaan,
+    targetDesain: timelineGroups.desain,
+    targetCoding: timelineGroups.coding,
+    targetUnitTest: timelineGroups.unitTest,
+    targetDeployment: timelineGroups.deployment,
     // Rencana PKSI (T01/T02)
     statusT01T02: apiData.status_t01_t02 || '',
     berkasT01T02: apiData.berkas_t01_t02 || '',
@@ -374,6 +412,11 @@ interface TimelinePhases {
   sit: string[];
   uat: string[];
   goLive: string[];
+  pengadaan: string[];
+  desain: string[];
+  coding: string[];
+  unitTest: string[];
+  deployment: string[];
 }
 
 const TIMELINE_CONFIGS = [
@@ -381,6 +424,11 @@ const TIMELINE_CONFIGS = [
   { key: 'sit' as const, label: 'Target SIT', stage: 'SIT', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246' },
   { key: 'uat' as const, label: 'Target UAT/PDKK', stage: 'UAT', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11' },
   { key: 'goLive' as const, label: 'Target Go Live', stage: 'GO_LIVE', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
+  { key: 'pengadaan' as const, label: 'Target Pengadaan', stage: 'PENGADAAN', gradient: ['#EC4899', '#F472B6'], rgb: '236,72,153' },
+  { key: 'desain' as const, label: 'Target Desain', stage: 'DESAIN', gradient: ['#06B6D4', '#22D3EE'], rgb: '6,182,212' },
+  { key: 'coding' as const, label: 'Target Coding', stage: 'CODING', gradient: ['#8B5CF6', '#D8B4FE'], rgb: '139,92,246' },
+  { key: 'unitTest' as const, label: 'Target Unit Test', stage: 'UNIT_TEST', gradient: ['#F59E0B', '#FBBF24'], rgb: '245,158,11' },
+  { key: 'deployment' as const, label: 'Target Deployment', stage: 'DEPLOYMENT', gradient: ['#10B981', '#6EE7B7'], rgb: '16,185,129' },
 ];
 
 interface TimelineStageProps {
@@ -391,9 +439,10 @@ interface TimelineStageProps {
   onChange: (phaseIndex: number, value: string) => void;
   onAddPhase: () => void;
   onRemovePhase: (phaseIndex: number) => void;
+  onRemoveStage?: () => void;
 }
 
-const TimelineStage = ({ label, stages, gradient, rgb, onChange, onAddPhase, onRemovePhase }: TimelineStageProps) => {
+const TimelineStage = ({ label, stages, gradient, rgb, onChange, onAddPhase, onRemovePhase, onRemoveStage }: TimelineStageProps) => {
   return (
     <Box sx={{ mb: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
@@ -412,12 +461,13 @@ const TimelineStage = ({ label, stages, gradient, rgb, onChange, onAddPhase, onR
             {label}
           </Typography>
         </Box>
-        <Button
-          size="small"
-          startIcon={<AddIcon />}
-          onClick={onAddPhase}
-          sx={{
-            borderRadius: '10px',
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            size="small"
+            startIcon={<AddIcon />}
+            onClick={onAddPhase}
+            sx={{
+              borderRadius: '10px',
             borderColor: `rgba(${rgb},0.25)`,
             color: gradient[0],
             fontWeight: 600,
@@ -435,6 +485,19 @@ const TimelineStage = ({ label, stages, gradient, rgb, onChange, onAddPhase, onR
         >
           Tambah Fase
         </Button>
+        {onRemoveStage && (
+          <IconButton
+            size="small"
+            onClick={onRemoveStage}
+            sx={{
+              color: '#EF4444',
+              '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.1)' },
+            }}
+          >
+            <CloseIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        )}
+        </Box>
       </Box>
 
       <Stack spacing={1.2}>
@@ -605,6 +668,47 @@ function PksiDisetujui() {
     });
   };
 
+  // Timeline columns visibility configuration
+  const [timelineColumnsAnchorEl, setTimelineColumnsAnchorEl] = useState<null | HTMLElement>(null);
+  const [visibleTimelineColumns, setVisibleTimelineColumns] = useState<Set<string>>(
+    new Set(['usreq', 'sit', 'uat', 'goLive'])
+  );
+
+  const TIMELINE_COLUMN_OPTIONS = [
+    { id: 'usreq', label: 'USREQ' },
+    { id: 'pengadaan', label: 'Pengadaan' },
+    { id: 'desain', label: 'Desain' },
+    { id: 'coding', label: 'Coding' },
+    { id: 'unitTest', label: 'Unit Test' },
+    { id: 'sit', label: 'SIT' },
+    { id: 'uat', label: 'UAT/PDKK' },
+    { id: 'deployment', label: 'Deployment' },
+    { id: 'goLive', label: 'Go Live' },
+  ];
+
+  const handleTimelineColumnToggle = (columnId: string) => {
+    setVisibleTimelineColumns(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(columnId)) {
+        // Prevent removing the last column
+        if (newSet.size > 1) {
+          newSet.delete(columnId);
+        }
+      } else {
+        newSet.add(columnId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleShowDefaultTimelineColumns = () => {
+    setVisibleTimelineColumns(new Set(['usreq', 'sit', 'uat', 'goLive']));
+  };
+
+  const handleShowAllTimelineColumns = () => {
+    setVisibleTimelineColumns(new Set(TIMELINE_COLUMN_OPTIONS.map(col => col.id)));
+  };
+
   // View modal state
   const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedPksiIdForView, setSelectedPksiIdForView] = useState<string | null>(null);
@@ -627,6 +731,11 @@ function PksiDisetujui() {
     targetSit: '',
     targetUat: '',
     targetGoLive: '',
+    targetPengadaan: '',
+    targetDesain: '',
+    targetCoding: '',
+    targetUnitTest: '',
+    targetDeployment: '',
     tanggalPengadaan: '',
     tanggalDesain: '',
     tanggalCoding: '',
@@ -651,7 +760,17 @@ function PksiDisetujui() {
     sit: [currentMonthValue()],
     uat: [currentMonthValue()],
     goLive: [currentMonthValue()],
+    pengadaan: [currentMonthValue()],
+    desain: [currentMonthValue()],
+    coding: [currentMonthValue()],
+    unitTest: [currentMonthValue()],
+    deployment: [currentMonthValue()],
   });
+
+  // Selected stages to display in timeline (for dynamic form)
+  const [selectedStages, setSelectedStages] = useState<Set<string>>(
+    new Set(['usreq', 'sit', 'uat', 'goLive'])
+  );
 
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
@@ -731,6 +850,11 @@ function PksiDisetujui() {
       targetSit: Array.isArray(pksi.targetSit) ? pksi.targetSit.filter(d => d !== '-').join(', ') : (pksi.targetSit !== '-' ? pksi.targetSit : ''),
       targetUat: Array.isArray(pksi.targetUat) ? pksi.targetUat.filter(d => d !== '-').join(', ') : (pksi.targetUat !== '-' ? pksi.targetUat : ''),
       targetGoLive: Array.isArray(pksi.targetGoLive) ? pksi.targetGoLive.filter(d => d !== '-').join(', ') : (pksi.targetGoLive !== '-' ? pksi.targetGoLive : ''),
+      targetPengadaan: Array.isArray(pksi.targetPengadaan) ? pksi.targetPengadaan.filter(d => d !== '-').join(', ') : (pksi.targetPengadaan !== '-' ? pksi.targetPengadaan : ''),
+      targetDesain: Array.isArray(pksi.targetDesain) ? pksi.targetDesain.filter(d => d !== '-').join(', ') : (pksi.targetDesain !== '-' ? pksi.targetDesain : ''),
+      targetCoding: Array.isArray(pksi.targetCoding) ? pksi.targetCoding.filter(d => d !== '-').join(', ') : (pksi.targetCoding !== '-' ? pksi.targetCoding : ''),
+      targetUnitTest: Array.isArray(pksi.targetUnitTest) ? pksi.targetUnitTest.filter(d => d !== '-').join(', ') : (pksi.targetUnitTest !== '-' ? pksi.targetUnitTest : ''),
+      targetDeployment: Array.isArray(pksi.targetDeployment) ? pksi.targetDeployment.filter(d => d !== '-').join(', ') : (pksi.targetDeployment !== '-' ? pksi.targetDeployment : ''),
       tanggalPengadaan: pksi.tanggalPengadaan || '',
       tanggalDesain: pksi.tanggalDesain || '',
       tanggalCoding: pksi.tanggalCoding || '',
@@ -750,12 +874,33 @@ function PksiDisetujui() {
     });
 
     // Initialize timeline phases from pksi data (arrays)
-    setTimelinePhases({
+    const newSelectedStages = new Set<string>();
+    
+    const initTimelinePhases: TimelinePhases = {
       usreq: Array.isArray(pksi.targetUsreq) ? pksi.targetUsreq.filter(d => d && d !== '-') : (pksi.targetUsreq && pksi.targetUsreq !== '-' ? [pksi.targetUsreq] : [currentMonthValue()]),
       sit: Array.isArray(pksi.targetSit) ? pksi.targetSit.filter(d => d && d !== '-') : (pksi.targetSit && pksi.targetSit !== '-' ? [pksi.targetSit] : [currentMonthValue()]),
       uat: Array.isArray(pksi.targetUat) ? pksi.targetUat.filter(d => d && d !== '-') : (pksi.targetUat && pksi.targetUat !== '-' ? [pksi.targetUat] : [currentMonthValue()]),
       goLive: Array.isArray(pksi.targetGoLive) ? pksi.targetGoLive.filter(d => d && d !== '-') : (pksi.targetGoLive && pksi.targetGoLive !== '-' ? [pksi.targetGoLive] : [currentMonthValue()]),
-    });
+      pengadaan: [currentMonthValue()],
+      desain: [currentMonthValue()],
+      coding: [currentMonthValue()],
+      unitTest: [currentMonthValue()],
+      deployment: [currentMonthValue()],
+    };
+    
+    // Set selectedStages based on existing data
+    if (initTimelinePhases.usreq.length > 0) newSelectedStages.add('usreq');
+    if (initTimelinePhases.sit.length > 0) newSelectedStages.add('sit');
+    if (initTimelinePhases.uat.length > 0) newSelectedStages.add('uat');
+    if (initTimelinePhases.goLive.length > 0) newSelectedStages.add('goLive');
+    if (initTimelinePhases.pengadaan.length > 0) newSelectedStages.add('pengadaan');
+    if (initTimelinePhases.desain.length > 0) newSelectedStages.add('desain');
+    if (initTimelinePhases.coding.length > 0) newSelectedStages.add('coding');
+    if (initTimelinePhases.unitTest.length > 0) newSelectedStages.add('unitTest');
+    if (initTimelinePhases.deployment.length > 0) newSelectedStages.add('deployment');
+    
+    setTimelinePhases(initTimelinePhases);
+    setSelectedStages(newSelectedStages.size > 0 ? newSelectedStages : new Set(['usreq', 'sit', 'uat', 'goLive']));
     
     // Load existing files for this PKSI
     // setIsLoadingFiles(true);
@@ -1809,6 +1954,83 @@ function PksiDisetujui() {
           </Button>
         </Popover>
 
+        {/* Timeline Columns Visibility Popover */}
+        <Popover
+          open={Boolean(timelineColumnsAnchorEl)}
+          anchorEl={timelineColumnsAnchorEl}
+          onClose={() => setTimelineColumnsAnchorEl(null)}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'center',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'center',
+          }}
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+              border: '1px solid rgba(139, 92, 246, 0.1)',
+              p: 2,
+              minWidth: 285,
+            },
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+              Timeline Columns
+            </Typography>
+            <IconButton size="small" onClick={() => setTimelineColumnsAnchorEl(null)}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
+          <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mb: 2 }}>
+            Pilih stage yang ingin ditampilkan (minimal 1)
+          </Typography>
+          <FormGroup>
+            {TIMELINE_COLUMN_OPTIONS.map((col) => (
+              <FormControlLabel
+                key={col.id}
+                control={
+                  <Checkbox
+                    checked={visibleTimelineColumns.has(col.id)}
+                    onChange={() => handleTimelineColumnToggle(col.id)}
+                    size="small"
+                    sx={{
+                      '&.Mui-checked': { color: '#8B5CF6' },
+                    }}
+                  />
+                }
+                label={
+                  <Typography variant="body2">{col.label}</Typography>
+                }
+                sx={{ mb: 0.5 }}
+              />
+            ))}
+          </FormGroup>
+          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+            <Button
+              fullWidth
+              variant="outlined"
+              size="small"
+              onClick={handleShowDefaultTimelineColumns}
+              sx={{ borderColor: '#E5E7EB', color: '#6B7280' }}
+            >
+              Default (4)
+            </Button>
+            <Button
+              fullWidth
+              variant="outlined"
+              size="small"
+              onClick={handleShowAllTimelineColumns}
+              sx={{ borderColor: '#E5E7EB', color: '#6B7280' }}
+            >
+              Semua (9)
+            </Button>
+          </Box>
+        </Popover>
+
         {/* Filter Popover - Apple Liquid Glass Style */}
         <Popover
           open={Boolean(filterAnchorEl)}
@@ -2560,8 +2782,54 @@ function PksiDisetujui() {
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100 }}>Progres</TableCell>
                 {/* Anggaran - grouped */}
                 <TableCell colSpan={3} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem' }}>Anggaran</TableCell>
-                {/* Timeline - grouped */}
-                <TableCell colSpan={4} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem' }}>Timeline</TableCell>
+                {/* Timeline - grouped (9 stages) */}
+                <TableCell 
+                  colSpan={visibleTimelineColumns.size} 
+                  align="center" 
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: '#6B7280', 
+                    py: 1.5, 
+                    px: 2, 
+                    fontSize: '0.8rem', 
+                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.04) 0%, rgba(99, 102, 241, 0.03) 100%)',
+                    cursor: 'pointer',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(99, 102, 241, 0.06) 100%)',
+                    },
+                  }}
+                  onClick={(e) => setTimelineColumnsAnchorEl(e.currentTarget)}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                    Timeline Development
+                    <IconButton 
+                      size="small" 
+                      sx={{ 
+                        p: 0.5,
+                        color: '#8B5CF6',
+                        '&:hover': { bgcolor: 'rgba(139, 92, 246, 0.1)' },
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTimelineColumnsAnchorEl(e.currentTarget);
+                      }}
+                    >
+                      <ViewColumnIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                    <Chip
+                      label={`${visibleTimelineColumns.size}/9`}
+                      size="small"
+                      sx={{
+                        height: 20,
+                        fontSize: '0.65rem',
+                        fontWeight: 600,
+                        bgcolor: 'rgba(139, 92, 246, 0.1)',
+                        color: '#8B5CF6',
+                        '& .MuiChip-label': { px: 1 },
+                      }}
+                    />
+                  </Box>
+                </TableCell>
                 {/* Rencana PKSI - grouped */}
                 <TableCell colSpan={2} align="center" sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, fontSize: '0.8rem' }}>Rencana PKSI (T01/T02)</TableCell>
                 {/* Spesifikasi Kebutuhan - grouped */}
@@ -2581,11 +2849,34 @@ function PksiDisetujui() {
                 <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Total</TableCell>
                 <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Tahun {new Date().getFullYear()}</TableCell>
                 <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Tahun {new Date().getFullYear() + 1}</TableCell>
-                {/* Timeline sub-headers */}
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 110 }}>Target Usreq</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100 }}>Target SIT</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Target UAT/PDKK</TableCell>
-                <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 110 }}>Target Go Live</TableCell>
+                {/* Timeline sub-headers (conditionally visible, neutral colors) */}
+                {visibleTimelineColumns.has('usreq') && (
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 95, background: 'rgba(139, 92, 246, 0.03)' }}>USREQ</TableCell>
+                )}
+                {visibleTimelineColumns.has('pengadaan') && (
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 100, background: 'rgba(5, 150, 105, 0.03)' }}>Pengadaan</TableCell>
+                )}
+                {visibleTimelineColumns.has('desain') && (
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 90, background: 'rgba(220, 38, 38, 0.03)' }}>Desain</TableCell>
+                )}
+                {visibleTimelineColumns.has('coding') && (
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 90, background: 'rgba(37, 99, 235, 0.03)' }}>Coding</TableCell>
+                )}
+                {visibleTimelineColumns.has('unitTest') && (
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 100, background: 'rgba(217, 119, 6, 0.03)' }}>Unit Test</TableCell>
+                )}
+                {visibleTimelineColumns.has('sit') && (
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 80, background: 'rgba(124, 58, 237, 0.03)' }}>SIT</TableCell>
+                )}
+                {visibleTimelineColumns.has('uat') && (
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 100, background: 'rgba(8, 145, 178, 0.03)' }}>UAT/PDKK</TableCell>
+                )}
+                {visibleTimelineColumns.has('deployment') && (
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 110, background: 'rgba(219, 39, 119, 0.03)' }}>Deployment</TableCell>
+                )}
+                {visibleTimelineColumns.has('goLive') && (
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 95, background: 'rgba(5, 150, 105, 0.03)' }}>Go Live</TableCell>
+                )}
                 {/* Rencana PKSI sub-headers */}
                 <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100 }}>Status</TableCell>
                 <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120 }}>Berkas Terbaru</TableCell>
@@ -2604,7 +2895,7 @@ function PksiDisetujui() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={30} sx={{ textAlign: 'center', py: 6 }}>
+                  <TableCell colSpan={21 + visibleTimelineColumns.size} sx={{ textAlign: 'center', py: 6 }}>
                     <CircularProgress size={40} sx={{ color: '#31A24C' }} />
                     <Typography variant="body2" sx={{ mt: 2, color: '#86868b' }}>
                       Memuat data...
@@ -2613,7 +2904,7 @@ function PksiDisetujui() {
                 </TableRow>
               ) : paginatedPksi.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={30} sx={{ textAlign: 'center', py: 6 }}>
+                  <TableCell colSpan={21 + visibleTimelineColumns.size} sx={{ textAlign: 'center', py: 6 }}>
                     <Typography variant="body2" sx={{ color: '#86868b' }}>
                       Tidak ada data PKSI disetujui ditemukan
                     </Typography>
@@ -2804,66 +3095,159 @@ function PksiDisetujui() {
                       {item.jangkaWaktu.includes('Multiyears') ? item.anggaranTahunDepan : '-'}
                     </Typography>
                   </TableCell>
-                  {/* Timeline - Target Usreq */}
-                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
-                    {item.targetUsreq && item.targetUsreq.length > 0 ? (
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        {item.targetUsreq.map((date, idx) => (
-                          <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                            {item.targetUsreq.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
-                            {formatMonthYear(date)}
-                          </Typography>
-                        ))}
-                      </Box>
-                    ) : (
-                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
-                    )}
-                  </TableCell>
-                  {/* Timeline - Target SIT */}
-                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
-                    {item.targetSit && item.targetSit.length > 0 ? (
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        {item.targetSit.map((date, idx) => (
-                          <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                            {item.targetSit.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
-                            {formatMonthYear(date)}
-                          </Typography>
-                        ))}
-                      </Box>
-                    ) : (
-                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
-                    )}
-                  </TableCell>
-                  {/* Timeline - Target UAT/PDKK */}
-                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
-                    {item.targetUat && item.targetUat.length > 0 ? (
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        {item.targetUat.map((date, idx) => (
-                          <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                            {item.targetUat.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
-                            {formatMonthYear(date)}
-                          </Typography>
-                        ))}
-                      </Box>
-                    ) : (
-                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
-                    )}
-                  </TableCell>
-                  {/* Timeline - Target Go Live */}
-                  <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.04)' }}>
-                    {item.targetGoLive && item.targetGoLive.length > 0 ? (
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        {item.targetGoLive.map((date, idx) => (
-                          <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
-                            {item.targetGoLive.length > 1 && <span style={{ fontWeight: 600 }}>F{idx + 1}: </span>}
-                            {formatMonthYear(date)}
-                          </Typography>
-                        ))}
-                      </Box>
-                    ) : (
-                      <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
-                    )}
-                  </TableCell>
+                  {/* Timeline - USREQ */}
+                  {visibleTimelineColumns.has('usreq') && (
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.02)' }}>
+                      {item.targetUsreq && item.targetUsreq.length > 0 ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {item.targetUsreq.map((date, idx) => (
+                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                              {item.targetUsreq.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
+                              {formatMonthYear(date)}
+                            </Typography>
+                          ))}
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#d1d5db', fontSize: '0.75rem' }}>-</Typography>
+                      )}
+                    </TableCell>
+                  )}
+                  {/* Timeline - Pengadaan */}
+                  {visibleTimelineColumns.has('pengadaan') && (
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.02)' }}>
+                      {item.targetPengadaan && item.targetPengadaan.length > 0 ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {item.targetPengadaan.map((date, idx) => (
+                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                              {item.targetPengadaan.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
+                              {formatMonthYear(date)}
+                            </Typography>
+                          ))}
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#d1d5db', fontSize: '0.75rem' }}>-</Typography>
+                      )}
+                    </TableCell>
+                  )}
+                  {/* Timeline - Desain */}
+                  {visibleTimelineColumns.has('desain') && (
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(220, 38, 38, 0.02)' }}>
+                      {item.targetDesain && item.targetDesain.length > 0 ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {item.targetDesain.map((date, idx) => (
+                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                              {item.targetDesain.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
+                              {formatMonthYear(date)}
+                            </Typography>
+                          ))}
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#d1d5db', fontSize: '0.75rem' }}>-</Typography>
+                      )}
+                    </TableCell>
+                  )}
+                  {/* Timeline - Coding */}
+                  {visibleTimelineColumns.has('coding') && (
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(37, 99, 235, 0.02)' }}>
+                      {item.targetCoding && item.targetCoding.length > 0 ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {item.targetCoding.map((date, idx) => (
+                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                              {item.targetCoding.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
+                              {formatMonthYear(date)}
+                            </Typography>
+                          ))}
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#d1d5db', fontSize: '0.75rem' }}>-</Typography>
+                      )}
+                    </TableCell>
+                  )}
+                  {/* Timeline - Unit Test */}
+                  {visibleTimelineColumns.has('unitTest') && (
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.02)' }}>
+                      {item.targetUnitTest && item.targetUnitTest.length > 0 ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {item.targetUnitTest.map((date, idx) => (
+                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                              {item.targetUnitTest.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
+                              {formatMonthYear(date)}
+                            </Typography>
+                          ))}
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#d1d5db', fontSize: '0.75rem' }}>-</Typography>
+                      )}
+                    </TableCell>
+                  )}
+                  {/* Timeline - SIT */}
+                  {visibleTimelineColumns.has('sit') && (
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(124, 58, 237, 0.02)' }}>
+                      {item.targetSit && item.targetSit.length > 0 ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {item.targetSit.map((date, idx) => (
+                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                              {item.targetSit.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
+                              {formatMonthYear(date)}
+                            </Typography>
+                          ))}
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#d1d5db', fontSize: '0.75rem' }}>-</Typography>
+                      )}
+                    </TableCell>
+                  )}
+                  {/* Timeline - UAT/PDKK */}
+                  {visibleTimelineColumns.has('uat') && (
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.02)' }}>
+                      {item.targetUat && item.targetUat.length > 0 ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {item.targetUat.map((date, idx) => (
+                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                              {item.targetUat.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
+                              {formatMonthYear(date)}
+                            </Typography>
+                          ))}
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#d1d5db', fontSize: '0.75rem' }}>-</Typography>
+                      )}
+                    </TableCell>
+                  )}
+                  {/* Timeline - Deployment */}
+                  {visibleTimelineColumns.has('deployment') && (
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(219, 39, 119, 0.02)' }}>
+                      {item.targetDeployment && item.targetDeployment.length > 0 ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {item.targetDeployment.map((date, idx) => (
+                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                              {item.targetDeployment.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
+                              {formatMonthYear(date)}
+                            </Typography>
+                          ))}
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#d1d5db', fontSize: '0.75rem' }}>-</Typography>
+                      )}
+                    </TableCell>
+                  )}
+                  {/* Timeline - Go Live */}
+                  {visibleTimelineColumns.has('goLive') && (
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.02)' }}>
+                      {item.targetGoLive && item.targetGoLive.length > 0 ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {item.targetGoLive.map((date, idx) => (
+                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                              {item.targetGoLive.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
+                              {formatMonthYear(date)}
+                            </Typography>
+                          ))}
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#d1d5db', fontSize: '0.75rem' }}>-</Typography>
+                      )}
+                    </TableCell>
+                  )}
                   {/* Rencana PKSI - Status T01/T02 */}
                   <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.04)' }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
@@ -3893,8 +4277,14 @@ function PksiDisetujui() {
             </Typography>
           </Box>
 
+          {/* Stage Selector for Dynamic Timeline */}
+          <StageSelector 
+            selectedStages={selectedStages}
+            onStagesChange={setSelectedStages}
+          />
+
           {/* Timeline Stages with Phase Management */}
-          {TIMELINE_CONFIGS.map(config => (
+          {TIMELINE_CONFIGS.filter(config => selectedStages.has(config.key)).map(config => (
             <TimelineStage
               key={config.key}
               label={config.label}
@@ -3904,6 +4294,11 @@ function PksiDisetujui() {
               onChange={(phaseIndex, value) => handleTimelineChange(config.key, phaseIndex, value)}
               onAddPhase={() => handleAddPhase(config.key)}
               onRemovePhase={(phaseIndex) => handleRemovePhase(config.key, phaseIndex)}
+              onRemoveStage={() => {
+                const newSelected = new Set(selectedStages);
+                newSelected.delete(config.key);
+                setSelectedStages(newSelected);
+              }}
             />
           ))}
 
