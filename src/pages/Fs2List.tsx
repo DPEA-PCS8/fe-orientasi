@@ -78,6 +78,7 @@ import {
 } from '../api/fs2Api';
 import { getAllAplikasi, type AplikasiData } from '../api/aplikasiApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
+import { searchPksiDocuments, type PksiDocumentData } from '../api/pksiApi';
 import { 
   uploadFs2TempFiles, 
   moveFs2TempFilesToPermanent, 
@@ -354,6 +355,7 @@ function Fs2List() {
   // Reference data for dropdowns
   const [aplikasiList, setAplikasiList] = useState<AplikasiData[]>([]);
   const [skpaList, setSkpaList] = useState<SkpaData[]>([]);
+  const [pksiList, setPksiList] = useState<PksiDocumentData[]>([]);
 
   // Form state for Add/Edit modal
   const [formData, setFormData] = useState<Fs2DocumentRequest>({
@@ -392,6 +394,7 @@ function Fs2List() {
     pernyataan_1: false,
     pernyataan_2: false,
     tanggal_berkas_fs2: '',
+    pksi_id: '',
   });
 
   // File upload state
@@ -493,12 +496,14 @@ function Fs2List() {
   useEffect(() => {
     const fetchReferenceData = async () => {
       try {
-        const [aplikasiRes, skpaRes] = await Promise.all([
+        const [aplikasiRes, skpaRes, pksiRes] = await Promise.all([
           getAllAplikasi(),
           getAllSkpa(),
+          searchPksiDocuments({ status: 'DISETUJUI', size: 1000 }),
         ]);
         setAplikasiList(aplikasiRes.data || []);
         setSkpaList(skpaRes.data || []);
+        setPksiList(pksiRes.content || []);
       } catch (error) {
         console.error('Failed to fetch reference data:', error);
       }
@@ -833,6 +838,7 @@ function Fs2List() {
       target_go_live: '',
       pernyataan_1: false,
       pernyataan_2: false,
+      pksi_id: '',
     });
     setOpenAddModal(true);
   };
@@ -880,10 +886,17 @@ function Fs2List() {
     if (!formData.skpa_id) newErrors.skpa_id = "SKPA wajib dipilih";
     // if (!formData.urgensi) newErrors.urgensi = "Urgensi wajib dipilih"; // HIDDEN as per requirement
 
-    // Section 2: Jadwal Pelaksanaan
-    if (!formData.target_pengujian) newErrors.target_pengujian = "Target Pengujian wajib diisi";
-    if (!formData.target_deployment) newErrors.target_deployment = "Target Deployment wajib diisi";
-    if (!formData.target_go_live) newErrors.target_go_live = "Target Go Live wajib diisi";
+    // Section 1.6: PKSI wajib dipilih jika Status Tahapan adalah "DESAIN"
+    if (formData.status_tahapan === 'DESAIN' && !formData.pksi_id) {
+      newErrors.pksi_id = "PKSI wajib dipilih untuk Status Tahapan Desain";
+    }
+
+    // Section 2: Jadwal Pelaksanaan - hanya wajib jika Status Tahapan adalah "PEMELIHARAAN"
+    if (formData.status_tahapan === 'PEMELIHARAAN') {
+      if (!formData.target_pengujian) newErrors.target_pengujian = "Target Pengujian wajib diisi";
+      if (!formData.target_deployment) newErrors.target_deployment = "Target Deployment wajib diisi";
+      if (!formData.target_go_live) newErrors.target_go_live = "Target Go Live wajib diisi";
+    }
 
     // Section 3: Upload Berkas F.S.2 - WAJIB UPLOAD MINIMAL 1 FILE
     if (uploadedFiles.length === 0 && uploadedFileData.length === 0) {
@@ -976,6 +989,8 @@ function Fs2List() {
         pernyataan_2: fs2.pernyataan_2 || false,
         tanggal_berkas_fs2: fs2.tanggal_berkas_fs2 || '',
         team_id: fs2.team_id || undefined,
+        // PKSI Reference (for Desain status)
+        pksi_id: fs2.pksi_id || '',
       });
       
       // Fetch existing files
@@ -1650,25 +1665,26 @@ function Fs2List() {
             </Tooltip>
           </Box>
           <Tooltip title="Download Excel">
-            <Button
-              variant="outlined"
+            <IconButton
               onClick={handleDownloadExcel}
               disabled={isDownloadingExcel}
               sx={{
-                borderColor: 'rgba(0, 0, 0, 0.12)',
-                color: '#1d1d1f',
-                fontWeight: 500,
+                background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
+                color: 'white',
+                borderRadius: '10px',
+                width: 40,
+                height: 40,
                 '&:hover': {
-                  bgcolor: 'rgba(0, 0, 0, 0.04)',
+                  background: 'linear-gradient(135deg, #047857 0%, #059669 100%)',
+                },
+                '&.Mui-disabled': {
+                  background: 'rgba(0, 0, 0, 0.12)',
+                  color: 'rgba(0, 0, 0, 0.26)',
                 },
               }}
             >
-              {isDownloadingExcel ? (
-                <CircularProgress size={20} sx={{ color: '#1d1d1f' }} />
-              ) : (
-                <DownloadIcon />
-              )}
-            </Button>
+              {isDownloadingExcel ? <CircularProgress size={20} sx={{ color: 'white' }} /> : <DownloadIcon />}
+            </IconButton>
           </Tooltip>
           {fs2Permissions.canCreate && (
             <Button
@@ -2625,7 +2641,15 @@ function Fs2List() {
                       const value = e.target.value;
                       handleSelectChange('status_tahapan', value);
                       // Auto-sync fase_pengajuan with status_tahapan
-                      setFormData(prev => ({ ...prev, fase_pengajuan: value }));
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        fase_pengajuan: value,
+                        // Clear PKSI and jadwal when switching status tahapan
+                        pksi_id: '',
+                        target_pengujian: '',
+                        target_deployment: '',
+                        target_go_live: '',
+                      }));
                     }}
                     sx={{
                       borderRadius: '12px',
@@ -2650,6 +2674,67 @@ function Fs2List() {
                     </Typography>
                   )}
                 </FormControl>
+                {/* PKSI dropdown - only show when status_tahapan is DESAIN */}
+                {formData.status_tahapan === 'DESAIN' && (
+                  <Autocomplete
+                    options={pksiList}
+                    getOptionLabel={(option) => `${option.nama_aplikasi || ''} - ${option.nama_pksi}`}
+                    value={pksiList.find(p => p.id === formData.pksi_id) || null}
+                    onChange={(_, newValue) => {
+                      const pksiId = newValue?.id || '';
+                      handleSelectChange('pksi_id', pksiId);
+                      
+                      // Auto-fill jadwal pelaksanaan from PKSI
+                      if (newValue) {
+                        // Parse timelines - prefer new flexible structure, fallback to legacy
+                        let targetUat = '';
+                        let targetGoLive = '';
+                        
+                        if (newValue.timelines && newValue.timelines.length > 0) {
+                          // Get the first UAT phase date
+                          const uatTimeline = newValue.timelines.find(t => t.stage === 'UAT');
+                          const goLiveTimeline = newValue.timelines.find(t => t.stage === 'GO_LIVE');
+                          targetUat = uatTimeline?.target_date || '';
+                          targetGoLive = goLiveTimeline?.target_date || '';
+                        } else {
+                          // Fallback to legacy fields
+                          targetUat = newValue.target_uat || '';
+                          targetGoLive = newValue.target_go_live || '';
+                        }
+                        
+                        setFormData(prev => ({
+                          ...prev,
+                          pksi_id: pksiId,
+                          // Target Pengujian FS2 = Target UAT dari PKSI
+                          target_pengujian: targetUat,
+                          // Target Deployment FS2 = Target Go Live dari PKSI
+                          target_deployment: targetGoLive,
+                          // Target Go Live FS2 = Target Go Live dari PKSI
+                          target_go_live: targetGoLive,
+                        }));
+                      } else {
+                        setFormData(prev => ({
+                          ...prev,
+                          pksi_id: '',
+                          target_pengujian: '',
+                          target_deployment: '',
+                          target_go_live: '',
+                        }));
+                      }
+                    }}
+                    renderInput={(params) => (
+                      <GlassTextField 
+                        {...params} 
+                        label="1.4 Pilih PKSI *" 
+                        required 
+                        size="small"
+                        error={!!errors.pksi_id}
+                        helperText={errors.pksi_id || "PKSI wajib dipilih untuk Status Tahapan Desain. Jadwal Pelaksanaan akan terisi otomatis."}
+                      />
+                    )}
+                    size="small"
+                  />
+                )}
                 <Autocomplete
                   options={skpaList}
                   getOptionLabel={(option) => `${option.kode_skpa} - ${option.nama_skpa}`}
@@ -2658,7 +2743,7 @@ function Fs2List() {
                   renderInput={(params) => (
                     <GlassTextField 
                       {...params} 
-                      label="1.4 Satuan Kerja Pemilik Aplikasi (SKPA)" 
+                      label={formData.status_tahapan === 'DESAIN' ? "1.5 Satuan Kerja Pemilik Aplikasi (SKPA)" : "1.4 Satuan Kerja Pemilik Aplikasi (SKPA)"} 
                       required 
                       size="small"
                       error={!!errors.skpa_id}
@@ -2668,7 +2753,7 @@ function Fs2List() {
                   size="small"
                 />
                 <GlassTextField
-                  label="1.5 Tanggal Pengajuan"
+                  label={formData.status_tahapan === 'DESAIN' ? "1.6 Tanggal Pengajuan" : "1.5 Tanggal Pengajuan"}
                   type="date"
                   size="small"
                   value={formData.tanggal_pengajuan || ''}
@@ -2753,13 +2838,26 @@ function Fs2List() {
                 </Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                {/* Info alert when DESAIN is selected */}
+                {formData.status_tahapan === 'DESAIN' && (
+                  <Alert 
+                    severity="info" 
+                    sx={{ 
+                      mb: 2, 
+                      borderRadius: '12px',
+                      '& .MuiAlert-icon': { color: '#2563EB' }
+                    }}
+                  >
+                    Jadwal Pelaksanaan terisi otomatis berdasarkan data PKSI yang dipilih. Target Pengujian = Target UAT PKSI, Target Deployment & Go Live = Target Go Live PKSI.
+                  </Alert>
+                )}
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 4 }}>
                     <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
-                      2.1 Target Pengujian *
+                      2.1 Target Pengujian {formData.status_tahapan === 'PEMELIHARAAN' ? '*' : ''}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
-                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_pengujian}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_pengujian} disabled={formData.status_tahapan === 'DESAIN'}>
                         <InputLabel>Bulan</InputLabel>
                         <Select
                           value={getMonthFromDate(formData.target_pengujian)}
@@ -2768,14 +2866,14 @@ function Fs2List() {
                             ...formData, 
                             target_pengujian: buildDateFromMonthYear(e.target.value, getYearFromDate(formData.target_pengujian))
                           })}
-                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                          sx={{ borderRadius: '12px', bgcolor: formData.status_tahapan === 'DESAIN' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.6)' }}
                         >
                           {MONTH_OPTIONS.map((month) => (
                             <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
                           ))}
                         </Select>
                       </FormControl>
-                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_pengujian}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_pengujian} disabled={formData.status_tahapan === 'DESAIN'}>
                         <InputLabel>Tahun</InputLabel>
                         <Select
                           value={getYearFromDate(formData.target_pengujian)}
@@ -2784,7 +2882,7 @@ function Fs2List() {
                             ...formData, 
                             target_pengujian: buildDateFromMonthYear(getMonthFromDate(formData.target_pengujian), e.target.value)
                           })}
-                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                          sx={{ borderRadius: '12px', bgcolor: formData.status_tahapan === 'DESAIN' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.6)' }}
                         >
                           {YEAR_OPTIONS.map((year) => (
                             <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
@@ -2798,10 +2896,10 @@ function Fs2List() {
                   </Grid>
                   <Grid size={{ xs: 4 }}>
                     <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
-                      2.2 Target Deployment *
+                      2.2 Target Deployment {formData.status_tahapan === 'PEMELIHARAAN' ? '*' : ''}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
-                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_deployment}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_deployment} disabled={formData.status_tahapan === 'DESAIN'}>
                         <InputLabel>Bulan</InputLabel>
                         <Select
                           value={getMonthFromDate(formData.target_deployment)}
@@ -2810,14 +2908,14 @@ function Fs2List() {
                             ...formData, 
                             target_deployment: buildDateFromMonthYear(e.target.value, getYearFromDate(formData.target_deployment))
                           })}
-                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                          sx={{ borderRadius: '12px', bgcolor: formData.status_tahapan === 'DESAIN' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.6)' }}
                         >
                           {MONTH_OPTIONS.map((month) => (
                             <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
                           ))}
                         </Select>
                       </FormControl>
-                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_deployment}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_deployment} disabled={formData.status_tahapan === 'DESAIN'}>
                         <InputLabel>Tahun</InputLabel>
                         <Select
                           value={getYearFromDate(formData.target_deployment)}
@@ -2826,7 +2924,7 @@ function Fs2List() {
                             ...formData, 
                             target_deployment: buildDateFromMonthYear(getMonthFromDate(formData.target_deployment), e.target.value)
                           })}
-                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                          sx={{ borderRadius: '12px', bgcolor: formData.status_tahapan === 'DESAIN' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.6)' }}
                         >
                           {YEAR_OPTIONS.map((year) => (
                             <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
@@ -2840,10 +2938,10 @@ function Fs2List() {
                   </Grid>
                   <Grid size={{ xs: 4 }}>
                     <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
-                      2.3 Target Go Live *
+                      2.3 Target Go Live {formData.status_tahapan === 'PEMELIHARAAN' ? '*' : ''}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
-                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_go_live}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_go_live} disabled={formData.status_tahapan === 'DESAIN'}>
                         <InputLabel>Bulan</InputLabel>
                         <Select
                           value={getMonthFromDate(formData.target_go_live)}
@@ -2852,14 +2950,14 @@ function Fs2List() {
                             ...formData, 
                             target_go_live: buildDateFromMonthYear(e.target.value, getYearFromDate(formData.target_go_live))
                           })}
-                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                          sx={{ borderRadius: '12px', bgcolor: formData.status_tahapan === 'DESAIN' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.6)' }}
                         >
                           {MONTH_OPTIONS.map((month) => (
                             <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
                           ))}
                         </Select>
                       </FormControl>
-                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_go_live}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_go_live} disabled={formData.status_tahapan === 'DESAIN'}>
                         <InputLabel>Tahun</InputLabel>
                         <Select
                           value={getYearFromDate(formData.target_go_live)}
@@ -2868,7 +2966,7 @@ function Fs2List() {
                             ...formData, 
                             target_go_live: buildDateFromMonthYear(getMonthFromDate(formData.target_go_live), e.target.value)
                           })}
-                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                          sx={{ borderRadius: '12px', bgcolor: formData.status_tahapan === 'DESAIN' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.6)' }}
                         >
                           {YEAR_OPTIONS.map((year) => (
                             <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
@@ -3214,6 +3312,36 @@ function Fs2List() {
                     label="1.3 Status Tahapan Aplikasi"
                     onChange={(e) => {
                       const value = e.target.value;
+                      
+                      // If changing to DESAIN and there's already a PKSI selected, auto-fill target dates
+                      if (value === 'DESAIN' && formData.pksi_id) {
+                        const selectedPksi = pksiList.find(p => p.id === formData.pksi_id);
+                        if (selectedPksi) {
+                          let targetUat = '';
+                          let targetGoLive = '';
+                          
+                          if (selectedPksi.timelines && selectedPksi.timelines.length > 0) {
+                            const uatTimeline = selectedPksi.timelines.find(t => t.stage === 'UAT');
+                            const goLiveTimeline = selectedPksi.timelines.find(t => t.stage === 'GO_LIVE');
+                            targetUat = uatTimeline?.target_date || '';
+                            targetGoLive = goLiveTimeline?.target_date || '';
+                          } else {
+                            targetUat = selectedPksi.target_uat || '';
+                            targetGoLive = selectedPksi.target_go_live || '';
+                          }
+                          
+                          setFormData(prev => ({
+                            ...prev,
+                            status_tahapan: value,
+                            fase_pengajuan: value,
+                            target_pengujian: targetUat,
+                            target_deployment: targetGoLive,
+                            target_go_live: targetGoLive,
+                          }));
+                          return;
+                        }
+                      }
+                      
                       setFormData({ ...formData, status_tahapan: value, fase_pengajuan: value });
                     }}
                     sx={{
@@ -3234,18 +3362,77 @@ function Fs2List() {
                     <MenuItem value="PEMELIHARAAN">Pemeliharaan</MenuItem>
                   </Select>
                 </FormControl>
+                {/* PKSI dropdown - only show when status_tahapan is DESAIN (Edit Modal) */}
+                {formData.status_tahapan === 'DESAIN' && (
+                  <Autocomplete
+                    options={pksiList}
+                    getOptionLabel={(option) => `${option.nama_aplikasi || ''} - ${option.nama_pksi}`}
+                    value={pksiList.find(p => p.id === formData.pksi_id) || null}
+                    onChange={(_, newValue) => {
+                      const pksiId = newValue?.id || '';
+                      handleSelectChange('pksi_id', pksiId);
+                      
+                      // Auto-fill jadwal pelaksanaan from PKSI
+                      if (newValue) {
+                        // Parse timelines - prefer new flexible structure, fallback to legacy
+                        let targetUat = '';
+                        let targetGoLive = '';
+                        
+                        if (newValue.timelines && newValue.timelines.length > 0) {
+                          // Get the first UAT phase date
+                          const uatTimeline = newValue.timelines.find(t => t.stage === 'UAT');
+                          const goLiveTimeline = newValue.timelines.find(t => t.stage === 'GO_LIVE');
+                          targetUat = uatTimeline?.target_date || '';
+                          targetGoLive = goLiveTimeline?.target_date || '';
+                        } else {
+                          // Fallback to legacy fields
+                          targetUat = newValue.target_uat || '';
+                          targetGoLive = newValue.target_go_live || '';
+                        }
+                        
+                        setFormData(prev => ({
+                          ...prev,
+                          pksi_id: pksiId,
+                          // Target Pengujian FS2 = Target UAT dari PKSI
+                          target_pengujian: targetUat,
+                          // Target Deployment FS2 = Target Go Live dari PKSI
+                          target_deployment: targetGoLive,
+                          // Target Go Live FS2 = Target Go Live dari PKSI
+                          target_go_live: targetGoLive,
+                        }));
+                      } else {
+                        setFormData(prev => ({
+                          ...prev,
+                          pksi_id: '',
+                          target_pengujian: '',
+                          target_deployment: '',
+                          target_go_live: '',
+                        }));
+                      }
+                    }}
+                    renderInput={(params) => (
+                      <GlassTextField 
+                        {...params} 
+                        label="1.4 PKSI Terkait" 
+                        size="small"
+                        helperText="PKSI yang dipilih saat membuat FS2"
+                      />
+                    )}
+                    size="small"
+                  />
+                )}
                 <Autocomplete
                   options={skpaList}
                   getOptionLabel={(option) => `${option.kode_skpa} - ${option.nama_skpa}`}
                   value={skpaList.find(s => s.id === formData.skpa_id) || null}
                   onChange={(_, newValue) => setFormData({ ...formData, skpa_id: newValue?.id || '' })}
                   renderInput={(params) => (
-                    <GlassTextField {...params} label="1.4 Satuan Kerja Pemilik Aplikasi (SKPA)" required size="small" />
+                    <GlassTextField {...params} label={formData.status_tahapan === 'DESAIN' ? "1.5 Satuan Kerja Pemilik Aplikasi (SKPA)" : "1.4 Satuan Kerja Pemilik Aplikasi (SKPA)"} required size="small" />
                   )}
                   size="small"
                 />
                 <GlassTextField
-                  label="1.5 Tanggal Pengajuan"
+                  label={formData.status_tahapan === 'DESAIN' ? "1.6 Tanggal Pengajuan" : "1.5 Tanggal Pengajuan"}
                   type="date"
                   size="small"
                   value={formData.tanggal_pengajuan || ''}
@@ -3298,13 +3485,26 @@ function Fs2List() {
                 </Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
+                {/* Info alert when DESAIN is selected */}
+                {formData.status_tahapan === 'DESAIN' && (
+                  <Alert 
+                    severity="info" 
+                    sx={{ 
+                      mb: 2, 
+                      borderRadius: '12px',
+                      '& .MuiAlert-icon': { color: '#2563EB' }
+                    }}
+                  >
+                    Jadwal pelaksanaan pada tahapan Desain telah mengacu pada timeline dan target PKSI terkait.
+                  </Alert>
+                )}
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 4 }}>
                     <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
                       2.1 Target Pengujian *
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
-                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_pengujian}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_pengujian} disabled={formData.status_tahapan === 'DESAIN'}>
                         <InputLabel>Bulan</InputLabel>
                         <Select
                           value={getMonthFromDate(formData.target_pengujian)}
@@ -3313,14 +3513,14 @@ function Fs2List() {
                             ...formData, 
                             target_pengujian: buildDateFromMonthYear(e.target.value, getYearFromDate(formData.target_pengujian))
                           })}
-                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                          sx={{ borderRadius: '12px', bgcolor: formData.status_tahapan === 'DESAIN' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.6)' }}
                         >
                           {MONTH_OPTIONS.map((month) => (
                             <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
                           ))}
                         </Select>
                       </FormControl>
-                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_pengujian}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_pengujian} disabled={formData.status_tahapan === 'DESAIN'}>
                         <InputLabel>Tahun</InputLabel>
                         <Select
                           value={getYearFromDate(formData.target_pengujian)}
@@ -3329,7 +3529,7 @@ function Fs2List() {
                             ...formData, 
                             target_pengujian: buildDateFromMonthYear(getMonthFromDate(formData.target_pengujian), e.target.value)
                           })}
-                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                          sx={{ borderRadius: '12px', bgcolor: formData.status_tahapan === 'DESAIN' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.6)' }}
                         >
                           {YEAR_OPTIONS.map((year) => (
                             <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
@@ -3346,7 +3546,7 @@ function Fs2List() {
                       2.2 Target Deployment *
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
-                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_deployment}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_deployment} disabled={formData.status_tahapan === 'DESAIN'}>
                         <InputLabel>Bulan</InputLabel>
                         <Select
                           value={getMonthFromDate(formData.target_deployment)}
@@ -3355,14 +3555,14 @@ function Fs2List() {
                             ...formData, 
                             target_deployment: buildDateFromMonthYear(e.target.value, getYearFromDate(formData.target_deployment))
                           })}
-                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                          sx={{ borderRadius: '12px', bgcolor: formData.status_tahapan === 'DESAIN' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.6)' }}
                         >
                           {MONTH_OPTIONS.map((month) => (
                             <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
                           ))}
                         </Select>
                       </FormControl>
-                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_deployment}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_deployment} disabled={formData.status_tahapan === 'DESAIN'}>
                         <InputLabel>Tahun</InputLabel>
                         <Select
                           value={getYearFromDate(formData.target_deployment)}
@@ -3371,7 +3571,7 @@ function Fs2List() {
                             ...formData, 
                             target_deployment: buildDateFromMonthYear(getMonthFromDate(formData.target_deployment), e.target.value)
                           })}
-                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                          sx={{ borderRadius: '12px', bgcolor: formData.status_tahapan === 'DESAIN' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.6)' }}
                         >
                           {YEAR_OPTIONS.map((year) => (
                             <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
@@ -3388,7 +3588,7 @@ function Fs2List() {
                       2.3 Target Go Live *
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
-                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_go_live}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_go_live} disabled={formData.status_tahapan === 'DESAIN'}>
                         <InputLabel>Bulan</InputLabel>
                         <Select
                           value={getMonthFromDate(formData.target_go_live)}
@@ -3397,14 +3597,14 @@ function Fs2List() {
                             ...formData, 
                             target_go_live: buildDateFromMonthYear(e.target.value, getYearFromDate(formData.target_go_live))
                           })}
-                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                          sx={{ borderRadius: '12px', bgcolor: formData.status_tahapan === 'DESAIN' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.6)' }}
                         >
                           {MONTH_OPTIONS.map((month) => (
                             <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
                           ))}
                         </Select>
                       </FormControl>
-                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_go_live}>
+                      <FormControl size="small" sx={{ flex: 1 }} error={!!errors.target_go_live} disabled={formData.status_tahapan === 'DESAIN'}>
                         <InputLabel>Tahun</InputLabel>
                         <Select
                           value={getYearFromDate(formData.target_go_live)}
@@ -3413,7 +3613,7 @@ function Fs2List() {
                             ...formData, 
                             target_go_live: buildDateFromMonthYear(getMonthFromDate(formData.target_go_live), e.target.value)
                           })}
-                          sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.6)' }}
+                          sx={{ borderRadius: '12px', bgcolor: formData.status_tahapan === 'DESAIN' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.6)' }}
                         >
                           {YEAR_OPTIONS.map((year) => (
                             <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>

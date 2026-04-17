@@ -128,6 +128,23 @@ interface Fs2DisetujuiData {
 const PROGRES_OPTIONS = ['ASESMEN', 'CODING', 'PDKK', 'DEPLOY_SELESAI'] as const;
 const PROGRES_STATUS_OPTIONS = ['BELUM_DIMULAI', 'DALAM_PROSES', 'SELESAI'] as const;
 const FASE_PENGAJUAN_OPTIONS = ['DESAIN', 'PEMELIHARAAN'] as const;
+
+// FS2 Progress Tahapan Configuration (6 stages as per requirement)
+const FS2_TAHAPAN_CONFIG = [
+  { key: 'PENGAJUAN', label: 'Pengajuan', color: '#6366F1', gradient: ['#6366F1', '#818CF8'], rgb: '99,102,241' },
+  { key: 'ASESMEN', label: 'Asesmen', color: '#8B5CF6', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246' },
+  { key: 'PEMROGRAMAN', label: 'Pemrograman', color: '#F59E0B', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11' },
+  { key: 'PENGUJIAN', label: 'Pengujian', color: '#0EA5E9', gradient: ['#0EA5E9', '#38BDF8'], rgb: '14,165,233' },
+  { key: 'DEPLOYMENT', label: 'Deployment/Selesai', color: '#31A24C', gradient: ['#31A24C', '#4ADE80'], rgb: '49,162,76' },
+  { key: 'GO_LIVE', label: 'Go Live', color: '#10B981', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
+] as const;
+
+// FS2 Timeline Configuration (3 stages: Pengujian, Deployment, Go Live)
+const FS2_TIMELINE_CONFIGS = [
+  { key: 'pengujian' as const, label: 'Target Pengujian', targetField: 'targetPengujian', realisasiField: 'realisasiPengujian', gradient: ['#0EA5E9', '#38BDF8'], rgb: '14,165,233' },
+  { key: 'deployment' as const, label: 'Target Deployment', targetField: 'targetDeployment', realisasiField: 'realisasiDeployment', gradient: ['#31A24C', '#4ADE80'], rgb: '49,162,76' },
+  { key: 'goLive' as const, label: 'Target Go Live', targetField: 'targetGoLive', realisasiField: null, gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
+] as const;
 const MEKANISME_OPTIONS = ['INHOUSE', 'OUTSOURCE'] as const;
 const PELAKSANAAN_OPTIONS = ['SINGLE_YEAR', 'MULTIYEARS'] as const;
 
@@ -774,6 +791,8 @@ function Fs2Disetujui() {
         anggota_tim: fs2.anggota_tim || '',
         anggota_tim_names: fs2.anggota_tim_names || '',
         bidang_id: fs2.bidang_id || '',
+        // PKSI Reference (for DESAIN status)
+        pksi_id: fs2.pksi_id || '',
         // Dokumen Pengajuan F.S.2
         nomor_nd: fs2.nomor_nd || '',
         tanggal_nd: fs2.tanggal_nd || '',
@@ -1464,24 +1483,26 @@ function Fs2Disetujui() {
             
             {/* Download Excel Button */}
             <Tooltip title="Download Excel">
-              <Button
-                variant="text"
+              <IconButton
                 onClick={handleDownloadExcel}
                 disabled={isDownloadingExcel}
                 sx={{
-                  color: '#86868b',
-                  fontWeight: 500,
+                  background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
+                  color: 'white',
+                  borderRadius: '10px',
+                  width: 40,
+                  height: 40,
                   '&:hover': {
-                    bgcolor: 'rgba(0, 0, 0, 0.04)',
+                    background: 'linear-gradient(135deg, #047857 0%, #059669 100%)',
+                  },
+                  '&.Mui-disabled': {
+                    background: 'rgba(0, 0, 0, 0.12)',
+                    color: 'rgba(0, 0, 0, 0.26)',
                   },
                 }}
               >
-                {isDownloadingExcel ? (
-                  <CircularProgress size={20} sx={{ color: '#86868b' }} />
-                ) : (
-                  <DownloadIcon />
-                )}
-              </Button>
+                {isDownloadingExcel ? <CircularProgress size={20} sx={{ color: 'white' }} /> : <DownloadIcon />}
+              </IconButton>
             </Tooltip>
           </Box>
         </Box>
@@ -2737,6 +2758,177 @@ function Fs2Disetujui() {
                     <Typography sx={{ color: '#86868b', fontSize: '0.85rem' }}>-</Typography>
                   )}
                 </Box>
+                {/* PKSI field - only show when status_tahapan is DESAIN */}
+                {selectedFs2.pksi_nama && (
+                  <Box sx={{ flex: 1 }}>
+                    <Typography sx={{ 
+                      fontSize: '0.7rem', 
+                      color: '#86868b', 
+                      mb: 0.5,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      fontWeight: 500,
+                    }}>
+                      PKSI Terkait
+                    </Typography>
+                    <Chip
+                      label={selectedFs2.pksi_nama}
+                      size="small"
+                      sx={{
+                        bgcolor: 'rgba(59, 130, 246, 0.15)',
+                        color: '#3B82F6',
+                        fontWeight: 600,
+                        fontSize: '0.65rem',
+                        height: 22,
+                        borderRadius: '6px',
+                      }}
+                    />
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          )}
+
+          {/* Progress Tahapan Section (6 stages) */}
+          {selectedFs2 && (
+            <Box sx={{ 
+              mb: 3,
+              p: 2.5,
+              borderRadius: '16px',
+              background: 'linear-gradient(145deg, rgba(255, 255, 255, 0.9) 0%, rgba(250, 250, 252, 0.8) 100%)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(99, 102, 241, 0.15)',
+              boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
+            }}>
+              <Typography variant="subtitle2" sx={{ 
+                mb: 2.5, 
+                fontWeight: 600, 
+                color: '#6366F1', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1,
+                fontSize: '0.85rem',
+              }}>
+                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#6366F1' }} />
+                Progres Tahapan
+              </Typography>
+              
+              {/* Visual Progress Bar */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
+                {FS2_TAHAPAN_CONFIG.map((tahapan, index) => {
+                  const currentProgresIndex = FS2_TAHAPAN_CONFIG.findIndex(t => 
+                    t.key === (editFormData.progres === 'DEPLOY_SELESAI' ? 'DEPLOYMENT' : 
+                              editFormData.progres === 'PDKK' ? 'PENGUJIAN' :
+                              editFormData.progres === 'CODING' ? 'PEMROGRAMAN' :
+                              editFormData.progres || 'PENGAJUAN')
+                  );
+                  const isCompleted = index < currentProgresIndex;
+                  const isCurrent = index === currentProgresIndex;
+                  
+                  return (
+                    <Box key={tahapan.key} sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <Box sx={{
+                        width: '100%',
+                        height: 8,
+                        borderRadius: '4px',
+                        background: isCompleted 
+                          ? `linear-gradient(90deg, ${tahapan.gradient[0]}, ${tahapan.gradient[1]})`
+                          : isCurrent
+                            ? `linear-gradient(90deg, ${tahapan.gradient[0]}80, ${tahapan.gradient[1]}50)`
+                            : 'rgba(0, 0, 0, 0.06)',
+                        transition: 'all 0.3s ease',
+                        boxShadow: isCompleted || isCurrent ? `0 2px 8px rgba(${tahapan.rgb}, 0.25)` : 'none',
+                      }} />
+                      <Typography sx={{ 
+                        mt: 1, 
+                        fontSize: '0.65rem', 
+                        fontWeight: isCurrent ? 700 : isCompleted ? 600 : 400,
+                        color: isCurrent ? tahapan.color : isCompleted ? '#1d1d1f' : '#86868b',
+                        textAlign: 'center',
+                      }}>
+                        {tahapan.label}
+                      </Typography>
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+          )}
+
+          {/* Timeline Section (Pengujian, Deployment, Go Live) */}
+          {selectedFs2 && (
+            <Box sx={{ 
+              mb: 3,
+              p: 2.5,
+              borderRadius: '16px',
+              background: 'linear-gradient(145deg, rgba(255, 255, 255, 0.9) 0%, rgba(250, 252, 250, 0.8) 100%)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(16, 185, 129, 0.15)',
+              boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
+            }}>
+              <Typography variant="subtitle2" sx={{ 
+                mb: 2.5, 
+                fontWeight: 600, 
+                color: '#10B981', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1,
+                fontSize: '0.85rem',
+              }}>
+                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#10B981' }} />
+                Timeline
+              </Typography>
+              
+              {/* Timeline Visual */}
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                {FS2_TIMELINE_CONFIGS.map((timeline, index) => (
+                  <Box key={timeline.key} sx={{ 
+                    flex: 1, 
+                    p: 2, 
+                    borderRadius: '12px',
+                    background: `linear-gradient(135deg, rgba(${timeline.rgb}, 0.08) 0%, rgba(${timeline.rgb}, 0.04) 100%)`,
+                    border: `1px solid rgba(${timeline.rgb}, 0.2)`,
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                      <Box sx={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '8px',
+                        background: `linear-gradient(135deg, ${timeline.gradient[0]}, ${timeline.gradient[1]})`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: `0 2px 8px rgba(${timeline.rgb}, 0.3)`,
+                      }}>
+                        <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.7rem' }}>
+                          {index + 1}
+                        </Typography>
+                      </Box>
+                      <Typography sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#1d1d1f' }}>
+                        {timeline.label}
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ 
+                      fontSize: '0.75rem', 
+                      color: timeline.gradient[0],
+                      fontWeight: 600,
+                    }}>
+                      {timeline.key === 'pengujian' ? (editFormData.target_pengujian ? formatMonthYear(editFormData.target_pengujian) : '-') :
+                       timeline.key === 'deployment' ? (editFormData.target_deployment ? formatMonthYear(editFormData.target_deployment) : '-') :
+                       (editFormData.target_go_live ? formatMonthYear(editFormData.target_go_live) : '-')}
+                    </Typography>
+                    {timeline.realisasiField && (
+                      <Typography sx={{ 
+                        fontSize: '0.65rem', 
+                        color: '#86868b',
+                        mt: 0.5,
+                      }}>
+                        Realisasi: {timeline.key === 'pengujian' ? (editFormData.realisasi_pengujian ? formatMonthYear(editFormData.realisasi_pengujian) : '-') :
+                                   (editFormData.realisasi_deployment ? formatMonthYear(editFormData.realisasi_deployment) : '-')}
+                      </Typography>
+                    )}
+                  </Box>
+                ))}
               </Box>
             </Box>
           )}
@@ -3687,7 +3879,7 @@ function Fs2Disetujui() {
                     <Select
                       value={getMonthFromDate(editFormData.target_pengujian)}
                       label="Bulan"
-                      disabled={true}
+                      disabled={editFormData.fase_pengajuan === 'DESAIN'}
                       onChange={(e) => setEditFormData({ 
                         ...editFormData, 
                         target_pengujian: buildDateFromMonthYear(e.target.value, getYearFromDate(editFormData.target_pengujian))
@@ -3704,7 +3896,7 @@ function Fs2Disetujui() {
                     <Select
                       value={getYearFromDate(editFormData.target_pengujian)}
                       label="Tahun"
-                      disabled={true}
+                      disabled={editFormData.fase_pengajuan === 'DESAIN'}
                       onChange={(e) => setEditFormData({ 
                         ...editFormData, 
                         target_pengujian: buildDateFromMonthYear(getMonthFromDate(editFormData.target_pengujian), e.target.value)
@@ -3962,7 +4154,7 @@ function Fs2Disetujui() {
                     <Select
                       value={getMonthFromDate(editFormData.target_deployment)}
                       label="Bulan"
-                      disabled={true}
+                      disabled={editFormData.fase_pengajuan === 'DESAIN'}
                       onChange={(e) => setEditFormData({ 
                         ...editFormData, 
                         target_deployment: buildDateFromMonthYear(e.target.value, getYearFromDate(editFormData.target_deployment))
@@ -3979,7 +4171,7 @@ function Fs2Disetujui() {
                     <Select
                       value={getYearFromDate(editFormData.target_deployment)}
                       label="Tahun"
-                      disabled={true}
+                      disabled={editFormData.fase_pengajuan === 'DESAIN'}
                       onChange={(e) => setEditFormData({ 
                         ...editFormData, 
                         target_deployment: buildDateFromMonthYear(getMonthFromDate(editFormData.target_deployment), e.target.value)
@@ -4148,7 +4340,7 @@ function Fs2Disetujui() {
                     <Select
                       value={getMonthFromDate(editFormData.target_go_live)}
                       label="Bulan"
-                      disabled={true}
+                      disabled={editFormData.fase_pengajuan === 'DESAIN'}
                       onChange={(e) => setEditFormData({ 
                         ...editFormData, 
                         target_go_live: buildDateFromMonthYear(e.target.value, getYearFromDate(editFormData.target_go_live))
@@ -4165,7 +4357,7 @@ function Fs2Disetujui() {
                     <Select
                       value={getYearFromDate(editFormData.target_go_live)}
                       label="Tahun"
-                      disabled={true}
+                      disabled={editFormData.fase_pengajuan === 'DESAIN'}
                       onChange={(e) => setEditFormData({ 
                         ...editFormData, 
                         target_go_live: buildDateFromMonthYear(getMonthFromDate(editFormData.target_go_live), e.target.value)

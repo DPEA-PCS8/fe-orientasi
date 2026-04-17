@@ -124,6 +124,23 @@ const PELAKSANAAN_LABELS: Record<string, string> = {
   MULTIYEARS: 'Multiyears',
 };
 
+// FS2 Progress Tahapan Configuration (6 stages)
+const FS2_TAHAPAN_CONFIG = [
+  { key: 'PENGAJUAN', label: 'Pengajuan', color: '#6366F1', gradient: ['#6366F1', '#818CF8'], rgb: '99,102,241' },
+  { key: 'ASESMEN', label: 'Asesmen', color: '#8B5CF6', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246' },
+  { key: 'PEMROGRAMAN', label: 'Pemrograman', color: '#F59E0B', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11' },
+  { key: 'PENGUJIAN', label: 'Pengujian', color: '#0EA5E9', gradient: ['#0EA5E9', '#38BDF8'], rgb: '14,165,233' },
+  { key: 'DEPLOYMENT', label: 'Deployment/Selesai', color: '#31A24C', gradient: ['#31A24C', '#4ADE80'], rgb: '49,162,76' },
+  { key: 'GO_LIVE', label: 'Go Live', color: '#10B981', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
+] as const;
+
+// FS2 Timeline Configuration (3 stages)
+const FS2_TIMELINE_CONFIGS = [
+  { key: 'pengujian' as const, label: 'Target Pengujian', gradient: ['#0EA5E9', '#38BDF8'], rgb: '14,165,233' },
+  { key: 'deployment' as const, label: 'Target Deployment', gradient: ['#31A24C', '#4ADE80'], rgb: '49,162,76' },
+  { key: 'goLive' as const, label: 'Target Go Live', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
+] as const;
+
 const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showMonitoringSection = false, showDocumentSection = false }) => {
   const [fs2Data, setFs2Data] = useState<Fs2DocumentData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -621,6 +638,27 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                     )}
                   </Box>
                 </InfoRow>
+                {/* PKSI field - only show when status_tahapan is DESAIN */}
+                {fs2Data.pksi_nama && (
+                  <InfoRow>
+                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      PKSI Terkait
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 0.5 }}>
+                      <Chip
+                        label={fs2Data.pksi_nama}
+                        size="small"
+                        sx={{
+                          bgcolor: 'rgba(59, 130, 246, 0.15)',
+                          color: '#3B82F6',
+                          fontWeight: 500,
+                          fontSize: '0.75rem',
+                          borderRadius: '6px',
+                        }}
+                      />
+                    </Box>
+                  </InfoRow>
+                )}
               </Box>
 
               {/* HIDDEN: Urgensi Badge as per requirement */}
@@ -858,6 +896,139 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Pelaksanaan</Typography>
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{getPelaksanaanDisplay()}</Typography>
                     </InfoRow>
+                  </Box>
+                </Box>
+
+                {/* Progress Tahapan Visual */}
+                <Box sx={{ p: 2.5, borderRadius: '12px', bgcolor: 'rgba(99, 102, 241, 0.03)', border: '1px solid rgba(99, 102, 241, 0.1)', mb: 2 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#6366F1', mb: 2 }}>
+                    Progres Tahapan
+                  </Typography>
+                  <Box sx={{ position: 'relative', height: 60, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    {FS2_TAHAPAN_CONFIG.map((tahapan, index) => {
+                      // Determine stage status (simplified - you may want to add logic to determine current stage)
+                      const isCompleted = index < 1; // Example: first stage is always completed when viewing
+                      const isCurrent = index === 1; // Example: second stage is current
+                      
+                      return (
+                        <Box
+                          key={tahapan.key}
+                          sx={{
+                            flex: 1,
+                            height: 12,
+                            borderRadius: index === 0 ? '6px 0 0 6px' : index === FS2_TAHAPAN_CONFIG.length - 1 ? '0 6px 6px 0' : 0,
+                            background: isCompleted || isCurrent
+                              ? `linear-gradient(135deg, ${tahapan.gradient[0]}, ${tahapan.gradient[1]})`
+                              : 'rgba(209, 213, 219, 0.3)',
+                            position: 'relative',
+                            transition: 'all 0.3s ease',
+                            opacity: isCompleted || isCurrent ? 1 : 0.5,
+                            boxShadow: isCurrent ? `0 0 15px rgba(${tahapan.rgb}, 0.4)` : 'none',
+                            '&::after': isCurrent ? {
+                              content: '""',
+                              position: 'absolute',
+                              top: -4,
+                              left: -4,
+                              right: -4,
+                              bottom: -4,
+                              border: `2px solid ${tahapan.color}`,
+                              borderRadius: 'inherit',
+                              animation: 'pulse 1.5s ease-in-out infinite',
+                            } : {},
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              bottom: -30,
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              fontSize: '0.7rem',
+                              fontWeight: isCurrent ? 700 : 500,
+                              color: isCompleted || isCurrent ? tahapan.color : '#9CA3AF',
+                              whiteSpace: 'nowrap',
+                              textAlign: 'center',
+                            }}
+                          >
+                            {tahapan.label}
+                          </Box>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                </Box>
+
+                {/* Timeline Visual */}
+                <Box sx={{ p: 2.5, borderRadius: '12px', bgcolor: 'rgba(14, 165, 233, 0.03)', border: '1px solid rgba(14, 165, 233, 0.1)', mb: 2 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#0EA5E9', mb: 2.5 }}>
+                    Timeline
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 2, position: 'relative' }}>
+                    {FS2_TIMELINE_CONFIGS.map((timeline, index) => {
+                      let targetDate = '-';
+                      let realisasiDate = '-';
+                      
+                      if (timeline.key === 'pengujian') {
+                        targetDate = formatMonthYear(fs2Data.target_pengujian);
+                        realisasiDate = formatMonthYear(fs2Data.realisasi_pengujian);
+                      } else if (timeline.key === 'deployment') {
+                        targetDate = formatMonthYear(fs2Data.target_deployment);
+                        realisasiDate = formatMonthYear(fs2Data.realisasi_deployment);
+                      } else if (timeline.key === 'goLive') {
+                        targetDate = formatMonthYear(fs2Data.target_go_live);
+                      }
+                      
+                      return (
+                        <Box
+                          key={timeline.key}
+                          sx={{
+                            flex: 1,
+                            p: 2,
+                            borderRadius: '12px',
+                            background: `linear-gradient(135deg, rgba(${timeline.rgb}, 0.08), rgba(${timeline.rgb}, 0.03))`,
+                            border: `1px solid rgba(${timeline.rgb}, 0.2)`,
+                            position: 'relative',
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                              transform: 'translateY(-2px)',
+                              boxShadow: `0 8px 20px rgba(${timeline.rgb}, 0.15)`,
+                            },
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                            <Box
+                              sx={{
+                                width: 24,
+                                height: 24,
+                                borderRadius: '50%',
+                                background: `linear-gradient(135deg, ${timeline.gradient[0]}, ${timeline.gradient[1]})`,
+                                color: 'white',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              {index + 1}
+                            </Box>
+                            <Typography variant="caption" sx={{ fontWeight: 700, color: timeline.gradient[0] }}>
+                              {timeline.label}
+                            </Typography>
+                          </Box>
+                          <Box>
+                            <Typography variant="caption" sx={{ fontSize: '0.7rem', color: '#6B7280', display: 'block' }}>
+                              Target: {targetDate}
+                            </Typography>
+                            {timeline.key !== 'goLive' && (
+                              <Typography variant="caption" sx={{ fontSize: '0.7rem', color: '#6B7280', display: 'block' }}>
+                                Realisasi: {realisasiDate}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      );
+                    })}
                   </Box>
                 </Box>
 

@@ -19,6 +19,9 @@ export interface Fs2DocumentData {
   skpa_id?: string;
   nama_skpa?: string;
   kode_skpa?: string;
+  // PKSI Reference (for Desain status)
+  pksi_id?: string;
+  pksi_nama?: string;
   status: string;
   
   // Form fields from requirement point 6
@@ -195,6 +198,9 @@ export interface Fs2DocumentRequest {
   anggota_tim?: string;
   anggota_tim_names?: string;
   dokumen_path?: string;
+  
+  // PKSI Reference (for Desain status)
+  pksi_id?: string;
   
   // Monitoring Fields - Dokumen Pengajuan F.S.2
   nomor_nd?: string;
