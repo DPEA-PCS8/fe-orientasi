@@ -40,6 +40,7 @@ import {
   Snackbar,
   Alert,
   Link,
+  Stack,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -129,22 +130,88 @@ const PROGRES_OPTIONS = ['ASESMEN', 'CODING', 'PDKK', 'DEPLOY_SELESAI'] as const
 const PROGRES_STATUS_OPTIONS = ['BELUM_DIMULAI', 'DALAM_PROSES', 'SELESAI'] as const;
 const FASE_PENGAJUAN_OPTIONS = ['DESAIN', 'PEMELIHARAAN'] as const;
 
+// Type for tahapan date fields (completion dates)
+type Fs2TahapanDateField = 'tanggal_pengajuan_selesai' | 'tanggal_asesmen' | 'tanggal_pemrograman' | 'tanggal_pengujian_selesai' | 'tanggal_deployment_selesai' | 'tanggal_go_live';
+
+// Type for tahapan target fields
+type Fs2TahapanTargetField = 'target_pemrograman' | 'target_pengujian' | 'target_deployment' | 'target_go_live';
+
 // FS2 Progress Tahapan Configuration (6 stages as per requirement)
-const FS2_TAHAPAN_CONFIG = [
-  { key: 'PENGAJUAN', label: 'Pengajuan', color: '#6366F1', gradient: ['#6366F1', '#818CF8'], rgb: '99,102,241' },
-  { key: 'ASESMEN', label: 'Asesmen', color: '#8B5CF6', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246' },
-  { key: 'PEMROGRAMAN', label: 'Pemrograman', color: '#F59E0B', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11' },
-  { key: 'PENGUJIAN', label: 'Pengujian', color: '#0EA5E9', gradient: ['#0EA5E9', '#38BDF8'], rgb: '14,165,233' },
-  { key: 'DEPLOYMENT', label: 'Deployment/Selesai', color: '#31A24C', gradient: ['#31A24C', '#4ADE80'], rgb: '49,162,76' },
-  { key: 'GO_LIVE', label: 'Go Live', color: '#10B981', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
+const FS2_TAHAPAN_CONFIG: Array<{
+  key: string;
+  label: string;
+  color: string;
+  gradient: [string, string];
+  rgb: string;
+  dateField: Fs2TahapanDateField;
+  targetField: Fs2TahapanTargetField | null;
+  statusApiField: string;
+}> = [
+  { key: 'PENGAJUAN', label: 'Pengajuan', color: '#6366F1', gradient: ['#6366F1', '#818CF8'], rgb: '99,102,241', dateField: 'tanggal_pengajuan_selesai', targetField: null, statusApiField: 'tahapan_status_pengajuan' },
+  { key: 'ASESMEN', label: 'Asesmen', color: '#8B5CF6', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246', dateField: 'tanggal_asesmen', targetField: null, statusApiField: 'tahapan_status_asesmen' },
+  { key: 'PEMROGRAMAN', label: 'Pemrograman', color: '#F59E0B', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11', dateField: 'tanggal_pemrograman', targetField: 'target_pemrograman', statusApiField: 'tahapan_status_pemrograman' },
+  { key: 'PENGUJIAN', label: 'Pengujian', color: '#0EA5E9', gradient: ['#0EA5E9', '#38BDF8'], rgb: '14,165,233', dateField: 'tanggal_pengujian_selesai', targetField: 'target_pengujian', statusApiField: 'tahapan_status_pengujian' },
+  { key: 'DEPLOYMENT', label: 'Deployment/Selesai', color: '#31A24C', gradient: ['#31A24C', '#4ADE80'], rgb: '49,162,76', dateField: 'tanggal_deployment_selesai', targetField: 'target_deployment', statusApiField: 'tahapan_status_deployment' },
+  { key: 'GO_LIVE', label: 'Go Live', color: '#10B981', gradient: ['#10B981', '#34D399'], rgb: '16,185,129', dateField: 'tanggal_go_live', targetField: 'target_go_live', statusApiField: 'tahapan_status_go_live' },
+];
+
+// FS2 Timeline Configuration (3 stages: Pengujian, Deployment, Go Live) - No realisasi field per requirement
+const FS2_TIMELINE_CONFIGS = [
+  { key: 'pengujian' as const, label: 'Target Pengujian', targetField: 'target_pengujian', gradient: ['#0EA5E9', '#38BDF8'], rgb: '14,165,233' },
+  { key: 'deployment' as const, label: 'Target Deployment', targetField: 'target_deployment', gradient: ['#31A24C', '#4ADE80'], rgb: '49,162,76' },
+  { key: 'goLive' as const, label: 'Target Go Live', targetField: 'target_go_live', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
 ] as const;
 
-// FS2 Timeline Configuration (3 stages: Pengujian, Deployment, Go Live)
-const FS2_TIMELINE_CONFIGS = [
-  { key: 'pengujian' as const, label: 'Target Pengujian', targetField: 'targetPengujian', realisasiField: 'realisasiPengujian', gradient: ['#0EA5E9', '#38BDF8'], rgb: '14,165,233' },
-  { key: 'deployment' as const, label: 'Target Deployment', targetField: 'targetDeployment', realisasiField: 'realisasiDeployment', gradient: ['#31A24C', '#4ADE80'], rgb: '49,162,76' },
-  { key: 'goLive' as const, label: 'Target Go Live', targetField: 'targetGoLive', realisasiField: null, gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
-] as const;
+// Helper to derive current tahapan progress from completion dates (for Table Progres column)
+const deriveProgresTahapan = (apiData: Fs2DocumentData): { tahapanLabel: string; status: string; tanggal: string | null; color: string } => {
+  const completionDates: Record<string, string | null | undefined> = {
+    'PENGAJUAN': apiData.tanggal_pengajuan_selesai,
+    'ASESMEN': apiData.tanggal_asesmen,
+    'PEMROGRAMAN': apiData.tanggal_pemrograman,
+    'PENGUJIAN': apiData.tanggal_pengujian_selesai,
+    'DEPLOYMENT': apiData.tanggal_deployment_selesai,
+    'GO_LIVE': apiData.tanggal_go_live,
+  };
+
+  let currentTahapan: typeof FS2_TAHAPAN_CONFIG[0] | null = null;
+  let currentStatus = 'Belum dimulai';
+
+  // Find the current tahapan (first one without completion date after all completed ones)
+  for (let i = 0; i < FS2_TAHAPAN_CONFIG.length; i++) {
+    const tahapan = FS2_TAHAPAN_CONFIG[i];
+    const hasCompletionDate = completionDates[tahapan.key] && completionDates[tahapan.key]!.length > 0;
+
+    if (!hasCompletionDate) {
+      // This is the current tahapan
+      currentTahapan = tahapan;
+      // Check if all previous are completed
+      const allPreviousCompleted = i === 0 || FS2_TAHAPAN_CONFIG.slice(0, i).every(
+        prev => completionDates[prev.key] && completionDates[prev.key]!.length > 0
+      );
+      currentStatus = allPreviousCompleted ? 'Dalam proses' : 'Belum dimulai';
+      break;
+    }
+  }
+
+  // If all tahapan are completed (Go Live has date), show Go Live - Selesai
+  if (!currentTahapan) {
+    const goLiveTahapan = FS2_TAHAPAN_CONFIG.find(t => t.key === 'GO_LIVE')!;
+    const goLiveDate = completionDates['GO_LIVE'];
+    return {
+      tahapanLabel: goLiveTahapan.label,
+      status: 'Selesai',
+      tanggal: goLiveDate || null,
+      color: goLiveTahapan.color,
+    };
+  }
+
+  return {
+    tahapanLabel: currentTahapan.label,
+    status: currentStatus,
+    tanggal: null, // Only show date when Go Live is Selesai
+    color: currentTahapan.color,
+  };
+};
 const MEKANISME_OPTIONS = ['INHOUSE', 'OUTSOURCE'] as const;
 const PELAKSANAAN_OPTIONS = ['SINGLE_YEAR', 'MULTIYEARS'] as const;
 
@@ -349,12 +416,7 @@ const getChipColor = (code: string): { bg: string; text: string } => {
   return SKPA_COLORS[index];
 };
 
-const PROGRES_COLORS: Record<string, { bg: string; text: string }> = {
-  ASESMEN: { bg: '#FEF3C7', text: '#D97706' },
-  CODING: { bg: '#DBEAFE', text: '#2563EB' },
-  PDKK: { bg: '#E0E7FF', text: '#4F46E5' },
-  DEPLOY_SELESAI: { bg: '#D1FAE5', text: '#059669' },
-};
+// Note: PROGRES_COLORS removed - Progres column now uses tahapan-based colors from FS2_TAHAPAN_CONFIG
 
 function Fs2Disetujui() {
   const { isCollapsed } = useSidebar();
@@ -465,6 +527,14 @@ function Fs2Disetujui() {
   const [selectedFs2, setSelectedFs2] = useState<Fs2DocumentData | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<Fs2DocumentRequest>>({});
 
+  // Date picker dialog state (opened when editing completion date)
+  const [datePickerState, setDatePickerState] = useState<{
+    open: boolean;
+    tahapanKey: string;
+    dateField: Fs2TahapanDateField | null;
+    value: string;
+  }>({ open: false, tahapanKey: '', dateField: null, value: '' });
+
   // View modal state
   const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedFs2IdForView, setSelectedFs2IdForView] = useState<string | null>(null);
@@ -483,6 +553,16 @@ function Fs2Disetujui() {
   const [filesF45, setFilesF45] = useState<Fs2FileData[]>([]);
   const [filesF46, setFilesF46] = useState<Fs2FileData[]>([]);
   const [filesNDBA, setFilesNDBA] = useState<Fs2FileData[]>([]);
+  
+  // Pending files state for PKSI-style upload (stage files with date before upload)
+  const [pendingFilesND, setPendingFilesND] = useState<Array<{ file: File; tanggal: string }>>([]);
+  const [pendingFilesFS2, setPendingFilesFS2] = useState<Array<{ file: File; tanggal: string }>>([]);
+  const [pendingFilesCD, setPendingFilesCD] = useState<Array<{ file: File; tanggal: string }>>([]);
+  const [pendingFilesFS2A, setPendingFilesFS2A] = useState<Array<{ file: File; tanggal: string }>>([]);
+  const [pendingFilesFS2B, setPendingFilesFS2B] = useState<Array<{ file: File; tanggal: string }>>([]);
+  const [pendingFilesF45, setPendingFilesF45] = useState<Array<{ file: File; tanggal: string }>>([]);
+  const [pendingFilesF46, setPendingFilesF46] = useState<Array<{ file: File; tanggal: string }>>([]);
+  const [pendingFilesNDBA, setPendingFilesNDBA] = useState<Array<{ file: File; tanggal: string }>>([]);
   
   // Upload loading state for each file type
   const [isUploadingND, setIsUploadingND] = useState(false);
@@ -815,7 +895,59 @@ function Fs2Disetujui() {
         target_go_live: fs2.target_go_live || '',
         // Keterangan
         keterangan: fs2.keterangan || '',
+        // Tahapan completion dates
+        tanggal_pengajuan_selesai: fs2.tanggal_pengajuan_selesai || '',
+        tanggal_asesmen: fs2.tanggal_asesmen || '',
+        target_pemrograman: fs2.target_pemrograman || '',
+        tanggal_pemrograman: fs2.tanggal_pemrograman || '',
+        tanggal_pengujian_selesai: fs2.tanggal_pengujian_selesai || '',
+        tanggal_deployment_selesai: fs2.tanggal_deployment_selesai || '',
+        tanggal_go_live: fs2.tanggal_go_live || '',
       });
+
+      // Initialize per-tahapan statuses derived from completion dates
+      // Logic: Status is derived from completion dates, not manually saved
+      // - If a tahapan has a completion date, status = "Selesai"
+      // - First tahapan without completion date (after all Selesai) = "Dalam proses"
+      // - Others = "Belum dimulai"
+      const completionDates: Record<string, string> = {
+        'PENGAJUAN': fs2.tanggal_pengajuan_selesai || '',
+        'ASESMEN': fs2.tanggal_asesmen || '',
+        'PEMROGRAMAN': fs2.tanggal_pemrograman || '',
+        'PENGUJIAN': fs2.tanggal_pengujian_selesai || '',
+        'DEPLOYMENT': fs2.tanggal_deployment_selesai || '',
+        'GO_LIVE': fs2.tanggal_go_live || '',
+      };
+      
+      const derivedStatuses: Record<string, string> = {};
+      let foundCurrentTahapan = false;
+      
+      FS2_TAHAPAN_CONFIG.forEach((tahapan, index) => {
+        const hasCompletionDate = completionDates[tahapan.key] && completionDates[tahapan.key].length > 0;
+        
+        if (hasCompletionDate) {
+          derivedStatuses[tahapan.key] = 'Selesai';
+        } else if (!foundCurrentTahapan) {
+          // First tahapan without completion date becomes "Dalam proses"
+          // But only if it's the first one OR the previous one is "Selesai"
+          if (index === 0) {
+            derivedStatuses[tahapan.key] = 'Dalam proses';
+            foundCurrentTahapan = true;
+          } else {
+            const prevTahapan = FS2_TAHAPAN_CONFIG[index - 1];
+            const prevHasDate = completionDates[prevTahapan.key] && completionDates[prevTahapan.key].length > 0;
+            if (prevHasDate) {
+              derivedStatuses[tahapan.key] = 'Dalam proses';
+              foundCurrentTahapan = true;
+            } else {
+              derivedStatuses[tahapan.key] = 'Belum dimulai';
+            }
+          }
+        } else {
+          derivedStatuses[tahapan.key] = 'Belum dimulai';
+        }
+      });
+      // Note: statuses are derived from completion dates in real-time during render
       
       // Load existing files for this F.S.2 document
       try {
@@ -849,15 +981,23 @@ function Fs2Disetujui() {
     setFilesF45([]);
     setFilesF46([]);
     setFilesNDBA([]);
+    // Clear pending files states
+    setPendingFilesND([]);
+    setPendingFilesFS2([]);
+    setPendingFilesCD([]);
+    setPendingFilesFS2A([]);
+    setPendingFilesFS2B([]);
+    setPendingFilesF45([]);
+    setPendingFilesF46([]);
+    setPendingFilesNDBA([]);
     setFileErrorMessage('');
   };
 
-  // Generic file upload handler
-  const handleFileUpload = async (
+  // Generic file select handler - PKSI-style staging (stage files with date before upload)
+  const handleFileSelect = (
     event: React.ChangeEvent<HTMLInputElement>,
-    fileType: string,
-    setUploading: (val: boolean) => void,
-    setFiles: React.Dispatch<React.SetStateAction<Fs2FileData[]>>
+    _fileType: string,
+    setPendingFiles: React.Dispatch<React.SetStateAction<Array<{ file: File; tanggal: string }>>>
   ) => {
     const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8MB
     const ALLOWED_FILE_TYPES = [
@@ -868,11 +1008,10 @@ function Fs2Disetujui() {
     const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx'];
 
     const files = event.target.files;
-    if (files && files.length > 0 && selectedFs2?.id) {
+    if (files && files.length > 0) {
       const file = files[0];
 
       // Validate file size (max 8MB)
-      console.log(`File validation [${fileType}] - Size:`, file.size, 'bytes, Max allowed:', MAX_FILE_SIZE, 'bytes');
       if (!file.size || file.size <= 0) {
         alert('File tidak valid. Silakan pilih file yang valid.');
         event.target.value = '';
@@ -893,46 +1032,36 @@ function Fs2Disetujui() {
         return;
       }
 
-      setUploading(true);
-      setFileErrorMessage('');
-      try {
-        const uploaded = await uploadFs2Files(selectedFs2.id, [file], fileType);
-        setFiles(prev => [...prev, ...uploaded]);
-      } catch (error) {
-        console.error('Failed to upload file:', error);
-        setFileErrorMessage(`Gagal mengupload file ${fileType}. Silakan coba lagi.`);
-      } finally {
-        setUploading(false);
-      }
+      // Stage the file with empty date
+      setPendingFiles(prev => [...prev, { file, tanggal: '' }]);
     }
     event.target.value = '';
   };
 
-  // File upload handlers for each type
-  const handleFileUploadND = (e: React.ChangeEvent<HTMLInputElement>) => 
-    handleFileUpload(e, 'ND', setIsUploadingND, setFilesND);
-  const handleFileUploadFS2 = (e: React.ChangeEvent<HTMLInputElement>) => 
-    handleFileUpload(e, 'FS2', setIsUploadingFS2, setFilesFS2);
-  const handleFileUploadCD = (e: React.ChangeEvent<HTMLInputElement>) => 
-    handleFileUpload(e, 'CD', setIsUploadingCD, setFilesCD);
-  const handleFileUploadFS2A = (e: React.ChangeEvent<HTMLInputElement>) => 
-    handleFileUpload(e, 'FS2A', setIsUploadingFS2A, setFilesFS2A);
-  const handleFileUploadFS2B = (e: React.ChangeEvent<HTMLInputElement>) => 
-    handleFileUpload(e, 'FS2B', setIsUploadingFS2B, setFilesFS2B);
-  const handleFileUploadF45 = (e: React.ChangeEvent<HTMLInputElement>) => 
-    handleFileUpload(e, 'F45', setIsUploadingF45, setFilesF45);
-  const handleFileUploadF46 = (e: React.ChangeEvent<HTMLInputElement>) => 
-    handleFileUpload(e, 'F46', setIsUploadingF46, setFilesF46);
-  const handleFileUploadNDBA = (e: React.ChangeEvent<HTMLInputElement>) => 
-    handleFileUpload(e, 'NDBA', setIsUploadingNDBA, setFilesNDBA);
+  // File select handlers for each type
+  const handleFileSelectND = (e: React.ChangeEvent<HTMLInputElement>) => 
+    handleFileSelect(e, 'ND', setPendingFilesND);
+  const handleFileSelectFS2 = (e: React.ChangeEvent<HTMLInputElement>) => 
+    handleFileSelect(e, 'FS2', setPendingFilesFS2);
+  const handleFileSelectCD = (e: React.ChangeEvent<HTMLInputElement>) => 
+    handleFileSelect(e, 'CD', setPendingFilesCD);
+  const handleFileSelectFS2A = (e: React.ChangeEvent<HTMLInputElement>) => 
+    handleFileSelect(e, 'FS2A', setPendingFilesFS2A);
+  const handleFileSelectFS2B = (e: React.ChangeEvent<HTMLInputElement>) => 
+    handleFileSelect(e, 'FS2B', setPendingFilesFS2B);
+  const handleFileSelectF45 = (e: React.ChangeEvent<HTMLInputElement>) => 
+    handleFileSelect(e, 'F45', setPendingFilesF45);
+  const handleFileSelectF46 = (e: React.ChangeEvent<HTMLInputElement>) => 
+    handleFileSelect(e, 'F46', setPendingFilesF46);
+  const handleFileSelectNDBA = (e: React.ChangeEvent<HTMLInputElement>) => 
+    handleFileSelect(e, 'NDBA', setPendingFilesNDBA);
 
-  // Generic drag & drop handler
-  const handleFileDrop = async (
+  // Generic drag & drop handler - PKSI-style staging
+  const handleFileDrop = (
     event: React.DragEvent<HTMLElement>,
-    fileType: string,
+    _fileType: string,
     setDragging: (val: boolean) => void,
-    setUploading: (val: boolean) => void,
-    setFiles: React.Dispatch<React.SetStateAction<Fs2FileData[]>>
+    setPendingFiles: React.Dispatch<React.SetStateAction<Array<{ file: File; tanggal: string }>>>
   ) => {
     event.preventDefault();
     setDragging(false);
@@ -946,11 +1075,10 @@ function Fs2Disetujui() {
     const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx'];
 
     const files = event.dataTransfer.files;
-    if (files && files.length > 0 && selectedFs2?.id) {
+    if (files && files.length > 0) {
       const file = files[0];
 
       // Validate file size (max 8MB)
-      console.log(`File drop validation [${fileType}] - Size:`, file.size, 'bytes, Max allowed:', MAX_FILE_SIZE, 'bytes');
       if (!file.size || file.size <= 0) {
         alert('File tidak valid. Silakan pilih file yang valid.');
         return;
@@ -968,37 +1096,78 @@ function Fs2Disetujui() {
         return;
       }
 
-      setUploading(true);
-      setFileErrorMessage('');
-      try {
-        const uploaded = await uploadFs2Files(selectedFs2.id, [file], fileType);
-        setFiles(prev => [...prev, ...uploaded]);
-      } catch (error) {
-        console.error('Failed to upload file:', error);
-        setFileErrorMessage(`Gagal mengupload file ${fileType}. Silakan coba lagi.`);
-      } finally {
-        setUploading(false);
-      }
+      // Stage the file with empty date
+      setPendingFiles(prev => [...prev, { file, tanggal: '' }]);
     }
   };
 
   // File drop handlers for each type
   const handleFileDropND = (e: React.DragEvent<HTMLElement>) => 
-    handleFileDrop(e, 'ND', setIsDraggingND, setIsUploadingND, setFilesND);
+    handleFileDrop(e, 'ND', setIsDraggingND, setPendingFilesND);
   const handleFileDropFS2 = (e: React.DragEvent<HTMLElement>) => 
-    handleFileDrop(e, 'FS2', setIsDraggingFS2, setIsUploadingFS2, setFilesFS2);
+    handleFileDrop(e, 'FS2', setIsDraggingFS2, setPendingFilesFS2);
   const handleFileDropCD = (e: React.DragEvent<HTMLElement>) => 
-    handleFileDrop(e, 'CD', setIsDraggingCD, setIsUploadingCD, setFilesCD);
+    handleFileDrop(e, 'CD', setIsDraggingCD, setPendingFilesCD);
   const handleFileDropFS2A = (e: React.DragEvent<HTMLElement>) => 
-    handleFileDrop(e, 'FS2A', setIsDraggingFS2A, setIsUploadingFS2A, setFilesFS2A);
+    handleFileDrop(e, 'FS2A', setIsDraggingFS2A, setPendingFilesFS2A);
   const handleFileDropFS2B = (e: React.DragEvent<HTMLElement>) => 
-    handleFileDrop(e, 'FS2B', setIsDraggingFS2B, setIsUploadingFS2B, setFilesFS2B);
+    handleFileDrop(e, 'FS2B', setIsDraggingFS2B, setPendingFilesFS2B);
   const handleFileDropF45 = (e: React.DragEvent<HTMLElement>) => 
-    handleFileDrop(e, 'F45', setIsDraggingF45, setIsUploadingF45, setFilesF45);
+    handleFileDrop(e, 'F45', setIsDraggingF45, setPendingFilesF45);
   const handleFileDropF46 = (e: React.DragEvent<HTMLElement>) => 
-    handleFileDrop(e, 'F46', setIsDraggingF46, setIsUploadingF46, setFilesF46);
+    handleFileDrop(e, 'F46', setIsDraggingF46, setPendingFilesF46);
   const handleFileDropNDBA = (e: React.DragEvent<HTMLElement>) => 
-    handleFileDrop(e, 'NDBA', setIsDraggingNDBA, setIsUploadingNDBA, setFilesNDBA);
+    handleFileDrop(e, 'NDBA', setIsDraggingNDBA, setPendingFilesNDBA);
+
+  // Generic upload pending files handler
+  const handleUploadPendingFiles = async (
+    pendingFiles: Array<{ file: File; tanggal: string }>,
+    fileType: string,
+    setUploading: (val: boolean) => void,
+    setFiles: React.Dispatch<React.SetStateAction<Fs2FileData[]>>,
+    setPendingFiles: React.Dispatch<React.SetStateAction<Array<{ file: File; tanggal: string }>>>,
+    dateFormField?: keyof Fs2DocumentRequest
+  ) => {
+    if (pendingFiles.length === 0 || !selectedFs2?.id) return;
+    setUploading(true);
+    setFileErrorMessage('');
+    try {
+      const results: Fs2FileData[] = [];
+      for (const pending of pendingFiles) {
+        const uploaded = await uploadFs2Files(selectedFs2.id, [pending.file], fileType, pending.tanggal || undefined);
+        results.push(...uploaded);
+        // If a date was set and we have a date form field, update it
+        if (pending.tanggal && dateFormField) {
+          setEditFormData(prev => ({ ...prev, [dateFormField]: pending.tanggal }));
+        }
+      }
+      setFiles(prev => [...prev, ...results]);
+      setPendingFiles([]);
+    } catch (error) {
+      console.error('Failed to upload files:', error);
+      setFileErrorMessage(`Gagal mengupload file ${fileType}. Silakan coba lagi.`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Upload pending files handlers for each type
+  const handleUploadPendingND = () => 
+    handleUploadPendingFiles(pendingFilesND, 'ND', setIsUploadingND, setFilesND, setPendingFilesND);
+  const handleUploadPendingFS2 = () => 
+    handleUploadPendingFiles(pendingFilesFS2, 'FS2', setIsUploadingFS2, setFilesFS2, setPendingFilesFS2, 'tanggal_berkas_fs2');
+  const handleUploadPendingCD = () => 
+    handleUploadPendingFiles(pendingFilesCD, 'CD', setIsUploadingCD, setFilesCD, setPendingFilesCD);
+  const handleUploadPendingFS2A = () => 
+    handleUploadPendingFiles(pendingFilesFS2A, 'FS2A', setIsUploadingFS2A, setFilesFS2A, setPendingFilesFS2A, 'tanggal_berkas_fs2a');
+  const handleUploadPendingFS2B = () => 
+    handleUploadPendingFiles(pendingFilesFS2B, 'FS2B', setIsUploadingFS2B, setFilesFS2B, setPendingFilesFS2B, 'tanggal_berkas_fs2b');
+  const handleUploadPendingF45 = () => 
+    handleUploadPendingFiles(pendingFilesF45, 'F45', setIsUploadingF45, setFilesF45, setPendingFilesF45, 'tanggal_berkas_f45');
+  const handleUploadPendingF46 = () => 
+    handleUploadPendingFiles(pendingFilesF46, 'F46', setIsUploadingF46, setFilesF46, setPendingFilesF46, 'tanggal_berkas_f46');
+  const handleUploadPendingNDBA = () => 
+    handleUploadPendingFiles(pendingFilesNDBA, 'NDBA', setIsUploadingNDBA, setFilesNDBA, setPendingFilesNDBA, 'tanggal_berkas_nd_ba');
 
   // Generic remove file handler
   const handleRemoveFile = async (
@@ -1052,8 +1221,52 @@ function Fs2Disetujui() {
   const handleEditSubmit = async () => {
     if (!selectedFs2) return;
     try {
+      // Derive statuses from completion dates before submitting
+      const completionDates: Record<string, string> = {
+        'PENGAJUAN': (editFormData.tanggal_pengajuan_selesai || '').substring(0, 10),
+        'ASESMEN': (editFormData.tanggal_asesmen || '').substring(0, 10),
+        'PEMROGRAMAN': (editFormData.tanggal_pemrograman || '').substring(0, 10),
+        'PENGUJIAN': (editFormData.tanggal_pengujian_selesai || '').substring(0, 10),
+        'DEPLOYMENT': (editFormData.tanggal_deployment_selesai || '').substring(0, 10),
+        'GO_LIVE': (editFormData.tanggal_go_live || '').substring(0, 10),
+      };
+      
+      const derivedStatuses: Record<string, string> = {};
+      let foundCurrentTahapan = false;
+      
+      FS2_TAHAPAN_CONFIG.forEach((tahapan, index) => {
+        const hasCompletionDate = completionDates[tahapan.key] && completionDates[tahapan.key].length > 0;
+        
+        if (hasCompletionDate) {
+          derivedStatuses[tahapan.key] = 'Selesai';
+        } else if (!foundCurrentTahapan) {
+          if (index === 0) {
+            derivedStatuses[tahapan.key] = 'Dalam proses';
+            foundCurrentTahapan = true;
+          } else {
+            const prevTahapan = FS2_TAHAPAN_CONFIG[index - 1];
+            const prevHasDate = completionDates[prevTahapan.key] && completionDates[prevTahapan.key].length > 0;
+            if (prevHasDate) {
+              derivedStatuses[tahapan.key] = 'Dalam proses';
+              foundCurrentTahapan = true;
+            } else {
+              derivedStatuses[tahapan.key] = 'Belum dimulai';
+            }
+          }
+        } else {
+          derivedStatuses[tahapan.key] = 'Belum dimulai';
+        }
+      });
+      
       await updateFs2Document(selectedFs2.id, {
         ...editFormData,
+        // Include tahapan statuses derived from completion dates
+        tahapan_status_pengajuan: derivedStatuses['PENGAJUAN'] || undefined,
+        tahapan_status_asesmen: derivedStatuses['ASESMEN'] || undefined,
+        tahapan_status_pemrograman: derivedStatuses['PEMROGRAMAN'] || undefined,
+        tahapan_status_pengujian: derivedStatuses['PENGUJIAN'] || undefined,
+        tahapan_status_deployment: derivedStatuses['DEPLOYMENT'] || undefined,
+        tahapan_status_go_live: derivedStatuses['GO_LIVE'] || undefined,
       } as Fs2DocumentRequest);
       setSnackbar({ open: true, message: 'F.S.2 berhasil diperbarui', severity: 'success' });
       handleCloseEditModal();
@@ -2180,13 +2393,13 @@ function Fs2Disetujui() {
             <TableRow sx={{ bgcolor: '#f5f5f7' }}>
               {/* Dokumen Pengajuan F.S.2 sub-headers */}
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(49, 162, 76, 0.04)' }}>Nomor ND</TableCell>
-              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(49, 162, 76, 0.04)' }}>Tanggal</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(49, 162, 76, 0.04)' }}>Tgl Berkas ND</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(49, 162, 76, 0.04)' }}>Berkas ND</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(49, 162, 76, 0.04)' }}>Berkas F.S.2</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(49, 162, 76, 0.04)' }}>Tgl Berkas FS2</TableCell>
               {/* CD Prinsip sub-headers */}
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Nomor CD Prinsip</TableCell>
-              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Tanggal</TableCell>
+              <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Tgl Berkas CD Prinsip</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Berkas CD Prinsip</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 80, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Berkas F.S.2A</TableCell>
               <TableCell sx={{ fontWeight: 500, color: '#6B7280', py: 1, px: 2, fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 100, bgcolor: 'rgba(37, 99, 235, 0.04)' }}>Tgl Berkas FS2A</TableCell>
@@ -2224,7 +2437,9 @@ function Fs2Disetujui() {
             ) : (
               filteredFs2Data.map((row, index) => {
                 const skpaColor = getChipColor(row.skpa);
-                const progresColor = PROGRES_COLORS[row.progres] || { bg: '#f5f5f5', text: '#666' };
+                // Get rawData for tahapan progress derivation
+                const rawItem = rawData.find(r => r.id === row.id);
+                const progresTahapan = rawItem ? deriveProgresTahapan(rawItem) : { tahapanLabel: '-', status: '-', tanggal: null, color: '#86868b' };
                 return (
                   <TableRow 
                     key={row.id} 
@@ -2252,22 +2467,24 @@ function Fs2Disetujui() {
                     <TableCell sx={{ py: 1, px: 2, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 180, ...(stickyColumns.has('namaFs2') && { position: 'sticky', left: getStickyLeft('namaFs2'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('namaFs2') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                       <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>{row.namaFs2}</Typography>
                     </TableCell>
-                    {/* Progres */}
+                    {/* Progres - derived from tahapan completion dates */}
                     <TableCell sx={{ py: 1, px: 2, minWidth: 180, ...(stickyColumns.has('progres') && { position: 'sticky', left: getStickyLeft('progres'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('progres') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Chip label={PROGRES_LABELS[row.progres] || row.progres} size="small" sx={{ bgcolor: progresColor.bg, color: progresColor.text, fontWeight: 500, fontSize: '0.7rem' }} />
-                        {row.progresStatus && row.progresStatus !== '-' && (
-                          <Typography variant="caption" sx={{ 
-                            color: row.progresStatus === 'SELESAI' ? '#059669' : row.progresStatus === 'DALAM_PROSES' ? '#D97706' : '#86868b',
-                            fontWeight: 500,
-                            fontSize: '0.65rem',
-                          }}>
-                            {PROGRES_STATUS_LABELS[row.progresStatus] || row.progresStatus}
-                          </Typography>
-                        )}
-                        {row.tanggalProgres && row.tanggalProgres !== '-' && row.progresStatus !== 'BELUM_DIMULAI' && (
+                        <Chip 
+                          label={`${progresTahapan.tahapanLabel} - ${progresTahapan.status}`} 
+                          size="small" 
+                          sx={{ 
+                            bgcolor: `${progresTahapan.color}20`, 
+                            color: progresTahapan.color, 
+                            fontWeight: 500, 
+                            fontSize: '0.7rem',
+                            '& .MuiChip-label': { px: 1 },
+                          }} 
+                        />
+                        {/* Only show date when Go Live is Selesai */}
+                        {progresTahapan.tanggal && (
                           <Typography variant="caption" sx={{ color: '#86868b', fontSize: '0.6rem' }}>
-                            {new Date(row.tanggalProgres).toLocaleDateString('id-ID')}
+                            {new Date(progresTahapan.tanggal).toLocaleDateString('id-ID')}
                           </Typography>
                         )}
                       </Box>
@@ -2812,46 +3029,229 @@ function Fs2Disetujui() {
                 <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#6366F1' }} />
                 Progres Tahapan
               </Typography>
-              
-              {/* Visual Progress Bar */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
-                {FS2_TAHAPAN_CONFIG.map((tahapan, index) => {
-                  const currentProgresIndex = FS2_TAHAPAN_CONFIG.findIndex(t => 
-                    t.key === (editFormData.progres === 'DEPLOY_SELESAI' ? 'DEPLOYMENT' : 
-                              editFormData.progres === 'PDKK' ? 'PENGUJIAN' :
-                              editFormData.progres === 'CODING' ? 'PEMROGRAMAN' :
-                              editFormData.progres || 'PENGAJUAN')
-                  );
-                  const isCompleted = index < currentProgresIndex;
-                  const isCurrent = index === currentProgresIndex;
-                  
-                  return (
-                    <Box key={tahapan.key} sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <Box sx={{
-                        width: '100%',
-                        height: 8,
-                        borderRadius: '4px',
-                        background: isCompleted 
-                          ? `linear-gradient(90deg, ${tahapan.gradient[0]}, ${tahapan.gradient[1]})`
-                          : isCurrent
-                            ? `linear-gradient(90deg, ${tahapan.gradient[0]}80, ${tahapan.gradient[1]}50)`
-                            : 'rgba(0, 0, 0, 0.06)',
-                        transition: 'all 0.3s ease',
-                        boxShadow: isCompleted || isCurrent ? `0 2px 8px rgba(${tahapan.rgb}, 0.25)` : 'none',
-                      }} />
-                      <Typography sx={{ 
-                        mt: 1, 
-                        fontSize: '0.65rem', 
-                        fontWeight: isCurrent ? 700 : isCompleted ? 600 : 400,
-                        color: isCurrent ? tahapan.color : isCompleted ? '#1d1d1f' : '#86868b',
-                        textAlign: 'center',
-                      }}>
-                        {tahapan.label}
-                      </Typography>
-                    </Box>
-                  );
-                })}
-              </Box>
+
+              {/* Progres Tahapan Table - Status derived from completion dates */}
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: 'rgba(99, 102, 241, 0.08)' }}>
+                      <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#6366F1', py: 1.2, width: '22%' }}>Tahapan</TableCell>
+                      <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#6366F1', py: 1.2, width: '20%' }}>Status</TableCell>
+                      <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#6366F1', py: 1.2, width: '18%' }}>Tgl. Target</TableCell>
+                      <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#6366F1', py: 1.2, width: '20%' }}>Tanggal Penyelesaian</TableCell>
+                      <TableCell sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#6366F1', py: 1.2 }}>Ketepatan Waktu</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {FS2_TAHAPAN_CONFIG.map((tahapan, index) => {
+                      // Get completion date from editFormData
+                      const dateValue = tahapan.dateField 
+                        ? ((editFormData as Record<string, string>)[tahapan.dateField] || '').substring(0, 10)
+                        : '';
+                      
+                      // Determine status based on completion dates (sequential logic)
+                      // A tahapan is "Selesai" if it has a completion date
+                      // A tahapan is "Dalam proses" if the previous one is "Selesai" and this one has no date
+                      // Otherwise "Belum dimulai"
+                      let derivedStatus = 'Belum dimulai';
+                      if (dateValue) {
+                        derivedStatus = 'Selesai';
+                      } else if (index === 0) {
+                        // First tahapan (Pengajuan) is always "Dalam proses" if no completion date
+                        derivedStatus = 'Dalam proses';
+                      } else {
+                        // Check if previous tahapan is completed
+                        const prevTahapan = FS2_TAHAPAN_CONFIG[index - 1];
+                        const prevDateValue = prevTahapan.dateField 
+                          ? ((editFormData as Record<string, string>)[prevTahapan.dateField] || '').substring(0, 10)
+                          : '';
+                        if (prevDateValue) {
+                          derivedStatus = 'Dalam proses';
+                        }
+                      }
+                      
+                      const isSelesai = derivedStatus === 'Selesai';
+                      const isDalam = derivedStatus === 'Dalam proses';
+                      const rowBg = isSelesai ? 'rgba(21,128,61,0.025)' : isDalam ? 'rgba(99,102,241,0.025)' : 'transparent';
+                      
+                      // Check if this tahapan can be edited (only current active tahapan can fill completion date)
+                      const canEditCompletionDate = isDalam;
+                      
+                      // Get target date - empty for Pengajuan and Asesmen
+                      let targetDate: string | null = null;
+                      if (tahapan.targetField && editFormData[tahapan.targetField as keyof typeof editFormData]) {
+                        targetDate = editFormData[tahapan.targetField as keyof typeof editFormData] as string;
+                      }
+                      const displayTarget = targetDate ? formatMonthYear(targetDate) : '—';
+                      
+                      // Check if target date can be edited
+                      // - Pemrograman: always editable
+                      // - Pengujian, Deployment, Go Live: only editable if fase_pengajuan is PEMELIHARAAN
+                      const isPemeliharaan = editFormData.fase_pengajuan === 'PEMELIHARAAN';
+                      const canEditTargetDate = tahapan.key === 'PEMROGRAMAN' || 
+                        (isPemeliharaan && ['PENGUJIAN', 'DEPLOYMENT', 'GO_LIVE'].includes(tahapan.key));
+                      
+                      // Ketepatan waktu calculation - always show "—" for Pengajuan and Asesmen
+                      let ketepatanLabel: string | null = null;
+                      let ketepatanColor = '#6B7280';
+                      let ketepatanBg = '#F3F4F6';
+                      
+                      // Pengajuan and Asesmen always show "—" for Ketepatan Waktu
+                      if (tahapan.key === 'PENGAJUAN' || tahapan.key === 'ASESMEN') {
+                        ketepatanLabel = null; // Will show "—"
+                      } else if (isSelesai && dateValue && targetDate) {
+                        const completion = new Date(dateValue);
+                        const target = new Date(targetDate);
+                        if (completion <= target) {
+                          ketepatanLabel = 'Tepat Waktu';
+                          ketepatanColor = '#15803D';
+                          ketepatanBg = '#F0FDF4';
+                        } else {
+                          ketepatanLabel = 'Terlambat';
+                          ketepatanColor = '#DC2626';
+                          ketepatanBg = '#FEF2F2';
+                        }
+                      } else if (isDalam && targetDate) {
+                        const today = new Date();
+                        const target = new Date(targetDate);
+                        if (today <= target) {
+                          ketepatanLabel = 'Dalam Waktu';
+                          ketepatanColor = '#2563EB';
+                          ketepatanBg = '#EFF6FF';
+                        } else {
+                          ketepatanLabel = 'Melewati Target';
+                          ketepatanColor = '#D97706';
+                          ketepatanBg = '#FFFBEB';
+                        }
+                      }
+                      
+                      return (
+                        <TableRow
+                          key={tahapan.key}
+                          sx={{ '&:last-child td': { borderBottom: 0 }, bgcolor: rowBg }}
+                        >
+                          <TableCell sx={{ fontSize: '0.82rem', py: 1, fontWeight: isDalam ? 600 : 400, color: isDalam ? '#6366F1' : isSelesai ? '#15803D' : '#1d1d1f' }}>
+                            {tahapan.label}
+                          </TableCell>
+                          <TableCell sx={{ py: 0.7 }}>
+                            {/* Status is displayed as chip, not editable - derived from completion date */}
+                            <Chip
+                              label={derivedStatus}
+                              size="small"
+                              sx={{
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                height: 26,
+                                borderRadius: '8px',
+                                bgcolor: isSelesai ? '#F0FDF4' : isDalam ? '#EEF2FF' : '#F3F4F6',
+                                color: isSelesai ? '#15803D' : isDalam ? '#6366F1' : '#6B7280',
+                                border: `1px solid ${isSelesai ? 'rgba(21,128,61,0.2)' : isDalam ? 'rgba(99,102,241,0.2)' : 'rgba(107,114,128,0.2)'}`,
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ py: 1 }}>
+                            {canEditTargetDate && tahapan.targetField ? (
+                              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                <FormControl size="small" sx={{ minWidth: 80 }}>
+                                  <Select
+                                    value={getMonthFromDate(editFormData[tahapan.targetField as keyof typeof editFormData] as string)}
+                                    displayEmpty
+                                    onChange={(e) => {
+                                      const newMonth = e.target.value;
+                                      const currentYear = getYearFromDate(editFormData[tahapan.targetField as keyof typeof editFormData] as string) || new Date().getFullYear().toString();
+                                      const newDate = newMonth ? buildDateFromMonthYear(newMonth, currentYear) : '';
+                                      setEditFormData({ ...editFormData, [tahapan.targetField!]: newDate });
+                                    }}
+                                    sx={{ fontSize: '0.75rem', height: 28, borderRadius: '6px', '& .MuiSelect-select': { py: 0.5 } }}
+                                  >
+                                    <MenuItem value="" sx={{ fontSize: '0.75rem' }}><em>Bulan</em></MenuItem>
+                                    {MONTH_OPTIONS.map(m => (
+                                      <MenuItem key={m.value} value={m.value} sx={{ fontSize: '0.75rem' }}>{m.label}</MenuItem>
+                                    ))}
+                                  </Select>
+                                </FormControl>
+                                <FormControl size="small" sx={{ minWidth: 70 }}>
+                                  <Select
+                                    value={getYearFromDate(editFormData[tahapan.targetField as keyof typeof editFormData] as string)}
+                                    displayEmpty
+                                    onChange={(e) => {
+                                      const newYear = e.target.value;
+                                      const currentMonth = getMonthFromDate(editFormData[tahapan.targetField as keyof typeof editFormData] as string) || '01';
+                                      const newDate = newYear ? buildDateFromMonthYear(currentMonth, newYear) : '';
+                                      setEditFormData({ ...editFormData, [tahapan.targetField!]: newDate });
+                                    }}
+                                    sx={{ fontSize: '0.75rem', height: 28, borderRadius: '6px', '& .MuiSelect-select': { py: 0.5 } }}
+                                  >
+                                    <MenuItem value="" sx={{ fontSize: '0.75rem' }}><em>Tahun</em></MenuItem>
+                                    {YEAR_OPTIONS.map(y => (
+                                      <MenuItem key={y.value} value={y.value} sx={{ fontSize: '0.75rem' }}>{y.label}</MenuItem>
+                                    ))}
+                                  </Select>
+                                </FormControl>
+                              </Box>
+                            ) : (
+                              <Typography sx={{ fontSize: '0.8rem', py: 1, color: targetDate ? '#7C3AED' : '#86868b' }}>
+                                {displayTarget}
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell sx={{ py: 1 }}>
+                            {tahapan.dateField ? (
+                              canEditCompletionDate ? (
+                                <TextField
+                                  type="date"
+                                  size="small"
+                                  value={dateValue}
+                                  onChange={(e) => {
+                                    const newDate = e.target.value;
+                                    setEditFormData(prev => ({ ...prev, [tahapan.dateField]: newDate }));
+                                    // Status is derived automatically from completion dates
+                                  }}
+                                  slotProps={{ inputLabel: { shrink: true } }}
+                                  sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                      borderRadius: '8px',
+                                      fontSize: '0.8rem',
+                                      height: 32,
+                                      bgcolor: 'rgba(99, 102, 241, 0.04)',
+                                      '& fieldset': { borderColor: 'rgba(99, 102, 241, 0.3)' },
+                                      '&:hover fieldset': { borderColor: 'rgba(99, 102, 241, 0.5)' },
+                                      '&.Mui-focused fieldset': { borderColor: '#6366F1' },
+                                    },
+                                    minWidth: 140,
+                                  }}
+                                />
+                              ) : isSelesai && dateValue ? (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Typography sx={{ fontSize: '0.8rem', color: '#15803D', fontWeight: 500 }}>{dateValue}</Typography>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => setDatePickerState({ open: true, tahapanKey: tahapan.key, dateField: tahapan.dateField!, value: dateValue })}
+                                    sx={{ p: 0.3, color: '#15803D', '&:hover': { bgcolor: 'rgba(21,128,61,0.1)' } }}
+                                  >
+                                    <EditIcon sx={{ fontSize: 13 }} />
+                                  </IconButton>
+                                </Box>
+                              ) : (
+                                <Typography sx={{ fontSize: '0.78rem', color: '#86868b' }}>—</Typography>
+                              )
+                            ) : (
+                              <Typography sx={{ fontSize: '0.78rem', color: '#86868b' }}>—</Typography>
+                            )}
+                          </TableCell>
+                          <TableCell sx={{ py: 1 }}>
+                            {ketepatanLabel ? (
+                              <Chip label={ketepatanLabel} size="small" sx={{ bgcolor: ketepatanBg, color: ketepatanColor, fontWeight: 600, fontSize: '0.7rem', height: 20 }} />
+                            ) : (
+                              <Typography sx={{ fontSize: '0.78rem', color: '#86868b' }}>—</Typography>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             </Box>
           )}
 
@@ -2879,56 +3279,90 @@ function Fs2Disetujui() {
                 Timeline
               </Typography>
               
-              {/* Timeline Visual */}
+              {/* Timeline Visual - Editable for PEMELIHARAAN */}
               <Box sx={{ display: 'flex', gap: 2 }}>
-                {FS2_TIMELINE_CONFIGS.map((timeline, index) => (
-                  <Box key={timeline.key} sx={{ 
-                    flex: 1, 
-                    p: 2, 
-                    borderRadius: '12px',
-                    background: `linear-gradient(135deg, rgba(${timeline.rgb}, 0.08) 0%, rgba(${timeline.rgb}, 0.04) 100%)`,
-                    border: `1px solid rgba(${timeline.rgb}, 0.2)`,
-                  }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                      <Box sx={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: '8px',
-                        background: `linear-gradient(135deg, ${timeline.gradient[0]}, ${timeline.gradient[1]})`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: `0 2px 8px rgba(${timeline.rgb}, 0.3)`,
-                      }}>
-                        <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.7rem' }}>
-                          {index + 1}
+                {FS2_TIMELINE_CONFIGS.map((timeline, index) => {
+                  const isPemeliharaan = editFormData.fase_pengajuan === 'PEMELIHARAAN';
+                  const targetValue = editFormData[timeline.targetField as keyof typeof editFormData] as string || '';
+                  
+                  return (
+                    <Box key={timeline.key} sx={{ 
+                      flex: 1, 
+                      p: 2, 
+                      borderRadius: '12px',
+                      background: `linear-gradient(135deg, rgba(${timeline.rgb}, 0.08) 0%, rgba(${timeline.rgb}, 0.04) 100%)`,
+                      border: `1px solid rgba(${timeline.rgb}, 0.2)`,
+                    }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                        <Box sx={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: '8px',
+                          background: `linear-gradient(135deg, ${timeline.gradient[0]}, ${timeline.gradient[1]})`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: `0 2px 8px rgba(${timeline.rgb}, 0.3)`,
+                        }}>
+                          <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.7rem' }}>
+                            {index + 1}
+                          </Typography>
+                        </Box>
+                        <Typography sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#1d1d1f' }}>
+                          {timeline.label}
                         </Typography>
                       </Box>
-                      <Typography sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#1d1d1f' }}>
-                        {timeline.label}
-                      </Typography>
+                      {isPemeliharaan ? (
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                          <FormControl size="small" sx={{ minWidth: 80 }}>
+                            <Select
+                              value={getMonthFromDate(targetValue)}
+                              displayEmpty
+                              onChange={(e) => {
+                                const newMonth = e.target.value;
+                                const currentYear = getYearFromDate(targetValue) || new Date().getFullYear().toString();
+                                const newDate = newMonth ? buildDateFromMonthYear(newMonth, currentYear) : '';
+                                setEditFormData({ ...editFormData, [timeline.targetField]: newDate });
+                              }}
+                              sx={{ fontSize: '0.7rem', height: 26, borderRadius: '6px', '& .MuiSelect-select': { py: 0.3 } }}
+                            >
+                              <MenuItem value="" sx={{ fontSize: '0.7rem' }}><em>Bulan</em></MenuItem>
+                              {MONTH_OPTIONS.map(m => (
+                                <MenuItem key={m.value} value={m.value} sx={{ fontSize: '0.7rem' }}>{m.label}</MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                          <FormControl size="small" sx={{ minWidth: 65 }}>
+                            <Select
+                              value={getYearFromDate(targetValue)}
+                              displayEmpty
+                              onChange={(e) => {
+                                const newYear = e.target.value;
+                                const currentMonth = getMonthFromDate(targetValue) || '01';
+                                const newDate = newYear ? buildDateFromMonthYear(currentMonth, newYear) : '';
+                                setEditFormData({ ...editFormData, [timeline.targetField]: newDate });
+                              }}
+                              sx={{ fontSize: '0.7rem', height: 26, borderRadius: '6px', '& .MuiSelect-select': { py: 0.3 } }}
+                            >
+                              <MenuItem value="" sx={{ fontSize: '0.7rem' }}><em>Tahun</em></MenuItem>
+                              {YEAR_OPTIONS.map(y => (
+                                <MenuItem key={y.value} value={y.value} sx={{ fontSize: '0.7rem' }}>{y.label}</MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Box>
+                      ) : (
+                        <Typography sx={{ 
+                          fontSize: '0.75rem', 
+                          color: timeline.gradient[0],
+                          fontWeight: 600,
+                        }}>
+                          {targetValue ? formatMonthYear(targetValue) : '-'}
+                        </Typography>
+                      )}
                     </Box>
-                    <Typography sx={{ 
-                      fontSize: '0.75rem', 
-                      color: timeline.gradient[0],
-                      fontWeight: 600,
-                    }}>
-                      {timeline.key === 'pengujian' ? (editFormData.target_pengujian ? formatMonthYear(editFormData.target_pengujian) : '-') :
-                       timeline.key === 'deployment' ? (editFormData.target_deployment ? formatMonthYear(editFormData.target_deployment) : '-') :
-                       (editFormData.target_go_live ? formatMonthYear(editFormData.target_go_live) : '-')}
-                    </Typography>
-                    {timeline.realisasiField && (
-                      <Typography sx={{ 
-                        fontSize: '0.65rem', 
-                        color: '#86868b',
-                        mt: 0.5,
-                      }}>
-                        Realisasi: {timeline.key === 'pengujian' ? (editFormData.realisasi_pengujian ? formatMonthYear(editFormData.realisasi_pengujian) : '-') :
-                                   (editFormData.realisasi_deployment ? formatMonthYear(editFormData.realisasi_deployment) : '-')}
-                      </Typography>
-                    )}
-                  </Box>
-                ))}
+                  );
+                })}
               </Box>
             </Box>
           )}
@@ -2940,141 +3374,7 @@ function Fs2Disetujui() {
               Informasi Umum
             </Typography>
             
-            {/* Progres Section with Status and Date */}
-            <Box sx={{ 
-              p: 2, 
-              mb: 2, 
-              borderRadius: '12px', 
-              bgcolor: 'rgba(255, 255, 255, 0.6)',
-              border: '1px dashed rgba(49, 162, 76, 0.3)',
-            }}>
-              <Typography variant="body2" sx={{ mb: 1.5, fontWeight: 600, color: '#1d1d1f', fontSize: '0.85rem' }}>
-                Progres Pengembangan
-              </Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2 }}>
-                <FormControl fullWidth size="small">
-                  <InputLabel sx={{ '&.Mui-focused': { color: '#31A24C' } }}>Progres</InputLabel>
-                  <Select
-                    value={editFormData.progres || ''}
-                    label="Progres"
-                    onChange={(e) => setEditFormData({ ...editFormData, progres: e.target.value })}
-                    sx={{
-                      borderRadius: '14px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                      backdropFilter: 'blur(10px)',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(0, 0, 0, 0.08)',
-                        transition: 'all 0.3s ease',
-                      },
-                      '&:hover': {
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(49, 162, 76, 0.3)',
-                        },
-                      },
-                      '&.Mui-focused': {
-                        backgroundColor: 'rgba(255, 255, 255, 1)',
-                        boxShadow: '0 4px 20px rgba(49, 162, 76, 0.12)',
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: '#31A24C',
-                          borderWidth: '1.5px',
-                        },
-                      },
-                    }}
-                  >
-                    {PROGRES_OPTIONS.map((option) => (
-                      <MenuItem key={option} value={option}>{PROGRES_LABELS[option]}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl fullWidth size="small">
-                  <InputLabel sx={{ '&.Mui-focused': { color: '#31A24C' } }}>Status</InputLabel>
-                  <Select
-                    value={editFormData.progres_status || ''}
-                    label="Status"
-                    onChange={(e) => {
-                      const newStatus = e.target.value;
-                      setEditFormData({
-                        ...editFormData,
-                        progres_status: newStatus,
-                        tanggal_progres: newStatus === 'BELUM_DIMULAI' ? '' : editFormData.tanggal_progres,
-                      });
-                    }}
-                    sx={{
-                      borderRadius: '14px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                      backdropFilter: 'blur(10px)',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(0, 0, 0, 0.08)',
-                        transition: 'all 0.3s ease',
-                      },
-                      '&:hover': {
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(49, 162, 76, 0.3)',
-                        },
-                      },
-                      '&.Mui-focused': {
-                        backgroundColor: 'rgba(255, 255, 255, 1)',
-                        boxShadow: '0 4px 20px rgba(49, 162, 76, 0.12)',
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: '#31A24C',
-                          borderWidth: '1.5px',
-                        },
-                      },
-                    }}
-                  >
-                    {PROGRES_STATUS_OPTIONS.map((option) => (
-                      <MenuItem key={option} value={option}>{PROGRES_STATUS_LABELS[option]}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <TextField
-                  label="Tanggal Update"
-                  type="date"
-                  size="small"
-                  value={editFormData.tanggal_progres || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, tanggal_progres: e.target.value })}
-                  disabled={editFormData.progres_status === 'BELUM_DIMULAI'}
-                  fullWidth
-                  slotProps={{ inputLabel: { shrink: true } }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: '14px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                      backdropFilter: 'blur(10px)',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(0, 0, 0, 0.08)',
-                        transition: 'all 0.3s ease',
-                      },
-                      '&:hover': {
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(49, 162, 76, 0.3)',
-                        },
-                      },
-                      '&.Mui-focused': {
-                        backgroundColor: 'rgba(255, 255, 255, 1)',
-                        boxShadow: '0 4px 20px rgba(49, 162, 76, 0.12)',
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: '#31A24C',
-                          borderWidth: '1.5px',
-                        },
-                      },
-                      '&.Mui-disabled': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                        opacity: 0.6,
-                      },
-                    },
-                  }}
-                />
-              </Box>
-            </Box>
+            {/* Note: Progres Pengembangan section removed - now derived from tahapan completion dates */}
 
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
 
@@ -3396,7 +3696,7 @@ function Fs2Disetujui() {
             {fileErrorMessage && (
               <Typography color="error" variant="body2" sx={{ mb: 2 }}>{fileErrorMessage}</Typography>
             )}
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
+            <Box sx={{ mb: 2 }}>
               <TextField
                 label="Nomor ND"
                 size="small"
@@ -3404,18 +3704,9 @@ function Fs2Disetujui() {
                 onChange={(e) => setEditFormData({ ...editFormData, nomor_nd: e.target.value })}
                 fullWidth
               />
-              <TextField
-                label="Tanggal Berkas ND"
-                type="date"
-                size="small"
-                value={editFormData.tanggal_nd || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, tanggal_nd: e.target.value })}
-                fullWidth
-                slotProps={{ inputLabel: { shrink: true } }}
-              />
             </Box>
             
-            {/* Berkas ND Dropzone */}
+            {/* Berkas ND Dropzone - PKSI-style with date picker */}
             <Box sx={{ mb: 2 }}>
               <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas ND</Typography>
               <Box
@@ -3424,16 +3715,15 @@ function Fs2Disetujui() {
                   borderRadius: 2,
                   p: 2,
                   textAlign: 'center',
-                  cursor: isUploadingND ? 'not-allowed' : 'pointer',
-                  opacity: isUploadingND ? 0.7 : 1,
+                  cursor: 'pointer',
                   transition: 'all 0.2s ease-in-out',
                   bgcolor: isDraggingND ? 'rgba(49, 162, 76, 0.08)' : 'transparent',
                   '&:hover': {
-                    borderColor: isUploadingND ? '#e5e5e7' : '#31A24C',
-                    bgcolor: isUploadingND ? 'transparent' : 'rgba(49, 162, 76, 0.04)',
+                    borderColor: '#31A24C',
+                    bgcolor: 'rgba(49, 162, 76, 0.04)',
                   },
                 }}
-                onClick={() => !isUploadingND && document.getElementById('fs2-edit-file-upload-nd')?.click()}
+                onClick={() => document.getElementById('fs2-edit-file-upload-nd')?.click()}
                 onDragOver={(e) => { e.preventDefault(); setIsDraggingND(true); }}
                 onDragLeave={() => setIsDraggingND(false)}
                 onDrop={handleFileDropND}
@@ -3442,23 +3732,59 @@ function Fs2Disetujui() {
                   id="fs2-edit-file-upload-nd"
                   type="file"
                   hidden
-                  onChange={handleFileUploadND}
+                  onChange={handleFileSelectND}
                   accept=".pdf,.doc,.docx"
-                  disabled={isUploadingND}
                 />
-                {isUploadingND ? (
-                  <>
-                    <CircularProgress size={32} sx={{ color: '#31A24C', mb: 1 }} />
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>Mengupload file...</Typography>
-                  </>
-                ) : (
-                  <>
-                    <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingND ? '#31A24C' : '#86868b', mb: 0.5 }} />
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingND ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
-                    <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
-                  </>
-                )}
+                <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingND ? '#31A24C' : '#86868b', mb: 0.5 }} />
+                <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingND ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
+                <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
               </Box>
+              
+              {/* Pending files with date picker */}
+              {pendingFilesND.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.8rem', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FileIcon sx={{ color: '#31A24C', fontSize: 18 }} />
+                    File akan diupload ({pendingFilesND.length})
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    {pendingFilesND.map((pending, index) => (
+                      <Box key={index} sx={{ p: 1.5, background: 'linear-gradient(145deg, rgba(49, 162, 76, 0.06) 0%, rgba(49, 162, 76, 0.02) 100%)', borderRadius: '12px', border: '1px solid rgba(49, 162, 76, 0.2)' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+                          <FileIcon sx={{ color: '#31A24C', fontSize: 18, flexShrink: 0 }} />
+                          <Typography sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pending.file.name}</Typography>
+                          <Typography sx={{ color: '#86868b', fontSize: '0.7rem', whiteSpace: 'nowrap', mx: 1 }}>{formatFileSize(pending.file.size)}</Typography>
+                          <IconButton size="small" onClick={() => setPendingFilesND(prev => prev.filter((_, i) => i !== index))} sx={{ color: '#DC2626', width: 28, height: 28, borderRadius: '8px', background: 'rgba(220,38,38,0.08)', '&:hover': { background: 'rgba(220,38,38,0.15)' } }}>
+                            <DeleteIcon sx={{ fontSize: 15 }} />
+                          </IconButton>
+                        </Box>
+                        <TextField
+                          fullWidth
+                          label="Tanggal Dokumen"
+                          type="date"
+                          size="small"
+                          value={pending.tanggal}
+                          onChange={(e) => setPendingFilesND(prev => prev.map((p, i) => i === index ? { ...p, tanggal: e.target.value } : p))}
+                          InputLabelProps={{ shrink: true }}
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.7)', '&.Mui-focused fieldset': { borderColor: '#31A24C' } }, '& .MuiInputLabel-root.Mui-focused': { color: '#31A24C' } }}
+                        />
+                      </Box>
+                    ))}
+                  </Stack>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={handleUploadPendingND}
+                    disabled={isUploadingND}
+                    startIcon={isUploadingND ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <CloudUploadIcon />}
+                    sx={{ mt: 1.5, background: 'linear-gradient(145deg, #31A24C 0%, #4ADE80 100%)', borderRadius: '12px', fontWeight: 600, '&:hover': { background: 'linear-gradient(145deg, #059669 0%, #31A24C 100%)' } }}
+                  >
+                    {isUploadingND ? 'Mengupload...' : `Upload ${pendingFilesND.length} File`}
+                  </Button>
+                </Box>
+              )}
+              
+              {/* Uploaded files list */}
               {filesND.length > 0 && (
                 <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '8px', mt: 1 }}>
                   {filesND.map((file) => (
@@ -3473,7 +3799,7 @@ function Fs2Disetujui() {
                             )}
                           </Box>
                         }
-                        secondary={formatFileSize(file.file_size)}
+                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID')}` : ''}`}
                         primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
                         secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
                       />
@@ -3492,7 +3818,7 @@ function Fs2Disetujui() {
               )}
             </Box>
 
-            {/* Berkas F.S.2 Dropzone */}
+            {/* Berkas F.S.2 Dropzone - PKSI-style with date picker */}
             <Box>
               <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas F.S.2</Typography>
               <Box
@@ -3501,16 +3827,15 @@ function Fs2Disetujui() {
                   borderRadius: 2,
                   p: 2,
                   textAlign: 'center',
-                  cursor: isUploadingFS2 ? 'not-allowed' : 'pointer',
-                  opacity: isUploadingFS2 ? 0.7 : 1,
+                  cursor: 'pointer',
                   transition: 'all 0.2s ease-in-out',
                   bgcolor: isDraggingFS2 ? 'rgba(49, 162, 76, 0.08)' : 'transparent',
                   '&:hover': {
-                    borderColor: isUploadingFS2 ? '#e5e5e7' : '#31A24C',
-                    bgcolor: isUploadingFS2 ? 'transparent' : 'rgba(49, 162, 76, 0.04)',
+                    borderColor: '#31A24C',
+                    bgcolor: 'rgba(49, 162, 76, 0.04)',
                   },
                 }}
-                onClick={() => !isUploadingFS2 && document.getElementById('fs2-edit-file-upload-fs2')?.click()}
+                onClick={() => document.getElementById('fs2-edit-file-upload-fs2')?.click()}
                 onDragOver={(e) => { e.preventDefault(); setIsDraggingFS2(true); }}
                 onDragLeave={() => setIsDraggingFS2(false)}
                 onDrop={handleFileDropFS2}
@@ -3519,23 +3844,59 @@ function Fs2Disetujui() {
                   id="fs2-edit-file-upload-fs2"
                   type="file"
                   hidden
-                  onChange={handleFileUploadFS2}
+                  onChange={handleFileSelectFS2}
                   accept=".pdf,.doc,.docx"
-                  disabled={isUploadingFS2}
                 />
-                {isUploadingFS2 ? (
-                  <>
-                    <CircularProgress size={32} sx={{ color: '#31A24C', mb: 1 }} />
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>Mengupload file...</Typography>
-                  </>
-                ) : (
-                  <>
-                    <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingFS2 ? '#31A24C' : '#86868b', mb: 0.5 }} />
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingFS2 ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
-                    <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
-                  </>
-                )}
+                <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingFS2 ? '#31A24C' : '#86868b', mb: 0.5 }} />
+                <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingFS2 ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
+                <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
               </Box>
+              
+              {/* Pending files with date picker */}
+              {pendingFilesFS2.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.8rem', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FileIcon sx={{ color: '#31A24C', fontSize: 18 }} />
+                    File akan diupload ({pendingFilesFS2.length})
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    {pendingFilesFS2.map((pending, index) => (
+                      <Box key={index} sx={{ p: 1.5, background: 'linear-gradient(145deg, rgba(49, 162, 76, 0.06) 0%, rgba(49, 162, 76, 0.02) 100%)', borderRadius: '12px', border: '1px solid rgba(49, 162, 76, 0.2)' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+                          <FileIcon sx={{ color: '#31A24C', fontSize: 18, flexShrink: 0 }} />
+                          <Typography sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pending.file.name}</Typography>
+                          <Typography sx={{ color: '#86868b', fontSize: '0.7rem', whiteSpace: 'nowrap', mx: 1 }}>{formatFileSize(pending.file.size)}</Typography>
+                          <IconButton size="small" onClick={() => setPendingFilesFS2(prev => prev.filter((_, i) => i !== index))} sx={{ color: '#DC2626', width: 28, height: 28, borderRadius: '8px', background: 'rgba(220,38,38,0.08)', '&:hover': { background: 'rgba(220,38,38,0.15)' } }}>
+                            <DeleteIcon sx={{ fontSize: 15 }} />
+                          </IconButton>
+                        </Box>
+                        <TextField
+                          fullWidth
+                          label="Tanggal Dokumen"
+                          type="date"
+                          size="small"
+                          value={pending.tanggal}
+                          onChange={(e) => setPendingFilesFS2(prev => prev.map((p, i) => i === index ? { ...p, tanggal: e.target.value } : p))}
+                          InputLabelProps={{ shrink: true }}
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.7)', '&.Mui-focused fieldset': { borderColor: '#31A24C' } }, '& .MuiInputLabel-root.Mui-focused': { color: '#31A24C' } }}
+                        />
+                      </Box>
+                    ))}
+                  </Stack>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={handleUploadPendingFS2}
+                    disabled={isUploadingFS2}
+                    startIcon={isUploadingFS2 ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <CloudUploadIcon />}
+                    sx={{ mt: 1.5, background: 'linear-gradient(145deg, #31A24C 0%, #4ADE80 100%)', borderRadius: '12px', fontWeight: 600, '&:hover': { background: 'linear-gradient(145deg, #059669 0%, #31A24C 100%)' } }}
+                  >
+                    {isUploadingFS2 ? 'Mengupload...' : `Upload ${pendingFilesFS2.length} File`}
+                  </Button>
+                </Box>
+              )}
+              
+              {/* Uploaded files list */}
               {filesFS2.length > 0 && (
                 <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '8px', mt: 1 }}>
                   {filesFS2.map((file) => (
@@ -3550,7 +3911,7 @@ function Fs2Disetujui() {
                             )}
                           </Box>
                         }
-                        secondary={formatFileSize(file.file_size)}
+                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID')}` : ''}`}
                         primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
                         secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
                       />
@@ -3568,18 +3929,6 @@ function Fs2Disetujui() {
                 </List>
               )}
             </Box>
-
-            {/* Tanggal Berkas F.S.2 */}
-            <TextField
-              label="Tanggal Berkas F.S.2"
-              type="date"
-              size="small"
-              value={editFormData.tanggal_berkas_fs2 || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, tanggal_berkas_fs2: e.target.value })}
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-              sx={{ mt: 1 }}
-            />
           </Box>
 
           {/* CD Prinsip Persetujuan FS2 Section */}
@@ -3588,22 +3937,13 @@ function Fs2Disetujui() {
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#2563EB' }} />
               CD Prinsip Persetujuan FS2
             </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
+            <Box sx={{ mb: 2 }}>
               <TextField
                 label="Nomor CD Prinsip Persetujuan FS2"
                 size="small"
                 value={editFormData.nomor_cd || ''}
                 onChange={(e) => setEditFormData({ ...editFormData, nomor_cd: e.target.value })}
                 fullWidth
-              />
-              <TextField
-                label="Tanggal Berkas CD Prinsip Persetujuan FS2"
-                type="date"
-                size="small"
-                value={editFormData.tanggal_cd || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, tanggal_cd: e.target.value })}
-                fullWidth
-                slotProps={{ inputLabel: { shrink: true } }}
               />
             </Box>
             
@@ -3616,16 +3956,15 @@ function Fs2Disetujui() {
                   borderRadius: 2,
                   p: 2,
                   textAlign: 'center',
-                  cursor: isUploadingCD ? 'not-allowed' : 'pointer',
-                  opacity: isUploadingCD ? 0.7 : 1,
+                  cursor: 'pointer',
                   transition: 'all 0.2s ease-in-out',
                   bgcolor: isDraggingCD ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
                   '&:hover': {
-                    borderColor: isUploadingCD ? '#e5e5e7' : '#2563EB',
-                    bgcolor: isUploadingCD ? 'transparent' : 'rgba(37, 99, 235, 0.04)',
+                    borderColor: '#2563EB',
+                    bgcolor: 'rgba(37, 99, 235, 0.04)',
                   },
                 }}
-                onClick={() => !isUploadingCD && document.getElementById('fs2-edit-file-upload-cd')?.click()}
+                onClick={() => document.getElementById('fs2-edit-file-upload-cd')?.click()}
                 onDragOver={(e) => { e.preventDefault(); setIsDraggingCD(true); }}
                 onDragLeave={() => setIsDraggingCD(false)}
                 onDrop={handleFileDropCD}
@@ -3634,23 +3973,59 @@ function Fs2Disetujui() {
                   id="fs2-edit-file-upload-cd"
                   type="file"
                   hidden
-                  onChange={handleFileUploadCD}
+                  onChange={handleFileSelectCD}
                   accept=".pdf,.doc,.docx"
-                  disabled={isUploadingCD}
                 />
-                {isUploadingCD ? (
-                  <>
-                    <CircularProgress size={32} sx={{ color: '#2563EB', mb: 1 }} />
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>Mengupload file...</Typography>
-                  </>
-                ) : (
-                  <>
-                    <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingCD ? '#2563EB' : '#86868b', mb: 0.5 }} />
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingCD ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
-                    <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
-                  </>
-                )}
+                <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingCD ? '#2563EB' : '#86868b', mb: 0.5 }} />
+                <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingCD ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
+                <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
               </Box>
+              
+              {/* Pending files with date picker */}
+              {pendingFilesCD.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.8rem', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FileIcon sx={{ color: '#2563EB', fontSize: 18 }} />
+                    File akan diupload ({pendingFilesCD.length})
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    {pendingFilesCD.map((pending, index) => (
+                      <Box key={index} sx={{ p: 1.5, background: 'linear-gradient(145deg, rgba(37, 99, 235, 0.06) 0%, rgba(37, 99, 235, 0.02) 100%)', borderRadius: '12px', border: '1px solid rgba(37, 99, 235, 0.2)' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+                          <FileIcon sx={{ color: '#2563EB', fontSize: 18, flexShrink: 0 }} />
+                          <Typography sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pending.file.name}</Typography>
+                          <Typography sx={{ color: '#86868b', fontSize: '0.7rem', whiteSpace: 'nowrap', mx: 1 }}>{formatFileSize(pending.file.size)}</Typography>
+                          <IconButton size="small" onClick={() => setPendingFilesCD(prev => prev.filter((_, i) => i !== index))} sx={{ color: '#DC2626', width: 28, height: 28, borderRadius: '8px', background: 'rgba(220,38,38,0.08)', '&:hover': { background: 'rgba(220,38,38,0.15)' } }}>
+                            <DeleteIcon sx={{ fontSize: 15 }} />
+                          </IconButton>
+                        </Box>
+                        <TextField
+                          fullWidth
+                          label="Tanggal Dokumen"
+                          type="date"
+                          size="small"
+                          value={pending.tanggal}
+                          onChange={(e) => setPendingFilesCD(prev => prev.map((p, i) => i === index ? { ...p, tanggal: e.target.value } : p))}
+                          InputLabelProps={{ shrink: true }}
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.7)', '&.Mui-focused fieldset': { borderColor: '#2563EB' } }, '& .MuiInputLabel-root.Mui-focused': { color: '#2563EB' } }}
+                        />
+                      </Box>
+                    ))}
+                  </Stack>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={handleUploadPendingCD}
+                    disabled={isUploadingCD}
+                    startIcon={isUploadingCD ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <CloudUploadIcon />}
+                    sx={{ mt: 1.5, background: 'linear-gradient(145deg, #2563EB 0%, #3B82F6 100%)', borderRadius: '12px', fontWeight: 600, '&:hover': { background: 'linear-gradient(145deg, #1D4ED8 0%, #2563EB 100%)' } }}
+                  >
+                    {isUploadingCD ? 'Mengupload...' : `Upload ${pendingFilesCD.length} File`}
+                  </Button>
+                </Box>
+              )}
+              
+              {/* Uploaded files list */}
               {filesCD.length > 0 && (
                 <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '8px', mt: 1 }}>
                   {filesCD.map((file) => (
@@ -3665,7 +4040,7 @@ function Fs2Disetujui() {
                             )}
                           </Box>
                         }
-                        secondary={formatFileSize(file.file_size)}
+                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID')}` : ''}`}
                         primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
                         secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
                       />
@@ -3693,16 +4068,15 @@ function Fs2Disetujui() {
                   borderRadius: 2,
                   p: 2,
                   textAlign: 'center',
-                  cursor: isUploadingFS2A ? 'not-allowed' : 'pointer',
-                  opacity: isUploadingFS2A ? 0.7 : 1,
+                  cursor: 'pointer',
                   transition: 'all 0.2s ease-in-out',
                   bgcolor: isDraggingFS2A ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
                   '&:hover': {
-                    borderColor: isUploadingFS2A ? '#e5e5e7' : '#2563EB',
-                    bgcolor: isUploadingFS2A ? 'transparent' : 'rgba(37, 99, 235, 0.04)',
+                    borderColor: '#2563EB',
+                    bgcolor: 'rgba(37, 99, 235, 0.04)',
                   },
                 }}
-                onClick={() => !isUploadingFS2A && document.getElementById('fs2-edit-file-upload-fs2a')?.click()}
+                onClick={() => document.getElementById('fs2-edit-file-upload-fs2a')?.click()}
                 onDragOver={(e) => { e.preventDefault(); setIsDraggingFS2A(true); }}
                 onDragLeave={() => setIsDraggingFS2A(false)}
                 onDrop={handleFileDropFS2A}
@@ -3711,23 +4085,59 @@ function Fs2Disetujui() {
                   id="fs2-edit-file-upload-fs2a"
                   type="file"
                   hidden
-                  onChange={handleFileUploadFS2A}
+                  onChange={handleFileSelectFS2A}
                   accept=".pdf,.doc,.docx"
-                  disabled={isUploadingFS2A}
                 />
-                {isUploadingFS2A ? (
-                  <>
-                    <CircularProgress size={32} sx={{ color: '#2563EB', mb: 1 }} />
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>Mengupload file...</Typography>
-                  </>
-                ) : (
-                  <>
-                    <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingFS2A ? '#2563EB' : '#86868b', mb: 0.5 }} />
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingFS2A ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
-                    <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
-                  </>
-                )}
+                <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingFS2A ? '#2563EB' : '#86868b', mb: 0.5 }} />
+                <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingFS2A ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
+                <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
               </Box>
+              
+              {/* Pending files with date picker */}
+              {pendingFilesFS2A.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.8rem', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FileIcon sx={{ color: '#2563EB', fontSize: 18 }} />
+                    File akan diupload ({pendingFilesFS2A.length})
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    {pendingFilesFS2A.map((pending, index) => (
+                      <Box key={index} sx={{ p: 1.5, background: 'linear-gradient(145deg, rgba(37, 99, 235, 0.06) 0%, rgba(37, 99, 235, 0.02) 100%)', borderRadius: '12px', border: '1px solid rgba(37, 99, 235, 0.2)' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+                          <FileIcon sx={{ color: '#2563EB', fontSize: 18, flexShrink: 0 }} />
+                          <Typography sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pending.file.name}</Typography>
+                          <Typography sx={{ color: '#86868b', fontSize: '0.7rem', whiteSpace: 'nowrap', mx: 1 }}>{formatFileSize(pending.file.size)}</Typography>
+                          <IconButton size="small" onClick={() => setPendingFilesFS2A(prev => prev.filter((_, i) => i !== index))} sx={{ color: '#DC2626', width: 28, height: 28, borderRadius: '8px', background: 'rgba(220,38,38,0.08)', '&:hover': { background: 'rgba(220,38,38,0.15)' } }}>
+                            <DeleteIcon sx={{ fontSize: 15 }} />
+                          </IconButton>
+                        </Box>
+                        <TextField
+                          fullWidth
+                          label="Tanggal Dokumen"
+                          type="date"
+                          size="small"
+                          value={pending.tanggal}
+                          onChange={(e) => setPendingFilesFS2A(prev => prev.map((p, i) => i === index ? { ...p, tanggal: e.target.value } : p))}
+                          InputLabelProps={{ shrink: true }}
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.7)', '&.Mui-focused fieldset': { borderColor: '#2563EB' } }, '& .MuiInputLabel-root.Mui-focused': { color: '#2563EB' } }}
+                        />
+                      </Box>
+                    ))}
+                  </Stack>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={handleUploadPendingFS2A}
+                    disabled={isUploadingFS2A}
+                    startIcon={isUploadingFS2A ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <CloudUploadIcon />}
+                    sx={{ mt: 1.5, background: 'linear-gradient(145deg, #2563EB 0%, #3B82F6 100%)', borderRadius: '12px', fontWeight: 600, '&:hover': { background: 'linear-gradient(145deg, #1D4ED8 0%, #2563EB 100%)' } }}
+                  >
+                    {isUploadingFS2A ? 'Mengupload...' : `Upload ${pendingFilesFS2A.length} File`}
+                  </Button>
+                </Box>
+              )}
+              
+              {/* Uploaded files list */}
               {filesFS2A.length > 0 && (
                 <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '8px', mt: 1 }}>
                   {filesFS2A.map((file) => (
@@ -3742,7 +4152,7 @@ function Fs2Disetujui() {
                             )}
                           </Box>
                         }
-                        secondary={formatFileSize(file.file_size)}
+                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID')}` : ''}`}
                         primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
                         secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
                       />
@@ -3761,18 +4171,6 @@ function Fs2Disetujui() {
               )}
             </Box>
 
-            {/* Tanggal Berkas F.S.2A */}
-            <TextField
-              label="Tanggal Berkas F.S.2A"
-              type="date"
-              size="small"
-              value={editFormData.tanggal_berkas_fs2a || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, tanggal_berkas_fs2a: e.target.value })}
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-              sx={{ mb: 2 }}
-            />
-
             {/* Berkas F.S.2B Dropzone */}
             <Box>
               <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas F.S.2B</Typography>
@@ -3782,16 +4180,15 @@ function Fs2Disetujui() {
                   borderRadius: 2,
                   p: 2,
                   textAlign: 'center',
-                  cursor: isUploadingFS2B ? 'not-allowed' : 'pointer',
-                  opacity: isUploadingFS2B ? 0.7 : 1,
+                  cursor: 'pointer',
                   transition: 'all 0.2s ease-in-out',
                   bgcolor: isDraggingFS2B ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
                   '&:hover': {
-                    borderColor: isUploadingFS2B ? '#e5e5e7' : '#2563EB',
-                    bgcolor: isUploadingFS2B ? 'transparent' : 'rgba(37, 99, 235, 0.04)',
+                    borderColor: '#2563EB',
+                    bgcolor: 'rgba(37, 99, 235, 0.04)',
                   },
                 }}
-                onClick={() => !isUploadingFS2B && document.getElementById('fs2-edit-file-upload-fs2b')?.click()}
+                onClick={() => document.getElementById('fs2-edit-file-upload-fs2b')?.click()}
                 onDragOver={(e) => { e.preventDefault(); setIsDraggingFS2B(true); }}
                 onDragLeave={() => setIsDraggingFS2B(false)}
                 onDrop={handleFileDropFS2B}
@@ -3800,23 +4197,59 @@ function Fs2Disetujui() {
                   id="fs2-edit-file-upload-fs2b"
                   type="file"
                   hidden
-                  onChange={handleFileUploadFS2B}
+                  onChange={handleFileSelectFS2B}
                   accept=".pdf,.doc,.docx"
-                  disabled={isUploadingFS2B}
                 />
-                {isUploadingFS2B ? (
-                  <>
-                    <CircularProgress size={32} sx={{ color: '#2563EB', mb: 1 }} />
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>Mengupload file...</Typography>
-                  </>
-                ) : (
-                  <>
-                    <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingFS2B ? '#2563EB' : '#86868b', mb: 0.5 }} />
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingFS2B ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
-                    <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
-                  </>
-                )}
+                <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingFS2B ? '#2563EB' : '#86868b', mb: 0.5 }} />
+                <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingFS2B ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
+                <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
               </Box>
+              
+              {/* Pending files with date picker */}
+              {pendingFilesFS2B.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.8rem', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FileIcon sx={{ color: '#2563EB', fontSize: 18 }} />
+                    File akan diupload ({pendingFilesFS2B.length})
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    {pendingFilesFS2B.map((pending, index) => (
+                      <Box key={index} sx={{ p: 1.5, background: 'linear-gradient(145deg, rgba(37, 99, 235, 0.06) 0%, rgba(37, 99, 235, 0.02) 100%)', borderRadius: '12px', border: '1px solid rgba(37, 99, 235, 0.2)' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+                          <FileIcon sx={{ color: '#2563EB', fontSize: 18, flexShrink: 0 }} />
+                          <Typography sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pending.file.name}</Typography>
+                          <Typography sx={{ color: '#86868b', fontSize: '0.7rem', whiteSpace: 'nowrap', mx: 1 }}>{formatFileSize(pending.file.size)}</Typography>
+                          <IconButton size="small" onClick={() => setPendingFilesFS2B(prev => prev.filter((_, i) => i !== index))} sx={{ color: '#DC2626', width: 28, height: 28, borderRadius: '8px', background: 'rgba(220,38,38,0.08)', '&:hover': { background: 'rgba(220,38,38,0.15)' } }}>
+                            <DeleteIcon sx={{ fontSize: 15 }} />
+                          </IconButton>
+                        </Box>
+                        <TextField
+                          fullWidth
+                          label="Tanggal Dokumen"
+                          type="date"
+                          size="small"
+                          value={pending.tanggal}
+                          onChange={(e) => setPendingFilesFS2B(prev => prev.map((p, i) => i === index ? { ...p, tanggal: e.target.value } : p))}
+                          InputLabelProps={{ shrink: true }}
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.7)', '&.Mui-focused fieldset': { borderColor: '#2563EB' } }, '& .MuiInputLabel-root.Mui-focused': { color: '#2563EB' } }}
+                        />
+                      </Box>
+                    ))}
+                  </Stack>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={handleUploadPendingFS2B}
+                    disabled={isUploadingFS2B}
+                    startIcon={isUploadingFS2B ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <CloudUploadIcon />}
+                    sx={{ mt: 1.5, background: 'linear-gradient(145deg, #2563EB 0%, #3B82F6 100%)', borderRadius: '12px', fontWeight: 600, '&:hover': { background: 'linear-gradient(145deg, #1D4ED8 0%, #2563EB 100%)' } }}
+                  >
+                    {isUploadingFS2B ? 'Mengupload...' : `Upload ${pendingFilesFS2B.length} File`}
+                  </Button>
+                </Box>
+              )}
+              
+              {/* Uploaded files list */}
               {filesFS2B.length > 0 && (
                 <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '8px', mt: 1 }}>
                   {filesFS2B.map((file) => (
@@ -3831,7 +4264,7 @@ function Fs2Disetujui() {
                             )}
                           </Box>
                         }
-                        secondary={formatFileSize(file.file_size)}
+                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID')}` : ''}`}
                         primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
                         secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
                       />
@@ -3849,17 +4282,6 @@ function Fs2Disetujui() {
                 </List>
               )}
             </Box>
-
-            {/* Tanggal Berkas F.S.2B */}
-            <TextField
-              label="Tanggal Berkas F.S.2B"
-              type="date"
-              size="small"
-              value={editFormData.tanggal_berkas_fs2b || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, tanggal_berkas_fs2b: e.target.value })}
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
           </Box>
 
           {/* Pengujian Section */}
@@ -3868,96 +4290,6 @@ function Fs2Disetujui() {
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#D97706' }} />
               Pengujian
             </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
-              <Box>
-                <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
-                  Target Pengujian
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <FormControl size="small" sx={{ flex: 1 }}>
-                    <InputLabel>Bulan</InputLabel>
-                    <Select
-                      value={getMonthFromDate(editFormData.target_pengujian)}
-                      label="Bulan"
-                      disabled={editFormData.fase_pengajuan === 'DESAIN'}
-                      onChange={(e) => setEditFormData({ 
-                        ...editFormData, 
-                        target_pengujian: buildDateFromMonthYear(e.target.value, getYearFromDate(editFormData.target_pengujian))
-                      })}
-                      sx={{ borderRadius: '8px' }}
-                    >
-                      {MONTH_OPTIONS.map((month) => (
-                        <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <FormControl size="small" sx={{ flex: 1 }}>
-                    <InputLabel>Tahun</InputLabel>
-                    <Select
-                      value={getYearFromDate(editFormData.target_pengujian)}
-                      label="Tahun"
-                      disabled={editFormData.fase_pengajuan === 'DESAIN'}
-                      onChange={(e) => setEditFormData({ 
-                        ...editFormData, 
-                        target_pengujian: buildDateFromMonthYear(getMonthFromDate(editFormData.target_pengujian), e.target.value)
-                      })}
-                      sx={{ borderRadius: '8px' }}
-                    >
-                      {YEAR_OPTIONS.map((year) => (
-                        <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Box>
-              </Box>
-              <Box>
-                <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
-                  Realisasi Pengujian
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <FormControl size="small" sx={{ flex: 1 }}>
-                    <InputLabel>Bulan</InputLabel>
-                    <Select
-                      value={getMonthFromDate(editFormData.realisasi_pengujian)}
-                      label="Bulan"
-                      onChange={(e) => {
-                        const selectedMonth = e.target.value;
-                        const currentYear = getYearFromDate(editFormData.realisasi_pengujian) || new Date().getFullYear().toString();
-                        setEditFormData({ 
-                          ...editFormData, 
-                          realisasi_pengujian: buildDateFromMonthYear(selectedMonth, currentYear)
-                        });
-                      }}
-                      sx={{ borderRadius: '8px' }}
-                    >
-                      {MONTH_OPTIONS.map((month) => (
-                        <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <FormControl size="small" sx={{ flex: 1 }}>
-                    <InputLabel>Tahun</InputLabel>
-                    <Select
-                      value={getYearFromDate(editFormData.realisasi_pengujian)}
-                      label="Tahun"
-                      onChange={(e) => {
-                        const selectedYear = e.target.value;
-                        const currentMonth = getMonthFromDate(editFormData.realisasi_pengujian) || '01';
-                        setEditFormData({ 
-                          ...editFormData, 
-                          realisasi_pengujian: buildDateFromMonthYear(currentMonth, selectedYear)
-                        });
-                      }}
-                      sx={{ borderRadius: '8px' }}
-                    >
-                      {YEAR_OPTIONS.map((year) => (
-                        <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Box>
-              </Box>
-            </Box>
             
             {/* Berkas F45 Dropzone */}
             <Box sx={{ mb: 2 }}>
@@ -3968,16 +4300,15 @@ function Fs2Disetujui() {
                   borderRadius: 2,
                   p: 2,
                   textAlign: 'center',
-                  cursor: isUploadingF45 ? 'not-allowed' : 'pointer',
-                  opacity: isUploadingF45 ? 0.7 : 1,
+                  cursor: 'pointer',
                   transition: 'all 0.2s ease-in-out',
                   bgcolor: isDraggingF45 ? 'rgba(217, 119, 6, 0.08)' : 'transparent',
                   '&:hover': {
-                    borderColor: isUploadingF45 ? '#e5e5e7' : '#D97706',
-                    bgcolor: isUploadingF45 ? 'transparent' : 'rgba(217, 119, 6, 0.04)',
+                    borderColor: '#D97706',
+                    bgcolor: 'rgba(217, 119, 6, 0.04)',
                   },
                 }}
-                onClick={() => !isUploadingF45 && document.getElementById('fs2-edit-file-upload-f45')?.click()}
+                onClick={() => document.getElementById('fs2-edit-file-upload-f45')?.click()}
                 onDragOver={(e) => { e.preventDefault(); setIsDraggingF45(true); }}
                 onDragLeave={() => setIsDraggingF45(false)}
                 onDrop={handleFileDropF45}
@@ -3986,23 +4317,59 @@ function Fs2Disetujui() {
                   id="fs2-edit-file-upload-f45"
                   type="file"
                   hidden
-                  onChange={handleFileUploadF45}
+                  onChange={handleFileSelectF45}
                   accept=".pdf,.doc,.docx"
-                  disabled={isUploadingF45}
                 />
-                {isUploadingF45 ? (
-                  <>
-                    <CircularProgress size={32} sx={{ color: '#D97706', mb: 1 }} />
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>Mengupload file...</Typography>
-                  </>
-                ) : (
-                  <>
-                    <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingF45 ? '#D97706' : '#86868b', mb: 0.5 }} />
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingF45 ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
-                    <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
-                  </>
-                )}
+                <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingF45 ? '#D97706' : '#86868b', mb: 0.5 }} />
+                <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingF45 ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
+                <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
               </Box>
+              
+              {/* Pending files with date picker */}
+              {pendingFilesF45.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.8rem', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FileIcon sx={{ color: '#D97706', fontSize: 18 }} />
+                    File akan diupload ({pendingFilesF45.length})
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    {pendingFilesF45.map((pending, index) => (
+                      <Box key={index} sx={{ p: 1.5, background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.06) 0%, rgba(217, 119, 6, 0.02) 100%)', borderRadius: '12px', border: '1px solid rgba(217, 119, 6, 0.2)' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+                          <FileIcon sx={{ color: '#D97706', fontSize: 18, flexShrink: 0 }} />
+                          <Typography sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pending.file.name}</Typography>
+                          <Typography sx={{ color: '#86868b', fontSize: '0.7rem', whiteSpace: 'nowrap', mx: 1 }}>{formatFileSize(pending.file.size)}</Typography>
+                          <IconButton size="small" onClick={() => setPendingFilesF45(prev => prev.filter((_, i) => i !== index))} sx={{ color: '#DC2626', width: 28, height: 28, borderRadius: '8px', background: 'rgba(220,38,38,0.08)', '&:hover': { background: 'rgba(220,38,38,0.15)' } }}>
+                            <DeleteIcon sx={{ fontSize: 15 }} />
+                          </IconButton>
+                        </Box>
+                        <TextField
+                          fullWidth
+                          label="Tanggal Dokumen"
+                          type="date"
+                          size="small"
+                          value={pending.tanggal}
+                          onChange={(e) => setPendingFilesF45(prev => prev.map((p, i) => i === index ? { ...p, tanggal: e.target.value } : p))}
+                          InputLabelProps={{ shrink: true }}
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.7)', '&.Mui-focused fieldset': { borderColor: '#D97706' } }, '& .MuiInputLabel-root.Mui-focused': { color: '#D97706' } }}
+                        />
+                      </Box>
+                    ))}
+                  </Stack>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={handleUploadPendingF45}
+                    disabled={isUploadingF45}
+                    startIcon={isUploadingF45 ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <CloudUploadIcon />}
+                    sx={{ mt: 1.5, background: 'linear-gradient(145deg, #D97706 0%, #F59E0B 100%)', borderRadius: '12px', fontWeight: 600, '&:hover': { background: 'linear-gradient(145deg, #B45309 0%, #D97706 100%)' } }}
+                  >
+                    {isUploadingF45 ? 'Mengupload...' : `Upload ${pendingFilesF45.length} File`}
+                  </Button>
+                </Box>
+              )}
+              
+              {/* Uploaded files list */}
               {filesF45.length > 0 && (
                 <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '8px', mt: 1 }}>
                   {filesF45.map((file) => (
@@ -4017,7 +4384,7 @@ function Fs2Disetujui() {
                             )}
                           </Box>
                         }
-                        secondary={formatFileSize(file.file_size)}
+                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID')}` : ''}`}
                         primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
                         secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
                       />
@@ -4036,18 +4403,6 @@ function Fs2Disetujui() {
               )}
             </Box>
 
-            {/* Tanggal Berkas F45 */}
-            <TextField
-              label="Tanggal Berkas F45"
-              type="date"
-              size="small"
-              value={editFormData.tanggal_berkas_f45 || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, tanggal_berkas_f45: e.target.value })}
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-              sx={{ mb: 2 }}
-            />
-
             {/* Berkas F46 Dropzone */}
             <Box>
               <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas F46</Typography>
@@ -4057,16 +4412,15 @@ function Fs2Disetujui() {
                   borderRadius: 2,
                   p: 2,
                   textAlign: 'center',
-                  cursor: isUploadingF46 ? 'not-allowed' : 'pointer',
-                  opacity: isUploadingF46 ? 0.7 : 1,
+                  cursor: 'pointer',
                   transition: 'all 0.2s ease-in-out',
                   bgcolor: isDraggingF46 ? 'rgba(217, 119, 6, 0.08)' : 'transparent',
                   '&:hover': {
-                    borderColor: isUploadingF46 ? '#e5e5e7' : '#D97706',
-                    bgcolor: isUploadingF46 ? 'transparent' : 'rgba(217, 119, 6, 0.04)',
+                    borderColor: '#D97706',
+                    bgcolor: 'rgba(217, 119, 6, 0.04)',
                   },
                 }}
-                onClick={() => !isUploadingF46 && document.getElementById('fs2-edit-file-upload-f46')?.click()}
+                onClick={() => document.getElementById('fs2-edit-file-upload-f46')?.click()}
                 onDragOver={(e) => { e.preventDefault(); setIsDraggingF46(true); }}
                 onDragLeave={() => setIsDraggingF46(false)}
                 onDrop={handleFileDropF46}
@@ -4075,23 +4429,59 @@ function Fs2Disetujui() {
                   id="fs2-edit-file-upload-f46"
                   type="file"
                   hidden
-                  onChange={handleFileUploadF46}
+                  onChange={handleFileSelectF46}
                   accept=".pdf,.doc,.docx"
-                  disabled={isUploadingF46}
                 />
-                {isUploadingF46 ? (
-                  <>
-                    <CircularProgress size={32} sx={{ color: '#D97706', mb: 1 }} />
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>Mengupload file...</Typography>
-                  </>
-                ) : (
-                  <>
-                    <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingF46 ? '#D97706' : '#86868b', mb: 0.5 }} />
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingF46 ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
-                    <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
-                  </>
-                )}
+                <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingF46 ? '#D97706' : '#86868b', mb: 0.5 }} />
+                <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingF46 ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
+                <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
               </Box>
+              
+              {/* Pending files with date picker */}
+              {pendingFilesF46.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.8rem', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FileIcon sx={{ color: '#D97706', fontSize: 18 }} />
+                    File akan diupload ({pendingFilesF46.length})
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    {pendingFilesF46.map((pending, index) => (
+                      <Box key={index} sx={{ p: 1.5, background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.06) 0%, rgba(217, 119, 6, 0.02) 100%)', borderRadius: '12px', border: '1px solid rgba(217, 119, 6, 0.2)' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+                          <FileIcon sx={{ color: '#D97706', fontSize: 18, flexShrink: 0 }} />
+                          <Typography sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pending.file.name}</Typography>
+                          <Typography sx={{ color: '#86868b', fontSize: '0.7rem', whiteSpace: 'nowrap', mx: 1 }}>{formatFileSize(pending.file.size)}</Typography>
+                          <IconButton size="small" onClick={() => setPendingFilesF46(prev => prev.filter((_, i) => i !== index))} sx={{ color: '#DC2626', width: 28, height: 28, borderRadius: '8px', background: 'rgba(220,38,38,0.08)', '&:hover': { background: 'rgba(220,38,38,0.15)' } }}>
+                            <DeleteIcon sx={{ fontSize: 15 }} />
+                          </IconButton>
+                        </Box>
+                        <TextField
+                          fullWidth
+                          label="Tanggal Dokumen"
+                          type="date"
+                          size="small"
+                          value={pending.tanggal}
+                          onChange={(e) => setPendingFilesF46(prev => prev.map((p, i) => i === index ? { ...p, tanggal: e.target.value } : p))}
+                          InputLabelProps={{ shrink: true }}
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.7)', '&.Mui-focused fieldset': { borderColor: '#D97706' } }, '& .MuiInputLabel-root.Mui-focused': { color: '#D97706' } }}
+                        />
+                      </Box>
+                    ))}
+                  </Stack>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={handleUploadPendingF46}
+                    disabled={isUploadingF46}
+                    startIcon={isUploadingF46 ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <CloudUploadIcon />}
+                    sx={{ mt: 1.5, background: 'linear-gradient(145deg, #D97706 0%, #F59E0B 100%)', borderRadius: '12px', fontWeight: 600, '&:hover': { background: 'linear-gradient(145deg, #B45309 0%, #D97706 100%)' } }}
+                  >
+                    {isUploadingF46 ? 'Mengupload...' : `Upload ${pendingFilesF46.length} File`}
+                  </Button>
+                </Box>
+              )}
+              
+              {/* Uploaded files list */}
               {filesF46.length > 0 && (
                 <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '8px', mt: 1 }}>
                   {filesF46.map((file) => (
@@ -4106,7 +4496,7 @@ function Fs2Disetujui() {
                             )}
                           </Box>
                         }
-                        secondary={formatFileSize(file.file_size)}
+                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID')}` : ''}`}
                         primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
                         secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
                       />
@@ -4124,17 +4514,6 @@ function Fs2Disetujui() {
                 </List>
               )}
             </Box>
-
-            {/* Tanggal Berkas F46 */}
-            <TextField
-              label="Tanggal Berkas F46"
-              type="date"
-              size="small"
-              value={editFormData.tanggal_berkas_f46 || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, tanggal_berkas_f46: e.target.value })}
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
           </Box>
 
           {/* Deployment Section */}
@@ -4143,96 +4522,6 @@ function Fs2Disetujui() {
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#7C3AED' }} />
               Deployment
             </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
-              <Box>
-                <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
-                  Target Deployment
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <FormControl size="small" sx={{ flex: 1 }}>
-                    <InputLabel>Bulan</InputLabel>
-                    <Select
-                      value={getMonthFromDate(editFormData.target_deployment)}
-                      label="Bulan"
-                      disabled={editFormData.fase_pengajuan === 'DESAIN'}
-                      onChange={(e) => setEditFormData({ 
-                        ...editFormData, 
-                        target_deployment: buildDateFromMonthYear(e.target.value, getYearFromDate(editFormData.target_deployment))
-                      })}
-                      sx={{ borderRadius: '8px' }}
-                    >
-                      {MONTH_OPTIONS.map((month) => (
-                        <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <FormControl size="small" sx={{ flex: 1 }}>
-                    <InputLabel>Tahun</InputLabel>
-                    <Select
-                      value={getYearFromDate(editFormData.target_deployment)}
-                      label="Tahun"
-                      disabled={editFormData.fase_pengajuan === 'DESAIN'}
-                      onChange={(e) => setEditFormData({ 
-                        ...editFormData, 
-                        target_deployment: buildDateFromMonthYear(getMonthFromDate(editFormData.target_deployment), e.target.value)
-                      })}
-                      sx={{ borderRadius: '8px' }}
-                    >
-                      {YEAR_OPTIONS.map((year) => (
-                        <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Box>
-              </Box>
-              <Box>
-                <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
-                  Realisasi Deployment
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <FormControl size="small" sx={{ flex: 1 }}>
-                    <InputLabel>Bulan</InputLabel>
-                    <Select
-                      value={getMonthFromDate(editFormData.realisasi_deployment)}
-                      label="Bulan"
-                      onChange={(e) => {
-                        const selectedMonth = e.target.value;
-                        const currentYear = getYearFromDate(editFormData.realisasi_deployment) || new Date().getFullYear().toString();
-                        setEditFormData({ 
-                          ...editFormData, 
-                          realisasi_deployment: buildDateFromMonthYear(selectedMonth, currentYear)
-                        });
-                      }}
-                      sx={{ borderRadius: '8px' }}
-                    >
-                      {MONTH_OPTIONS.map((month) => (
-                        <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <FormControl size="small" sx={{ flex: 1 }}>
-                    <InputLabel>Tahun</InputLabel>
-                    <Select
-                      value={getYearFromDate(editFormData.realisasi_deployment)}
-                      label="Tahun"
-                      onChange={(e) => {
-                        const selectedYear = e.target.value;
-                        const currentMonth = getMonthFromDate(editFormData.realisasi_deployment) || '01';
-                        setEditFormData({ 
-                          ...editFormData, 
-                          realisasi_deployment: buildDateFromMonthYear(currentMonth, selectedYear)
-                        });
-                      }}
-                      sx={{ borderRadius: '8px' }}
-                    >
-                      {YEAR_OPTIONS.map((year) => (
-                        <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Box>
-              </Box>
-            </Box>
             
             {/* Berkas ND/BA Deployment Dropzone */}
             <Box>
@@ -4243,16 +4532,15 @@ function Fs2Disetujui() {
                   borderRadius: 2,
                   p: 2,
                   textAlign: 'center',
-                  cursor: isUploadingNDBA ? 'not-allowed' : 'pointer',
-                  opacity: isUploadingNDBA ? 0.7 : 1,
+                  cursor: 'pointer',
                   transition: 'all 0.2s ease-in-out',
                   bgcolor: isDraggingNDBA ? 'rgba(124, 58, 237, 0.08)' : 'transparent',
                   '&:hover': {
-                    borderColor: isUploadingNDBA ? '#e5e5e7' : '#7C3AED',
-                    bgcolor: isUploadingNDBA ? 'transparent' : 'rgba(124, 58, 237, 0.04)',
+                    borderColor: '#7C3AED',
+                    bgcolor: 'rgba(124, 58, 237, 0.04)',
                   },
                 }}
-                onClick={() => !isUploadingNDBA && document.getElementById('fs2-edit-file-upload-ndba')?.click()}
+                onClick={() => document.getElementById('fs2-edit-file-upload-ndba')?.click()}
                 onDragOver={(e) => { e.preventDefault(); setIsDraggingNDBA(true); }}
                 onDragLeave={() => setIsDraggingNDBA(false)}
                 onDrop={handleFileDropNDBA}
@@ -4261,23 +4549,59 @@ function Fs2Disetujui() {
                   id="fs2-edit-file-upload-ndba"
                   type="file"
                   hidden
-                  onChange={handleFileUploadNDBA}
+                  onChange={handleFileSelectNDBA}
                   accept=".pdf,.doc,.docx"
-                  disabled={isUploadingNDBA}
                 />
-                {isUploadingNDBA ? (
-                  <>
-                    <CircularProgress size={32} sx={{ color: '#7C3AED', mb: 1 }} />
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>Mengupload file...</Typography>
-                  </>
-                ) : (
-                  <>
-                    <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingNDBA ? '#7C3AED' : '#86868b', mb: 0.5 }} />
-                    <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingNDBA ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
-                    <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
-                  </>
-                )}
+                <CloudUploadIcon sx={{ fontSize: 32, color: isDraggingNDBA ? '#7C3AED' : '#86868b', mb: 0.5 }} />
+                <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDraggingNDBA ? 'Lepas untuk upload' : 'Klik atau seret file ke sini'}</Typography>
+                <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
               </Box>
+              
+              {/* Pending files with date picker */}
+              {pendingFilesNDBA.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.8rem', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FileIcon sx={{ color: '#7C3AED', fontSize: 18 }} />
+                    File akan diupload ({pendingFilesNDBA.length})
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    {pendingFilesNDBA.map((pending, index) => (
+                      <Box key={index} sx={{ p: 1.5, background: 'linear-gradient(145deg, rgba(124, 58, 237, 0.06) 0%, rgba(124, 58, 237, 0.02) 100%)', borderRadius: '12px', border: '1px solid rgba(124, 58, 237, 0.2)' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+                          <FileIcon sx={{ color: '#7C3AED', fontSize: 18, flexShrink: 0 }} />
+                          <Typography sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pending.file.name}</Typography>
+                          <Typography sx={{ color: '#86868b', fontSize: '0.7rem', whiteSpace: 'nowrap', mx: 1 }}>{formatFileSize(pending.file.size)}</Typography>
+                          <IconButton size="small" onClick={() => setPendingFilesNDBA(prev => prev.filter((_, i) => i !== index))} sx={{ color: '#DC2626', width: 28, height: 28, borderRadius: '8px', background: 'rgba(220,38,38,0.08)', '&:hover': { background: 'rgba(220,38,38,0.15)' } }}>
+                            <DeleteIcon sx={{ fontSize: 15 }} />
+                          </IconButton>
+                        </Box>
+                        <TextField
+                          fullWidth
+                          label="Tanggal Dokumen"
+                          type="date"
+                          size="small"
+                          value={pending.tanggal}
+                          onChange={(e) => setPendingFilesNDBA(prev => prev.map((p, i) => i === index ? { ...p, tanggal: e.target.value } : p))}
+                          InputLabelProps={{ shrink: true }}
+                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.7)', '&.Mui-focused fieldset': { borderColor: '#7C3AED' } }, '& .MuiInputLabel-root.Mui-focused': { color: '#7C3AED' } }}
+                        />
+                      </Box>
+                    ))}
+                  </Stack>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={handleUploadPendingNDBA}
+                    disabled={isUploadingNDBA}
+                    startIcon={isUploadingNDBA ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <CloudUploadIcon />}
+                    sx={{ mt: 1.5, background: 'linear-gradient(145deg, #7C3AED 0%, #8B5CF6 100%)', borderRadius: '12px', fontWeight: 600, '&:hover': { background: 'linear-gradient(145deg, #6D28D9 0%, #7C3AED 100%)' } }}
+                  >
+                    {isUploadingNDBA ? 'Mengupload...' : `Upload ${pendingFilesNDBA.length} File`}
+                  </Button>
+                </Box>
+              )}
+              
+              {/* Uploaded files list */}
               {filesNDBA.length > 0 && (
                 <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '8px', mt: 1 }}>
                   {filesNDBA.map((file) => (
@@ -4292,7 +4616,7 @@ function Fs2Disetujui() {
                             )}
                           </Box>
                         }
-                        secondary={formatFileSize(file.file_size)}
+                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID')}` : ''}`}
                         primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
                         secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
                       />
@@ -4310,84 +4634,100 @@ function Fs2Disetujui() {
                 </List>
               )}
             </Box>
-
-            {/* Tanggal Berkas ND/BA */}
-            <TextField
-              label="Tanggal Berkas ND/BA"
-              type="date"
-              size="small"
-              value={editFormData.tanggal_berkas_nd_ba || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, tanggal_berkas_nd_ba: e.target.value })}
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
           </Box>
 
-          {/* Go Live & Keterangan Section */}
+          {/* Keterangan Section */}
           <Box sx={{ p: 2.5, borderRadius: '16px', bgcolor: 'rgba(5, 150, 105, 0.04)', border: '1px solid rgba(5, 150, 105, 0.12)', mb: 2 }}>
             <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#059669', display: 'flex', alignItems: 'center', gap: 1 }}>
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#059669' }} />
-              Go Live & Keterangan
+              Keterangan
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box>
-                <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
-                  Target Go Live
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, maxWidth: '50%' }}>
-                  <FormControl size="small" sx={{ flex: 1 }}>
-                    <InputLabel>Bulan</InputLabel>
-                    <Select
-                      value={getMonthFromDate(editFormData.target_go_live)}
-                      label="Bulan"
-                      disabled={editFormData.fase_pengajuan === 'DESAIN'}
-                      onChange={(e) => setEditFormData({ 
-                        ...editFormData, 
-                        target_go_live: buildDateFromMonthYear(e.target.value, getYearFromDate(editFormData.target_go_live))
-                      })}
-                      sx={{ borderRadius: '8px' }}
-                    >
-                      {MONTH_OPTIONS.map((month) => (
-                        <MenuItem key={month.value} value={month.value}>{month.label}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <FormControl size="small" sx={{ flex: 1 }}>
-                    <InputLabel>Tahun</InputLabel>
-                    <Select
-                      value={getYearFromDate(editFormData.target_go_live)}
-                      label="Tahun"
-                      disabled={editFormData.fase_pengajuan === 'DESAIN'}
-                      onChange={(e) => setEditFormData({ 
-                        ...editFormData, 
-                        target_go_live: buildDateFromMonthYear(getMonthFromDate(editFormData.target_go_live), e.target.value)
-                      })}
-                      sx={{ borderRadius: '8px' }}
-                    >
-                      {YEAR_OPTIONS.map((year) => (
-                        <MenuItem key={year.value} value={year.value}>{year.label}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Box>
-              </Box>
-              <TextField
-                label="Keterangan (Text dan/atau Link URL)"
-                size="small"
-                multiline
-                rows={3}
-                value={editFormData.keterangan || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, keterangan: e.target.value })}
-                fullWidth
-                placeholder="Masukkan keterangan atau link URL..."
-                helperText="Anda dapat memasukkan teks biasa atau link URL"
-              />
-            </Box>
+            <TextField
+              label="Keterangan (Text dan/atau Link URL)"
+              size="small"
+              multiline
+              rows={3}
+              value={editFormData.keterangan || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, keterangan: e.target.value })}
+              fullWidth
+              placeholder="Masukkan keterangan atau link URL..."
+              helperText="Anda dapat memasukkan teks biasa atau link URL"
+            />
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 3, bgcolor: 'transparent' }}>
           <Button onClick={handleCloseEditModal} sx={{ borderRadius: '12px', px: 3 }}>Batal</Button>
           <Button variant="contained" onClick={handleEditSubmit} sx={{ borderRadius: '12px', px: 3, bgcolor: '#0066cc', '&:hover': { bgcolor: '#0052a3' } }}>Simpan</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Date Picker Dialog — opened when tahapan status set to Selesai */}
+      <Dialog
+        open={datePickerState.open}
+        onClose={() => setDatePickerState(prev => ({ ...prev, open: false }))}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            boxShadow: '0 32px 80px rgba(0,0,0,0.15)',
+            overflow: 'hidden',
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '0.95rem', pb: 0.5, pt: 2.5, px: 3, color: '#1d1d1f' }}>
+          Tanggal Penyelesaian
+        </DialogTitle>
+        <Box sx={{ px: 3, pb: 0.5 }}>
+          <Typography sx={{ fontSize: '0.8rem', color: '#6366F1', fontWeight: 600 }}>
+            {FS2_TAHAPAN_CONFIG.find(t => t.key === datePickerState.tahapanKey)?.label || datePickerState.tahapanKey}
+          </Typography>
+        </Box>
+        <DialogContent sx={{ px: 3, pt: 1.5, pb: 1 }}>
+          <TextField
+            fullWidth
+            type="date"
+            value={datePickerState.value}
+            onChange={(e) => setDatePickerState(prev => ({ ...prev, value: e.target.value }))}
+            slotProps={{ inputLabel: { shrink: true } }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '12px',
+                '& fieldset': { borderColor: 'rgba(99,102,241,0.25)' },
+                '&:hover fieldset': { borderColor: 'rgba(99,102,241,0.5)' },
+                '&.Mui-focused fieldset': { borderColor: '#6366F1' },
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            onClick={() => setDatePickerState(prev => ({ ...prev, open: false }))}
+            sx={{ borderRadius: '10px', color: '#6B7280', textTransform: 'none', fontWeight: 500 }}
+          >
+            Batal
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!datePickerState.value}
+            onClick={() => {
+              if (datePickerState.dateField) {
+                setEditFormData(prev => ({ ...prev, [datePickerState.dateField!]: datePickerState.value }));
+              }
+              setDatePickerState(prev => ({ ...prev, open: false }));
+            }}
+            sx={{
+              borderRadius: '10px',
+              textTransform: 'none',
+              fontWeight: 600,
+              bgcolor: '#6366F1',
+              boxShadow: '0 4px 12px rgba(99,102,241,0.3)',
+              '&:hover': { bgcolor: '#4F46E5' },
+              '&:disabled': { bgcolor: 'rgba(99,102,241,0.3)', color: 'white' },
+            }}
+          >
+            Simpan Tanggal
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -4482,7 +4822,7 @@ function Fs2Disetujui() {
                         )}
                       </Box>
                     }
-                    secondary={file.file_size ? formatFileSize(file.file_size) : '-'}
+                    secondary={`${file.file_size ? formatFileSize(file.file_size) : '-'}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
                     primaryTypographyProps={{
                       sx: { fontWeight: 500, color: '#1d1d1f', fontSize: '0.9rem' },
                     }}

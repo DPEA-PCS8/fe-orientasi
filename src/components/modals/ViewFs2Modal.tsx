@@ -17,12 +17,18 @@ import {
   ListItemIcon,
   ListItemText,
   ListItemSecondaryAction,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
 } from '@mui/material';
 import {
   Close as CloseIcon,
   CalendarMonth as CalendarIcon,
   Description as DescriptionIcon,
-  Schedule as ScheduleIcon,
   Person as PersonIcon,
   MonitorHeart as MonitorHeartIcon,
   InsertDriveFile as FileIcon,
@@ -89,26 +95,6 @@ interface ViewFs2ModalProps {
 //   TINGGI: 'Tinggi',
 // };
 
-const PROGRES_LABELS: Record<string, string> = {
-  ASESMEN: 'Asesmen',
-  CODING: 'Coding',
-  PDKK: 'PDKK',
-  DEPLOY_SELESAI: 'Deploy',
-};
-
-const PROGRES_COLORS: Record<string, { bg: string; text: string }> = {
-  ASESMEN: { bg: 'rgba(59, 130, 246, 0.15)', text: '#3B82F6' },
-  CODING: { bg: 'rgba(168, 85, 247, 0.15)', text: '#A855F7' },
-  PDKK: { bg: 'rgba(249, 115, 22, 0.15)', text: '#F97316' },
-  DEPLOY_SELESAI: { bg: 'rgba(34, 197, 94, 0.15)', text: '#22C55E' },
-};
-
-const PROGRES_STATUS_LABELS: Record<string, string> = {
-  BELUM_DIMULAI: 'Belum Dimulai',
-  DALAM_PROSES: 'Dalam Proses',
-  SELESAI: 'Selesai',
-};
-
 const FASE_LABELS: Record<string, string> = {
   DESAIN: 'Desain',
   PEMELIHARAAN: 'Pemeliharaan',
@@ -124,15 +110,31 @@ const PELAKSANAAN_LABELS: Record<string, string> = {
   MULTIYEARS: 'Multiyears',
 };
 
-// FS2 Progress Tahapan Configuration (6 stages)
-const FS2_TAHAPAN_CONFIG = [
-  { key: 'PENGAJUAN', label: 'Pengajuan', color: '#6366F1', gradient: ['#6366F1', '#818CF8'], rgb: '99,102,241' },
-  { key: 'ASESMEN', label: 'Asesmen', color: '#8B5CF6', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246' },
-  { key: 'PEMROGRAMAN', label: 'Pemrograman', color: '#F59E0B', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11' },
-  { key: 'PENGUJIAN', label: 'Pengujian', color: '#0EA5E9', gradient: ['#0EA5E9', '#38BDF8'], rgb: '14,165,233' },
-  { key: 'DEPLOYMENT', label: 'Deployment/Selesai', color: '#31A24C', gradient: ['#31A24C', '#4ADE80'], rgb: '49,162,76' },
-  { key: 'GO_LIVE', label: 'Go Live', color: '#10B981', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
+// FS2 Progress Options for View
+const PROGRESS_OPTIONS_VIEW = [
+  'Pengajuan',
+  'Asesmen',
+  'Pemrograman',
+  'Pengujian',
+  'Deployment',
+  'Go Live',
 ] as const;
+
+// FS2 Tahapan View Configuration (for Progres Tahapan table)
+const FS2_TAHAPAN_VIEW_CONFIG: Array<{
+  key: typeof PROGRESS_OPTIONS_VIEW[number];
+  label: string;
+  dateField: keyof Fs2DocumentData | null;
+  statusField: keyof Fs2DocumentData | null;
+  stageKey: string;
+}> = [
+  { key: 'Pengajuan', label: 'Pengajuan', dateField: 'tanggal_pengajuan_selesai', statusField: 'tahapan_status_pengajuan', stageKey: 'PENGAJUAN' },
+  { key: 'Asesmen', label: 'Asesmen', dateField: 'tanggal_asesmen', statusField: 'tahapan_status_asesmen', stageKey: 'ASESMEN' },
+  { key: 'Pemrograman', label: 'Pemrograman', dateField: 'tanggal_pemrograman', statusField: 'tahapan_status_pemrograman', stageKey: 'PEMROGRAMAN' },
+  { key: 'Pengujian', label: 'Pengujian', dateField: 'tanggal_pengujian_selesai', statusField: 'tahapan_status_pengujian', stageKey: 'PENGUJIAN' },
+  { key: 'Deployment', label: 'Deployment', dateField: 'tanggal_deployment_selesai', statusField: 'tahapan_status_deployment', stageKey: 'DEPLOYMENT' },
+  { key: 'Go Live', label: 'Go Live', dateField: 'tanggal_go_live', statusField: 'tahapan_status_go_live', stageKey: 'GO_LIVE' },
+];
 
 // FS2 Timeline Configuration (3 stages)
 const FS2_TIMELINE_CONFIGS = [
@@ -351,7 +353,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                       )}
                     </Box>
                   }
-                  secondary={formatFileSize(file.file_size)}
+                  secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${formatDate(file.tanggal_dokumen)}` : ''}`}
                   primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem' } }}
                   secondaryTypographyProps={{ sx: { color: '#86868b', fontSize: '0.7rem' } }}
                 />
@@ -680,46 +682,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
               )} */}
             </GlassCard>
 
-            {/* Section 1: Jadwal Pelaksanaan */}
-            <GlassCard>
-              <SectionHeader>
-                <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(217, 119, 6, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <ScheduleIcon sx={{ color: '#D97706', fontSize: 20 }} />
-                </Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                  1. Jadwal Pelaksanaan
-                </Typography>
-              </SectionHeader>
-
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(37, 99, 235, 0.03)', border: '1px solid rgba(37, 99, 235, 0.1)' }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#2563EB', mb: 1.5 }}>
-                    Target Pengujian
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
-                    {formatMonthYear(fs2Data.target_pengujian)}
-                  </Typography>
-                </Box>
-
-                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(124, 58, 237, 0.03)', border: '1px solid rgba(124, 58, 237, 0.1)' }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#7C3AED', mb: 1.5 }}>
-                    Target Deployment
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
-                    {formatMonthYear(fs2Data.target_deployment)}
-                  </Typography>
-                </Box>
-
-                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(5, 150, 105, 0.03)', border: '1px solid rgba(5, 150, 105, 0.1)' }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#059669', mb: 1.5 }}>
-                    Target Go Live
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
-                    {formatMonthYear(fs2Data.target_go_live)}
-                  </Typography>
-                </Box>
-              </Box>
-            </GlassCard>
+            {/* Section 1: Jadwal Pelaksanaan - Removed: targets now derived from Progres Tahapan */}
 
             {/* Section 2: Berkas F.S.2 (Only when showDocumentSection is true) */}
             {showDocumentSection && (
@@ -813,151 +776,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
 
             {/* Section 2/3: Monitoring & Tracking (Only for approved FS2 and when showMonitoringSection is true) */}
             {showMonitoringSection && fs2Data.status === 'DISETUJUI' && (
-              <GlassCard>
-                <SectionHeader>
-                  <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(49, 162, 76, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <MonitorHeartIcon sx={{ color: '#31A24C', fontSize: 20 }} />
-                  </Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-                    {showDocumentSection ? '3' : '2'}. Monitoring & Tracking
-                  </Typography>
-                </SectionHeader>
-
-                {/* PIC & Progress Info */}
-                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(49, 162, 76, 0.03)', border: '1px solid rgba(49, 162, 76, 0.1)', mb: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                    <PersonIcon sx={{ color: '#31A24C', fontSize: 18 }} />
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#31A24C' }}>PIC & Progres</Typography>
-                  </Box>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>PIC</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.pic_name || '-'}</Typography>
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Anggota Tim</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                        {fs2Data.anggota_tim_names || '-'}
-                      </Typography>
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Progres</Typography>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        {fs2Data.progres && (
-                          <Chip 
-                            label={PROGRES_LABELS[fs2Data.progres] || fs2Data.progres} 
-                            size="small" 
-                            sx={{ 
-                              width: 'fit-content', 
-                              bgcolor: PROGRES_COLORS[fs2Data.progres]?.bg || '#f0f0f0',
-                              color: PROGRES_COLORS[fs2Data.progres]?.text || '#1d1d1f',
-                              fontWeight: 600,
-                              border: `1px solid ${PROGRES_COLORS[fs2Data.progres]?.text || '#ccc'}`,
-                            }} 
-                          />
-                        )}
-                        {!fs2Data.progres && (
-                          <Chip label="-" size="small" sx={{ width: 'fit-content', bgcolor: '#f0f0f0', color: '#1d1d1f', fontWeight: 600 }} />
-                        )}
-                        {fs2Data.progres_status && (
-                          <Typography variant="caption" sx={{ 
-                            color: fs2Data.progres_status === 'SELESAI' ? '#059669' : fs2Data.progres_status === 'DALAM_PROSES' ? '#D97706' : '#86868b',
-                            fontWeight: 500,
-                          }}>
-                            Status: {PROGRES_STATUS_LABELS[fs2Data.progres_status] || fs2Data.progres_status}
-                          </Typography>
-                        )}
-                        {(fs2Data.progres_status === 'BELUM_DIMULAI' || fs2Data.tanggal_progres) && (
-                          <Typography variant="caption" sx={{ color: '#86868b' }}>
-                            Tanggal: {fs2Data.progres_status === 'BELUM_DIMULAI' ? '-' : formatDate(fs2Data.tanggal_progres)}
-                          </Typography>
-                        )}
-                      </Box>
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Fase Pengajuan</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
-                        {FASE_LABELS[fs2Data.fase_pengajuan || ''] || fs2Data.fase_pengajuan || '-'}
-                      </Typography>
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>IKU</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
-                        {fs2Data.iku === 'Y' ? 'Ya' : fs2Data.iku === 'T' ? 'Tidak' : '-'}
-                      </Typography>
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Mekanisme</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
-                        {MEKANISME_LABELS[fs2Data.mekanisme || ''] || fs2Data.mekanisme || '-'}
-                      </Typography>
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Pelaksanaan</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{getPelaksanaanDisplay()}</Typography>
-                    </InfoRow>
-                  </Box>
-                </Box>
-
-                {/* Progress Tahapan Visual */}
-                <Box sx={{ p: 2.5, borderRadius: '12px', bgcolor: 'rgba(99, 102, 241, 0.03)', border: '1px solid rgba(99, 102, 241, 0.1)', mb: 2 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#6366F1', mb: 2 }}>
-                    Progres Tahapan
-                  </Typography>
-                  <Box sx={{ position: 'relative', height: 60, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    {FS2_TAHAPAN_CONFIG.map((tahapan, index) => {
-                      // Determine stage status (simplified - you may want to add logic to determine current stage)
-                      const isCompleted = index < 1; // Example: first stage is always completed when viewing
-                      const isCurrent = index === 1; // Example: second stage is current
-                      
-                      return (
-                        <Box
-                          key={tahapan.key}
-                          sx={{
-                            flex: 1,
-                            height: 12,
-                            borderRadius: index === 0 ? '6px 0 0 6px' : index === FS2_TAHAPAN_CONFIG.length - 1 ? '0 6px 6px 0' : 0,
-                            background: isCompleted || isCurrent
-                              ? `linear-gradient(135deg, ${tahapan.gradient[0]}, ${tahapan.gradient[1]})`
-                              : 'rgba(209, 213, 219, 0.3)',
-                            position: 'relative',
-                            transition: 'all 0.3s ease',
-                            opacity: isCompleted || isCurrent ? 1 : 0.5,
-                            boxShadow: isCurrent ? `0 0 15px rgba(${tahapan.rgb}, 0.4)` : 'none',
-                            '&::after': isCurrent ? {
-                              content: '""',
-                              position: 'absolute',
-                              top: -4,
-                              left: -4,
-                              right: -4,
-                              bottom: -4,
-                              border: `2px solid ${tahapan.color}`,
-                              borderRadius: 'inherit',
-                              animation: 'pulse 1.5s ease-in-out infinite',
-                            } : {},
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              bottom: -30,
-                              left: '50%',
-                              transform: 'translateX(-50%)',
-                              fontSize: '0.7rem',
-                              fontWeight: isCurrent ? 700 : 500,
-                              color: isCompleted || isCurrent ? tahapan.color : '#9CA3AF',
-                              whiteSpace: 'nowrap',
-                              textAlign: 'center',
-                            }}
-                          >
-                            {tahapan.label}
-                          </Box>
-                        </Box>
-                      );
-                    })}
-                  </Box>
-                </Box>
-
+              <>
                 {/* Timeline Visual */}
                 <Box sx={{ p: 2.5, borderRadius: '12px', bgcolor: 'rgba(14, 165, 233, 0.03)', border: '1px solid rgba(14, 165, 233, 0.1)', mb: 2 }}>
                   <Typography variant="body2" sx={{ fontWeight: 600, color: '#0EA5E9', mb: 2.5 }}>
@@ -966,14 +785,11 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                   <Box sx={{ display: 'flex', gap: 2, position: 'relative' }}>
                     {FS2_TIMELINE_CONFIGS.map((timeline, index) => {
                       let targetDate = '-';
-                      let realisasiDate = '-';
                       
                       if (timeline.key === 'pengujian') {
                         targetDate = formatMonthYear(fs2Data.target_pengujian);
-                        realisasiDate = formatMonthYear(fs2Data.realisasi_pengujian);
                       } else if (timeline.key === 'deployment') {
                         targetDate = formatMonthYear(fs2Data.target_deployment);
-                        realisasiDate = formatMonthYear(fs2Data.realisasi_deployment);
                       } else if (timeline.key === 'goLive') {
                         targetDate = formatMonthYear(fs2Data.target_go_live);
                       }
@@ -1020,15 +836,187 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                             <Typography variant="caption" sx={{ fontSize: '0.7rem', color: '#6B7280', display: 'block' }}>
                               Target: {targetDate}
                             </Typography>
-                            {timeline.key !== 'goLive' && (
-                              <Typography variant="caption" sx={{ fontSize: '0.7rem', color: '#6B7280', display: 'block' }}>
-                                Realisasi: {realisasiDate}
-                              </Typography>
-                            )}
                           </Box>
                         </Box>
                       );
                     })}
+                  </Box>
+                </Box>
+
+                {/* Progres Tahapan Table */}
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#D97706' }} />
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#D97706' }}>Progres Tahapan</Typography>
+                  </Box>
+                  <TableContainer component={Paper} sx={{ borderRadius: '12px', boxShadow: 'none', border: '1px solid rgba(217,119,6,0.15)', overflow: 'hidden' }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow sx={{ bgcolor: 'rgba(217,119,6,0.06)' }}>
+                          <TableCell sx={{ fontWeight: 600, fontSize: '0.78rem', color: '#D97706', py: 1.1, width: '25%' }}>Tahapan</TableCell>
+                          <TableCell sx={{ fontWeight: 600, fontSize: '0.78rem', color: '#D97706', py: 1.1, width: '20%' }}>Status</TableCell>
+                          <TableCell sx={{ fontWeight: 600, fontSize: '0.78rem', color: '#D97706', py: 1.1, width: '20%' }}>Tgl. Target</TableCell>
+                          <TableCell sx={{ fontWeight: 600, fontSize: '0.78rem', color: '#D97706', py: 1.1, width: '20%' }}>Tanggal Penyelesaian</TableCell>
+                          <TableCell sx={{ fontWeight: 600, fontSize: '0.78rem', color: '#D97706', py: 1.1 }}>Ketepatan Waktu</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {(() => {
+                          // Show ALL tahapan (no filtering by presentStages)
+                          return FS2_TAHAPAN_VIEW_CONFIG.map((tahapan) => {
+                            const savedStatus = tahapan.statusField
+                              ? (fs2Data[tahapan.statusField] as string | undefined)
+                              : undefined;
+                            let status: string;
+                            if (savedStatus) {
+                              status = savedStatus;
+                            } else {
+                              // Fallback logic based on progres
+                              const progressIdx = fs2Data.progres ? PROGRESS_OPTIONS_VIEW.indexOf(fs2Data.progres as any) : -1;
+                              const tahapanIdx = PROGRESS_OPTIONS_VIEW.indexOf(tahapan.key);
+                              const isDoneFallback = tahapanIdx < progressIdx;
+                              const isActiveFallback = tahapanIdx === progressIdx;
+                              status = isDoneFallback ? 'Selesai' : isActiveFallback ? 'Dalam proses' : 'Belum dimulai';
+                            }
+                            const isSelesai = status === 'Selesai';
+                            const isDalam = status === 'Dalam proses';
+                            const chipColor = isSelesai ? '#15803D' : isDalam ? '#D97706' : '#6B7280';
+                            const chipBg = isSelesai ? '#F0FDF4' : isDalam ? '#FFFBEB' : '#F3F4F6';
+
+                            // Target date logic based on tahapan type
+                            // Pengajuan & Asesmen: empty
+                            // Pemrograman: from target_pemrograman
+                            // Pengujian, Deployment, Go Live: from Jadwal Pelaksanaan
+                            let targetDate: string | null = null;
+                            if (tahapan.stageKey === 'PENGAJUAN' || tahapan.stageKey === 'ASESMEN') {
+                              targetDate = null; // Always empty for Pengajuan and Asesmen
+                            } else if (tahapan.stageKey === 'PEMROGRAMAN') {
+                              targetDate = fs2Data.target_pemrograman || null;
+                            } else if (tahapan.stageKey === 'PENGUJIAN') {
+                              targetDate = fs2Data.target_pengujian || null;
+                            } else if (tahapan.stageKey === 'DEPLOYMENT') {
+                              targetDate = fs2Data.target_deployment || null;
+                            } else if (tahapan.stageKey === 'GO_LIVE') {
+                              targetDate = fs2Data.target_go_live || null;
+                            }
+                            const displayTarget = targetDate ? formatMonthYear(targetDate) : '—';
+
+                            const rawDate = (isSelesai && tahapan.dateField)
+                              ? (fs2Data[tahapan.dateField] as string | undefined)
+                              : undefined;
+                            const displayDate = rawDate ? formatMonthYear(rawDate) : null;
+
+                            let ketepatanLabel: string | null = null;
+                            let ketepatanColor = '#6B7280';
+                            let ketepatanBg = '#F3F4F6';
+                            if (isSelesai && displayDate && targetDate) {
+                              const completion = new Date(rawDate || '');
+                              const target = new Date(targetDate);
+                              if (completion <= target) {
+                                ketepatanLabel = 'Tepat Waktu';
+                                ketepatanColor = '#15803D';
+                                ketepatanBg = '#F0FDF4';
+                              } else {
+                                ketepatanLabel = 'Terlambat';
+                                ketepatanColor = '#DC2626';
+                                ketepatanBg = '#FEF2F2';
+                              }
+                            } else if (isDalam && targetDate) {
+                              const today = new Date();
+                              const target = new Date(targetDate);
+                              if (today <= target) {
+                                ketepatanLabel = 'Dalam Waktu';
+                                ketepatanColor = '#2563EB';
+                                ketepatanBg = '#EFF6FF';
+                              } else {
+                                ketepatanLabel = 'Melewati Target';
+                                ketepatanColor = '#D97706';
+                                ketepatanBg = '#FFFBEB';
+                              }
+                            }
+
+                            return (
+                              <TableRow
+                                key={tahapan.key}
+                                sx={{ '&:last-child td': { borderBottom: 0 }, bgcolor: isDalam ? 'rgba(217,119,6,0.03)' : 'transparent' }}
+                              >
+                                <TableCell sx={{ fontSize: '0.8rem', py: 0.9, fontWeight: isDalam ? 600 : 400, color: isDalam ? '#92400E' : '#1d1d1f' }}>
+                                  {tahapan.label}
+                                </TableCell>
+                                <TableCell sx={{ py: 0.9 }}>
+                                  <Chip label={status} size="small" sx={{ bgcolor: chipBg, color: chipColor, fontWeight: 600, fontSize: '0.7rem', height: 20 }} />
+                                </TableCell>
+                                <TableCell sx={{ fontSize: '0.8rem', py: 0.9, color: targetDate ? '#7C3AED' : '#86868b' }}>
+                                  {displayTarget}
+                                </TableCell>
+                                <TableCell sx={{ fontSize: '0.8rem', py: 0.9, color: displayDate ? '#15803D' : '#86868b' }}>
+                                  {displayDate || '—'}
+                                </TableCell>
+                                <TableCell sx={{ py: 0.9 }}>
+                                  {ketepatanLabel ? (
+                                    <Chip label={ketepatanLabel} size="small" sx={{ bgcolor: ketepatanBg, color: ketepatanColor, fontWeight: 600, fontSize: '0.7rem', height: 20 }} />
+                                  ) : (
+                                    <Typography sx={{ fontSize: '0.78rem', color: '#86868b' }}>—</Typography>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          });
+                        })()}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
+
+                <GlassCard>
+                  <SectionHeader>
+                    <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(49, 162, 76, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <MonitorHeartIcon sx={{ color: '#31A24C', fontSize: 20 }} />
+                    </Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                      Monitoring & Tracking
+                    </Typography>
+                  </SectionHeader>
+
+                {/* PIC & Team Info */}
+                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(49, 162, 76, 0.03)', border: '1px solid rgba(49, 162, 76, 0.1)', mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <PersonIcon sx={{ color: '#31A24C', fontSize: 18 }} />
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#31A24C' }}>PIC & Tim</Typography>
+                  </Box>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>PIC</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.pic_name || '-'}</Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Anggota Tim</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                        {fs2Data.anggota_tim_names || '-'}
+                      </Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Fase Pengajuan</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
+                        {FASE_LABELS[fs2Data.fase_pengajuan || ''] || fs2Data.fase_pengajuan || '-'}
+                      </Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>IKU</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
+                        {fs2Data.iku === 'Y' ? 'Ya' : fs2Data.iku === 'T' ? 'Tidak' : '-'}
+                      </Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Mekanisme</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
+                        {MEKANISME_LABELS[fs2Data.mekanisme || ''] || fs2Data.mekanisme || '-'}
+                      </Typography>
+                    </InfoRow>
+                    <InfoRow>
+                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Pelaksanaan</Typography>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{getPelaksanaanDisplay()}</Typography>
+                    </InfoRow>
                   </Box>
                 </Box>
 
@@ -1040,19 +1028,9 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Nomor ND</Typography>
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.nomor_nd || '-'}</Typography>
                     </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas ND</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_nd)}</Typography>
-                    </InfoRow>
                   </Box>
                   {renderFileListSection(fs2Files, 'Berkas ND', ['ND'], '#31A24C', 'Belum ada file')}
                   {renderFileListSection(fs2Files, 'Berkas F.S.2', ['FS2'], '#31A24C', 'Belum ada file')}
-                  {fs2Data.tanggal_berkas_fs2 && (
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas F.S.2</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_berkas_fs2)}</Typography>
-                    </InfoRow>
-                  )}
                 </Box>
 
                 {/* CD Prinsip Persetujuan FS2 */}
@@ -1063,94 +1041,23 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Nomor CD Prinsip Persetujuan FS2</Typography>
                       <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{fs2Data.nomor_cd || '-'}</Typography>
                     </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas CD Prinsip Persetujuan FS2</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_cd)}</Typography>
-                    </InfoRow>
                   </Box>
                   {renderFileListSection(fs2Files, 'Berkas CD Prinsip Persetujuan FS2', ['CD'], '#2563EB', 'Belum ada file')}
-                  {fs2Data.tanggal_cd && (
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas CD Prinsip Persetujuan FS2</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_cd)}</Typography>
-                    </InfoRow>
-                  )}
                   {renderFileListSection(fs2Files, 'Berkas F.S.2A', ['FS2A'], '#2563EB', 'Belum ada file')}
-                  {fs2Data.tanggal_berkas_fs2a && (
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas F.S.2A</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_berkas_fs2a)}</Typography>
-                    </InfoRow>
-                  )}
                   {renderFileListSection(fs2Files, 'Berkas F.S.2B', ['FS2B'], '#2563EB', 'Belum ada file')}
-                  {fs2Data.tanggal_berkas_fs2b && (
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas F.S.2B</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_berkas_fs2b)}</Typography>
-                    </InfoRow>
-                  )}
                 </Box>
 
                 {/* Pengujian */}
                 <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(217, 119, 6, 0.03)', border: '1px solid rgba(217, 119, 6, 0.1)', mb: 2 }}>
                   <Typography variant="body2" sx={{ fontWeight: 600, color: '#D97706', mb: 1.5 }}>Pengujian</Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mb: 2 }}>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatMonthYear(fs2Data.target_pengujian)}</Typography>
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Realisasi</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatMonthYear(fs2Data.realisasi_pengujian)}</Typography>
-                    </InfoRow>
-                  </Box>
                   {renderFileListSection(fs2Files, 'Berkas F45', ['F45'], '#D97706', 'Belum ada file')}
-                  {fs2Data.tanggal_berkas_f45 && (
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas F45</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_berkas_f45)}</Typography>
-                    </InfoRow>
-                  )}
                   {renderFileListSection(fs2Files, 'Berkas F46', ['F46'], '#D97706', 'Belum ada file')}
-                  {fs2Data.tanggal_berkas_f46 && (
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas F46</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_berkas_f46)}</Typography>
-                    </InfoRow>
-                  )}
                 </Box>
 
                 {/* Deployment */}
                 <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(124, 58, 237, 0.03)', border: '1px solid rgba(124, 58, 237, 0.1)', mb: 2 }}>
                   <Typography variant="body2" sx={{ fontWeight: 600, color: '#7C3AED', mb: 1.5 }}>Deployment</Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mb: 2 }}>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatMonthYear(fs2Data.target_deployment)}</Typography>
-                    </InfoRow>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Realisasi</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatMonthYear(fs2Data.realisasi_deployment)}</Typography>
-                    </InfoRow>
-                  </Box>
                   {renderFileListSection(fs2Files, 'Berkas ND/BA Deployment', ['NDBA'], '#7C3AED', 'Belum ada file')}
-                  {fs2Data.tanggal_berkas_nd_ba && (
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Tanggal Berkas ND/BA</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatDate(fs2Data.tanggal_berkas_nd_ba)}</Typography>
-                    </InfoRow>
-                  )}
-                </Box>
-
-                {/* Go Live */}
-                <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(5, 150, 105, 0.03)', border: '1px solid rgba(5, 150, 105, 0.1)', mb: 2 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#059669', mb: 1.5 }}>Go Live</Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-                    <InfoRow>
-                      <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Target</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{formatMonthYear(fs2Data.target_go_live)}</Typography>
-                    </InfoRow>
-                  </Box>
                 </Box>
 
                 {/* Keterangan */}
@@ -1161,6 +1068,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                   </Typography>
                 </Box>
               </GlassCard>
+              </>
             )}
 
             {/* Section: Riwayat Perubahan */}

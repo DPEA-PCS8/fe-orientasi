@@ -5,6 +5,12 @@ const BASE_URL = '/api';
 
 // ==================== RESPONSE TYPES ====================
 
+export interface Fs2TimelineData {
+  phase: number;
+  target_date: string;
+  stage: string;
+}
+
 export interface Fs2DocumentData {
   id: string;
   user_id: string;
@@ -57,6 +63,7 @@ export interface Fs2DocumentData {
   pertumbuhan_data_sesudah?: string;
   
   // Jadwal Pelaksanaan
+  target_pemrograman?: string;
   target_pengujian?: string;
   target_deployment?: string;
   target_go_live?: string;
@@ -116,6 +123,23 @@ export interface Fs2DocumentData {
   // Monitoring Fields - Keterangan
   keterangan?: string;
   
+  // Tahapan Status & Tanggal fields
+  tahapan_status_pengajuan?: string;
+  tanggal_pengajuan_selesai?: string;
+  tahapan_status_asesmen?: string;
+  tanggal_asesmen?: string;
+  tahapan_status_pemrograman?: string;
+  tanggal_pemrograman?: string;
+  tahapan_status_pengujian?: string;
+  tanggal_pengujian_selesai?: string;
+  tahapan_status_deployment?: string;
+  tanggal_deployment_selesai?: string;
+  tahapan_status_go_live?: string;
+  tanggal_go_live?: string;
+  
+  // Timelines for Progres Tahapan tracking
+  timelines?: Fs2TimelineData[];
+  
   created_at?: string;
   updated_at?: string;
 }
@@ -173,6 +197,7 @@ export interface Fs2DocumentRequest {
   pertumbuhan_data_sesudah?: string;
   
   // Jadwal Pelaksanaan
+  target_pemrograman?: string;
   target_pengujian?: string;
   target_deployment?: string;
   target_go_live?: string;
@@ -232,6 +257,20 @@ export interface Fs2DocumentRequest {
   
   // Monitoring Fields - Keterangan
   keterangan?: string;
+  
+  // Tahapan Status & Tanggal fields
+  tahapan_status_pengajuan?: string;
+  tanggal_pengajuan_selesai?: string;
+  tahapan_status_asesmen?: string;
+  tanggal_asesmen?: string;
+  tahapan_status_pemrograman?: string;
+  tanggal_pemrograman?: string;
+  tahapan_status_pengujian?: string;
+  tanggal_pengujian_selesai?: string;
+  tahapan_status_deployment?: string;
+  tanggal_deployment_selesai?: string;
+  tahapan_status_go_live?: string;
+  tanggal_go_live?: string;
 }
 
 // ==================== API FUNCTIONS ====================
