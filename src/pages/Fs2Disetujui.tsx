@@ -126,8 +126,8 @@ interface Fs2DisetujuiData {
   keterangan: string;
 }
 
-const PROGRES_OPTIONS = ['ASESMEN', 'CODING', 'PDKK', 'DEPLOY_SELESAI'] as const;
-const PROGRES_STATUS_OPTIONS = ['BELUM_DIMULAI', 'DALAM_PROSES', 'SELESAI'] as const;
+const PROGRES_OPTIONS = ['PENGAJUAN', 'ASESMEN', 'PEMROGRAMAN', 'PENGUJIAN', 'DEPLOYMENT', 'GO_LIVE'] as const;
+const PROGRES_STATUS_OPTIONS = ['belum_dimulai', 'dalam_proses', 'selesai'] as const;
 const FASE_PENGAJUAN_OPTIONS = ['DESAIN', 'PEMELIHARAAN'] as const;
 
 // Type for tahapan date fields (completion dates)
@@ -135,6 +135,25 @@ type Fs2TahapanDateField = 'tanggal_pengajuan_selesai' | 'tanggal_asesmen' | 'ta
 
 // Type for tahapan target fields
 type Fs2TahapanTargetField = 'target_pemrograman' | 'target_pengujian' | 'target_deployment' | 'target_go_live';
+
+// Labels for progres options - match with FS2 Tahapan
+const PROGRES_LABELS: Record<string, string> = {
+  'PENGAJUAN': 'Pengajuan',
+  'ASESMEN': 'Asesmen',
+  'PEMROGRAMAN': 'Pemrograman',
+  'PENGUJIAN': 'Pengujian',
+  'DEPLOYMENT': 'Deployment',
+  'GO_LIVE': 'Go Live',
+};
+
+// Labels for progres status options - match with tahapan status from API
+const PROGRES_STATUS_LABELS: Record<string, string> = {
+  'belum_dimulai': 'Belum Dimulai',
+  'dalam_proses': 'Dalam Proses',
+  'selesai': 'Selesai',
+  'ditunda': 'Ditunda',
+  'dibatalkan': 'Dibatalkan',
+};
 
 // FS2 Progress Tahapan Configuration (6 stages as per requirement)
 const FS2_TAHAPAN_CONFIG: Array<{
@@ -151,7 +170,7 @@ const FS2_TAHAPAN_CONFIG: Array<{
   { key: 'ASESMEN', label: 'Asesmen', color: '#8B5CF6', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246', dateField: 'tanggal_asesmen', targetField: null, statusApiField: 'tahapan_status_asesmen' },
   { key: 'PEMROGRAMAN', label: 'Pemrograman', color: '#F59E0B', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11', dateField: 'tanggal_pemrograman', targetField: 'target_pemrograman', statusApiField: 'tahapan_status_pemrograman' },
   { key: 'PENGUJIAN', label: 'Pengujian', color: '#0EA5E9', gradient: ['#0EA5E9', '#38BDF8'], rgb: '14,165,233', dateField: 'tanggal_pengujian_selesai', targetField: 'target_pengujian', statusApiField: 'tahapan_status_pengujian' },
-  { key: 'DEPLOYMENT', label: 'Deployment/Selesai', color: '#31A24C', gradient: ['#31A24C', '#4ADE80'], rgb: '49,162,76', dateField: 'tanggal_deployment_selesai', targetField: 'target_deployment', statusApiField: 'tahapan_status_deployment' },
+  { key: 'DEPLOYMENT', label: 'Deployment', color: '#31A24C', gradient: ['#31A24C', '#4ADE80'], rgb: '49,162,76', dateField: 'tanggal_deployment_selesai', targetField: 'target_deployment', statusApiField: 'tahapan_status_deployment' },
   { key: 'GO_LIVE', label: 'Go Live', color: '#10B981', gradient: ['#10B981', '#34D399'], rgb: '16,185,129', dateField: 'tanggal_go_live', targetField: 'target_go_live', statusApiField: 'tahapan_status_go_live' },
 ];
 
@@ -212,21 +231,32 @@ const deriveProgresTahapan = (apiData: Fs2DocumentData): { tahapanLabel: string;
     color: currentTahapan.color,
   };
 };
+
+// Helper to derive current progres from tahapan_status_* fields (for filtering and display)
+const deriveProgresFromTahapanStatus = (apiData: Fs2DocumentData): string => {
+  // Check tahapan_status_* fields to find which one has "dalam_proses"
+  const tahapanStatuses = {
+    'PENGAJUAN': apiData.tahapan_status_pengajuan,
+    'ASESMEN': apiData.tahapan_status_asesmen,
+    'PEMROGRAMAN': apiData.tahapan_status_pemrograman,
+    'PENGUJIAN': apiData.tahapan_status_pengujian,
+    'DEPLOYMENT': apiData.tahapan_status_deployment,
+    'GO_LIVE': apiData.tahapan_status_go_live,
+  };
+
+  // Find the tahapan with "dalam_proses" status
+  for (const [tahapan, status] of Object.entries(tahapanStatuses)) {
+    if (status && status.toLowerCase() === 'dalam_proses') {
+      return tahapan;
+    }
+  }
+
+  // If no tahapan has "dalam_proses", return the static progres field from API (fallback)
+  return apiData.progres || '-';
+};
+
 const MEKANISME_OPTIONS = ['INHOUSE', 'OUTSOURCE'] as const;
 const PELAKSANAAN_OPTIONS = ['SINGLE_YEAR', 'MULTIYEARS'] as const;
-
-const PROGRES_LABELS: Record<string, string> = {
-  ASESMEN: 'Asesmen',
-  CODING: 'Coding',
-  PDKK: 'PDKK',
-  DEPLOY_SELESAI: 'Deploy',
-};
-
-const PROGRES_STATUS_LABELS: Record<string, string> = {
-  BELUM_DIMULAI: 'Belum Dimulai',
-  DALAM_PROSES: 'Dalam Proses',
-  SELESAI: 'Selesai',
-};
 
 const FASE_LABELS: Record<string, string> = {
   DESAIN: 'Desain',
@@ -301,11 +331,14 @@ const buildDateFromMonthYear = (month: string, year: string): string => {
 
 // Transform API data to UI format
 const transformApiData = (apiData: Fs2DocumentData): Fs2DisetujuiData => {
+  // Derive progres from tahapan_status_* fields
+  const derivedProgres = deriveProgresFromTahapanStatus(apiData);
+  
   return {
     id: apiData.id,
     namaAplikasi: apiData.nama_aplikasi || '-',
     namaFs2: apiData.nama_fs2 || '-',
-    progres: apiData.progres || '-',
+    progres: derivedProgres,
     progresStatus: apiData.progres_status || '-',
     tanggalProgres: apiData.tanggal_progres || '-',
     fasePengajuan: apiData.fase_pengajuan || '-',
@@ -466,7 +499,8 @@ function Fs2Disetujui() {
     { id: 'no', label: 'No', width: 50 },
     { id: 'namaAplikasi', label: 'Nama Aplikasi', width: 160 },
     { id: 'namaFs2', label: 'Nama FS2', width: 180 },
-    { id: 'progres', label: 'Progres', width: 100 },
+    { id: 'progres', label: 'Progres', width: 120 },
+    { id: 'progresStatus', label: 'Status', width: 120 },
     { id: 'fasePengajuan', label: 'Fase Pengajuan', width: 130 },
     { id: 'iku', label: 'IKU', width: 80 },
     { id: 'bidang', label: 'Bidang', width: 120 },
@@ -599,11 +633,12 @@ function Fs2Disetujui() {
   const fetchFs2Data = useCallback(async () => {
     setIsLoading(true);
     try {
-      const progresFilter = selectedProgres.size === 1 ? Array.from(selectedProgres)[0] : undefined;
-      const progresStatusFilter = selectedProgresStatus.size === 1 ? Array.from(selectedProgresStatus)[0] : undefined;
-      const faseFilter = selectedFase.size === 1 ? Array.from(selectedFase)[0] : undefined;
-      const mekanismeFilter = selectedMekanisme.size === 1 ? Array.from(selectedMekanisme)[0] : undefined;
-      const pelaksanaanFilter = selectedPelaksanaan.size === 1 ? Array.from(selectedPelaksanaan)[0] : undefined;
+      // Convert Set filters to comma-separated strings for multiple selection support
+      const progresFilter = selectedProgres.size > 0 ? Array.from(selectedProgres).join(',') : undefined;
+      const progresStatusFilter = selectedProgresStatus.size > 0 ? Array.from(selectedProgresStatus).join(',') : undefined;
+      const faseFilter = selectedFase.size > 0 ? Array.from(selectedFase).join(',') : undefined;
+      const mekanismeFilter = selectedMekanisme.size > 0 ? Array.from(selectedMekanisme).join(',') : undefined;
+      const pelaksanaanFilter = selectedPelaksanaan.size > 0 ? Array.from(selectedPelaksanaan).join(',') : undefined;
 
       // Parse year filter for backend API
       const yearFilter = selectedYearFilter ? parseInt(selectedYearFilter, 10) : undefined;
@@ -1233,6 +1268,8 @@ function Fs2Disetujui() {
       
       const derivedStatuses: Record<string, string> = {};
       let foundCurrentTahapan = false;
+      let currentTahapanKey: string | null = null;
+      let currentTahapanStatus: string = 'belum_dimulai';
       
       FS2_TAHAPAN_CONFIG.forEach((tahapan, index) => {
         const hasCompletionDate = completionDates[tahapan.key] && completionDates[tahapan.key].length > 0;
@@ -1243,12 +1280,16 @@ function Fs2Disetujui() {
           if (index === 0) {
             derivedStatuses[tahapan.key] = 'Dalam proses';
             foundCurrentTahapan = true;
+            currentTahapanKey = tahapan.key;
+            currentTahapanStatus = 'dalam_proses';
           } else {
             const prevTahapan = FS2_TAHAPAN_CONFIG[index - 1];
             const prevHasDate = completionDates[prevTahapan.key] && completionDates[prevTahapan.key].length > 0;
             if (prevHasDate) {
               derivedStatuses[tahapan.key] = 'Dalam proses';
               foundCurrentTahapan = true;
+              currentTahapanKey = tahapan.key;
+              currentTahapanStatus = 'dalam_proses';
             } else {
               derivedStatuses[tahapan.key] = 'Belum dimulai';
             }
@@ -1257,9 +1298,18 @@ function Fs2Disetujui() {
           derivedStatuses[tahapan.key] = 'Belum dimulai';
         }
       });
+
+      // If all tahapan are completed (Go Live has date), set to GO_LIVE - selesai
+      if (!currentTahapanKey && completionDates['GO_LIVE'] && completionDates['GO_LIVE'].length > 0) {
+        currentTahapanKey = 'GO_LIVE';
+        currentTahapanStatus = 'selesai';
+      }
       
       await updateFs2Document(selectedFs2.id, {
         ...editFormData,
+        // Set main progres and progres_status fields for filtering
+        progres: currentTahapanKey || undefined,
+        progres_status: currentTahapanStatus,
         // Include tahapan statuses derived from completion dates
         tahapan_status_pengajuan: derivedStatuses['PENGAJUAN'] || undefined,
         tahapan_status_asesmen: derivedStatuses['ASESMEN'] || undefined,
@@ -1282,17 +1332,19 @@ function Fs2Disetujui() {
   const handleDownloadExcel = async () => {
     setIsDownloadingExcel(true);
     try {
-      // Get first selected filter value if any
-      const progresFilter = selectedProgres.size === 1 ? Array.from(selectedProgres)[0] : undefined;
-      const faseFilter = selectedFase.size === 1 ? Array.from(selectedFase)[0] : undefined;
-      const mekanismeFilter = selectedMekanisme.size === 1 ? Array.from(selectedMekanisme)[0] : undefined;
-      const pelaksanaanFilter = selectedPelaksanaan.size === 1 ? Array.from(selectedPelaksanaan)[0] : undefined;
+      // Convert Set filters to comma-separated strings for multiple selection support
+      const progresFilter = selectedProgres.size > 0 ? Array.from(selectedProgres).join(',') : undefined;
+      const progresStatusFilter = selectedProgresStatus.size > 0 ? Array.from(selectedProgresStatus).join(',') : undefined;
+      const faseFilter = selectedFase.size > 0 ? Array.from(selectedFase).join(',') : undefined;
+      const mekanismeFilter = selectedMekanisme.size > 0 ? Array.from(selectedMekanisme).join(',') : undefined;
+      const pelaksanaanFilter = selectedPelaksanaan.size > 0 ? Array.from(selectedPelaksanaan).join(',') : undefined;
       
       await downloadApprovedFs2Excel({
         search: keyword || undefined,
         bidang_id: selectedBidangFilter || undefined,
         skpa_id: selectedSkpaFilter || undefined,
         progres: progresFilter,
+        progres_status: progresStatusFilter,
         fase_pengajuan: faseFilter,
         mekanisme: mekanismeFilter,
         pelaksanaan: pelaksanaanFilter,
@@ -1920,6 +1972,7 @@ function Fs2Disetujui() {
                       {...params}
                       placeholder={selectedProgres.size === 0 ? 'Pilih Progres' : ''}
                       sx={{
+                        minWidth: 180,
                         '& .MuiOutlinedInput-root': {
                           borderRadius: '12px',
                           bgcolor: 'rgba(255, 255, 255, 0.9)',
@@ -2367,7 +2420,8 @@ function Fs2Disetujui() {
                   Nama FS2
                 </TableSortLabel>
               </TableCell>
-              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100, ...(stickyColumns.has('progres') && { position: 'sticky', left: getStickyLeft('progres'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('progres') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Progres</TableCell>
+              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('progres') && { position: 'sticky', left: getStickyLeft('progres'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('progres') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Progres</TableCell>
+              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('progresStatus') && { position: 'sticky', left: getStickyLeft('progresStatus'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('progresStatus') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Status</TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 130, ...(stickyColumns.has('fasePengajuan') && { position: 'sticky', left: getStickyLeft('fasePengajuan'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('fasePengajuan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Fase Pengajuan</TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 80, ...(stickyColumns.has('iku') && { position: 'sticky', left: getStickyLeft('iku'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('iku') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>IKU</TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Bidang</TableCell>
@@ -2424,13 +2478,13 @@ function Fs2Disetujui() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={36} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={37} align="center" sx={{ py: 4 }}>
                   <CircularProgress size={32} />
                 </TableCell>
               </TableRow>
             ) : filteredFs2Data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={36} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={37} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">Tidak ada data F.S.2 Disetujui</Typography>
                 </TableCell>
               </TableRow>
@@ -2467,11 +2521,11 @@ function Fs2Disetujui() {
                     <TableCell sx={{ py: 1, px: 2, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 180, ...(stickyColumns.has('namaFs2') && { position: 'sticky', left: getStickyLeft('namaFs2'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('namaFs2') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                       <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>{row.namaFs2}</Typography>
                     </TableCell>
-                    {/* Progres - derived from tahapan completion dates */}
-                    <TableCell sx={{ py: 1, px: 2, minWidth: 180, ...(stickyColumns.has('progres') && { position: 'sticky', left: getStickyLeft('progres'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('progres') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                    {/* Progres - Tahapan only */}
+                    <TableCell sx={{ py: 1, px: 2, minWidth: 120, ...(stickyColumns.has('progres') && { position: 'sticky', left: getStickyLeft('progres'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('progres') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                         <Chip 
-                          label={`${progresTahapan.tahapanLabel} - ${progresTahapan.status}`} 
+                          label={progresTahapan.tahapanLabel} 
                           size="small" 
                           sx={{ 
                             bgcolor: `${progresTahapan.color}20`, 
@@ -2488,6 +2542,20 @@ function Fs2Disetujui() {
                           </Typography>
                         )}
                       </Box>
+                    </TableCell>
+                    {/* Status - Status only */}
+                    <TableCell sx={{ py: 1, px: 2, minWidth: 120, ...(stickyColumns.has('progresStatus') && { position: 'sticky', left: getStickyLeft('progresStatus'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('progresStatus') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                      <Chip 
+                        label={progresTahapan.status} 
+                        size="small" 
+                        sx={{ 
+                          bgcolor: progresTahapan.status === 'Selesai' ? 'rgba(16, 185, 129, 0.15)' : progresTahapan.status === 'Dalam proses' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(107, 114, 128, 0.15)', 
+                          color: progresTahapan.status === 'Selesai' ? '#10B981' : progresTahapan.status === 'Dalam proses' ? '#F59E0B' : '#6B7280', 
+                          fontWeight: 500, 
+                          fontSize: '0.7rem',
+                          '& .MuiChip-label': { px: 1 },
+                        }} 
+                      />
                     </TableCell>
                     {/* Fase Pengajuan */}
                     <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 130, ...(stickyColumns.has('fasePengajuan') && { position: 'sticky', left: getStickyLeft('fasePengajuan'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('fasePengajuan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>{FASE_LABELS[row.fasePengajuan] || row.fasePengajuan}</TableCell>
@@ -3799,7 +3867,7 @@ function Fs2Disetujui() {
                             )}
                           </Box>
                         }
-                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID')}` : ''}`}
+                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
                         primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
                         secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
                       />
@@ -3911,7 +3979,7 @@ function Fs2Disetujui() {
                             )}
                           </Box>
                         }
-                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID')}` : ''}`}
+                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
                         primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
                         secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
                       />
@@ -4040,7 +4108,7 @@ function Fs2Disetujui() {
                             )}
                           </Box>
                         }
-                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID')}` : ''}`}
+                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
                         primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
                         secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
                       />
@@ -4152,7 +4220,7 @@ function Fs2Disetujui() {
                             )}
                           </Box>
                         }
-                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID')}` : ''}`}
+                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
                         primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
                         secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
                       />
@@ -4264,7 +4332,7 @@ function Fs2Disetujui() {
                             )}
                           </Box>
                         }
-                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID')}` : ''}`}
+                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
                         primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
                         secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
                       />
@@ -4384,7 +4452,7 @@ function Fs2Disetujui() {
                             )}
                           </Box>
                         }
-                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID')}` : ''}`}
+                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
                         primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
                         secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
                       />
@@ -4496,7 +4564,7 @@ function Fs2Disetujui() {
                             )}
                           </Box>
                         }
-                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID')}` : ''}`}
+                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
                         primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
                         secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
                       />
@@ -4616,7 +4684,7 @@ function Fs2Disetujui() {
                             )}
                           </Box>
                         }
-                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID')}` : ''}`}
+                        secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
                         primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
                         secondaryTypographyProps={{ sx: { fontSize: '0.75rem' } }}
                       />

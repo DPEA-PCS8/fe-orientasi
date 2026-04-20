@@ -528,6 +528,7 @@ export async function downloadApprovedFs2Excel(params?: {
   bidang_id?: string;
   skpa_id?: string;
   progres?: string;
+  progres_status?: string;
   fase_pengajuan?: string;
   mekanisme?: string;
   pelaksanaan?: string;
@@ -544,6 +545,7 @@ export async function downloadApprovedFs2Excel(params?: {
   if (params?.bidang_id) queryParams.append('bidang_id', params.bidang_id);
   if (params?.skpa_id) queryParams.append('skpa_id', params.skpa_id);
   if (params?.progres) queryParams.append('progres', params.progres);
+  if (params?.progres_status) queryParams.append('progres_status', params.progres_status);
   if (params?.fase_pengajuan) queryParams.append('fase_pengajuan', params.fase_pengajuan);
   if (params?.mekanisme) queryParams.append('mekanisme', params.mekanisme);
   if (params?.pelaksanaan) queryParams.append('pelaksanaan', params.pelaksanaan);

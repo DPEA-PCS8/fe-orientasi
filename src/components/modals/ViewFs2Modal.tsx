@@ -693,23 +693,8 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                   </Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
                     2. Berkas F.S.2
-                  </Typography>
+          </Typography>
                 </SectionHeader>
-
-                {/* Tanggal Berkas FS2 */}
-                {fs2Data.tanggal_berkas_fs2 && (
-                  <Box sx={{ mb: 2, p: 2, borderRadius: '12px', bgcolor: 'rgba(37, 99, 235, 0.03)', border: '1px solid rgba(37, 99, 235, 0.1)' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                      <CalendarIcon sx={{ fontSize: 16, color: '#2563EB' }} />
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#2563EB' }}>
-                        Tanggal Berkas FS2
-                      </Typography>
-                    </Box>
-                    <Typography variant="body2" sx={{ color: '#1d1d1f', ml: 3 }}>
-                      {formatDate(fs2Data.tanggal_berkas_fs2)}
-                    </Typography>
-                  </Box>
-                )}
 
                 <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(37, 99, 235, 0.03)', border: '1px solid rgba(37, 99, 235, 0.1)' }}>
                   {(() => {
@@ -732,7 +717,7 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                             </ListItemIcon>
                             <ListItemText
                               primary={file.original_name}
-                              secondary={formatFileSize(file.file_size)}
+                              secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${formatDate(file.tanggal_dokumen)}` : ''}`}
                               primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem' } }}
                               secondaryTypographyProps={{ sx: { color: '#86868b', fontSize: '0.7rem' } }}
                             />
