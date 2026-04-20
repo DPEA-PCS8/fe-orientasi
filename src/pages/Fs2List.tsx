@@ -61,7 +61,6 @@ import {
   InsertDriveFile as FileIcon,
   PushPin as PushPinIcon,
   Download as DownloadIcon,
-  OpenInNew as OpenInNewIcon,
   CalendarMonth as CalendarIcon,
 } from '@mui/icons-material';
 import { usePermissions } from '../hooks/usePermissions';
@@ -288,11 +287,11 @@ function Fs2List() {
   const [expandedSection, setExpandedSection] = useState<string | false>('section0');
 
   // Filter state
-  const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
+  const [filterAnchorEl, setFilterAnchorEl] = useState<null |HTMLElement>(null);
   const [selectedStatus, setSelectedStatus] = useState<Set<string>>(new Set());
-  const [selectedAplikasiFilter, setSelectedAplikasiFilter] = useState<string>('');
+  const [selectedAplikasiFilter, setSelectedAplikasiFilter] = useState<Set<string>>(new Set());
   const [selectedStatusTahapanFilter, setSelectedStatusTahapanFilter] = useState<string>('');
-  const [selectedSkpaFilter, setSelectedSkpaFilter] = useState<string>('');
+  const [selectedSkpaFilter, setSelectedSkpaFilter] = useState<Set<string>>(new Set());
   
   // Year filter (exposed in toolbar) - default to current year, filters by tanggal_pengajuan
   const [selectedYearFilter, setSelectedYearFilter] = useState<string>(new Date().getFullYear().toString());
@@ -315,7 +314,6 @@ function Fs2List() {
     // { id: 'urgensi', label: 'Urgensi', width: 100 }, // HIDDEN as per requirement
     { id: 'tanggalPengajuan', label: 'Tanggal Pengajuan', width: 150 },
     { id: 'docsFs2', label: 'Docs F.S.2', width: 90 },
-    { id: 'tglBerkasFs2', label: 'Tgl Berkas FS2', width: 130 },
     { id: 'status', label: 'Status', width: 130 },
   ], []);
 
@@ -397,12 +395,19 @@ function Fs2List() {
     pksi_id: '',
   });
 
-  // File upload state
+  // File upload state - OLD TEMP STORAGE (will be replaced by pending files)
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [uploadedFileData, setUploadedFileData] = useState<Fs2FileData[]>([]);
   const [sessionId, setSessionId] = useState<string>('');
-  const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Pending files state for PKSI-style upload (stage files with date before upload) - Add Modal
+  const [pendingFilesAdd, setPendingFilesAdd] = useState<Array<{ file: File; tanggal: string }>>([]);
+  const [isUploadingAdd, setIsUploadingAdd] = useState(false);
+
+  // Pending files state for Edit Modal
+  const [pendingFilesEdit, setPendingFilesEdit] = useState<Array<{ file: File; tanggal: string }>>([]);
+  const [isUploadingEdit, setIsUploadingEdit] = useState(false);
 
   // Existing files state for Edit modal
   const [existingFs2Files, setExistingFs2Files] = useState<Fs2FileData[]>([]);
@@ -465,12 +470,16 @@ function Fs2List() {
       const startMonthFilter = selectedStartMonth ? parseInt(selectedStartMonth, 10) : undefined;
       const endMonthFilter = selectedEndMonth ? parseInt(selectedEndMonth, 10) : undefined;
 
+      // Handle multiple selection for aplikasi and skpa
+      const aplikasiFilter = selectedAplikasiFilter.size > 0 ? Array.from(selectedAplikasiFilter).join(',') : undefined;
+      const skpaFilter = selectedSkpaFilter.size > 0 ? Array.from(selectedSkpaFilter).join(',') : undefined;
+
       const response = await searchFs2Documents({
         search: keyword || undefined,
         status: statusFilter,
-        aplikasi_id: selectedAplikasiFilter || undefined,
+        aplikasi_id: aplikasiFilter,
         status_tahapan: selectedStatusTahapanFilter || undefined,
-        skpa_id: selectedSkpaFilter || undefined,
+        skpa_id: skpaFilter,
         year: yearFilter,
         start_month: startMonthFilter,
         end_month: endMonthFilter,
@@ -596,9 +605,9 @@ function Fs2List() {
 
   const clearFilters = () => {
     setSelectedStatus(new Set());
-    setSelectedAplikasiFilter('');
+    setSelectedAplikasiFilter(new Set());
     setSelectedStatusTahapanFilter('');
-    setSelectedSkpaFilter('');
+    setSelectedSkpaFilter(new Set());
     setSelectedYearFilter(new Date().getFullYear().toString());
     setSelectedStartMonth('');
     setSelectedEndMonth('');
@@ -618,111 +627,16 @@ function Fs2List() {
   ];
   const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx'];
 
+  // OLD FILE UPLOAD HANDLERS - Commented out (replaced by pending files system)
+  /*
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files && files.length > 0 && sessionId) {
-      // Only take the first file (single file upload)
-      const file = files[0];
-
-      // Validate file size (max 8MB)
-      console.log('File size:', file.size, 'bytes', 'Max allowed:', MAX_FILE_SIZE, 'bytes');
-      if (!file.size || file.size <= 0) {
-        alert('File tidak valid. Silakan pilih file yang valid.');
-        event.target.value = '';
-        return;
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        alert(`Ukuran file (${fileSizeMB} MB) melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.`);
-        event.target.value = '';
-        return;
-      }
-
-      // Validate file type (PDF and Word only)
-      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-      if (!ALLOWED_FILE_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(fileExtension)) {
-        alert('Format file tidak didukung. Hanya file PDF dan Word (.pdf, .doc, .docx) yang diperbolehkan.');
-        event.target.value = '';
-        return;
-      }
-      
-      // Delete existing file if any
-      if (uploadedFileData.length > 0 && uploadedFileData[0]?.id) {
-        try {
-          await deleteFs2File(uploadedFileData[0].id);
-        } catch (error) {
-          console.error('Failed to delete existing file:', error);
-        }
-      }
-      
-      setIsUploading(true);
-      try {
-        // Upload to temp storage
-        const uploadedData = await uploadFs2TempFiles(sessionId, [file]);
-        setUploadedFiles([file]);
-        setUploadedFileData(uploadedData);
-      } catch (error) {
-        console.error('Failed to upload file:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Gagal mengupload file. Silakan coba lagi.';
-        alert(errorMessage);
-      } finally {
-        setIsUploading(false);
-      }
-    }
-    // Reset input value to allow uploading same file again
-    event.target.value = '';
+    // ... old implementation ...
   };
 
   const handleFileDrop = async (event: React.DragEvent<HTMLElement>) => {
-    event.preventDefault();
-    setIsDragging(false);
-    const files = event.dataTransfer.files;
-    if (files && files.length > 0 && sessionId) {
-      const file = files[0];
-
-      // Validate file size (max 8MB)
-      console.log('File size (drop):', file.size, 'bytes', 'Max allowed:', MAX_FILE_SIZE, 'bytes');
-      if (!file.size || file.size <= 0) {
-        alert('File tidak valid. Silakan pilih file yang valid.');
-        return;
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        alert(`Ukuran file (${fileSizeMB} MB) melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.`);
-        return;
-      }
-
-      // Validate file type (PDF and Word only)
-      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-      if (!ALLOWED_FILE_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(fileExtension)) {
-        alert('Format file tidak didukung. Hanya file PDF dan Word (.pdf, .doc, .docx) yang diperbolehkan.');
-        return;
-      }
-      
-      // Delete existing file if any
-      if (uploadedFileData.length > 0 && uploadedFileData[0]?.id) {
-        try {
-          await deleteFs2File(uploadedFileData[0].id);
-        } catch (error) {
-          console.error('Failed to delete existing file:', error);
-        }
-      }
-      
-      setIsUploading(true);
-      try {
-        // Upload to temp storage
-        const uploadedData = await uploadFs2TempFiles(sessionId, [file]);
-        setUploadedFiles([file]);
-        setUploadedFileData(uploadedData);
-      } catch (error) {
-        console.error('Failed to upload file:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Gagal mengupload file. Silakan coba lagi.';
-        alert(errorMessage);
-      } finally {
-        setIsUploading(false);
-      }
-    }
+    // ... old implementation ...
   };
+  */
 
   const handleRemoveFile = async (index: number) => {
     const fileToRemove = uploadedFileData[index];
@@ -735,6 +649,176 @@ function Fs2List() {
     }
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
     setUploadedFileData((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // ============ FILE STAGING HANDLERS (PKSI-STYLE) FOR ADD MODAL ============
+  const handleFileSelectAdd = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+
+      // Validate file size (max 8MB)
+      if (!file.size || file.size <= 0) {
+        alert('File tidak valid. Silakan pilih file yang valid.');
+        event.target.value = '';
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        alert(`Ukuran file (${fileSizeMB} MB) melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.`);
+        event.target.value = '';
+        return;
+      }
+
+      // Validate file type (PDF and Word only)
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      if (!ALLOWED_FILE_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(fileExtension)) {
+        alert('Format file tidak didukung. Hanya file PDF dan Word (.pdf, .doc, .docx) yang diperbolehkan.');
+        event.target.value = '';
+        return;
+      }
+
+      // Stage the file with empty date
+      setPendingFilesAdd(prev => [...prev, { file, tanggal: '' }]);
+    }
+    event.target.value = '';
+  };
+
+  const handleFileDropAdd = (event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
+    
+    const files = event.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+
+      // Validate file size (max 8MB)
+      if (!file.size || file.size <= 0) {
+        alert('File tidak valid. Silakan pilih file yang valid.');
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        alert(`Ukuran file (${fileSizeMB} MB) melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.`);
+        return;
+      }
+
+      // Validate file type (PDF and Word only)
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      if (!ALLOWED_FILE_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(fileExtension)) {
+        alert('Format file tidak didukung. Hanya file PDF dan Word (.pdf, .doc, .docx) yang diperbolehkan.');
+        return;
+      }
+
+      // Stage the file with empty date
+      setPendingFilesAdd(prev => [...prev, { file, tanggal: '' }]);
+    }
+  };
+
+  // Upload pending files to temp storage (Add Modal) - will be moved to permanent on form submit
+  const handleUploadPendingFilesAdd = async () => {
+    if (pendingFilesAdd.length === 0 || !sessionId) return;
+    setIsUploadingAdd(true);
+    try {
+      const results: Fs2FileData[] = [];
+      for (const pending of pendingFilesAdd) {
+        const uploaded = await uploadFs2TempFiles(sessionId, [pending.file], 'FS2', pending.tanggal || undefined);
+        results.push(...uploaded);
+      }
+      setUploadedFileData(prev => [...prev, ...results]);
+      setPendingFilesAdd([]);
+    } catch (error) {
+      console.error('Failed to upload files:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Gagal mengupload file. Silakan coba lagi.';
+      alert(errorMessage);
+    } finally {
+      setIsUploadingAdd(false);
+    }
+  };
+
+  // ============ FILE STAGING HANDLERS (PKSI-STYLE) FOR EDIT MODAL ============
+  const handleFileSelectEdit = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0 && selectedFs2ForEdit) {
+      const file = files[0];
+
+      // Validate file size (max 8MB)
+      if (!file.size || file.size <= 0) {
+        alert('File tidak valid. Silakan pilih file yang valid.');
+        event.target.value = '';
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        alert(`Ukuran file (${fileSizeMB} MB) melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.`);
+        event.target.value = '';
+        return;
+      }
+
+      // Validate file type (PDF and Word only)
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      if (!ALLOWED_FILE_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(fileExtension)) {
+        alert('Format file tidak didukung. Hanya file PDF dan Word (.pdf, .doc, .docx) yang diperbolehkan.');
+        event.target.value = '';
+        return;
+      }
+
+      // Stage the file with empty date
+      setPendingFilesEdit(prev => [...prev, { file, tanggal: '' }]);
+    }
+    event.target.value = '';
+  };
+
+  const handleFileDropEdit = (event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
+    
+    const files = event.dataTransfer.files;
+    if (files && files.length > 0 && selectedFs2ForEdit) {
+      const file = files[0];
+
+      // Validate file size (max 8MB)
+      if (!file.size || file.size <= 0) {
+        alert('File tidak valid. Silakan pilih file yang valid.');
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        alert(`Ukuran file (${fileSizeMB} MB) melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.`);
+        return;
+      }
+
+      // Validate file type (PDF and Word only)
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      if (!ALLOWED_FILE_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(fileExtension)) {
+        alert('Format file tidak didukung. Hanya file PDF dan Word (.pdf, .doc, .docx) yang diperbolehkan.');
+        return;
+      }
+
+      // Stage the file with empty date
+      setPendingFilesEdit(prev => [...prev, { file, tanggal: '' }]);
+    }
+  };
+
+  // Upload pending files directly to permanent storage (Edit Modal)
+  const handleUploadPendingFilesEdit = async () => {
+    if (pendingFilesEdit.length === 0 || !selectedFs2ForEdit) return;
+    setIsUploadingEdit(true);
+    try {
+      const results: Fs2FileData[] = [];
+      for (const pending of pendingFilesEdit) {
+        const uploaded = await uploadFs2Files(selectedFs2ForEdit.id, [pending.file], 'FS2', pending.tanggal || undefined);
+        results.push(...uploaded);
+      }
+      setExistingFs2Files(prev => [...prev, ...results]);
+      setPendingFilesEdit([]);
+    } catch (error) {
+      console.error('Failed to upload files:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Gagal mengupload file. Silakan coba lagi.';
+      alert(errorMessage);
+    } finally {
+      setIsUploadingEdit(false);
+    }
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -789,9 +873,9 @@ function Fs2List() {
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (selectedStatus.size > 0) count++;
-    if (selectedAplikasiFilter) count++;
+    if (selectedAplikasiFilter.size > 0) count++;
     if (selectedStatusTahapanFilter) count++;
-    if (selectedSkpaFilter) count++;
+    if (selectedSkpaFilter.size > 0) count++;
     return count;
   }, [selectedStatus, selectedAplikasiFilter, selectedStatusTahapanFilter, selectedSkpaFilter]);
 
@@ -1046,93 +1130,18 @@ function Fs2List() {
     }
   };
 
-  // Edit modal file handlers
-  const handleEditFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files && files.length > 0 && selectedFs2ForEdit) {
-      const file = files[0];
-
-      // Validate file size (max 8MB)
-      console.log('File size (edit):', file.size, 'bytes', 'Max allowed:', MAX_FILE_SIZE, 'bytes');
-      if (!file.size || file.size <= 0) {
-        alert('File tidak valid. Silakan pilih file yang valid.');
-        event.target.value = '';
-        return;
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        alert(`Ukuran file (${fileSizeMB} MB) melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.`);
-        event.target.value = '';
-        return;
-      }
-
-      // Validate file type (PDF and Word only)
-      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-      if (!ALLOWED_FILE_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(fileExtension)) {
-        alert('Format file tidak didukung. Hanya file PDF dan Word (.pdf, .doc, .docx) yang diperbolehkan.');
-        event.target.value = '';
-        return;
-      }
-
-      setIsUploading(true);
-      try {
-        // Upload directly to the F.S.2 document
-        const uploadedData = await uploadFs2Files(selectedFs2ForEdit.id, [file]);
-        // Add to existing files list
-        setExistingFs2Files(prev => [...prev, ...uploadedData]);
-      } catch (error) {
-        console.error('Failed to upload file:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Gagal mengupload file. Silakan coba lagi.';
-        alert(errorMessage);
-      } finally {
-        setIsUploading(false);
-      }
-    }
-    event.target.value = '';
+  // OLD EDIT FILE HANDLERS - Commented out (replaced by pending files system)
+  /*
+  const handleEditFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => { 
+    // ... old code ...
   };
-
-  const handleEditFileDrop = async (event: React.DragEvent<HTMLElement>) => {
-    event.preventDefault();
-    setIsDragging(false);
-    const files = event.dataTransfer.files;
-    if (files && files.length > 0 && selectedFs2ForEdit) {
-      const file = files[0];
-
-      // Validate file size (max 8MB)
-      console.log('File size (edit drop):', file.size, 'bytes', 'Max allowed:', MAX_FILE_SIZE, 'bytes');
-      if (!file.size || file.size <= 0) {
-        alert('File tidak valid. Silakan pilih file yang valid.');
-        return;
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        alert(`Ukuran file (${fileSizeMB} MB) melebihi batas maksimal 8MB. Silakan pilih file yang lebih kecil.`);
-        return;
-      }
-
-      // Validate file type (PDF and Word only)
-      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-      if (!ALLOWED_FILE_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(fileExtension)) {
-        alert('Format file tidak didukung. Hanya file PDF dan Word (.pdf, .doc, .docx) yang diperbolehkan.');
-        return;
-      }
-
-      setIsUploading(true);
-      try {
-        // Upload directly to the F.S.2 document
-        const uploadedData = await uploadFs2Files(selectedFs2ForEdit.id, [file]);
-        // Add to existing files list
-        setExistingFs2Files(prev => [...prev, ...uploadedData]);
-      } catch (error) {
-        console.error('Failed to upload file:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Gagal mengupload file. Silakan coba lagi.';
-        alert(errorMessage);
-      } finally {
-        setIsUploading(false);
-      }
-    }
+  
+  const handleEditFileDrop = async (event: React.DragEvent<HTMLElement>) => { 
+    // ... old code ...
   };
+  */
 
+  // Handle delete existing file from Edit modal
   const handleDeleteExistingFile = async (fileId: string) => {
     try {
       await deleteFs2File(fileId);
@@ -1271,11 +1280,15 @@ function Fs2List() {
         ? statusMapping[Array.from(selectedStatus)[0]] 
         : undefined;
       
+      // Handle multiple selection for aplikasi and skpa
+      const aplikasiFilterExcel = selectedAplikasiFilter.size > 0 ? Array.from(selectedAplikasiFilter).join(',') : undefined;
+      const skpaFilterExcel = selectedSkpaFilter.size > 0 ? Array.from(selectedSkpaFilter).join(',') : undefined;
+      
       await downloadAllFs2Excel({
         search: keyword || undefined,
-        aplikasi_id: selectedAplikasiFilter || undefined,
+        aplikasi_id: aplikasiFilterExcel,
         status_tahapan: selectedStatusTahapanFilter || undefined,
-        skpa_id: selectedSkpaFilter || undefined,
+        skpa_id: skpaFilterExcel,
         status: statusFilter,
         year: selectedYearFilter ? parseInt(selectedYearFilter, 10) : undefined,
         start_month: selectedStartMonth ? parseInt(selectedStartMonth, 10) : undefined,
@@ -1358,13 +1371,12 @@ function Fs2List() {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            flexWrap: 'wrap',
             gap: 2,
             borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
           }}
         >
           {/* Search & Filter */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, overflow: 'auto' }}>
             <TextField
               placeholder="Cari F.S.2..."
               size="small"
@@ -1648,6 +1660,7 @@ function Fs2List() {
                 sx={{
                   color: stickyColumns.size > 0 ? '#2563EB' : '#86868b',
                   fontWeight: 500,
+                  flexShrink: 0,
                   '&:hover': {
                     bgcolor: 'rgba(0, 0, 0, 0.04)',
                   },
@@ -1664,6 +1677,7 @@ function Fs2List() {
               </Button>
             </Tooltip>
           </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
           <Tooltip title="Download Excel">
             <IconButton
               onClick={handleDownloadExcel}
@@ -1705,6 +1719,7 @@ function Fs2List() {
             </Button>
           )}
         </Box>
+      </Box>
 
       {/* Filter Popover */}
       <Popover
@@ -1795,37 +1810,69 @@ function Fs2List() {
 
           <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
 
-          {/* Nama Aplikasi Filter */}
+          {/* Nama Aplikasi Filter - Multiple Selection with Typing */}
           <Box sx={{ mb: 2.5 }}>
             <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
               Nama Aplikasi
             </Typography>
-            <FormControl fullWidth size="small">
-              <InputLabel id="aplikasi-filter-label">Pilih Aplikasi</InputLabel>
-              <Select
-                labelId="aplikasi-filter-label"
-                value={selectedAplikasiFilter}
-                label="Pilih Aplikasi"
-                onChange={(e) => setSelectedAplikasiFilter(e.target.value)}
-                sx={{
-                  borderRadius: '8px',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#e5e5e7',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#DA251C',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#DA251C',
-                  },
-                }}
-              >
-                <MenuItem value=""><em>Semua Aplikasi</em></MenuItem>
-                {aplikasiList.map((aplikasi) => (
-                  <MenuItem key={aplikasi.id} value={aplikasi.id}>{aplikasi.nama_aplikasi}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Autocomplete
+              multiple
+              size="small"
+              options={aplikasiList}
+              getOptionLabel={(option) => `${option.kode_aplikasi} - ${option.nama_aplikasi}`}
+              value={aplikasiList.filter(app => selectedAplikasiFilter.has(app.id))}
+              onChange={(_, newValue) => {
+                const newIds = new Set(newValue.map(app => app.id));
+                setSelectedAplikasiFilter(newIds);
+              }}
+              disableCloseOnSelect
+              renderOption={(props, option, { selected }) => {
+                const { key, ...restProps } = props;
+                return (
+                  <li key={key} {...restProps}>
+                    <Checkbox
+                      size="small"
+                      checked={selected}
+                      sx={{ mr: 1, '&.Mui-checked': { color: '#DA251C' } }}
+                    />
+                    {option.kode_aplikasi} - {option.nama_aplikasi}
+                  </li>
+                );
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  placeholder={selectedAplikasiFilter.size === 0 ? 'Cari dan pilih aplikasi...' : ''}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '8px',
+                      '& fieldset': { borderColor: '#e5e5e7' },
+                      '&:hover fieldset': { borderColor: '#DA251C' },
+                      '&.Mui-focused fieldset': { borderColor: '#DA251C', borderWidth: 2 },
+                    },
+                  }}
+                />
+              )}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => {
+                  const { key, ...tagProps } = getTagProps({ index });
+                  return (
+                    <Chip
+                      key={key}
+                      label={option.kode_aplikasi}
+                      size="small"
+                      {...tagProps}
+                      sx={{ 
+                        bgcolor: '#DA251C', 
+                        color: 'white', 
+                        fontWeight: 500,
+                        '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } 
+                      }}
+                    />
+                  );
+                })
+              }
+            />
           </Box>
 
           <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
@@ -1864,37 +1911,69 @@ function Fs2List() {
 
           <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
 
-          {/* SKPA Filter */}
+          {/* SKPA Filter - Multiple Selection with Typing */}
           <Box sx={{ mb: 2.5 }}>
             <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
               SKPA
             </Typography>
-            <FormControl fullWidth size="small">
-              <InputLabel id="skpa-filter-label">Pilih SKPA</InputLabel>
-              <Select
-                labelId="skpa-filter-label"
-                value={selectedSkpaFilter}
-                label="Pilih SKPA"
-                onChange={(e) => setSelectedSkpaFilter(e.target.value)}
-                sx={{
-                  borderRadius: '8px',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#e5e5e7',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#DA251C',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#DA251C',
-                  },
-                }}
-              >
-                <MenuItem value=""><em>Semua SKPA</em></MenuItem>
-                {skpaList.map((skpa) => (
-                  <MenuItem key={skpa.id} value={skpa.id}>{skpa.kode_skpa} - {skpa.nama_skpa}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Autocomplete
+              multiple
+              size="small"
+              options={skpaList}
+              getOptionLabel={(option) => `${option.kode_skpa} - ${option.nama_skpa}`}
+              value={skpaList.filter(skpa => selectedSkpaFilter.has(skpa.id))}
+              onChange={(_, newValue) => {
+                const newIds = new Set(newValue.map(skpa => skpa.id));
+                setSelectedSkpaFilter(newIds);
+              }}
+              disableCloseOnSelect
+              renderOption={(props, option, { selected }) => {
+                const { key, ...restProps } = props;
+                return (
+                  <li key={key} {...restProps}>
+                    <Checkbox
+                      size="small"
+                      checked={selected}
+                      sx={{ mr: 1, '&.Mui-checked': { color: '#DA251C' } }}
+                    />
+                    {option.kode_skpa} - {option.nama_skpa}
+                  </li>
+                );
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  placeholder={selectedSkpaFilter.size === 0 ? 'Cari dan pilih SKPA...' : ''}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '8px',
+                      '& fieldset': { borderColor: '#e5e5e7' },
+                      '&:hover fieldset': { borderColor: '#DA251C' },
+                      '&.Mui-focused fieldset': { borderColor: '#DA251C', borderWidth: 2 },
+                    },
+                  }}
+                />
+              )}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => {
+                  const { key, ...tagProps } = getTagProps({ index });
+                  return (
+                    <Chip
+                      key={key}
+                      label={option.kode_skpa}
+                      size="small"
+                      {...tagProps}
+                      sx={{ 
+                        bgcolor: '#DA251C', 
+                        color: 'white', 
+                        fontWeight: 500,
+                        '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } 
+                      }}
+                    />
+                  );
+                })
+              }
+            />
           </Box>
 
           <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
@@ -2131,16 +2210,6 @@ function Fs2List() {
               >
                 Docs F.S.2
               </TableCell>
-              <TableCell 
-                sx={{ 
-                  fontWeight: 600, 
-                  color: '#1d1d1f', 
-                  py: 2,
-                  minWidth: 130,
-                }}
-              >
-                Tgl Berkas FS2
-              </TableCell>
               <TableCell sx={{ 
                 fontWeight: 600, 
                 color: '#1d1d1f', 
@@ -2301,32 +2370,28 @@ function Fs2List() {
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ py: 2 }}>
-                      <Tooltip title="Lihat Dokumen F.S.2">
-                        <IconButton
-                          onClick={() => handleOpenFilePreviewDialog(row.id)}
-                          size="small"
-                          sx={{
-                            color: '#DA251C',
-                            bgcolor: 'rgba(218, 37, 28, 0.08)',
-                            '&:hover': {
-                              bgcolor: 'rgba(218, 37, 28, 0.15)',
-                            },
-                          }}
-                        >
-                          <OpenInNewIcon sx={{ fontSize: 16 }} />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell sx={{ py: 2, minWidth: 130 }}>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          color: '#1d1d1f',
-                          fontSize: '0.85rem',
+                      <Button
+                        size="small"
+                        onClick={() => handleOpenFilePreviewDialog(row.id)}
+                        startIcon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                        sx={{
+                          textTransform: 'none',
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                          color: '#059669',
+                          borderRadius: '8px',
+                          px: 1.5,
+                          py: 0.5,
+                          background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, rgba(52, 211, 153, 0.08) 100%)',
+                          border: '1px solid rgba(5, 150, 105, 0.2)',
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.15) 0%, rgba(52, 211, 153, 0.12) 100%)',
+                            boxShadow: '0 2px 8px rgba(5, 150, 105, 0.15)',
+                          },
                         }}
                       >
-                        {formatDate((rawData.find(d => d.id === row.id) as Fs2DocumentData)?.tanggal_berkas_fs2)}
-                      </Typography>
+                        View
+                      </Button>
                     </TableCell>
                     <TableCell sx={{ 
                       py: 2,
@@ -3023,108 +3088,135 @@ function Fs2List() {
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
                 <Stack spacing={2}>
-                  {/* Tanggal Berkas FS2 */}
-                  <TextField
-                    label="Tanggal Berkas FS2"
-                    type="date"
-                    value={formData.tanggal_berkas_fs2 || ''}
-                    onChange={(e) => setFormData({ ...formData, tanggal_berkas_fs2: e.target.value })}
-                    InputLabelProps={{ shrink: true }}
-                    fullWidth
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: '12px',
-                        bgcolor: 'white',
-                        transition: 'all 0.2s ease',
-                        '&:hover': { boxShadow: '0 2px 8px rgba(0,0,0,0.08)' },
-                        '&.Mui-focused': {
-                          boxShadow: '0 4px 12px rgba(218, 37, 28, 0.15)',
-                          '& fieldset': { borderColor: '#DA251C', borderWidth: '2px' },
+                  {/* File Upload Dropzone */}
+                  <Box>
+                    <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas F.S.2</Typography>
+                    <Box
+                      onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                      onDragLeave={() => setIsDragging(false)}
+                      onDrop={handleFileDropAdd}
+                      sx={{
+                        border: isDragging ? '2px solid #31A24C' : '2px dashed #e5e5e7',
+                        borderRadius: 2,
+                        p: 3,
+                        textAlign: 'center',
+                        cursor: isUploadingAdd ? 'not-allowed' : 'pointer',
+                        opacity: isUploadingAdd ? 0.7 : 1,
+                        transition: 'all 0.2s ease-in-out',
+                        background: isDragging
+                          ? 'rgba(49, 162, 76, 0.08)'
+                          : 'transparent',
+                        '&:hover': {
+                          borderColor: isUploadingAdd ? '#e5e5e7' : '#31A24C',
+                          bgcolor: isUploadingAdd ? 'transparent' : 'rgba(49, 162, 76, 0.04)',
                         },
-                      },
-                      '& .MuiInputLabel-root.Mui-focused': { color: '#DA251C', fontWeight: 600 },
-                    }}
-                  />
-                  <Box
-                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                    onDragLeave={() => setIsDragging(false)}
-                    onDrop={handleFileDrop}
-                    sx={{
-                      border: isDragging ? '2px solid #DA251C' : '2px dashed #e5e5e7',
-                      borderRadius: 2,
-                      p: 3,
-                      textAlign: 'center',
-                      cursor: isUploading ? 'not-allowed' : 'pointer',
-                      opacity: isUploading ? 0.7 : 1,
-                      transition: 'all 0.2s ease-in-out',
-                      background: isDragging
-                        ? 'rgba(218, 37, 28, 0.08)'
-                        : 'transparent',
-                      '&:hover': {
-                        borderColor: isUploading ? '#e5e5e7' : '#DA251C',
-                        bgcolor: isUploading ? 'transparent' : 'rgba(218, 37, 28, 0.04)',
-                      },
-                    }}
-                    onClick={() => !isUploading && document.getElementById('fs2-file-upload-input')?.click()}
-                  >
-                    <input
-                      id="fs2-file-upload-input"
-                      type="file"
-                      hidden
-                      onChange={handleFileUpload}
-                      accept=".pdf,.doc,.docx"
-                      disabled={isUploading}
-                    />
-                    {isUploading ? (
-                      <>
-                        <CircularProgress size={48} sx={{ color: '#DA251C', mb: 1 }} />
-                        <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
-                          Mengupload file...
-                        </Typography>
-                      </>
-                    ) : (
-                      <>
-                        <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
-                        <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
-                          Klik untuk upload file
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
-                          atau drag & drop file di sini
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
-                          Format yang didukung: PDF, Word (max 8MB)
-                        </Typography>
-                      </>
-                    )}
+                      }}
+                      onClick={() => !isUploadingAdd && document.getElementById('fs2-add-file-upload-input')?.click()}
+                    >
+                      <input
+                        id="fs2-add-file-upload-input"
+                        type="file"
+                        hidden
+                        onChange={handleFileSelectAdd}
+                        accept=".pdf,.doc,.docx"
+                        disabled={isUploadingAdd}
+                      />
+                      {isUploadingAdd ? (
+                        <>
+                          <CircularProgress size={48} sx={{ color: '#31A24C', mb: 1 }} />
+                          <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                            Mengupload file...
+                          </Typography>
+                        </>
+                      ) : (
+                        <>
+                          <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
+                          <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                            Klik untuk upload file
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
+                            atau drag & drop file di sini
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
+                            Format yang didukung: PDF, Word (max 8MB)
+                          </Typography>
+                        </>
+                      )}
+                    </Box>
                   </Box>
 
-                  {uploadedFiles.length > 0 && (
+                  {/* Pending files with date picker - File akan diupload */}
+                  {pendingFilesAdd.length > 0 && (
+                    <Box>
+                      <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.8rem', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <FileIcon sx={{ color: '#31A24C', fontSize: 18 }} />
+                        File akan diupload ({pendingFilesAdd.length})
+                      </Typography>
+                      <Stack spacing={1.5}>
+                        {pendingFilesAdd.map((pending, index) => (
+                          <Box key={index} sx={{ p: 1.5, background: 'linear-gradient(145deg, rgba(49, 162, 76, 0.06) 0%, rgba(49, 162, 76, 0.02) 100%)', borderRadius: '12px', border: '1px solid rgba(49, 162, 76, 0.2)' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+                              <FileIcon sx={{ color: '#31A24C', fontSize: 18, flexShrink: 0 }} />
+                              <Typography sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pending.file.name}</Typography>
+                              <Typography sx={{ color: '#86868b', fontSize: '0.7rem', whiteSpace: 'nowrap', mx: 1 }}>{formatFileSize(pending.file.size)}</Typography>
+                              <IconButton size="small" onClick={() => setPendingFilesAdd(prev => prev.filter((_, i) => i !== index))} sx={{ color: '#DC2626', width: 28, height: 28, borderRadius: '8px', background: 'rgba(220,38,38,0.08)', '&:hover': { background: 'rgba(220,38,38,0.15)' } }}>
+                                <DeleteIcon sx={{ fontSize: 15 }} />
+                              </IconButton>
+                            </Box>
+                            <TextField
+                              fullWidth
+                              label="Tanggal Dokumen"
+                              type="date"
+                              size="small"
+                              value={pending.tanggal}
+                              onChange={(e) => setPendingFilesAdd(prev => prev.map((p, i) => i === index ? { ...p, tanggal: e.target.value } : p))}
+                              InputLabelProps={{ shrink: true }}
+                              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.7)', '&.Mui-focused fieldset': { borderColor: '#31A24C' } }, '& .MuiInputLabel-root.Mui-focused': { color: '#31A24C' } }}
+                            />
+                          </Box>
+                        ))}
+                      </Stack>
+                      <Button
+                        variant="contained"
+                        fullWidth
+                        onClick={handleUploadPendingFilesAdd}
+                        disabled={isUploadingAdd}
+                        startIcon={isUploadingAdd ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <CloudUploadIcon />}
+                        sx={{ mt: 1.5, background: 'linear-gradient(145deg, #31A24C 0%, #4ADE80 100%)', borderRadius: '12px', fontWeight: 600, '&:hover': { background: 'linear-gradient(145deg, #059669 0%, #31A24C 100%)' } }}
+                      >
+                        {isUploadingAdd ? 'Mengupload...' : `Upload ${pendingFilesAdd.length} File`}
+                      </Button>
+                    </Box>
+                  )}
+
+                  {/* Uploaded files list */}
+                  {uploadedFileData.length > 0 && (
                     <Box>
                       <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>
-                        File yang diupload ({uploadedFiles.length})
+                        File yang diupload ({uploadedFileData.length})
                       </Typography>
                       <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px' }}>
-                        {uploadedFiles.map((file, index) => (
+                        {uploadedFileData.map((file, index) => (
                           <ListItem
-                            key={index}
+                            key={file.id}
                             sx={{
-                              borderBottom: index < uploadedFiles.length - 1 ? '1px solid #e5e5e7' : 'none',
+                              borderBottom: index < uploadedFileData.length - 1 ? '1px solid #e5e5e7' : 'none',
                             }}
                           >
-                            <ListItemIcon>
-                              <FileIcon sx={{ color: '#DA251C' }} />
+                            <ListItemIcon sx={{ minWidth: 36 }}>
+                              <FileIcon sx={{ color: '#31A24C', fontSize: 20 }} />
                             </ListItemIcon>
                             <ListItemText
-                              primary={file.name}
-                              secondary={formatFileSize(file.size)}
-                              primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }}
-                              secondaryTypographyProps={{ sx: { color: '#86868b' } }}
+                              primary={file.display_name || file.original_name}
+                              secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
+                              primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem' } }}
+                              secondaryTypographyProps={{ sx: { color: '#86868b', fontSize: '0.75rem' } }}
                             />
                             <ListItemSecondaryAction>
                               <IconButton
                                 edge="end"
                                 onClick={() => handleRemoveFile(index)}
-                                disabled={isUploading}
+                                disabled={isUploadingAdd}
                                 sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
                               >
                                 <DeleteIcon />
@@ -3155,7 +3247,7 @@ function Fs2List() {
         <DialogActions sx={{ p: 2.5, pt: 1, borderTop: '1px solid rgba(0, 0, 0, 0.06)' }}>
           <Button 
             onClick={handleCloseAddModal}
-            disabled={isUploading}
+            disabled={isUploadingAdd}
             sx={{
               color: '#86868b',
               '&:hover': {
@@ -3168,7 +3260,7 @@ function Fs2List() {
           <Button 
             variant="contained" 
             onClick={handleAddFs2}
-            disabled={isUploading}
+            disabled={isUploadingAdd}
             sx={{
               background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
               fontWeight: 500,
@@ -3670,28 +3762,6 @@ function Fs2List() {
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2.5, pb: 2.5 }}>
                 <Stack spacing={2}>
-                  {/* Tanggal Berkas FS2 */}
-                  <TextField
-                    label="Tanggal Berkas FS2"
-                    type="date"
-                    value={formData.tanggal_berkas_fs2 || ''}
-                    onChange={(e) => setFormData({ ...formData, tanggal_berkas_fs2: e.target.value })}
-                    InputLabelProps={{ shrink: true }}
-                    fullWidth
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: '12px',
-                        bgcolor: 'white',
-                        transition: 'all 0.2s ease',
-                        '&:hover': { boxShadow: '0 2px 8px rgba(0,0,0,0.08)' },
-                        '&.Mui-focused': {
-                          boxShadow: '0 4px 12px rgba(218, 37, 28, 0.15)',
-                          '& fieldset': { borderColor: '#DA251C', borderWidth: '2px' },
-                        },
-                      },
-                      '& .MuiInputLabel-root.Mui-focused': { color: '#DA251C', fontWeight: 600 },
-                    }}
-                  />
                   {/* Existing Files Section */}
                   {isLoadingExistingFiles ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
@@ -3732,7 +3802,7 @@ function Fs2List() {
                                   )}
                                 </Box>
                               }
-                              secondary={formatFileSize(file.file_size)}
+                              secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
                               primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }}
                               secondaryTypographyProps={{ sx: { color: '#86868b' } }}
                             />
@@ -3766,59 +3836,88 @@ function Fs2List() {
                     </Typography>
                   )}
 
-                  {/* Upload New File Section */}
-                  <Box
-                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                    onDragLeave={() => setIsDragging(false)}
-                    onDrop={handleEditFileDrop}
-                    sx={{
-                      border: isDragging ? '2px solid #DA251C' : '2px dashed #e5e5e7',
-                      borderRadius: 2,
-                      p: 3,
-                      textAlign: 'center',
-                      cursor: isUploading ? 'not-allowed' : 'pointer',
-                      opacity: isUploading ? 0.7 : 1,
-                      transition: 'all 0.2s ease-in-out',
-                      background: isDragging
-                        ? 'rgba(218, 37, 28, 0.08)'
-                        : 'transparent',
-                      '&:hover': {
-                        borderColor: isUploading ? '#e5e5e7' : '#DA251C',
-                        bgcolor: isUploading ? 'transparent' : 'rgba(218, 37, 28, 0.04)',
-                      },
-                    }}
-                    onClick={() => !isUploading && document.getElementById('fs2-edit-file-upload-input')?.click()}
-                  >
-                    <input
-                      id="fs2-edit-file-upload-input"
-                      type="file"
-                      hidden
-                      onChange={handleEditFileUpload}
-                      accept=".pdf,.doc,.docx"
-                      disabled={isUploading}
-                    />
-                    {isUploading ? (
-                      <>
-                        <CircularProgress size={48} sx={{ color: '#DA251C', mb: 1 }} />
-                        <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
-                          Mengupload file...
-                        </Typography>
-                      </>
-                    ) : (
-                      <>
-                        <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
-                        <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
-                          Klik untuk upload file tambahan
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
-                          atau drag & drop file di sini
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
-                          Format yang didukung: PDF, Word (max 8MB)
-                        </Typography>
-                      </>
-                    )}
+                  {/* Upload New File Section - PKSI-style */}
+                  <Box>
+                    <Box
+                      onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                      onDragLeave={() => setIsDragging(false)}
+                      onDrop={handleFileDropEdit}
+                      sx={{
+                        border: isDragging ? '2px solid #31A24C' : '2px dashed #e5e5e7',
+                        borderRadius: 2,
+                        p: 2,
+                        textAlign: 'center',
+                        cursor: isUploadingEdit ? 'not-allowed' : 'pointer',
+                        opacity: isUploadingEdit ? 0.7 : 1,
+                        transition: 'all 0.2s ease-in-out',
+                        background: isDragging
+                          ? 'rgba(49, 162, 76, 0.08)'
+                          : 'transparent',
+                        '&:hover': {
+                          borderColor: isUploadingEdit ? '#e5e5e7' : '#31A24C',
+                          bgcolor: isUploadingEdit ? 'transparent' : 'rgba(49, 162, 76, 0.04)',
+                        },
+                      }}
+                      onClick={() => !isUploadingEdit && document.getElementById('fs2-edit-file-upload-input')?.click()}
+                    >
+                      <input
+                        id="fs2-edit-file-upload-input"
+                        type="file"
+                        hidden
+                        onChange={handleFileSelectEdit}
+                        accept=".pdf,.doc,.docx"
+                        disabled={isUploadingEdit}
+                      />
+                      <CloudUploadIcon sx={{ fontSize: 32, color: isDragging ? '#31A24C' : '#86868b', mb: 0.5 }} />
+                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDragging ? 'Lepas untuk upload' : 'Upload file tambahan'}</Typography>
+                      <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
+                    </Box>
                   </Box>
+
+                  {/* Pending files with date picker - File akan diupload */}
+                  {pendingFilesEdit.length > 0 && (
+                    <Box>
+                      <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.8rem', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <FileIcon sx={{ color: '#31A24C', fontSize: 18 }} />
+                        File akan diupload ({pendingFilesEdit.length})
+                      </Typography>
+                      <Stack spacing={1.5}>
+                        {pendingFilesEdit.map((pending, index) => (
+                          <Box key={index} sx={{ p: 1.5, background: 'linear-gradient(145deg, rgba(49, 162, 76, 0.06) 0%, rgba(49, 162, 76, 0.02) 100%)', borderRadius: '12px', border: '1px solid rgba(49, 162, 76, 0.2)' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+                              <FileIcon sx={{ color: '#31A24C', fontSize: 18, flexShrink: 0 }} />
+                              <Typography sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pending.file.name}</Typography>
+                              <Typography sx={{ color: '#86868b', fontSize: '0.7rem', whiteSpace: 'nowrap', mx: 1 }}>{formatFileSize(pending.file.size)}</Typography>
+                              <IconButton size="small" onClick={() => setPendingFilesEdit(prev => prev.filter((_, i) => i !== index))} sx={{ color: '#DC2626', width: 28, height: 28, borderRadius: '8px', background: 'rgba(220,38,38,0.08)', '&:hover': { background: 'rgba(220,38,38,0.15)' } }}>
+                                <DeleteIcon sx={{ fontSize: 15 }} />
+                              </IconButton>
+                            </Box>
+                            <TextField
+                              fullWidth
+                              label="Tanggal Dokumen"
+                              type="date"
+                              size="small"
+                              value={pending.tanggal}
+                              onChange={(e) => setPendingFilesEdit(prev => prev.map((p, i) => i === index ? { ...p, tanggal: e.target.value } : p))}
+                              InputLabelProps={{ shrink: true }}
+                              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.7)', '&.Mui-focused fieldset': { borderColor: '#31A24C' } }, '& .MuiInputLabel-root.Mui-focused': { color: '#31A24C' } }}
+                            />
+                          </Box>
+                        ))}
+                      </Stack>
+                      <Button
+                        variant="contained"
+                        fullWidth
+                        onClick={handleUploadPendingFilesEdit}
+                        disabled={isUploadingEdit}
+                        startIcon={isUploadingEdit ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <CloudUploadIcon />}
+                        sx={{ mt: 1.5, background: 'linear-gradient(145deg, #31A24C 0%, #4ADE80 100%)', borderRadius: '12px', fontWeight: 600, '&:hover': { background: 'linear-gradient(145deg, #059669 0%, #31A24C 100%)' } }}
+                      >
+                        {isUploadingEdit ? 'Mengupload...' : `Upload ${pendingFilesEdit.length} File`}
+                      </Button>
+                    </Box>
+                  )}
+                  
                   {errors.upload_dokumen && existingFs2Files.length === 0 && (
                     <Alert 
                       severity="warning" 
@@ -3996,7 +4095,7 @@ function Fs2List() {
                         )}
                       </Box>
                     }
-                    secondary={formatFileSize(file.file_size)}
+                    secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
                     primaryTypographyProps={{
                       sx: {
                         fontWeight: 500,
