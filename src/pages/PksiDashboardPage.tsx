@@ -460,7 +460,7 @@ function PksiDashboardPage() {
   const [selectedTahun, setSelectedTahun] = useState<number>(new Date().getFullYear());
   const [selectedBulan, setSelectedBulan] = useState<number>(new Date().getMonth() + 1);
   const [expandedProgress, setExpandedProgress] = useState<string | null>(null);
-  const [showPksiTable, setShowPksiTable] = useState<'all' | 'disetujui' | 'pending' | 'ditolak' | null>(null);
+  const [showPksiTable, setShowPksiTable] = useState<'all' | 'disetujui' | 'dikerjakan_dengan_cara_lain' | 'ditolak' | null>(null);
 
   // Fetch dashboard data
   const fetchDashboard = useCallback(async () => {
@@ -495,7 +495,7 @@ function PksiDashboardPage() {
     setExpandedProgress(prev => prev === progress ? null : progress);
   };
 
-  const handleStatCardClick = (type: 'all' | 'disetujui' | 'pending' | 'ditolak') => {
+  const handleStatCardClick = (type: 'all' | 'disetujui' | 'dikerjakan_dengan_cara_lain' | 'ditolak') => {
     setShowPksiTable(prev => prev === type ? null : type);
   };
 
@@ -507,7 +507,7 @@ function PksiDashboardPage() {
     
     const statusMap: Record<string, string> = {
       'disetujui': 'DISETUJUI',
-      'pending': 'PENDING',
+      'dikerjakan_dengan_cara_lain': 'DIKERJAKAN_DENGAN_CARA_LAIN',
       'ditolak': 'DITOLAK',
     };
     
@@ -753,13 +753,13 @@ function PksiDashboardPage() {
               onClick={() => handleStatCardClick('disetujui')}
             />
             <StatCard
-              title="Pending"
-              value={dashboardData.summary.total_pending}
-              subtitle="Menunggu persetujuan"
+              title="Dikerjakan Dengan Cara Lain"
+              value={dashboardData.summary.total_dikerjakan_dengan_cara_lain}
+              subtitle="Dengan cara lain"
               icon={<HourglassEmptyIcon />}
               color="#FCA5A5"
               bgColor="#FEF2F2"
-              onClick={() => handleStatCardClick('pending')}
+              onClick={() => handleStatCardClick('dikerjakan_dengan_cara_lain')}
             />
             <StatCard
               title="Ditolak"

@@ -121,6 +121,11 @@ interface ViewPksiModalProps {
   onClose: () => void;
   pksiId: string | null;
   showMonitoringSection?: boolean;
+  nestedPksiInfo?: {
+    isNested: boolean;
+    nestedName?: string;
+    parentName?: string;
+  } | null;
 }
 
 interface SkpaOption {
@@ -140,7 +145,7 @@ const formatMonthYear = (dateString: string): string => {
   }
 };
 
-const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, showMonitoringSection = false }) => {
+const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, showMonitoringSection = false, nestedPksiInfo = null }) => {
   const [pksiData, setPksiData] = useState<PksiDocumentData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [skpaMap, setSkpaMap] = useState<Map<string, SkpaOption>>(new Map());
@@ -375,6 +380,58 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
           background: 'linear-gradient(135deg, rgba(245, 245, 247, 0.9) 0%, rgba(250, 250, 250, 0.95) 100%)',
         }}
       >
+        {/* Nested PKSI Info Banner */}
+        {nestedPksiInfo?.isNested && (
+          <Box
+            sx={{
+              mb: 3,
+              p: 2,
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, rgba(52, 211, 153, 0.1) 0%, rgba(16, 185, 129, 0.08) 100%)',
+              border: '1px solid rgba(16, 185, 129, 0.2)',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 2,
+            }}
+          >
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, rgba(52, 211, 153, 0.2) 0%, rgba(16, 185, 129, 0.15) 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <MonitorHeartIcon sx={{ color: '#059669', fontSize: 20 }} />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  fontWeight: 600,
+                  color: '#047857',
+                  mb: 0.5,
+                }}
+              >
+                Informasi PKSI Mengikuti Parent
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: '#065f46',
+                  fontSize: '0.875rem',
+                  lineHeight: 1.6,
+                }}
+              >
+                PKSI <strong>{nestedPksiInfo.nestedName}</strong> memiliki status <strong>"Dikerjakan Dengan Cara Lain"</strong> dan mengikuti monitoring dari PKSI parent: <strong>{nestedPksiInfo.parentName}</strong>. Detail yang ditampilkan di bawah adalah data monitoring dari PKSI parent tersebut.
+              </Typography>
+            </Box>
+          </Box>
+        )}
         {isLoading ? (
           <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
             <CircularProgress sx={{ color: '#DA251C' }} />
@@ -477,6 +534,73 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                 </Box>
               )}
             </GlassCard>
+
+            {/* Child PKSI Section - Show if this PKSI has children */}
+            {pksiData.child_pksi_list && pksiData.child_pksi_list.length > 0 && (
+              <GlassCard>
+                <SectionHeader>
+                  <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <DescriptionIcon sx={{ color: '#10B981', fontSize: 20 }} />
+                  </Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                    PKSI yang Mengikuti ({pksiData.child_count})
+                  </Typography>
+                </SectionHeader>
+                <Typography variant="body2" sx={{ color: '#6B7280', mb: 2, fontSize: '0.875rem' }}>
+                  PKSI berikut mengikuti PKSI ini dengan status "Dikerjakan Dengan Cara Lain"
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {pksiData.child_pksi_list.map((child, index) => (
+                    <Box
+                      key={child.id}
+                      sx={{
+                        p: 2,
+                        borderRadius: '12px',
+                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                        bgcolor: 'rgba(16, 185, 129, 0.05)',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          bgcolor: 'rgba(16, 185, 129, 0.08)',
+                          borderColor: 'rgba(16, 185, 129, 0.3)',
+                          transform: 'translateX(4px)',
+                        },
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                        <Box sx={{ flex: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.875rem' }}>
+                              {index + 1}. {child.nama_pksi}
+                            </Typography>
+                            <Chip
+                              label={child.status}
+                              size="small"
+                              sx={{
+                                bgcolor: child.status === 'DIKERJAKAN_DENGAN_CARA_LAIN' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+                                color: child.status === 'DIKERJAKAN_DENGAN_CARA_LAIN' ? '#10B981' : '#6B7280',
+                                fontWeight: 600,
+                                fontSize: '0.7rem',
+                                height: '20px',
+                              }}
+                            />
+                          </Box>
+                          {child.nama_aplikasi && (
+                            <Typography variant="caption" sx={{ color: '#6B7280', display: 'block', mb: 0.5 }}>
+                              Aplikasi: {child.nama_aplikasi}
+                            </Typography>
+                          )}
+                          {child.tanggal_pengajuan && (
+                            <Typography variant="caption" sx={{ color: '#6B7280', display: 'block' }}>
+                              Tanggal Pengajuan: {child.tanggal_pengajuan}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+              </GlassCard>
+            )}
 
             {/* Timeline Section - Always visible */}
             <GlassCard>

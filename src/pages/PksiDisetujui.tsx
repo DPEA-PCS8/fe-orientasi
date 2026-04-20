@@ -38,6 +38,10 @@ import {
   ListItemSecondaryAction,
   Stack,
 } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { id as localeId } from 'date-fns/locale/id';
 import {
   Search as SearchIcon,
   Add as AddIcon,
@@ -55,7 +59,7 @@ import {
   AttachFile as AttachFileIcon,
   ViewColumn as ViewColumnIcon,
 } from '@mui/icons-material';
-import { searchPksiDocuments, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
+import { searchPksiDocumentsForMonitoring, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getUserRoles } from '../api/authApi';
 import { ViewPksiModal, FilePreviewModal } from '../components/modals';
@@ -141,6 +145,10 @@ interface PksiData {
   tahapanStatusUat: string;
   tahapanStatusDeployment: string;
   tahapanStatusSelesai: string;
+  // Nested PKSI fields
+  isNestedPksi?: boolean;
+  parentPksiId?: string;
+  parentPksiNama?: string;
 }
 
 // Progress options for PKSI Disetujui
@@ -358,6 +366,10 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     tahapanStatusUat: apiData.tahapan_status_uat || '',
     tahapanStatusDeployment: apiData.tahapan_status_deployment || '',
     tahapanStatusSelesai: apiData.tahapan_status_selesai || '',
+    // Nested PKSI fields
+    isNestedPksi: apiData.is_nested_pksi || false,
+    parentPksiId: apiData.parent_pksi_id || '',
+    parentPksiNama: apiData.parent_pksi_nama || '',
   };
 };
 
@@ -611,7 +623,7 @@ function PksiDisetujui() {
   // SKPA full lookup data (for resolving Bidang info)
   const [skpaFullMap, setSkpaFullMap] = useState<Map<string, SkpaData>>(new Map());
 
-  // Filter state
+  // Filter state (applied filters - used for API calls)
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedJangkaWaktu, setSelectedJangkaWaktu] = useState<Set<string>>(new Set());
   const [selectedYear, setSelectedYear] = useState<string>('');
@@ -624,8 +636,33 @@ function PksiDisetujui() {
   const [selectedPic, setSelectedPic] = useState<Set<string>>(new Set());
   const [noInisiatif, setNoInisiatif] = useState(false); // Filter for PKSI with no initiative
   
+  // Temporary filter state (for popup editing - not yet applied)
+  const [tempJangkaWaktu, setTempJangkaWaktu] = useState<Set<string>>(new Set());
+  const [tempYear, setTempYear] = useState<string>('');
+  const [tempAplikasi, setTempAplikasi] = useState<string>('');
+  const [tempSkpa, setTempSkpa] = useState<Set<string>>(new Set());
+  const [tempProgress, setTempProgress] = useState<Set<string>>(new Set());
+  const [tempIku, setTempIku] = useState<string>('');
+  const [tempInhouseOutsource, setTempInhouseOutsource] = useState<string>('');
+  const [tempBidang, setTempBidang] = useState<Set<string>>(new Set());
+  const [tempPic, setTempPic] = useState<Set<string>>(new Set());
+  const [tempNoInisiatif, setTempNoInisiatif] = useState(false);
+  const [tempTimelineStage, setTempTimelineStage] = useState<string>('');
+  const [tempTimelineFromDate, setTempTimelineFromDate] = useState<Date | null>(null);
+  const [tempTimelineToDate, setTempTimelineToDate] = useState<Date | null>(null);
+  
   // Year filter (exposed in toolbar) - default to current year
   const [selectedYearFilter, setSelectedYearFilter] = useState<string>(new Date().getFullYear().toString());
+
+  // Timeline filter state (applied filters)
+  const [selectedTimelineStage, setSelectedTimelineStage] = useState<string>('');
+  const [selectedTimelineFromDate, setSelectedTimelineFromDate] = useState<Date | null>(null);
+  const [selectedTimelineToDate, setSelectedTimelineToDate] = useState<Date | null>(null);
+  
+  // Extract month and year from timeline dates for API
+  const selectedTimelineFromMonth = selectedTimelineFromDate ? (selectedTimelineFromDate.getMonth() + 1).toString() : '';
+  const selectedTimelineFromYear = selectedTimelineFromDate ? selectedTimelineFromDate.getFullYear().toString() : '';
+  const selectedTimelineToMonth = selectedTimelineToDate ? (selectedTimelineToDate.getMonth() + 1).toString() : '';
 
   // Sticky columns configuration
   const [stickyColumnsAnchorEl, setStickyColumnsAnchorEl] = useState<null | HTMLElement>(null);
@@ -719,6 +756,7 @@ function PksiDisetujui() {
   // View modal state
   const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedPksiIdForView, setSelectedPksiIdForView] = useState<string | null>(null);
+  const [viewingNestedPksiInfo, setViewingNestedPksiInfo] = useState<{isNested: boolean, nestedName?: string, parentName?: string} | null>(null);
 
   // Edit approval dialog state
   const [openEditDialog, setOpenEditDialog] = useState(false);
@@ -835,8 +873,19 @@ function PksiDisetujui() {
     fetchTeams();
   }, []);
 
-  const handleViewClick = (pksiId: string) => {
-    setSelectedPksiIdForView(pksiId);
+  const handleViewClick = (item: PksiData) => {
+    // If nested PKSI, show parent detail instead with explanation
+    if (item.isNestedPksi && item.parentPksiId) {
+      setSelectedPksiIdForView(item.parentPksiId);
+      setViewingNestedPksiInfo({
+        isNested: true,
+        nestedName: item.namaPksi,
+        parentName: item.parentPksiNama,
+      });
+    } else {
+      setSelectedPksiIdForView(item.id);
+      setViewingNestedPksiInfo(null);
+    }
     setOpenViewModal(true);
   };
 
@@ -1093,15 +1142,25 @@ function PksiDisetujui() {
     try {
       // Parse year filter for backend API
       const yearFilter = selectedYearFilter ? parseInt(selectedYearFilter, 10) : undefined;
+      
+      // Parse timeline filter parameters
+      // If both from and to dates are set, ensure they're in the same year for this implementation
+      const timelineYear = selectedTimelineFromDate ? selectedTimelineFromDate.getFullYear() : undefined;
+      const timelineFromMonth = selectedTimelineFromMonth ? parseInt(selectedTimelineFromMonth, 10) : undefined;
+      const timelineToMonth = selectedTimelineToMonth ? parseInt(selectedTimelineToMonth, 10) : undefined;
 
-      const response = await searchPksiDocuments({
+      const response = await searchPksiDocumentsForMonitoring({
         search: keyword || undefined,
         status: 'DISETUJUI',
         year: yearFilter,
         noInisiatif: noInisiatif || undefined,
+        timelineStage: selectedTimelineStage || undefined,
+        timelineFromMonth: timelineFromMonth,
+        timelineToMonth: timelineToMonth,
+        timelineYear: timelineYear,
         page: page,
         size: rowsPerPage,
-        sortBy: 'nama_pksi',
+        sortBy: 'namaPksi',
         sortDir: 'asc',
       });
 
@@ -1112,6 +1171,7 @@ function PksiDisetujui() {
       console.log('Is Admin/Pengembang:', isAdminOrPengembang);
       console.log('Year Filter:', yearFilter);
       console.log('No Inisiatif Filter:', noInisiatif);
+      console.log('Timeline Filter:', { stage: selectedTimelineStage, fromMonth: timelineFromMonth, toMonth: timelineToMonth, year: timelineYear });
       console.log('PKSI Response:', response);
       console.log('Total Elements:', response.total_elements);
       console.log('Total Count:', response.total_count);
@@ -1140,7 +1200,7 @@ function PksiDisetujui() {
       
       // Fetch count of PKSI without initiative (for the clickable card)
       try {
-        const noInisiatifResponse = await searchPksiDocuments({
+        const noInisiatifResponse = await searchPksiDocumentsForMonitoring({
           status: 'DISETUJUI',
           year: selectedYear ? parseInt(selectedYear, 10) : undefined,
           noInisiatif: true,
@@ -1161,12 +1221,24 @@ function PksiDisetujui() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, page, rowsPerPage, selectedYearFilter, noInisiatif, userDepartment, userRoles, isAdminOrPengembang]);
+  }, [keyword, page, rowsPerPage, selectedYearFilter, noInisiatif, selectedTimelineStage, selectedTimelineFromMonth, selectedTimelineToMonth, selectedTimelineFromYear, userDepartment, userRoles, isAdminOrPengembang]);
 
   // Fetch data on mount and when dependencies change
   useEffect(() => {
-    fetchPksiData();
-  }, [fetchPksiData]);
+    // Only fetch if there's at least one filter active
+    const hasActiveFilter = keyword || selectedYearFilter || noInisiatif || selectedTimelineStage || selectedTimelineFromMonth || selectedTimelineToMonth;
+    
+    if (hasActiveFilter) {
+      fetchPksiData();
+    } else {
+      // Clear data if no filters are active
+      setPksiData([]);
+      setTotalElements(0);
+      setTotalCount(0);
+      setNoInisiatifCount(0);
+      setIsLoading(false);
+    }
+  }, [fetchPksiData, keyword, selectedYearFilter, noInisiatif, selectedTimelineStage, selectedTimelineFromMonth, selectedTimelineToMonth]);
 
   // Auto-open modal when id parameter is present in URL
   useEffect(() => {
@@ -1179,7 +1251,7 @@ function PksiDisetujui() {
         newParams.delete('id');
         setSearchParams(newParams, { replace: true });
         // Open modal
-        handleViewClick(pksi.id);
+        handleViewClick(pksi);
       }
     }
   }, [pksiData, isLoading, searchParams, openEditDialog]);
@@ -1227,6 +1299,20 @@ function PksiDisetujui() {
   }, [skpaFullMap]);
 
   const handleFilterOpen = (event: React.MouseEvent<HTMLElement>) => {
+    // Copy current applied filters to temporary state
+    setTempJangkaWaktu(new Set(selectedJangkaWaktu));
+    setTempYear(selectedYear);
+    setTempAplikasi(selectedAplikasi);
+    setTempSkpa(new Set(selectedSkpa));
+    setTempProgress(new Set(selectedProgress));
+    setTempIku(selectedIku);
+    setTempInhouseOutsource(selectedInhouseOutsource);
+    setTempBidang(new Set(selectedBidang));
+    setTempPic(new Set(selectedPic));
+    setTempNoInisiatif(noInisiatif);
+    setTempTimelineStage(selectedTimelineStage);
+    setTempTimelineFromDate(selectedTimelineFromDate);
+    setTempTimelineToDate(selectedTimelineToDate);
     setFilterAnchorEl(event.currentTarget);
   };
 
@@ -1234,37 +1320,58 @@ function PksiDisetujui() {
     setFilterAnchorEl(null);
   };
 
+  const handleApplyFilter = () => {
+    // Apply temporary filters to actual filter state
+    setSelectedJangkaWaktu(new Set(tempJangkaWaktu));
+    setSelectedYear(tempYear);
+    setSelectedAplikasi(tempAplikasi);
+    setSelectedSkpa(new Set(tempSkpa));
+    setSelectedProgress(new Set(tempProgress));
+    setSelectedIku(tempIku);
+    setSelectedInhouseOutsource(tempInhouseOutsource);
+    setSelectedBidang(new Set(tempBidang));
+    setSelectedPic(new Set(tempPic));
+    setNoInisiatif(tempNoInisiatif);
+    setSelectedTimelineStage(tempTimelineStage);
+    setSelectedTimelineFromDate(tempTimelineFromDate);
+    setSelectedTimelineToDate(tempTimelineToDate);
+    setFilterAnchorEl(null);
+  };
+
   const handleJangkaWaktuChange = (jangkaWaktu: string) => {
-    const newSet = new Set(selectedJangkaWaktu);
+    const newSet = new Set(tempJangkaWaktu);
     if (newSet.has(jangkaWaktu)) {
       newSet.delete(jangkaWaktu);
     } else {
       newSet.add(jangkaWaktu);
     }
-    setSelectedJangkaWaktu(newSet);
+    setTempJangkaWaktu(newSet);
   };
 
   const handleProgressChange = (progress: string) => {
-    const newSet = new Set(selectedProgress);
+    const newSet = new Set(tempProgress);
     if (newSet.has(progress)) {
       newSet.delete(progress);
     } else {
       newSet.add(progress);
     }
-    setSelectedProgress(newSet);
+    setTempProgress(newSet);
   };
 
   const handleResetFilter = () => {
-    setSelectedJangkaWaktu(new Set());
-    setSelectedYear('');
-    setSelectedAplikasi('');
-    setSelectedSkpa(new Set());
-    setSelectedProgress(new Set());
-    setSelectedIku('');
-    setSelectedInhouseOutsource('');
-    setSelectedBidang(new Set());
-    setSelectedPic(new Set());
-    setNoInisiatif(false);
+    setTempJangkaWaktu(new Set());
+    setTempYear('');
+    setTempAplikasi('');
+    setTempSkpa(new Set());
+    setTempProgress(new Set());
+    setTempIku('');
+    setTempInhouseOutsource('');
+    setTempBidang(new Set());
+    setTempPic(new Set());
+    setTempNoInisiatif(false);
+    setTempTimelineStage('');
+    setTempTimelineFromDate(null);
+    setTempTimelineToDate(null);
   };
 
   // Generate year options - static range from 2020 to current year + 2
@@ -1366,8 +1473,11 @@ function PksiDisetujui() {
     if (selectedBidang.size > 0) count++;
     if (selectedPic.size > 0) count++;
     if (noInisiatif) count++;
+    // Timeline filters
+    if (selectedTimelineStage) count++;
+    if (selectedTimelineFromDate || selectedTimelineToDate) count++;
     return count;
-  }, [selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa, selectedProgress, selectedIku, selectedInhouseOutsource, selectedBidang, selectedPic, noInisiatif]);
+  }, [selectedJangkaWaktu, selectedYear, selectedAplikasi, selectedSkpa, selectedProgress, selectedIku, selectedInhouseOutsource, selectedBidang, selectedPic, noInisiatif, selectedTimelineStage, selectedTimelineFromDate, selectedTimelineToDate]);
 
   // Filter locally based on all filter criteria
   // Note: Timeline year filter (selectedYearFilter) is now handled by backend
@@ -2151,9 +2261,9 @@ function PksiDisetujui() {
                 <InputLabel id="aplikasi-filter-label-disetujui">Pilih Aplikasi</InputLabel>
                 <Select
                   labelId="aplikasi-filter-label-disetujui"
-                  value={selectedAplikasi}
+                  value={tempAplikasi}
                   label="Pilih Aplikasi"
-                  onChange={(e) => setSelectedAplikasi(e.target.value)}
+                  onChange={(e) => setTempAplikasi(e.target.value)}
                   sx={{
                     borderRadius: '12px',
                     bgcolor: 'rgba(255, 255, 255, 0.9)',
@@ -2193,8 +2303,8 @@ function PksiDisetujui() {
                   multiple
                   size="small"
                   options={skpaOptions}
-                  value={Array.from(selectedSkpa)}
-                  onChange={(_, newValue) => setSelectedSkpa(new Set(newValue))}
+                  value={Array.from(tempSkpa)}
+                  onChange={(_, newValue) => setTempSkpa(new Set(newValue))}
                   disableCloseOnSelect
                   renderOption={(props, option, { selected }) => {
                     const { key, ...restProps } = props;
@@ -2212,7 +2322,7 @@ function PksiDisetujui() {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      placeholder={selectedSkpa.size === 0 ? 'Pilih SKPA' : ''}
+                      placeholder={tempSkpa.size === 0 ? 'Pilih SKPA' : ''}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: '12px',
@@ -2256,8 +2366,8 @@ function PksiDisetujui() {
                   multiple
                   size="small"
                   options={bidangOptions}
-                  value={Array.from(selectedBidang)}
-                  onChange={(_, newValue) => setSelectedBidang(new Set(newValue))}
+                  value={Array.from(tempBidang)}
+                  onChange={(_, newValue) => setTempBidang(new Set(newValue))}
                   disableCloseOnSelect
                   renderOption={(props, option, { selected }) => {
                     const { key, ...restProps } = props;
@@ -2275,7 +2385,7 @@ function PksiDisetujui() {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      placeholder={selectedBidang.size === 0 ? 'Pilih Bidang' : ''}
+                      placeholder={tempBidang.size === 0 ? 'Pilih Bidang' : ''}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: '12px',
@@ -2310,46 +2420,8 @@ function PksiDisetujui() {
               </Box>
             </Box>
 
-            {/* Row 3: Tahun & PIC */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2.5 }}>
-              {/* Year Filter */}
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#D97706' }} />
-                  Periode Tahun
-                </Typography>
-                <FormControl fullWidth size="small">
-                  <Select
-                    value={selectedYear}
-                    displayEmpty
-                    onChange={(e) => setSelectedYear(e.target.value)}
-                    sx={{
-                      borderRadius: '12px',
-                      bgcolor: 'rgba(255, 255, 255, 0.9)',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(0, 0, 0, 0.1)',
-                      },
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#D97706',
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#D97706',
-                        borderWidth: 2,
-                      },
-                    }}
-                  >
-                    <MenuItem value="">
-                      <em>Semua Tahun</em>
-                    </MenuItem>
-                    {yearOptions.map((year) => (
-                      <MenuItem key={year} value={year}>
-                        {year}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-
+            {/* Row 3: PIC, Periode Tahun, Timeline Stage */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2, mb: 2.5 }}>
               {/* PIC Filter */}
               <Box>
                 <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -2360,8 +2432,8 @@ function PksiDisetujui() {
                   multiple
                   size="small"
                   options={picOptions}
-                  value={Array.from(selectedPic)}
-                  onChange={(_, newValue) => setSelectedPic(new Set(newValue))}
+                  value={Array.from(tempPic)}
+                  onChange={(_, newValue) => setTempPic(new Set(newValue))}
                   disableCloseOnSelect
                   renderOption={(props, option, { selected }) => {
                     const { key, ...restProps } = props;
@@ -2379,7 +2451,7 @@ function PksiDisetujui() {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      placeholder={selectedPic.size === 0 ? 'Pilih PIC' : ''}
+                      placeholder={tempPic.size === 0 ? 'Pilih PIC' : ''}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: '12px',
@@ -2412,9 +2484,169 @@ function PksiDisetujui() {
                   }
                 />
               </Box>
+
+              {/* Periode Tahun Filter */}
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#D97706' }} />
+                  Periode Tahun
+                </Typography>
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={tempYear}
+                    displayEmpty
+                    onChange={(e) => setTempYear(e.target.value)}
+                    sx={{
+                      borderRadius: '12px',
+                      bgcolor: 'rgba(255, 255, 255, 0.9)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#D97706',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#D97706',
+                        borderWidth: 2,
+                      },
+                    }}
+                  >
+                    <MenuItem value="">
+                      <em>Semua Tahun</em>
+                    </MenuItem>
+                    {yearOptions.map((year) => (
+                      <MenuItem key={year} value={year}>
+                        {year}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+
+              {/* Timeline Stage Filter */}
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#2563EB' }} />
+                  Timeline Stage
+                </Typography>
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={tempTimelineStage}
+                    displayEmpty
+                    onChange={(e) => setTempTimelineStage(e.target.value)}
+                    sx={{
+                      borderRadius: '12px',
+                      bgcolor: 'rgba(255, 255, 255, 0.9)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#2563EB',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#2563EB',
+                        borderWidth: 2,
+                      },
+                    }}
+                  >
+                    <MenuItem value="">
+                      <em>Semua Stage</em>
+                    </MenuItem>
+                    <MenuItem value="USREQ">USREQ</MenuItem>
+                    <MenuItem value="PENGADAAN">Pengadaan</MenuItem>
+                    <MenuItem value="DESAIN">Desain</MenuItem>
+                    <MenuItem value="CODING">Coding</MenuItem>
+                    <MenuItem value="UNIT_TEST">Unit Test</MenuItem>
+                    <MenuItem value="SIT">SIT</MenuItem>
+                    <MenuItem value="UAT">UAT</MenuItem>
+                    <MenuItem value="DEPLOYMENT">Deployment</MenuItem>
+                    <MenuItem value="GO_LIVE">Go Live</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
             </Box>
 
-            {/* Row 4: Quick Filter Cards */}
+            {/* Row 4: Timeline Periode Bulan (Full Width) */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#2563EB' }} />
+                Timeline Periode Bulan
+              </Typography>
+              <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={localeId}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                  {/* Dari Bulan/Tahun */}
+                  <DatePicker
+                    value={tempTimelineFromDate}
+                    onChange={(newValue: Date | null) => setTempTimelineFromDate(newValue)}
+                    views={['year', 'month']}
+                    openTo="month"
+                    label="Dari"
+                    slotProps={{
+                      textField: {  
+                        size: 'small',
+                        fullWidth: true,
+                        sx: {
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: '12px',
+                            bgcolor: 'rgba(255, 255, 255, 0.9)',
+                            '& fieldset': {
+                              borderColor: 'rgba(0, 0, 0, 0.1)',
+                            },
+                            '&:hover fieldset': {
+                              borderColor: '#2563EB',
+                            },
+                            '&.Mui-focused fieldset': {
+                              borderColor: '#2563EB',
+                              borderWidth: 2,
+                            },
+                          },
+                        },
+                      },  
+                      actionBar: {
+                        actions: ['clear', 'accept'],
+                      },
+                    }}
+                  />
+                  
+                  {/* Sampai Bulan/Tahun */}
+                  <DatePicker
+                    value={tempTimelineToDate}
+                    onChange={(newValue: Date | null) => setTempTimelineToDate(newValue)}
+                    views={['year', 'month']}
+                    openTo="month"
+                    minDate={tempTimelineFromDate || undefined}
+                    label="Sampai"
+                    slotProps={{
+                      textField: {  
+                        size: 'small',
+                        fullWidth: true,
+                        sx: {
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: '12px',
+                            bgcolor: 'rgba(255, 255, 255, 0.9)',
+                            '& fieldset': {
+                              borderColor: 'rgba(0, 0, 0, 0.1)',
+                            },
+                            '&:hover fieldset': {
+                              borderColor: '#2563EB',
+                            },
+                            '&.Mui-focused fieldset': {
+                              borderColor: '#2563EB',
+                              borderWidth: 2,
+                            },
+                          },
+                        },
+                      },
+                      actionBar: {
+                        actions: ['clear', 'accept'],
+                      },
+                    }}
+                  />
+                </Box>
+              </LocalizationProvider>
+            </Box>
+
+            {/* Row 5: Quick Filter Cards */}
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2, mb: 2.5 }}>
               {/* Jangka Waktu Filter */}
               <Box sx={{ 
@@ -2431,7 +2663,7 @@ function PksiDisetujui() {
                     control={
                       <Checkbox
                         size="small"
-                        checked={selectedJangkaWaktu.has('Single Year')}
+                        checked={tempJangkaWaktu.has('Single Year')}
                         onChange={() => handleJangkaWaktuChange('Single Year')}
                         sx={{ py: 0.3, '&.Mui-checked': { color: '#7C3AED' } }}
                       />
@@ -2442,7 +2674,7 @@ function PksiDisetujui() {
                     control={
                       <Checkbox
                         size="small"
-                        checked={selectedJangkaWaktu.has('Multiyears')}
+                        checked={tempJangkaWaktu.has('Multiyears')}
                         onChange={() => handleJangkaWaktuChange('Multiyears')}
                         sx={{ py: 0.3, '&.Mui-checked': { color: '#7C3AED' } }}
                       />
@@ -2464,9 +2696,9 @@ function PksiDisetujui() {
                 </Typography>
                 <FormControl fullWidth size="small">
                   <Select
-                    value={selectedIku}
+                    value={tempIku}
                     displayEmpty
-                    onChange={(e) => setSelectedIku(e.target.value)}
+                    onChange={(e) => setTempIku(e.target.value)}
                     sx={{
                       borderRadius: '10px',
                       bgcolor: 'white',
@@ -2495,9 +2727,9 @@ function PksiDisetujui() {
                 </Typography>
                 <FormControl fullWidth size="small">
                   <Select
-                    value={selectedInhouseOutsource}
+                    value={tempInhouseOutsource}
                     displayEmpty
-                    onChange={(e) => setSelectedInhouseOutsource(e.target.value)}
+                    onChange={(e) => setTempInhouseOutsource(e.target.value)}
                     sx={{
                       borderRadius: '10px',
                       bgcolor: 'white',
@@ -2534,19 +2766,19 @@ function PksiDisetujui() {
                     size="small"
                     onClick={() => handleProgressChange(progress)}
                     sx={{
-                      bgcolor: selectedProgress.has(progress) 
+                      bgcolor: tempProgress.has(progress) 
                         ? '#F59E0B' 
                         : 'white',
-                      color: selectedProgress.has(progress) ? 'white' : '#374151',
+                      color: tempProgress.has(progress) ? 'white' : '#374151',
                       fontWeight: 500,
                       fontSize: '0.75rem',
-                      border: selectedProgress.has(progress) 
+                      border: tempProgress.has(progress) 
                         ? '1px solid #F59E0B' 
                         : '1px solid rgba(0, 0, 0, 0.12)',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
                       '&:hover': {
-                        bgcolor: selectedProgress.has(progress) 
+                        bgcolor: tempProgress.has(progress) 
                           ? '#D97706' 
                           : 'rgba(251, 191, 36, 0.12)',
                         borderColor: '#F59E0B',
@@ -2614,7 +2846,7 @@ function PksiDisetujui() {
               <Button
                 fullWidth
                 variant="contained"
-                onClick={handleFilterClose}
+                onClick={handleApplyFilter}
                 sx={{
                   py: 1.5,
                   borderRadius: '12px',
@@ -2918,6 +3150,22 @@ function PksiDisetujui() {
                     </Typography>
                   </TableCell>
                 </TableRow>
+              ) : !keyword && !selectedYearFilter && !noInisiatif && !selectedTimelineStage && !selectedTimelineFromMonth && !selectedTimelineToMonth ? (
+                <TableRow>
+                  <TableCell colSpan={21 + visibleTimelineColumns.size} sx={{ textAlign: 'center', py: 8 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                      <TuneRounded sx={{ fontSize: 48, color: '#D1D5DB' }} />
+                      <Box>
+                        <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 600, mb: 0.5 }}>
+                          Gunakan Filter untuk Melihat Data
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#86868b' }}>
+                          Pilih filter (Tahun, Timeline, atau kata kunci) untuk menampilkan data PKSI
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </TableCell>
+                </TableRow>
               ) : paginatedPksi.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={21 + visibleTimelineColumns.size} sx={{ textAlign: 'center', py: 6 }}>
@@ -2932,20 +3180,24 @@ function PksiDisetujui() {
                   sx={{
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
-                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 250, 245, 0.8) 100%)',
+                      background: item.isNestedPksi 
+                        ? 'linear-gradient(135deg, rgba(142, 142, 147, 0.08) 0%, rgba(200, 200, 205, 0.06) 100%)'
+                        : 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 250, 245, 0.8) 100%)',
                       boxShadow: '0 4px 20px rgba(49, 162, 76, 0.08)',
                       transform: 'scale(1.001)',
                     },
                     '&:not(:last-child)': {
                       borderBottom: '1px solid rgba(0, 0, 0, 0.04)',
                     },
+                    ...(item.isNestedPksi && {
+                      bgcolor: 'rgba(142, 142, 147, 0.02)',
+                    }),
                   }}
                 >
                   {/* No */}
                   <TableCell sx={{ color: '#86868b', py: 1, px: 2, textAlign: 'center', fontWeight: 500, fontSize: '0.8rem', minWidth: 50, boxShadow: item.isMendesak ? 'inset 4px 0 0 #FF3B30' : 'none', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('no') && { boxShadow: item.isMendesak ? 'inset 4px 0 0 #FF3B30, 2px 0 5px -2px rgba(0,0,0,0.1)' : '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     {page * rowsPerPage + index + 1}
                   </TableCell>
-                  {/* Nama Aplikasi */}
                   {/* Nama Aplikasi */}
                   <TableCell sx={{ py: 1, px: 2, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 160, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                     <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.8rem' }}>
@@ -2954,9 +3206,29 @@ function PksiDisetujui() {
                   </TableCell>
                   {/* Nama PKSI */}
                   <TableCell sx={{ py: 1, px: 2, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 180, ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.8rem', lineHeight: 1.4 }}>
-                      {item.namaPksi}
-                    </Typography>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.8rem', lineHeight: 1.4 }}>
+                        {item.namaPksi}
+                      </Typography>
+                      {item.isNestedPksi && (
+                        <Chip
+                          label={`Mengikuti: ${item.parentPksiNama}`}
+                          size="small"
+                          icon={<Box component="span" sx={{ fontSize: '1rem' }}>→</Box>}
+                          sx={{
+                            mt: 0.5,
+                            height: 22,
+                            fontSize: '0.7rem',
+                            fontWeight: 500,
+                            bgcolor: 'rgba(0, 122, 255, 0.08)',
+                            color: '#007AFF',
+                            border: '1px solid rgba(0, 122, 255, 0.2)',
+                            '& .MuiChip-label': { px: 1 },
+                            '& .MuiChip-icon': { fontSize: '1rem', ml: 0.5 },
+                          }}
+                        />
+                      )}
+                    </Box>
                   </TableCell>
                   {/* Jenis PKSI */}
                   <TableCell sx={{ py: 1, px: 2, whiteSpace: 'normal', wordWrap: 'break-word', minWidth: 120 }}>
@@ -3430,7 +3702,7 @@ function PksiDisetujui() {
                       <Tooltip title="Lihat Detail PKSI">
                         <IconButton
                           size="small"
-                          onClick={() => handleViewClick(item.id)}
+                          onClick={() => handleViewClick(item)}
                           sx={{
                             color: '#059669',
                             background: 'linear-gradient(135deg, rgba(52, 211, 153, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%)',
@@ -3505,9 +3777,11 @@ function PksiDisetujui() {
         onClose={() => {
           setOpenViewModal(false);
           setSelectedPksiIdForView(null);
+          setViewingNestedPksiInfo(null);
         }}
         pksiId={selectedPksiIdForView}
         showMonitoringSection={true}
+        nestedPksiInfo={viewingNestedPksiInfo}
       />
 
       {/* File Preview Modal */}

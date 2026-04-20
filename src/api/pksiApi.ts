@@ -136,6 +136,20 @@ export interface PksiDocumentData {
   kapan_diselesaikan?: string;
   pic_satker?: string;
   pic_satker_names?: string;
+  // ==================== NESTED PKSI FIELDS ====================
+  is_nested_pksi?: boolean;
+  parent_pksi_id?: string;
+  parent_pksi_nama?: string;
+  child_count?: number;
+  child_pksi_list?: ChildPksiSummary[];
+}
+
+export interface ChildPksiSummary {
+  id: string;
+  nama_pksi: string;
+  status: string;
+  nama_aplikasi?: string;
+  tanggal_pengajuan?: string;
 }
 
 export interface PksiSearchResponse {
@@ -206,7 +220,7 @@ export interface PksiDocumentRequest {
 }
 
 export interface UpdateStatusRequest {
-  status: 'PENDING' | 'DISETUJUI' | 'DITOLAK' | 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'REVISION';
+  status: 'PENDING' | 'DISETUJUI' | 'DITOLAK' | 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'REVISION' | 'DIKERJAKAN_DENGAN_CARA_LAIN';
   // Approval fields (required when status = DISETUJUI)
   iku?: string;
   inhouse_outsource?: string;
@@ -215,6 +229,8 @@ export interface UpdateStatusRequest {
   anggota_tim?: string;
   anggota_tim_names?: string;
   progress?: string;
+  // Nested PKSI field (required when status = DIKERJAKAN_DENGAN_CARA_LAIN)
+  parent_pksi_id?: string;
 }
 
 // ==================== PKSI API ====================
@@ -288,6 +304,68 @@ export async function searchPksiDocuments(params: {
 }
 
 /**
+ * Search PKSI documents for Monitoring page with effective data for nested PKSI.
+ * Nested PKSI will show parent's monitoring data (progress, team, timeline, etc.).
+ */
+export async function searchPksiDocumentsForMonitoring(params: {
+  search?: string;
+  status?: string;
+  year?: number;
+  noInisiatif?: boolean;
+  timelineStage?: string;
+  timelineFromMonth?: number;
+  timelineToMonth?: number;
+  timelineYear?: number;
+  page?: number;
+  size?: number;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
+}): Promise<PksiSearchResponse> {
+  const queryParams = new URLSearchParams();
+  
+  if (params.search) queryParams.append('search', params.search);
+  if (params.status) queryParams.append('status', params.status);
+  if (params.year !== undefined) queryParams.append('year', params.year.toString());
+  if (params.noInisiatif !== undefined) queryParams.append('noInisiatif', params.noInisiatif.toString());
+  if (params.timelineStage) queryParams.append('timelineStage', params.timelineStage);
+  if (params.timelineFromMonth !== undefined) queryParams.append('timelineFromMonth', params.timelineFromMonth.toString());
+  if (params.timelineToMonth !== undefined) queryParams.append('timelineToMonth', params.timelineToMonth.toString());
+  if (params.timelineYear !== undefined) queryParams.append('timelineYear', params.timelineYear.toString());
+  if (params.page !== undefined) queryParams.append('page', params.page.toString());
+  if (params.size !== undefined) queryParams.append('size', params.size.toString());
+  if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+  if (params.sortDir) queryParams.append('sortDir', params.sortDir);
+
+  console.log('[PKSI API] searchPksiDocumentsForMonitoring - Request params:', params);
+  console.log('[PKSI API] searchPksiDocumentsForMonitoring - URL:', `${BASE_URL}/pksi/search/monitoring?${queryParams.toString()}`);
+
+  const response = await apiRequest<PksiSearchResponse>(
+    `${BASE_URL}/pksi/search/monitoring?${queryParams.toString()}`,
+    'GET'
+  );
+
+  console.log('[PKSI API] searchPksiDocumentsForMonitoring - Response:', response.data);
+  console.log('[PKSI API] searchPksiDocumentsForMonitoring - Total elements:', response.data?.total_elements);
+  console.log('[PKSI API] searchPksiDocumentsForMonitoring - Total count:', response.data?.total_count);
+  console.log('[PKSI API] searchPksiDocumentsForMonitoring - Content count:', response.data?.content?.length);
+  if (response.data?.content) {
+    response.data.content.forEach((pksi, idx) => {
+      console.log(`[PKSI API] PKSI[${idx}]:`, {
+        id: pksi.id,
+        nama_pksi: pksi.nama_pksi,
+        nama_aplikasi: pksi.nama_aplikasi,
+        is_nested_pksi: pksi.is_nested_pksi,
+        parent_pksi_id: pksi.parent_pksi_id,
+        parent_pksi_nama: pksi.parent_pksi_nama,
+        status: pksi.status
+      });
+    });
+  }
+
+  return response.data;
+}
+
+/**
  * Get PKSI document by ID
  */
 export async function getPksiDocumentById(id: string): Promise<PksiDocumentData> {
@@ -326,11 +404,62 @@ export async function updatePksiStatus(
     anggota_tim_names?: string;
     progress?: string;
     team_id?: string;
+    parent_pksi_id?: string; // For DIKERJAKAN_DENGAN_CARA_LAIN status
   }
 ): Promise<PksiDocumentData> {
   const payload: UpdateStatusRequest = { status, ...approvalData };
   const response = await apiRequest<PksiDocumentData>(`${BASE_URL}/pksi/${id}/status`, 'PATCH', payload);
   return response.data;
+}
+
+// ==================== NESTED PKSI API ====================
+
+// ==================== NESTED PKSI TYPES ====================
+
+export interface ParentPksiSummary {
+  id: string;
+  nama_pksi: string;
+  nama_aplikasi: string;
+}
+
+/**
+ * Get available PKSI candidates that can be selected as parent (optimized).
+ * Returns only id, nama_pksi, and nama_aplikasi for dropdown performance.
+ * Filters:
+ * - Status DISETUJUI
+ * - Not already a child of another PKSI
+ * - Has timeline in the specified year
+ * Filtering by search is done on frontend for better UX.
+ * 
+ * @param year optional filter by year (based on timeline target_date)
+ * @param excludeId optional PKSI id to exclude (the document being edited)
+ */
+export async function getAvailableParentPksi(params?: {
+  year?: number;
+  excludeId?: string;
+}): Promise<ParentPksiSummary[]> {
+  const queryParams = new URLSearchParams();
+  
+  if (params?.year !== undefined) queryParams.append('year', params.year.toString());
+  if (params?.excludeId) queryParams.append('excludeId', params.excludeId);
+
+  const queryString = queryParams.toString();
+  const url = queryString 
+    ? `${BASE_URL}/pksi/available-parents?${queryString}`
+    : `${BASE_URL}/pksi/available-parents`;
+
+  const response = await apiRequest<ParentPksiSummary[]>(url, 'GET');
+  return response.data || [];
+}
+
+/**
+ * Get child PKSI documents for a given parent PKSI.
+ * 
+ * @param parentId the parent PKSI id
+ */
+export async function getChildPksi(parentId: string): Promise<PksiDocumentData[]> {
+  const response = await apiRequest<PksiDocumentData[]>(`${BASE_URL}/pksi/${parentId}/children`, 'GET');
+  return response.data || [];
 }
 
 /**
@@ -638,7 +767,7 @@ export interface PksiDashboardResponse {
 export interface DashboardSummary {
   total_pksi: number;
   total_disetujui: number;
-  total_pending: number;
+  total_dikerjakan_dengan_cara_lain: number;
   total_ditolak: number;
   percentage_disetujui: number;
 }
