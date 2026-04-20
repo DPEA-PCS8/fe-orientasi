@@ -60,7 +60,7 @@ import {
 import { AddPksiModal, EditPksiModal, ViewPksiModal, FilePreviewModal } from '../components/modals';
 import { usePermissions } from '../hooks/usePermissions';
 import { DataCountDisplay } from '../components/DataCountDisplay';
-import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, type PksiDocumentData } from '../api/pksiApi';
+import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, getAvailableParentPksi, type PksiDocumentData, type ParentPksiSummary } from '../api/pksiApi';
 import { getPksiFiles, downloadPksiFile, type PksiFileData } from '../api/pksiFileApi';
 import { getAllTeams, type Team } from '../api/teamApi';
 import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
@@ -76,7 +76,7 @@ interface PksiData {
   linkDocsT01: string;
   jenisPksi: string;
   isMendesak: boolean;
-  status: 'pending' | 'disetujui' | 'tidak_disetujui';
+  status: 'pending' | 'disetujui' | 'tidak_disetujui' | 'dikerjakan_cara_lain';
   // Timeline fields - support multiple phases per stage (9 stages total)
   targetUsreq: string[];
   targetSit: string[];
@@ -87,6 +87,11 @@ interface PksiData {
   targetCoding: string[];
   targetUnitTest: string[];
   targetDeployment: string[];
+  // Nested PKSI fields
+  isNestedPksi?: boolean;
+  parentPksiId?: string;
+  parentPksiNama?: string;
+  childCount?: number;
 }
 
 // Group timelines by stage, sorting by phase
@@ -193,6 +198,7 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     const statusLower = status.toLowerCase();
     if (statusLower === 'disetujui' || statusLower === 'approved') return 'disetujui';
     if (statusLower === 'ditolak' || statusLower === 'rejected' || statusLower === 'tidak_disetujui') return 'tidak_disetujui';
+    if (statusLower === 'dikerjakan_dengan_cara_lain') return 'dikerjakan_cara_lain';
     return 'pending';
   };
 
@@ -232,6 +238,11 @@ const transformApiData = (apiData: PksiDocumentData): PksiData => {
     targetCoding: timelineGroups.coding,
     targetUnitTest: timelineGroups.unitTest,
     targetDeployment: timelineGroups.deployment,
+    // Nested PKSI fields
+    isNestedPksi: apiData.is_nested_pksi || false,
+    parentPksiId: apiData.parent_pksi_id,
+    parentPksiNama: apiData.parent_pksi_nama,
+    childCount: apiData.child_count || 0,
   };
 };
 
@@ -240,6 +251,7 @@ const STATUS_LABELS: Record<PksiData['status'], string> = {
   pending: 'Pending',
   disetujui: 'Disetujui',
   tidak_disetujui: 'Tidak Disetujui',
+  dikerjakan_cara_lain: 'Dikerjakan Cara Lain',
 };
 
 const getStatusColor = (status: PksiData['status']) => {
@@ -248,6 +260,8 @@ const getStatusColor = (status: PksiData['status']) => {
       return '#31A24C';
     case 'tidak_disetujui':
       return '#FF3B30';
+    case 'dikerjakan_cara_lain':
+      return '#8E8E93'; // Gray color for nested PKSI
     case 'pending':
       return '#FF9500';
     default:
@@ -434,8 +448,15 @@ function PksiList() {
     teamId: '', // ID of selected team
     iku: 'ya',
     inhouseOutsource: 'inhouse',
+    parentPksiId: '', // ID of parent PKSI for nested PKSI
   });
   const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
+
+  // Nested PKSI dialog state
+  const [openNestedPksiDialog, setOpenNestedPksiDialog] = useState(false);
+  const [availableParentPksi, setAvailableParentPksi] = useState<ParentPksiSummary[]>([]);
+  const [isLoadingParentPksi, setIsLoadingParentPksi] = useState(false);
+  const [isSubmittingNestedPksi, setIsSubmittingNestedPksi] = useState(false);
 
   // Map sortBy from UI field to API field
   const mapSortField = (field: keyof PksiData): string => {
@@ -456,6 +477,7 @@ function PksiList() {
         pending: 'PENDING',
         disetujui: 'DISETUJUI',
         tidak_disetujui: 'DITOLAK',
+        dikerjakan_cara_lain: 'DIKERJAKAN_DENGAN_CARA_LAIN',
       };
       const statusFilter = selectedStatus.size === 1 
         ? statusMapping[Array.from(selectedStatus)[0]] 
@@ -553,12 +575,14 @@ function PksiList() {
   };
 
   // Map frontend status to backend status
-  const mapFrontendToBackendStatus = (frontendStatus: PksiData['status']): 'PENDING' | 'DISETUJUI' | 'DITOLAK' => {
+  const mapFrontendToBackendStatus = (frontendStatus: PksiData['status']): 'PENDING' | 'DISETUJUI' | 'DITOLAK' | 'DIKERJAKAN_DENGAN_CARA_LAIN' => {
     switch (frontendStatus) {
       case 'disetujui':
         return 'DISETUJUI';
       case 'tidak_disetujui':
         return 'DITOLAK';
+      case 'dikerjakan_cara_lain':
+        return 'DIKERJAKAN_DENGAN_CARA_LAIN';
       default:
         return 'PENDING';
     }
@@ -577,8 +601,23 @@ function PksiList() {
         teamId: '',
         iku: 'ya',
         inhouseOutsource: 'inhouse',
+        parentPksiId: '',
       });
       setOpenApprovalDialog(true);
+      handleStatusMenuClose();
+      return;
+    }
+
+    // If marking as "dikerjakan cara lain", show parent selection dialog
+    if (newStatus === 'dikerjakan_cara_lain') {
+      setPendingApprovalPksiId(selectedPksiId);
+      setApprovalForm({
+        teamId: '',
+        iku: '',
+        inhouseOutsource: '',
+        parentPksiId: '',
+      });
+      setOpenNestedPksiDialog(true);
       handleStatusMenuClose();
       return;
     }
@@ -654,8 +693,95 @@ function PksiList() {
       teamId: '',
       iku: 'ya',
       inhouseOutsource: 'inhouse',
+      parentPksiId: '',
     });
   };
+
+  // Nested PKSI dialog handlers
+  const handleNestedPksiDialogOpen = async () => {
+    setIsLoadingParentPksi(true);
+    try {
+      // Get the current year from the year filter or use current year
+      const year = selectedYearFilter ? parseInt(selectedYearFilter, 10) : new Date().getFullYear();
+      // Fetch all options once, filtering done on frontend
+      const parents = await getAvailableParentPksi({ 
+        year,
+        excludeId: pendingApprovalPksiId || undefined
+      });
+      setAvailableParentPksi(parents);
+    } catch (error) {
+      console.error('Error fetching available parent PKSI:', error);
+      setAvailableParentPksi([]);
+    } finally {
+      setIsLoadingParentPksi(false);
+    }
+  };
+
+  const handleNestedPksiDialogCancel = () => {
+    setOpenNestedPksiDialog(false);
+    setPendingApprovalPksiId(null);
+    setApprovalForm({
+      teamId: '',
+      iku: 'ya',
+      inhouseOutsource: 'inhouse',
+      parentPksiId: '',
+    });
+    setAvailableParentPksi([]);
+  };
+
+  const handleNestedPksiSubmit = async () => {
+    if (!pendingApprovalPksiId || !approvalForm.parentPksiId) {
+      alert('Mohon pilih PKSI induk');
+      return;
+    }
+
+    setIsSubmittingNestedPksi(true);
+    try {
+      await updatePksiStatus(pendingApprovalPksiId, 'DIKERJAKAN_DENGAN_CARA_LAIN', {
+        parent_pksi_id: approvalForm.parentPksiId,
+      });
+
+      // Find the selected parent PKSI for display
+      const selectedParent = availableParentPksi.find(p => p.id === approvalForm.parentPksiId);
+      
+      // Update local state after successful API call
+      setPksiData(prev => 
+        prev.map(item => 
+          item.id === pendingApprovalPksiId 
+            ? { 
+                ...item, 
+                status: 'dikerjakan_cara_lain' as const,
+                isNestedPksi: true,
+                parentPksiId: approvalForm.parentPksiId,
+                parentPksiNama: selectedParent?.nama_pksi || '',
+              } 
+            : item
+        )
+      );
+
+      setOpenNestedPksiDialog(false);
+      setPendingApprovalPksiId(null);
+      setApprovalForm({
+        teamId: '',
+        iku: 'ya',
+        inhouseOutsource: 'inhouse',
+        parentPksiId: '',
+      });
+      setAvailableParentPksi([]);
+    } catch (error) {
+      console.error('Error setting nested PKSI:', error);
+      alert('Gagal mengubah status PKSI. Silakan coba lagi.');
+    } finally {
+      setIsSubmittingNestedPksi(false);
+    }
+  };
+
+  // Load available parent PKSI when dialog opens
+  useEffect(() => {
+    if (openNestedPksiDialog) {
+      handleNestedPksiDialogOpen();
+    }
+  }, [openNestedPksiDialog]);
 
   const handleEditClick = (pksi: PksiData) => {
     setSelectedPksiForEdit(pksi);
@@ -2449,6 +2575,17 @@ function PksiList() {
               }}
             />
           </MenuItem>
+          <MenuItem onClick={() => handleStatusChange('dikerjakan_cara_lain')}>
+            <Chip
+              label="Dikerjakan Cara Lain"
+              size="small"
+              sx={{
+                bgcolor: '#8E8E93',
+                color: 'white',
+                fontWeight: 500,
+              }}
+            />
+          </MenuItem>
           <MenuItem onClick={() => handleStatusChange('pending')}>
             <Chip
               label="Pending"
@@ -2823,6 +2960,267 @@ function PksiList() {
             }}
           >
             {isSubmittingApproval ? 'Menyetujui...' : 'Setujui'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Nested PKSI Dialog - Select Parent PKSI */}
+      <Dialog
+        open={openNestedPksiDialog}
+        onClose={handleNestedPksiDialogCancel}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            maxHeight: '90vh',
+            bgcolor: 'rgba(255, 255, 255, 0.75)',
+            backdropFilter: 'blur(40px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.1) inset',
+          },
+        }}
+        slotProps={{
+          backdrop: {
+            sx: {
+              bgcolor: 'rgba(0, 0, 0, 0.3)',
+              backdropFilter: 'blur(8px)',
+            }
+          }
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+            pb: 2,
+            bgcolor: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+          }}
+        >
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.02em' }}
+          >
+            Dikerjakan Dengan Cara Lain
+          </Typography>
+          <IconButton
+            onClick={handleNestedPksiDialogCancel}
+            size="small"
+            sx={{
+              color: '#86868b',
+              '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent
+          sx={{
+            pt: 3,
+            pb: 4,
+            background: 'linear-gradient(135deg, rgba(245, 245, 247, 0.9) 0%, rgba(250, 250, 250, 0.95) 100%)',
+          }}
+        >
+          {/* Info Card */}
+          <Box
+            sx={{
+              p: 2.5,
+              mb: 3,
+              borderRadius: '16px',
+              bgcolor: 'rgba(142, 142, 147, 0.1)',
+              border: '1px solid rgba(142, 142, 147, 0.2)',
+            }}
+          >
+            <Typography variant="body2" sx={{ color: '#1d1d1f', lineHeight: 1.6 }}>
+              PKSI ini akan dikerjakan bersamaan dengan PKSI lain yang sudah disetujui. 
+              Pilih PKSI induk yang akan menjadi acuan untuk progress, timeline, dan detail lainnya.
+            </Typography>
+          </Box>
+
+          {/* Form Card */}
+          <Box
+            sx={{
+              p: 3,
+              borderRadius: '20px',
+              bgcolor: 'rgba(255, 255, 255, 0.6)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+            }}
+          >
+            <Typography
+              variant="subtitle1"
+              sx={{
+                mb: 2.5,
+                fontWeight: 600,
+                color: '#1d1d1f',
+                letterSpacing: '-0.01em',
+                fontSize: '1rem',
+              }}
+            >
+              Pilih PKSI Induk
+            </Typography>
+
+            {/* Parent PKSI Autocomplete with Client-side Search */}
+            <Autocomplete
+              fullWidth
+              options={availableParentPksi}
+              getOptionLabel={(option) => option.nama_pksi}
+              filterOptions={(options, { inputValue }) => {
+                if (!inputValue) return options;
+                const searchLower = inputValue.toLowerCase();
+                return options.filter(option => 
+                  option.nama_pksi.toLowerCase().includes(searchLower) ||
+                  (option.nama_aplikasi && option.nama_aplikasi.toLowerCase().includes(searchLower))
+                );
+              }}
+              value={availableParentPksi.find(p => p.id === approvalForm.parentPksiId) || null}
+              onChange={(_, newValue) => {
+                setApprovalForm({ ...approvalForm, parentPksiId: newValue?.id || '' });
+              }}
+              loading={isLoadingParentPksi}
+              disabled={isLoadingParentPksi}
+              loadingText="Memuat PKSI..."
+              noOptionsText="Tidak ada PKSI yang tersedia"
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="PKSI Induk *"
+                  placeholder="Ketik untuk mencari..."
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '12px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                      backdropFilter: 'blur(10px)',
+                      transition: 'all 0.2s ease-in-out',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.08)',
+                        transition: 'all 0.2s ease-in-out',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(0, 0, 0, 0.15)',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#8E8E93',
+                        borderWidth: '1.5px',
+                      },
+                      '&.Mui-focused': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        boxShadow: '0 4px 20px rgba(142, 142, 147, 0.1)',
+                      },
+                    },
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <li {...props} key={option.id}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {option.nama_pksi}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#86868b' }}>
+                      {option.nama_aplikasi || 'Tanpa Aplikasi'}
+                    </Typography>
+                  </Box>
+                </li>
+              )}
+              sx={{ mb: 2.5 }}
+            />
+
+            {/* Selected Parent Preview */}
+            {approvalForm.parentPksiId && (() => {
+              const selectedParent = availableParentPksi.find(p => p.id === approvalForm.parentPksiId);
+              return selectedParent ? (
+                <Box 
+                  sx={{ 
+                    mb: 2.5, 
+                    p: 2, 
+                    bgcolor: 'rgba(142, 142, 147, 0.08)', 
+                    borderRadius: '12px',
+                    border: '1px solid rgba(142, 142, 147, 0.2)',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ color: '#8E8E93', fontWeight: 600, display: 'block', mb: 1 }}>
+                    Detail PKSI Induk
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f', mb: 0.5 }}>
+                    <strong>Nama:</strong> {selectedParent.nama_pksi}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
+                    <strong>Aplikasi:</strong> {selectedParent.nama_aplikasi || '-'}
+                  </Typography>
+                </Box>
+              ) : null;
+            })()}
+
+            {availableParentPksi.length === 0 && !isLoadingParentPksi && (
+              <Box 
+                sx={{ 
+                  p: 2, 
+                  bgcolor: 'rgba(255, 59, 48, 0.08)', 
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 59, 48, 0.2)',
+                }}
+              >
+                <Typography variant="body2" sx={{ color: '#FF3B30' }}>
+                  Tidak ada PKSI yang tersedia untuk dijadikan induk. 
+                  PKSI induk harus sudah berstatus "Disetujui" dan berada di tahun yang sama.
+                </Typography>
+              </Box>
+            )}
+
+            <Typography variant="caption" sx={{ color: '#FF3B30', display: 'block', mt: 2 }}>
+              * Field yang wajib diisi
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions 
+          sx={{ 
+            p: 2.5, 
+            bgcolor: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            borderTop: '1px solid rgba(0, 0, 0, 0.06)',
+          }}
+        >
+          <Button
+            onClick={handleNestedPksiDialogCancel}
+            disabled={isSubmittingNestedPksi}
+            sx={{
+              color: '#86868b',
+              borderRadius: '10px',
+              px: 3,
+              '&:hover': {
+                bgcolor: 'rgba(0, 0, 0, 0.04)',
+              },
+            }}
+          >
+            Batal
+          </Button>
+          <Button
+            onClick={handleNestedPksiSubmit}
+            disabled={isSubmittingNestedPksi || !approvalForm.parentPksiId}
+            variant="contained"
+            sx={{
+              bgcolor: '#8E8E93',
+              borderRadius: '10px',
+              px: 3,
+              boxShadow: '0 4px 14px rgba(142, 142, 147, 0.3)',
+              '&:hover': {
+                bgcolor: '#636366',
+                boxShadow: '0 6px 20px rgba(142, 142, 147, 0.4)',
+              },
+              '&:disabled': {
+                bgcolor: 'rgba(142, 142, 147, 0.5)',
+              },
+            }}
+          >
+            {isSubmittingNestedPksi ? 'Menyimpan...' : 'Simpan'}
           </Button>
         </DialogActions>
       </Dialog>

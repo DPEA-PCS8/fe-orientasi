@@ -39,7 +39,7 @@ interface SkpaOption { id: string; kode_skpa: string; nama_skpa: string; }
 interface PksiEditData {
   id: string; namaPksi: string; namaAplikasi: string; picSatkerBA: string;
   jangkaWaktu: string; tanggalPengajuan: string; linkDocsT01: string;
-  status: 'pending' | 'disetujui' | 'tidak_disetujui';
+  status: 'pending' | 'disetujui' | 'tidak_disetujui' | 'dikerjakan_cara_lain';
 }
 
 interface EditPksiModalProps {
