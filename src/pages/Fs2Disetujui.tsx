@@ -329,6 +329,30 @@ const buildDateFromMonthYear = (month: string, year: string): string => {
   return `${year}-${month}-01`;
 };
 
+// Helper to get the last day (deadline) Date object from a target month/year string
+const getEndOfMonthDate = (dateString?: string | null): Date | null => {
+  if (!dateString) return null;
+  const parts = dateString.split('-');
+  if (parts.length < 2) return null;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  if (isNaN(year) || isNaN(month)) return null;
+  // new Date(year, month, 0) gives last day of the given month (month is 1-based here)
+  return new Date(year, month, 0);
+};
+
+// Parse 'YYYY-MM-DD' (or strings that start with that) into a local Date at midnight
+const parseYMDToLocalDate = (dateString?: string | null): Date | null => {
+  if (!dateString) return null;
+  const m = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  const y = parseInt(m[1], 10);
+  const mo = parseInt(m[2], 10);
+  const d = parseInt(m[3], 10);
+  if (isNaN(y) || isNaN(mo) || isNaN(d)) return null;
+  return new Date(y, mo - 1, d);
+};
+
 // Transform API data to UI format
 const transformApiData = (apiData: Fs2DocumentData): Fs2DisetujuiData => {
   // Derive progres from tahapan_status_* fields
@@ -3163,33 +3187,44 @@ function Fs2Disetujui() {
                       let ketepatanLabel: string | null = null;
                       let ketepatanColor = '#6B7280';
                       let ketepatanBg = '#F3F4F6';
-                      
+
                       // Pengajuan and Asesmen always show "—" for Ketepatan Waktu
                       if (tahapan.key === 'PENGAJUAN' || tahapan.key === 'ASESMEN') {
                         ketepatanLabel = null; // Will show "—"
                       } else if (isSelesai && dateValue && targetDate) {
-                        const completion = new Date(dateValue);
-                        const target = new Date(targetDate);
-                        if (completion <= target) {
-                          ketepatanLabel = 'Tepat Waktu';
-                          ketepatanColor = '#15803D';
-                          ketepatanBg = '#F0FDF4';
-                        } else {
-                          ketepatanLabel = 'Terlambat';
-                          ketepatanColor = '#DC2626';
-                          ketepatanBg = '#FEF2F2';
+                        const completionDate = parseYMDToLocalDate(dateValue);
+                        const targetDeadline = getEndOfMonthDate(targetDate);
+                        if (completionDate && targetDeadline) {
+                          // Normalize times: completion at start of day, deadline at end of day (inclusive)
+                          completionDate.setHours(0, 0, 0, 0);
+                          const deadlineEnd = new Date(targetDeadline);
+                          deadlineEnd.setHours(23, 59, 59, 999);
+                          if (completionDate.getTime() <= deadlineEnd.getTime()) {
+                            ketepatanLabel = 'Tepat Waktu';
+                            ketepatanColor = '#15803D';
+                            ketepatanBg = '#F0FDF4';
+                          } else {
+                            ketepatanLabel = 'Terlambat';
+                            ketepatanColor = '#DC2626';
+                            ketepatanBg = '#FEF2F2';
+                          }
                         }
                       } else if (isDalam && targetDate) {
                         const today = new Date();
-                        const target = new Date(targetDate);
-                        if (today <= target) {
-                          ketepatanLabel = 'Dalam Waktu';
-                          ketepatanColor = '#2563EB';
-                          ketepatanBg = '#EFF6FF';
-                        } else {
-                          ketepatanLabel = 'Melewati Target';
-                          ketepatanColor = '#D97706';
-                          ketepatanBg = '#FFFBEB';
+                        today.setHours(0, 0, 0, 0);
+                        const targetDeadline = getEndOfMonthDate(targetDate);
+                        if (targetDeadline) {
+                          const deadlineEnd = new Date(targetDeadline);
+                          deadlineEnd.setHours(23, 59, 59, 999);
+                          if (today.getTime() <= deadlineEnd.getTime()) {
+                            ketepatanLabel = 'Dalam Waktu';
+                            ketepatanColor = '#2563EB';
+                            ketepatanBg = '#EFF6FF';
+                          } else {
+                            ketepatanLabel = 'Melewati Target';
+                            ketepatanColor = '#D97706';
+                            ketepatanBg = '#FFFBEB';
+                          }
                         }
                       }
                       
