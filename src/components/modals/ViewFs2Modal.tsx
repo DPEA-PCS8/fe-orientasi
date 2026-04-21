@@ -854,7 +854,13 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                               : undefined;
                             let status: string;
                             if (savedStatus) {
-                              status = savedStatus;
+                              const s = (savedStatus || '').toString().trim().toLowerCase();
+                              if (s.includes('selesai')) status = 'Selesai';
+                              else if (s.includes('dalam') || s.includes('proses') || s.includes('dalam_proses')) status = 'Dalam proses';
+                              else if (s.includes('belum')) status = 'Belum dimulai';
+                              else if (s.includes('ditunda')) status = 'Ditunda';
+                              else if (s.includes('dibatalkan')) status = 'Dibatalkan';
+                              else status = (savedStatus as string).toString().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                             } else {
                               // Fallback logic based on progres
                               const progressIdx = fs2Data.progres ? PROGRESS_OPTIONS_VIEW.indexOf(fs2Data.progres as any) : -1;
