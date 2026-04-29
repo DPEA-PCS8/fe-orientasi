@@ -860,6 +860,24 @@ export interface MonthlyProgressTrend {
   completed: number;
 }
 
+// ==================== HISTORIS PKSI ====================
+
+export interface PksiHistorisData {
+  id: string;
+  nama_pksi: string;
+  tahun?: string;
+  ruang_lingkup?: string;
+  status?: string;
+}
+
+export async function getPksiByAplikasi(aplikasiId: string): Promise<PksiHistorisData[]> {
+  const response = await apiRequest<PksiHistorisData[]>(
+    `${BASE_URL}/pksi/by-aplikasi/${aplikasiId}`,
+    'GET'
+  );
+  return response.data ?? [];
+}
+
 // ==================== DASHBOARD API ====================
 
 /**

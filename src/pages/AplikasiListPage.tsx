@@ -12,7 +12,7 @@ import type { SelectChangeEvent } from '@mui/material/Select';
 import { Add, Edit, Search, Delete, Visibility, Lock, Apps, Download, FilterList, ExpandMore, ExpandLess, CheckBoxOutlineBlank, CheckBox, IndeterminateCheckBox } from '@mui/icons-material';
 import {
   searchAplikasi, deleteAplikasi, updateAplikasiStatusWithDetails, downloadAplikasiExcel,
-  type AplikasiData, type AplikasiSearchParams, type AplikasiStatusUpdateRequest,
+  type AplikasiListItem, type AplikasiSearchParams, type AplikasiStatusUpdateRequest,
   APPLICATION_STATUS_LABELS, KATEGORI_IDLE_LABELS
 } from '../api/aplikasiApi';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
@@ -33,7 +33,7 @@ const CATEGORY_COLORS = {
 
 const AplikasiListPage = () => {
   const navigate = useNavigate();
-  const [aplikasiList, setAplikasiList] = useState<AplikasiData[]>([]);
+  const [aplikasiList, setAplikasiList] = useState<AplikasiListItem[]>([]);
   const [bidangList, setBidangList] = useState<BidangData[]>([]);
   const [skpaList, setSkpaList] = useState<SkpaData[]>([]);
   const [subKategoriList, setSubKategoriList] = useState<SubKategoriData[]>([]);
@@ -157,7 +157,7 @@ const AplikasiListPage = () => {
     }
   };
 
-  const handleStatusClick = (event: React.MouseEvent<HTMLElement>, app: AplikasiData) => {
+  const handleStatusClick = (event: React.MouseEvent<HTMLElement>, app: AplikasiListItem) => {
     if (!canUpdate) return;
     setStatusAnchor({ el: event.currentTarget, appId: app.id, currentStatus: app.status_aplikasi });
   };
