@@ -66,6 +66,18 @@ export interface PenghargaanInfo {
   deskripsi?: string;
 }
 
+// Lightweight type for list/search endpoint — only fields needed by AplikasiListPage
+export interface AplikasiListItem {
+  id: string;
+  kode_aplikasi: string;
+  nama_aplikasi: string;
+  status_aplikasi: string;
+  bidang?: BidangInfo | null;
+  skpa?: SkpaInfo | null;
+  sub_kategori?: SubKategoriInfo | null;
+}
+
+// Full type for detail endpoint — all fields
 export interface AplikasiData {
   id: string;
   kode_aplikasi: string;
@@ -94,7 +106,7 @@ export interface AplikasiData {
 }
 
 export interface AplikasiSearchResponse {
-  content: AplikasiData[];
+  content: AplikasiListItem[];
   total_elements: number;
   total_pages: number;
   page: number;

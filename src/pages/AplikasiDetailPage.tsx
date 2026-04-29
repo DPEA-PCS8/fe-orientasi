@@ -1,17 +1,18 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Chip, CircularProgress, Alert,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Divider, Skeleton, Card, CardContent, Avatar, Stack, alpha, IconButton,
   TextField, Select, MenuItem, FormControl, InputLabel, FormControlLabel, Checkbox,
-  Autocomplete
+  Autocomplete, Dialog, DialogTitle, DialogContent, DialogActions, Tooltip
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import {
   ArrowBack, Edit, Apps, Link as LinkIcon, Business, People,
   Lock, Description, Security, Category, AccessTime,
-  OpenInNew, Info, Save, Close, Add, Delete, EmojiEvents, CalendarMonth
+  OpenInNew, Info, Save, Close, Add, Delete, EmojiEvents, CalendarMonth,
+  History, Visibility
 } from '@mui/icons-material';
 import {
   getAplikasiById, updateAplikasi, type AplikasiData, type AplikasiRequest,
@@ -20,6 +21,8 @@ import {
   APPLICATION_STATUS_LABELS, ACCESS_TYPE_LABELS,
   KATEGORI_IDLE_LABELS
 } from '../api/aplikasiApi';
+import { getPksiByAplikasi } from '../api/pksiApi';
+import ViewPksiModal from '../components/modals/ViewPksiModal';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { usePermissions } from '../hooks/usePermissions';
@@ -140,6 +143,15 @@ const AplikasiDetailPage = () => {
   const [penggunaForm, setPenggunaForm] = useState<PenggunaEksternalRequest[]>([]);
   const [penghargaanForm, setPenghargaanForm] = useState<PenghargaanRequest[]>([]);
 
+  const [pksiHistorisList, setPksiHistorisList] = useState<{ id: string; nama_pksi: string; tahun?: string; ruang_lingkup?: string; status?: string }[]>([]);
+  const [pksiHistorisLoading, setPksiHistorisLoading] = useState(false);
+  const [pksiSortBy, setPksiSortBy] = useState<'tanggalPengajuan' | 'namaPksi'>('tanggalPengajuan');
+  const [pksiSortDir, setPksiSortDir] = useState<'asc' | 'desc'>('desc');
+  const [ruangLingkupModal, setRuangLingkupModal] = useState<{ open: boolean; namaPksi: string; ruangLingkup: string }>({
+    open: false, namaPksi: '', ruangLingkup: ''
+  });
+  const [pksiViewModalId, setPksiViewModalId] = useState<string | null>(null);
+
   const { getMenuPermissions, permissionsLoaded } = usePermissions();
   const { canView, canUpdate } = getMenuPermissions(MENU_CODE);
 
@@ -180,6 +192,30 @@ const AplikasiDetailPage = () => {
       fetchDropdowns();
     }
   }, [id, permissionsLoaded, canView, fetchDropdowns]);
+
+  useEffect(() => {
+    if (!id || !permissionsLoaded || !canView) return;
+    setPksiHistorisLoading(true);
+    getPksiByAplikasi(id)
+      .then(data => setPksiHistorisList(data))
+      .catch(() => setPksiHistorisList([]))
+      .finally(() => setPksiHistorisLoading(false));
+  }, [id, permissionsLoaded, canView]);
+
+  const sortedPksiHistorisList = useMemo(() => {
+    return [...pksiHistorisList].sort((a, b) => {
+      let cmp: number;
+      if (pksiSortBy === 'tanggalPengajuan') {
+        // Parse first year from "2025" or "2025-2026"
+        const aYear = parseInt(a.tahun?.split('-')[0] ?? '0', 10);
+        const bYear = parseInt(b.tahun?.split('-')[0] ?? '0', 10);
+        cmp = aYear - bYear;
+      } else {
+        cmp = (a.nama_pksi ?? '').localeCompare(b.nama_pksi ?? '', 'id');
+      }
+      return pksiSortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [pksiHistorisList, pksiSortBy, pksiSortDir]);
 
   // Initialize form data when starting edit
   const startEditSection = (section: EditSection) => {
@@ -892,14 +928,103 @@ const AplikasiDetailPage = () => {
             </CardContent>
           </Card>
 
-          {/* Komunikasi Sistem - HIDDEN */}
-          {/* 
-          <Card sx={{ borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+          {/* Historis PKSI */}
+          <Card sx={{ mb: 3, borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
             <CardContent sx={{ p: 3 }}>
-              ... komunikasi sistem content ...
+              <SectionHeader
+                icon={<History sx={{ fontSize: 20 }} />}
+                title="Historis PKSI"
+                count={pksiHistorisList.length}
+              />
+              {pksiHistorisLoading ? (
+                <Box display="flex" justifyContent="center" py={3}>
+                  <CircularProgress size={28} />
+                </Box>
+              ) : sortedPksiHistorisList.length > 0 ? (
+                <TableContainer sx={{ borderRadius: 2, border: '1px solid #e0e0e0', maxHeight: 450, overflowY: 'auto' }}>
+                  <Table size="small" stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        {([
+                          { label: 'Tahun', field: 'tanggalPengajuan', width: 70 },
+                          { label: 'Nama PKSI', field: 'namaPksi', width: undefined },
+                        ] as { label: string; field: typeof pksiSortBy; width?: number }[]).map(col => (
+                          <TableCell
+                            key={col.field}
+                            sx={{ fontWeight: 600, width: col.width, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', bgcolor: '#f5f5f5' }}
+                            onClick={() => {
+                              if (pksiSortBy === col.field) {
+                                setPksiSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                              } else {
+                                setPksiSortBy(col.field);
+                                setPksiSortDir('desc');
+                              }
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              {col.label}
+                              {pksiSortBy === col.field ? (
+                                <Typography component="span" sx={{ fontSize: '0.7rem', color: 'primary.main' }}>
+                                  {pksiSortDir === 'asc' ? '↑' : '↓'}
+                                </Typography>
+                              ) : (
+                                <Typography component="span" sx={{ fontSize: '0.7rem', color: 'text.disabled' }}>↕</Typography>
+                              )}
+                            </Box>
+                          </TableCell>
+                        ))}
+                        <TableCell sx={{ fontWeight: 600, width: 90, textAlign: 'center', bgcolor: '#f5f5f5' }}>Ruang Lingkup</TableCell>
+                        <TableCell sx={{ fontWeight: 600, width: 80, textAlign: 'center', bgcolor: '#f5f5f5' }}>Monitoring</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {sortedPksiHistorisList.map((pksi) => (
+                        <TableRow key={pksi.id} sx={{ '&:hover': { bgcolor: '#fafafa' } }}>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>{pksi.tahun ?? '-'}</Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">{pksi.nama_pksi}</Typography>
+                          </TableCell>
+                          <TableCell sx={{ textAlign: 'center' }}>
+                            {pksi.ruang_lingkup ? (
+                              <Tooltip title="Lihat ruang lingkup">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => setRuangLingkupModal({ open: true, namaPksi: pksi.nama_pksi, ruangLingkup: pksi.ruang_lingkup! })}
+                                  sx={{ color: 'primary.main' }}
+                                >
+                                  <Visibility sx={{ fontSize: 18 }} />
+                                </IconButton>
+                              </Tooltip>
+                            ) : (
+                              <Typography variant="caption" color="text.disabled">-</Typography>
+                            )}
+                          </TableCell>
+                          <TableCell sx={{ textAlign: 'center' }}>
+                            <Tooltip title="Lihat detail PKSI">
+                              <IconButton
+                                size="small"
+                                onClick={() => setPksiViewModalId(pksi.id)}
+                                sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
+                              >
+                                <Visibility sx={{ fontSize: 16 }} />
+                              </IconButton>
+                            </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
+                  <History sx={{ fontSize: 48, opacity: 0.3, mb: 1 }} />
+                  <Typography variant="body2">Tidak ada historis PKSI untuk aplikasi ini</Typography>
+                </Box>
+              )}
             </CardContent>
           </Card>
-          */}
         </Grid>
 
         {/* Right Column - Additional Info */}
@@ -1203,6 +1328,49 @@ const AplikasiDetailPage = () => {
           </Card>
         </Grid>
       </Grid>
+
+      {/* Modal Ruang Lingkup */}
+      <Dialog
+        open={ruangLingkupModal.open}
+        onClose={() => setRuangLingkupModal(prev => ({ ...prev, open: false }))}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1 }}>
+          <Visibility sx={{ color: 'primary.main' }} />
+          <Box>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+              Ruang Lingkup
+            </Typography>
+            <Typography variant="h6" fontWeight={600} sx={{ lineHeight: 1.3 }}>
+              {ruangLingkupModal.namaPksi}
+            </Typography>
+          </Box>
+          <IconButton
+            size="small"
+            onClick={() => setRuangLingkupModal(prev => ({ ...prev, open: false }))}
+            sx={{ ml: 'auto' }}
+          >
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>
+            {ruangLingkupModal.ruangLingkup}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRuangLingkupModal(prev => ({ ...prev, open: false }))} size="small">
+            Tutup
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <ViewPksiModal
+        open={pksiViewModalId !== null}
+        onClose={() => setPksiViewModalId(null)}
+        pksiId={pksiViewModalId}
+      />
     </Box>
   );
 };
