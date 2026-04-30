@@ -36,7 +36,7 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  Grid,
+  
   Stack,
   styled,
   List,
@@ -75,8 +75,9 @@ import {
   type Fs2DocumentData,
   type Fs2DocumentRequest 
 } from '../api/fs2Api';
-import { getAllAplikasi, type AplikasiData } from '../api/aplikasiApi';
+import { getAllAplikasi, getAplikasiByKode, type AplikasiData } from '../api/aplikasiApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
+import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { searchPksiDocuments, type PksiDocumentData } from '../api/pksiApi';
 import { 
   uploadFs2TempFiles, 
@@ -99,6 +100,7 @@ interface Fs2Data {
   namaFs2: string;
   statusTahapan: string;
   skpa: string;
+  bidang: string;
   urgensi: string;
   tanggalPengajuan: string;
   status: 'pending' | 'disetujui' | 'tidak_disetujui';
@@ -119,6 +121,7 @@ const transformApiData = (apiData: Fs2DocumentData): Fs2Data => {
     namaFs2: apiData.nama_fs2 || '-',
     statusTahapan: apiData.status_tahapan || '-',
     skpa: apiData.kode_skpa || apiData.nama_skpa || '-',
+    bidang: apiData.nama_bidang || '-',
     urgensi: apiData.urgensi || '-',
     tanggalPengajuan: apiData.tanggal_pengajuan || '',
     status: mapStatus(apiData.status),
@@ -292,6 +295,7 @@ function Fs2List() {
   const [selectedAplikasiFilter, setSelectedAplikasiFilter] = useState<Set<string>>(new Set());
   const [selectedStatusTahapanFilter, setSelectedStatusTahapanFilter] = useState<string>('');
   const [selectedSkpaFilter, setSelectedSkpaFilter] = useState<Set<string>>(new Set());
+  const [selectedBidangFilter, setSelectedBidangFilter] = useState<Set<string>>(new Set());
   
   // Year filter (exposed in toolbar) - default to current year, filters by tanggal_pengajuan
   const [selectedYearFilter, setSelectedYearFilter] = useState<string>(new Date().getFullYear().toString());
@@ -310,6 +314,7 @@ function Fs2List() {
     { id: 'namaAplikasi', label: 'Nama Aplikasi', width: 150 },
     { id: 'namaFs2', label: 'Nama FS2', width: 180 },
     { id: 'statusTahapan', label: 'Status Tahapan Aplikasi', width: 180 },
+    { id: 'bidang', label: 'Bidang', width: 120 },
     { id: 'skpa', label: 'SKPA', width: 100 },
     // { id: 'urgensi', label: 'Urgensi', width: 100 }, // HIDDEN as per requirement
     { id: 'tanggalPengajuan', label: 'Tanggal Pengajuan', width: 150 },
@@ -353,6 +358,7 @@ function Fs2List() {
   // Reference data for dropdowns
   const [aplikasiList, setAplikasiList] = useState<AplikasiData[]>([]);
   const [skpaList, setSkpaList] = useState<SkpaData[]>([]);
+  const [bidangList, setBidangList] = useState<BidangData[]>([]);
   const [pksiList, setPksiList] = useState<PksiDocumentData[]>([]);
 
   // Form state for Add/Edit modal
@@ -470,14 +476,16 @@ function Fs2List() {
       const startMonthFilter = selectedStartMonth ? parseInt(selectedStartMonth, 10) : undefined;
       const endMonthFilter = selectedEndMonth ? parseInt(selectedEndMonth, 10) : undefined;
 
-      // Handle multiple selection for aplikasi and skpa
+      // Handle multiple selection for aplikasi, skpa and bidang
       const aplikasiFilter = selectedAplikasiFilter.size > 0 ? Array.from(selectedAplikasiFilter).join(',') : undefined;
       const skpaFilter = selectedSkpaFilter.size > 0 ? Array.from(selectedSkpaFilter).join(',') : undefined;
+      const bidangFilter = selectedBidangFilter.size > 0 ? Array.from(selectedBidangFilter).join(',') : undefined;
 
       const response = await searchFs2Documents({
         search: keyword || undefined,
         status: statusFilter,
         aplikasi_id: aplikasiFilter,
+        bidang_id: bidangFilter,
         status_tahapan: selectedStatusTahapanFilter || undefined,
         skpa_id: skpaFilter,
         year: yearFilter,
@@ -499,20 +507,22 @@ function Fs2List() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, page, rowsPerPage, selectedStatus, selectedAplikasiFilter, selectedStatusTahapanFilter, selectedSkpaFilter, selectedYearFilter, selectedStartMonth, selectedEndMonth]);
+  }, [keyword, page, rowsPerPage, selectedStatus, selectedAplikasiFilter, selectedStatusTahapanFilter, selectedSkpaFilter, selectedBidangFilter, selectedYearFilter, selectedStartMonth, selectedEndMonth]);
 
   // Fetch reference data
   useEffect(() => {
     const fetchReferenceData = async () => {
       try {
-        const [aplikasiRes, skpaRes, pksiRes] = await Promise.all([
+        const [aplikasiRes, skpaRes, pksiRes, bidangRes] = await Promise.all([
           getAllAplikasi(),
           getAllSkpa(),
           searchPksiDocuments({ status: 'DISETUJUI', size: 1000 }),
+          getAllBidang(),
         ]);
         setAplikasiList(aplikasiRes.data || []);
         setSkpaList(skpaRes.data || []);
         setPksiList(pksiRes.content || []);
+        setBidangList(bidangRes || []);
       } catch (error) {
         console.error('Failed to fetch reference data:', error);
       }
@@ -608,6 +618,7 @@ function Fs2List() {
     setSelectedAplikasiFilter(new Set());
     setSelectedStatusTahapanFilter('');
     setSelectedSkpaFilter(new Set());
+    setSelectedBidangFilter(new Set());
     setSelectedYearFilter(new Date().getFullYear().toString());
     setSelectedStartMonth('');
     setSelectedEndMonth('');
@@ -876,8 +887,9 @@ function Fs2List() {
     if (selectedAplikasiFilter.size > 0) count++;
     if (selectedStatusTahapanFilter) count++;
     if (selectedSkpaFilter.size > 0) count++;
+    if (selectedBidangFilter.size > 0) count++;
     return count;
-  }, [selectedStatus, selectedAplikasiFilter, selectedStatusTahapanFilter, selectedSkpaFilter]);
+  }, [selectedStatus, selectedAplikasiFilter, selectedStatusTahapanFilter, selectedSkpaFilter, selectedBidangFilter]);
 
   // Add modal handlers
   const handleOpenAddModal = () => {
@@ -968,6 +980,8 @@ function Fs2List() {
     if (!formData.nama_fs2 || formData.nama_fs2.trim() === '') newErrors.nama_fs2 = "Nama FS2 wajib diisi";
     if (!formData.status_tahapan) newErrors.status_tahapan = "Status Tahapan wajib dipilih";
     if (!formData.skpa_id) newErrors.skpa_id = "SKPA wajib dipilih";
+    // Bidang wajib dipilih (Semua FS2 - Tambah F.S.2)
+    if (!formData.bidang_id) newErrors.bidang_id = "Bidang wajib dipilih";
     // if (!formData.urgensi) newErrors.urgensi = "Urgensi wajib dipilih"; // HIDDEN as per requirement
 
     // Section 1.6: PKSI wajib dipilih jika Status Tahapan adalah "DESAIN"
@@ -1283,10 +1297,12 @@ function Fs2List() {
       // Handle multiple selection for aplikasi and skpa
       const aplikasiFilterExcel = selectedAplikasiFilter.size > 0 ? Array.from(selectedAplikasiFilter).join(',') : undefined;
       const skpaFilterExcel = selectedSkpaFilter.size > 0 ? Array.from(selectedSkpaFilter).join(',') : undefined;
+      const bidangFilterExcel = selectedBidangFilter.size > 0 ? Array.from(selectedBidangFilter).join(',') : undefined;
       
       await downloadAllFs2Excel({
         search: keyword || undefined,
         aplikasi_id: aplikasiFilterExcel,
+        bidang_id: bidangFilterExcel,
         status_tahapan: selectedStatusTahapanFilter || undefined,
         skpa_id: skpaFilterExcel,
         status: statusFilter,
@@ -1978,6 +1994,73 @@ function Fs2List() {
 
           <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
 
+          {/* Bidang Filter - Multiple Selection with Typing */}
+          <Box sx={{ mb: 2.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+              Bidang
+            </Typography>
+            <Autocomplete
+              multiple
+              size="small"
+              options={bidangList}
+              getOptionLabel={(option) => `${option.kode_bidang} - ${option.nama_bidang}`}
+              value={bidangList.filter(b => selectedBidangFilter.has(b.id))}
+              onChange={(_, newValue) => {
+                const newIds = new Set(newValue.map(b => b.id));
+                setSelectedBidangFilter(newIds);
+              }}
+              disableCloseOnSelect
+              renderOption={(props, option, { selected }) => {
+                const { key, ...restProps } = props;
+                return (
+                  <li key={key} {...restProps}>
+                    <Checkbox
+                      size="small"
+                      checked={selected}
+                      sx={{ mr: 1, '&.Mui-checked': { color: '#DA251C' } }}
+                    />
+                    {option.kode_bidang} - {option.nama_bidang}
+                  </li>
+                );
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  placeholder={selectedBidangFilter.size === 0 ? 'Cari dan pilih bidang...' : ''}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '8px',
+                      '& fieldset': { borderColor: '#e5e5e7' },
+                      '&:hover fieldset': { borderColor: '#DA251C' },
+                      '&.Mui-focused fieldset': { borderColor: '#DA251C', borderWidth: 2 },
+                    },
+                  }}
+                />
+              )}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => {
+                  const { key, ...tagProps } = getTagProps({ index });
+                  return (
+                    <Chip
+                      key={key}
+                      label={option.kode_bidang}
+                      size="small"
+                      {...tagProps}
+                      sx={{ 
+                        bgcolor: '#DA251C', 
+                        color: 'white', 
+                        fontWeight: 500,
+                        '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } 
+                      }}
+                    />
+                  );
+                })
+              }
+            />
+          </Box>
+
+          <Box sx={{ borderTop: '2px solid #f5f5f5', my: 2.5 }} />
+
           {/* Reset Button */}
           <Button
             fullWidth
@@ -2172,6 +2255,14 @@ function Fs2List() {
                 ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#f5f5f7' }),
                 ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
               }}>SKPA</TableCell>
+              <TableCell sx={{ 
+                fontWeight: 600, 
+                color: '#1d1d1f', 
+                py: 2, 
+                minWidth: 120,
+                ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+              }}>Bidang</TableCell>
               {/* HIDDEN: Urgensi column as per requirement */}
               {/* <TableCell sx={{ 
                 fontWeight: 600, 
@@ -2332,6 +2423,14 @@ function Fs2List() {
                           borderRadius: '6px',
                         }}
                       />
+                    </TableCell>
+                    <TableCell sx={{ 
+                      py: 2,
+                      minWidth: 120,
+                      ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 1, bgcolor: '#fff' }),
+                      ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
+                    }}>
+                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.85rem' }}>{row.bidang}</Typography>
                     </TableCell>
                     {/* HIDDEN: Urgensi column as per requirement */}
                     {/* <TableCell sx={{ 
@@ -2674,7 +2773,30 @@ function Fs2List() {
                     options={aplikasiList}
                     getOptionLabel={(option) => `${option.kode_aplikasi} - ${option.nama_aplikasi}`}
                     value={aplikasiList.find(a => a.id === formData.aplikasi_id) || null}
-                    onChange={(_, newValue) => handleSelectChange('aplikasi_id', newValue?.id || '')}
+                    onChange={async (_event, newValue) => {
+                      const selected = newValue;
+                      const apkId = selected?.id || '';
+                      handleSelectChange('aplikasi_id', apkId);
+
+                      if (selected) {
+                        // Prefer kode_aplikasi from the object; fallback to parsing label
+                        const kode = (selected.kode_aplikasi || '').toString().split(' - ')[0].trim() || (selected.kode_aplikasi || '').toString();
+                        try {
+                          const aplikasi = await getAplikasiByKode(kode);
+                          const bidangId = aplikasi?.bidang?.id || '';
+                          const skpaId = aplikasi?.skpa?.id || '';
+                          handleSelectChange('bidang_id', bidangId);
+                          handleSelectChange('skpa_id', skpaId);
+                        } catch (err) {
+                          // Fallback: use nested data available on the list item
+                          handleSelectChange('bidang_id', selected.bidang?.id || '');
+                          handleSelectChange('skpa_id', selected.skpa?.id || '');
+                        }
+                      } else {
+                        handleSelectChange('bidang_id', '');
+                        handleSelectChange('skpa_id', '');
+                      }
+                    }}
                     renderInput={(params) => (
                       <GlassTextField 
                         {...params} 
@@ -2800,6 +2922,25 @@ function Fs2List() {
                     size="small"
                   />
                 )}
+                
+                {/* Bidang select - appears after PKSI (or before SKPA if PKSI absent) */}
+                <Autocomplete
+                  options={bidangList}
+                  getOptionLabel={(option) => `${option.kode_bidang} - ${option.nama_bidang}`}
+                  value={bidangList.find(b => b.id === formData.bidang_id) || null}
+                  onChange={(_, newValue) => handleSelectChange('bidang_id', newValue?.id || '')}
+                  renderInput={(params) => (
+                    <GlassTextField
+                        {...params}
+                        label={formData.status_tahapan === 'DESAIN' ? '1.5 Bidang' : '1.4 Bidang'}
+                        required
+                        size="small"
+                        error={!!errors.bidang_id}
+                        helperText={errors.bidang_id}
+                    />
+                  )}
+                  size="small"
+                />
                 <Autocomplete
                   options={skpaList}
                   getOptionLabel={(option) => `${option.kode_skpa} - ${option.nama_skpa}`}
@@ -2808,7 +2949,7 @@ function Fs2List() {
                   renderInput={(params) => (
                     <GlassTextField 
                       {...params} 
-                      label={formData.status_tahapan === 'DESAIN' ? "1.5 Satuan Kerja Pemilik Aplikasi (SKPA)" : "1.4 Satuan Kerja Pemilik Aplikasi (SKPA)"} 
+                      label={formData.status_tahapan === 'DESAIN' ? "1.6 Satuan Kerja Pemilik Aplikasi (SKPA)" : "1.5 Satuan Kerja Pemilik Aplikasi (SKPA)"} 
                       required 
                       size="small"
                       error={!!errors.skpa_id}
@@ -2818,7 +2959,7 @@ function Fs2List() {
                   size="small"
                 />
                 <GlassTextField
-                  label={formData.status_tahapan === 'DESAIN' ? "1.6 Tanggal Pengajuan" : "1.5 Tanggal Pengajuan"}
+                  label={formData.status_tahapan === 'DESAIN' ? "1.7 Tanggal Pengajuan" : "1.6 Tanggal Pengajuan"}
                   type="date"
                   size="small"
                   value={formData.tanggal_pengajuan || ''}
@@ -2916,8 +3057,8 @@ function Fs2List() {
                     Jadwal Pelaksanaan terisi otomatis berdasarkan data PKSI yang dipilih. Target Pengujian = Target UAT PKSI, Target Deployment & Go Live = Target Go Live PKSI.
                   </Alert>
                 )}
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 4 }}>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                  <Box sx={{ flex: '1 1 33.333%', minWidth: 220 }}>
                     <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
                       2.1 Target Pengujian {formData.status_tahapan === 'PEMELIHARAAN' ? '*' : ''}
                     </Typography>
@@ -2958,8 +3099,8 @@ function Fs2List() {
                     {errors.target_pengujian && (
                       <Typography variant="caption" sx={{ color: '#d32f2f', mt: 0.5, display: 'block' }}>{errors.target_pengujian}</Typography>
                     )}
-                  </Grid>
-                  <Grid size={{ xs: 4 }}>
+                  </Box>
+                  <Box sx={{ flex: '1 1 33.333%', minWidth: 220 }}>
                     <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
                       2.2 Target Deployment {formData.status_tahapan === 'PEMELIHARAAN' ? '*' : ''}
                     </Typography>
@@ -3000,8 +3141,8 @@ function Fs2List() {
                     {errors.target_deployment && (
                       <Typography variant="caption" sx={{ color: '#d32f2f', mt: 0.5, display: 'block' }}>{errors.target_deployment}</Typography>
                     )}
-                  </Grid>
-                  <Grid size={{ xs: 4 }}>
+                  </Box>
+                  <Box sx={{ flex: '1 1 33.333%', minWidth: 220 }}>
                     <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
                       2.3 Target Go Live {formData.status_tahapan === 'PEMELIHARAAN' ? '*' : ''}
                     </Typography>
@@ -3042,8 +3183,8 @@ function Fs2List() {
                     {errors.target_go_live && (
                       <Typography variant="caption" sx={{ color: '#d32f2f', mt: 0.5, display: 'block' }}>{errors.target_go_live}</Typography>
                     )}
-                  </Grid>
-                </Grid>
+                  </Box>
+                </Box>
               </AccordionDetails>
             </Accordion>
 
@@ -3383,7 +3524,25 @@ function Fs2List() {
                     options={aplikasiList}
                     getOptionLabel={(option) => `${option.kode_aplikasi} - ${option.nama_aplikasi}`}
                     value={aplikasiList.find(a => a.id === formData.aplikasi_id) || null}
-                    onChange={(_, newValue) => setFormData({ ...formData, aplikasi_id: newValue?.id || '' })}
+                    onChange={async (_event, newValue) => {
+                      const selected = newValue;
+                      const apkId = selected?.id || '';
+                      setFormData(prev => ({ ...prev, aplikasi_id: apkId }));
+
+                      if (selected) {
+                        const kode = (selected.kode_aplikasi || '').toString().split(' - ')[0].trim() || (selected.kode_aplikasi || '').toString();
+                        try {
+                          const aplikasi = await getAplikasiByKode(kode);
+                          const bidangId = aplikasi?.bidang?.id || '';
+                          const skpaId = aplikasi?.skpa?.id || '';
+                          setFormData(prev => ({ ...prev, bidang_id: bidangId, skpa_id: skpaId }));
+                        } catch (err) {
+                          setFormData(prev => ({ ...prev, bidang_id: selected.bidang?.id || '', skpa_id: selected.skpa?.id || '' }));
+                        }
+                      } else {
+                        setFormData(prev => ({ ...prev, bidang_id: '', skpa_id: '' }));
+                      }
+                    }}
                     renderInput={(params) => (
                       <GlassTextField {...params} label="1.1 Nama Aplikasi" required size="small" />
                     )}
@@ -3513,6 +3672,22 @@ function Fs2List() {
                     size="small"
                   />
                 )}
+                {/* Bidang select (Edit Modal) - same placement as Add Modal */}
+                <Autocomplete
+                  options={bidangList}
+                  getOptionLabel={(option) => `${option.kode_bidang} - ${option.nama_bidang}`}
+                  value={bidangList.find(b => b.id === formData.bidang_id) || null}
+                  onChange={(_, newValue) => handleSelectChange('bidang_id', newValue?.id || '')}
+                  renderInput={(params) => (
+                    <GlassTextField
+                      {...params}
+                      label={formData.status_tahapan === 'DESAIN' ? '1.5 Bidang' : '1.4 Bidang'}
+                      size="small"
+                    />
+                  )}
+                  size="small"
+                />
+
                 <Autocomplete
                   options={skpaList}
                   getOptionLabel={(option) => `${option.kode_skpa} - ${option.nama_skpa}`}
@@ -3590,8 +3765,8 @@ function Fs2List() {
                     Jadwal pelaksanaan pada tahapan Desain telah mengacu pada timeline dan target PKSI terkait.
                   </Alert>
                 )}
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 4 }}>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                  <Box sx={{ flex: '1 1 33.333%', minWidth: 220 }}>
                     <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
                       2.1 Target Pengujian *
                     </Typography>
@@ -3632,8 +3807,8 @@ function Fs2List() {
                     {errors.target_pengujian && (
                       <Typography variant="caption" sx={{ color: '#d32f2f', mt: 0.5, display: 'block' }}>{errors.target_pengujian}</Typography>
                     )}
-                  </Grid>
-                  <Grid size={{ xs: 4 }}>
+                  </Box>
+                  <Box sx={{ flex: '1 1 33.333%', minWidth: 220 }}>
                     <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
                       2.2 Target Deployment *
                     </Typography>
@@ -3674,8 +3849,8 @@ function Fs2List() {
                     {errors.target_deployment && (
                       <Typography variant="caption" sx={{ color: '#d32f2f', mt: 0.5, display: 'block' }}>{errors.target_deployment}</Typography>
                     )}
-                  </Grid>
-                  <Grid size={{ xs: 4 }}>
+                  </Box>
+                  <Box sx={{ flex: '1 1 33.333%', minWidth: 220 }}>
                     <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
                       2.3 Target Go Live *
                     </Typography>
@@ -3716,8 +3891,8 @@ function Fs2List() {
                     {errors.target_go_live && (
                       <Typography variant="caption" sx={{ color: '#d32f2f', mt: 0.5, display: 'block' }}>{errors.target_go_live}</Typography>
                     )}
-                  </Grid>
-                </Grid>
+                  </Box>
+                </Box>
               </AccordionDetails>
             </Accordion>
 

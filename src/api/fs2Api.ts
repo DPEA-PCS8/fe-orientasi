@@ -124,8 +124,6 @@ export interface Fs2DocumentData {
   keterangan?: string;
   
   // Tahapan Status & Tanggal fields
-  tahapan_status_pengajuan?: string;
-  tanggal_pengajuan_selesai?: string;
   tahapan_status_asesmen?: string;
   tanggal_asesmen?: string;
   tahapan_status_pemrograman?: string;
@@ -259,8 +257,6 @@ export interface Fs2DocumentRequest {
   keterangan?: string;
   
   // Tahapan Status & Tanggal fields
-  tahapan_status_pengajuan?: string;
-  tanggal_pengajuan_selesai?: string;
   tahapan_status_asesmen?: string;
   tanggal_asesmen?: string;
   tahapan_status_pemrograman?: string;
@@ -308,6 +304,7 @@ export async function getFs2DocumentById(id: string): Promise<Fs2DocumentData> {
  */
 export async function searchFs2Documents(params: {
   search?: string;
+  bidang_id?: string;
   aplikasi_id?: string;
   status_tahapan?: string;
   skpa_id?: string;
@@ -320,6 +317,7 @@ export async function searchFs2Documents(params: {
 }): Promise<Fs2SearchResponse> {
   const queryParams = new URLSearchParams();
   if (params.search) queryParams.append('search', params.search);
+  if (params.bidang_id) queryParams.append('bidang_id', params.bidang_id);
   if (params.aplikasi_id) queryParams.append('aplikasi_id', params.aplikasi_id);
   if (params.status_tahapan) queryParams.append('status_tahapan', params.status_tahapan);
   if (params.skpa_id) queryParams.append('skpa_id', params.skpa_id);
@@ -441,6 +439,7 @@ export async function getFs2Changelogs(fs2Id: string): Promise<Fs2ChangelogsResp
 export async function downloadAllFs2Excel(params?: {
   search?: string;
   aplikasi_id?: string;
+  bidang_id?: string;
   status_tahapan?: string;
   skpa_id?: string;
   status?: string;
@@ -454,6 +453,7 @@ export async function downloadAllFs2Excel(params?: {
   // Build query string
   const queryParams = new URLSearchParams();
   if (params?.search) queryParams.append('search', params.search);
+  if (params?.bidang_id) queryParams.append('bidang_id', params.bidang_id);
   if (params?.aplikasi_id) queryParams.append('aplikasi_id', params.aplikasi_id);
   if (params?.status_tahapan) queryParams.append('status_tahapan', params.status_tahapan);
   if (params?.skpa_id) queryParams.append('skpa_id', params.skpa_id);
