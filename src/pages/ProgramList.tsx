@@ -937,8 +937,7 @@ function ProgramList() {
             fetchPrograms(selectedRbsi.id, selectedTahun);
           }
         }}
-        rbsiId={selectedRbsi?.id || ''}
-        tahun={selectedTahun}
+        kepId={selectedKep?.id || ''}
       />
 
       {/* Add Inisiatif Modal */}

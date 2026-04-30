@@ -64,6 +64,8 @@ export interface PksiDocumentData {
   inisiatif_nomor?: string;
   inisiatif_nama?: string;
   inisiatif_tahun?: number;
+  program_nomor?: string;
+  program_nama?: string;
   fungsi_aplikasi?: string;
   informasi_yang_dikelola?: string;
   dasar_peraturan?: string;
@@ -171,6 +173,7 @@ export interface PksiDocumentRequest {
   nama_pksi: string;
   jenis_pksi?: string;
   tanggal_pengajuan?: string;
+  inisiatif_group_id?: string;
   // Section 1
   deskripsi_pksi?: string;
   mengapa_pksi_diperlukan?: string;

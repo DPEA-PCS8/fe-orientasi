@@ -9,6 +9,8 @@ export interface AplikasiResponse {
   kode_aplikasi: string;
   nama_aplikasi: string;
   status_aplikasi?: string;
+  sub_kategori?: { id: string; kode: string; nama: string } | null;
+  skpa?: { id: string; kode_skpa: string; nama_skpa: string } | null;
   created_at: string;
   updated_at: string;
 }
@@ -31,12 +33,10 @@ export interface SubKategoriResponse {
   updated_at: string;
 }
 
-export interface InisiatifSimpleResponse {
+export interface InisiatifGroupSimpleResponse {
   id: string;
-  nomor_inisiatif: string;
   nama_inisiatif: string;
-  program_id: string;
-  nama_program: string;
+  keterangan?: string | null;
 }
 
 export interface ArsitekturRbsiResponse {
@@ -44,14 +44,47 @@ export interface ArsitekturRbsiResponse {
   rbsi_id: string;
   rbsi_periode: string;
   sub_kategori: SubKategoriResponse | null;
-  aplikasi_baseline: AplikasiResponse | null;
-  aplikasi_target: AplikasiResponse | null;
+  aplikasi: AplikasiResponse | null;
+  aplikasi_baseline: string | null;
+  aplikasi_target: string | null;
   action: string;
   year_statuses: string;
-  inisiatif: InisiatifSimpleResponse | null;
+  inisiatif_group: InisiatifGroupSimpleResponse | null;
   skpa: SkpaResponse | null;
+  keterangan: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface SnapshotArsitekturRbsiResponse {
+  id: string;
+  rbsi_id: string;
+  snapshot_date: string;
+  arsitektur_id: string;
+  sub_kategori_kode: string | null;
+  sub_kategori_nama: string | null;
+  aplikasi_kode: string | null;
+  aplikasi_nama: string | null;
+  aplikasi_baseline_kode: string | null;
+  aplikasi_baseline_nama: string | null;
+  aplikasi_target_kode: string | null;
+  aplikasi_target_nama: string | null;
+  action: string | null;
+  year_statuses: string | null;
+  inisiatif_group_id: string | null;
+  inisiatif_group_nama: string | null;
+  skpa_kode: string | null;
+  skpa_nama: string | null;
+  keterangan: string | null;
+  changes: string | null;
+  created_at: string;
+}
+
+export interface SnapshotGroup {
+  snapshot_date: string;
+  total_items: number;
+  changed_items: number;
+  items: SnapshotArsitekturRbsiResponse[];
 }
 
 // ==================== REQUEST TYPES ====================
@@ -69,19 +102,21 @@ export interface SubKategoriRequest {
 
 export interface ArsitekturRbsiRequest {
   rbsi_id: string;
-  sub_kategori_id: string;
-  aplikasi_baseline_id?: string;
-  aplikasi_target_id?: string;
+  aplikasi_id?: string;
+  sub_kategori_id?: string;
+  skpa_id?: string;
+  aplikasi_baseline?: string;
+  aplikasi_target?: string;
   action?: string;
   year_statuses?: string;
-  inisiatif_id?: string;
-  skpa_id?: string;
+  inisiatif_group_id?: string;
+  keterangan?: string;
 }
 
 // ==================== APLIKASI API ====================
 
 export async function getAllAplikasi(): Promise<BaseApiResponse<AplikasiResponse[]>> {
-  return apiRequest(`${BASE_URL}/arsitektur/aplikasi`, 'GET');
+  return apiRequest(`${BASE_URL}/arsitektur/aplikasi/dropdown`, 'GET');
 }
 
 export async function getAplikasiById(id: string): Promise<BaseApiResponse<AplikasiResponse>> {
@@ -103,12 +138,6 @@ export async function updateAplikasi(id: string, request: AplikasiRequest): Prom
 export async function deleteAplikasi(id: string): Promise<BaseApiResponse<null>> {
   return apiRequest(`${BASE_URL}/arsitektur/aplikasi/${id}`, 'DELETE');
 }
-
-// ==================== SKPA API ====================
-// SKPA API functions are centralized in skpaApi.ts for better organization and consistency
-// Import from skpaApi.ts instead:
-// import { getAllSkpa, getSkpaById, getSkpaByKode, createSkpa, updateSkpa, deleteSkpa } from './skpaApi';
-
 
 // ==================== SUB KATEGORI API ====================
 
@@ -167,4 +196,14 @@ export async function deleteArsitektur(id: string): Promise<BaseApiResponse<null
 
 export async function deleteArsitekturByRbsiId(rbsiId: string): Promise<BaseApiResponse<null>> {
   return apiRequest(`${BASE_URL}/arsitektur/rbsi/by-rbsi/${rbsiId}`, 'DELETE');
+}
+
+// Snapshot + sinkronisasi year_status dengan status aplikasi aktual
+export async function updateArsitekturData(rbsiId: string): Promise<BaseApiResponse<ArsitekturRbsiResponse[]>> {
+  return apiRequest(`${BASE_URL}/arsitektur/rbsi/update-data/${rbsiId}`, 'POST');
+}
+
+// Riwayat snapshot per tanggal
+export async function getArsitekturSnapshots(rbsiId: string): Promise<BaseApiResponse<SnapshotGroup[]>> {
+  return apiRequest(`${BASE_URL}/arsitektur/rbsi/snapshots/${rbsiId}`, 'GET');
 }

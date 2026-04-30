@@ -21,8 +21,7 @@ interface AddProgramModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess?: () => void;
-  rbsiId: string;
-  tahun: number;
+  kepId: string;
 }
 
 interface FormData {
@@ -34,7 +33,7 @@ interface FormErrors {
   [key: string]: string | undefined;
 }
 
-const AddProgramModal = ({ open, onClose, onSuccess, rbsiId, tahun }: AddProgramModalProps) => {
+const AddProgramModal = ({ open, onClose, onSuccess, kepId }: AddProgramModalProps) => {
   const [formData, setFormData] = useState<FormData>({
     nomorProgram: '',
     namaProgram: '',
@@ -92,8 +91,7 @@ const AddProgramModal = ({ open, onClose, onSuccess, rbsiId, tahun }: AddProgram
     setErrorMessage('');
     try {
       await createProgram({
-        rbsi_id: rbsiId,
-        tahun: tahun,
+        kep_id: kepId,
         nomor_program: formData.nomorProgram.trim(),
         nama_program: formData.namaProgram.trim(),
         inisiatifs: [],
@@ -164,18 +162,6 @@ const AddProgramModal = ({ open, onClose, onSuccess, rbsiId, tahun }: AddProgram
           <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
             Informasi Program
           </Typography>
-          <TextField
-            fullWidth
-            label="Tahun"
-            value={tahun}
-            disabled
-            sx={{
-              '& .MuiInputBase-input.Mui-disabled': {
-                WebkitTextFillColor: '#1d1d1f',
-                bgcolor: '#f5f5f7',
-              },
-            }}
-          />
           <TextField
             fullWidth
             label="Nomor Program"
