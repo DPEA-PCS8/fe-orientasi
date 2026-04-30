@@ -110,9 +110,8 @@ const PELAKSANAAN_LABELS: Record<string, string> = {
   MULTIYEARS: 'Multiyears',
 };
 
-// FS2 Progress Options for View
+// FS2 Progress Options for View (start from Asesmen)
 const PROGRESS_OPTIONS_VIEW = [
-  'Pengajuan',
   'Asesmen',
   'Pemrograman',
   'Pengujian',
@@ -128,7 +127,6 @@ const FS2_TAHAPAN_VIEW_CONFIG: Array<{
   statusField: keyof Fs2DocumentData | null;
   stageKey: string;
 }> = [
-  { key: 'Pengajuan', label: 'Pengajuan', dateField: 'tanggal_pengajuan_selesai', statusField: 'tahapan_status_pengajuan', stageKey: 'PENGAJUAN' },
   { key: 'Asesmen', label: 'Asesmen', dateField: 'tanggal_asesmen', statusField: 'tahapan_status_asesmen', stageKey: 'ASESMEN' },
   { key: 'Pemrograman', label: 'Pemrograman', dateField: 'tanggal_pemrograman', statusField: 'tahapan_status_pemrograman', stageKey: 'PEMROGRAMAN' },
   { key: 'Pengujian', label: 'Pengujian', dateField: 'tanggal_pengujian_selesai', statusField: 'tahapan_status_pengujian', stageKey: 'PENGUJIAN' },
@@ -663,6 +661,16 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                     )}
                   </Box>
                 </InfoRow>
+                {!showMonitoringSection && (
+                  <InfoRow>
+                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Bidang
+                    </Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 500, color: '#1d1d1f' }}>
+                      {fs2Data.nama_bidang || '-'}
+                    </Typography>
+                  </InfoRow>
+                )}
                 {/* PKSI field - only show when status_tahapan is DESAIN */}
                 {fs2Data.pksi_nama && (
                   <InfoRow>
@@ -885,9 +893,31 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                               else if (s.includes('dibatalkan')) status = 'Dibatalkan';
                               else status = (savedStatus as string).toString().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                             } else {
-                              // Fallback logic based on progres
-                              const progressIdx = fs2Data.progres ? PROGRESS_OPTIONS_VIEW.indexOf(fs2Data.progres as any) : -1;
-                              const tahapanIdx = PROGRESS_OPTIONS_VIEW.indexOf(tahapan.key);
+                              // Fallback logic based on progres with normalization
+                              const normalizeProgressLabel = (p?: string) => {
+                                if (!p) return '';
+                                const s = p.toString();
+                                // Try direct label match first
+                                const labelIndex = PROGRESS_OPTIONS_VIEW.findIndex(x => x.toLowerCase() === s.toLowerCase());
+                                if (labelIndex !== -1) return PROGRESS_OPTIONS_VIEW[labelIndex];
+                                // Map possible API codes to labels (map Pengajuan -> Asesmen)
+                                const codeToLabel: Record<string, string> = {
+                                  'PENGAJUAN': 'Asesmen',
+                                  'ASESMEN': 'Asesmen',
+                                  'PEMROGRAMAN': 'Pemrograman',
+                                  'PENGUJIAN': 'Pengujian',
+                                  'DEPLOYMENT': 'Deployment',
+                                  'GO_LIVE': 'Go Live',
+                                };
+                                const mapped = codeToLabel[s.toUpperCase()];
+                                return mapped || s;
+                              };
+
+                              const normalizedProgress = normalizeProgressLabel(fs2Data.progres as any);
+                              const progressIdx = normalizedProgress
+                                ? PROGRESS_OPTIONS_VIEW.findIndex(x => x.toLowerCase() === normalizedProgress.toLowerCase())
+                                : -1;
+                              const tahapanIdx = PROGRESS_OPTIONS_VIEW.findIndex(x => x === tahapan.key);
                               const isDoneFallback = tahapanIdx < progressIdx;
                               const isActiveFallback = tahapanIdx === progressIdx;
                               status = isDoneFallback ? 'Selesai' : isActiveFallback ? 'Dalam proses' : 'Belum dimulai';
@@ -902,8 +932,8 @@ const ViewFs2Modal: React.FC<ViewFs2ModalProps> = ({ open, onClose, fs2Id, showM
                             // Pemrograman: from target_pemrograman
                             // Pengujian, Deployment, Go Live: from Jadwal Pelaksanaan
                             let targetDate: string | null = null;
-                            if (tahapan.stageKey === 'PENGAJUAN' || tahapan.stageKey === 'ASESMEN') {
-                              targetDate = null; // Always empty for Pengajuan and Asesmen
+                            if (tahapan.stageKey === 'ASESMEN') {
+                              targetDate = null; // Always empty for Asesmen
                             } else if (tahapan.stageKey === 'PEMROGRAMAN') {
                               targetDate = fs2Data.target_pemrograman || null;
                             } else if (tahapan.stageKey === 'PENGUJIAN') {

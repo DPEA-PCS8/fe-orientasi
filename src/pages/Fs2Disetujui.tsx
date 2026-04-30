@@ -58,7 +58,6 @@ import {
   AttachFile as AttachFileIcon,
 } from '@mui/icons-material';
 import { searchApprovedFs2Documents, updateFs2Document, downloadApprovedFs2Excel, type Fs2DocumentData, type Fs2DocumentRequest } from '../api/fs2Api';
-import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getAllTeams, type Team } from '../api/teamApi';
 import { usePermissions } from '../hooks/usePermissions';
@@ -126,19 +125,18 @@ interface Fs2DisetujuiData {
   keterangan: string;
 }
 
-const PROGRES_OPTIONS = ['PENGAJUAN', 'ASESMEN', 'PEMROGRAMAN', 'PENGUJIAN', 'DEPLOYMENT', 'GO_LIVE'] as const;
+const PROGRES_OPTIONS = ['ASESMEN', 'PEMROGRAMAN', 'PENGUJIAN', 'DEPLOYMENT', 'GO_LIVE'] as const;
 const PROGRES_STATUS_OPTIONS = ['belum_dimulai', 'dalam_proses', 'selesai'] as const;
 const FASE_PENGAJUAN_OPTIONS = ['DESAIN', 'PEMELIHARAAN'] as const;
 
 // Type for tahapan date fields (completion dates)
-type Fs2TahapanDateField = 'tanggal_pengajuan_selesai' | 'tanggal_asesmen' | 'tanggal_pemrograman' | 'tanggal_pengujian_selesai' | 'tanggal_deployment_selesai' | 'tanggal_go_live';
+type Fs2TahapanDateField = 'tanggal_asesmen' | 'tanggal_pemrograman' | 'tanggal_pengujian_selesai' | 'tanggal_deployment_selesai' | 'tanggal_go_live';
 
 // Type for tahapan target fields
 type Fs2TahapanTargetField = 'target_pemrograman' | 'target_pengujian' | 'target_deployment' | 'target_go_live';
 
 // Labels for progres options - match with FS2 Tahapan
 const PROGRES_LABELS: Record<string, string> = {
-  'PENGAJUAN': 'Pengajuan',
   'ASESMEN': 'Asesmen',
   'PEMROGRAMAN': 'Pemrograman',
   'PENGUJIAN': 'Pengujian',
@@ -166,7 +164,6 @@ const FS2_TAHAPAN_CONFIG: Array<{
   targetField: Fs2TahapanTargetField | null;
   statusApiField: string;
 }> = [
-  { key: 'PENGAJUAN', label: 'Pengajuan', color: '#6366F1', gradient: ['#6366F1', '#818CF8'], rgb: '99,102,241', dateField: 'tanggal_pengajuan_selesai', targetField: null, statusApiField: 'tahapan_status_pengajuan' },
   { key: 'ASESMEN', label: 'Asesmen', color: '#8B5CF6', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246', dateField: 'tanggal_asesmen', targetField: null, statusApiField: 'tahapan_status_asesmen' },
   { key: 'PEMROGRAMAN', label: 'Pemrograman', color: '#F59E0B', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11', dateField: 'tanggal_pemrograman', targetField: 'target_pemrograman', statusApiField: 'tahapan_status_pemrograman' },
   { key: 'PENGUJIAN', label: 'Pengujian', color: '#0EA5E9', gradient: ['#0EA5E9', '#38BDF8'], rgb: '14,165,233', dateField: 'tanggal_pengujian_selesai', targetField: 'target_pengujian', statusApiField: 'tahapan_status_pengujian' },
@@ -184,7 +181,6 @@ const FS2_TIMELINE_CONFIGS = [
 // Helper to derive current tahapan progress from completion dates (for Table Progres column)
 const deriveProgresTahapan = (apiData: Fs2DocumentData): { tahapanLabel: string; status: string; tanggal: string | null; color: string } => {
   const completionDates: Record<string, string | null | undefined> = {
-    'PENGAJUAN': apiData.tanggal_pengajuan_selesai,
     'ASESMEN': apiData.tanggal_asesmen,
     'PEMROGRAMAN': apiData.tanggal_pemrograman,
     'PENGUJIAN': apiData.tanggal_pengujian_selesai,
@@ -236,7 +232,6 @@ const deriveProgresTahapan = (apiData: Fs2DocumentData): { tahapanLabel: string;
 const deriveProgresFromTahapanStatus = (apiData: Fs2DocumentData): string => {
   // Check tahapan_status_* fields to find which one has "dalam_proses"
   const tahapanStatuses = {
-    'PENGAJUAN': apiData.tahapan_status_pengajuan,
     'ASESMEN': apiData.tahapan_status_asesmen,
     'PEMROGRAMAN': apiData.tahapan_status_pemrograman,
     'PENGUJIAN': apiData.tahapan_status_pengujian,
@@ -501,7 +496,6 @@ function Fs2Disetujui() {
   const [selectedFase, setSelectedFase] = useState<Set<string>>(new Set());
   const [selectedMekanisme, setSelectedMekanisme] = useState<Set<string>>(new Set());
   const [selectedPelaksanaan, setSelectedPelaksanaan] = useState<Set<string>>(new Set());
-  const [selectedBidangFilter, setSelectedBidangFilter] = useState<string>('');
   const [selectedSkpaFilter, setSelectedSkpaFilter] = useState<string>('');
   
   // Year filter (exposed in toolbar) - default to current year, filters by tanggal_pengajuan
@@ -527,7 +521,6 @@ function Fs2Disetujui() {
     { id: 'progresStatus', label: 'Status', width: 120 },
     { id: 'fasePengajuan', label: 'Fase Pengajuan', width: 130 },
     { id: 'iku', label: 'IKU', width: 80 },
-    { id: 'bidang', label: 'Bidang', width: 120 },
     { id: 'skpa', label: 'SKPA', width: 100 },
     { id: 'mekanisme', label: 'Mekanisme', width: 100 },
     { id: 'pelaksanaan', label: 'Pelaksanaan', width: 140 },
@@ -575,7 +568,6 @@ function Fs2Disetujui() {
   };
 
   // Reference data
-  const [bidangList, setBidangList] = useState<BidangData[]>([]);
   const [skpaList, setSkpaList] = useState<SkpaData[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
@@ -673,7 +665,6 @@ function Fs2Disetujui() {
 
       const response = await searchApprovedFs2Documents({
         search: keyword || undefined,
-        bidang_id: selectedBidangFilter || undefined,
         skpa_id: selectedSkpaFilter || undefined,
         progres: progresFilter,
         progres_status: progresStatusFilter,
@@ -699,19 +690,17 @@ function Fs2Disetujui() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, page, rowsPerPage, selectedProgres, selectedProgresStatus, selectedFase, selectedMekanisme, selectedPelaksanaan, selectedBidangFilter, selectedSkpaFilter, selectedYearFilter, selectedStartMonth, selectedEndMonth]);
+  }, [keyword, page, rowsPerPage, selectedProgres, selectedProgresStatus, selectedFase, selectedMekanisme, selectedPelaksanaan, selectedSkpaFilter, selectedYearFilter, selectedStartMonth, selectedEndMonth]);
 
   // Fetch reference data
   useEffect(() => {
     const fetchReferenceData = async () => {
       setIsLoadingTeams(true);
       try {
-        const [bidang, skpaRes, teamsData] = await Promise.all([
-          getAllBidang(),
+        const [skpaRes, teamsData] = await Promise.all([
           getAllSkpa(),
           getAllTeams(),
         ]);
-        setBidangList(bidang);
         setSkpaList(skpaRes.data || []);
         setTeams(teamsData);
       } catch (error) {
@@ -773,7 +762,6 @@ function Fs2Disetujui() {
     setSelectedFase(new Set());
     setSelectedMekanisme(new Set());
     setSelectedPelaksanaan(new Set());
-    setSelectedBidangFilter('');
     setSelectedSkpaFilter('');
     setSelectedYearFilter(new Date().getFullYear().toString());
     setSelectedStartMonth('');
@@ -831,10 +819,9 @@ function Fs2Disetujui() {
     if (selectedFase.size > 0) count++;
     if (selectedMekanisme.size > 0) count++;
     if (selectedPelaksanaan.size > 0) count++;
-    if (selectedBidangFilter) count++;
     if (selectedSkpaFilter) count++;
     return count;
-  }, [selectedProgres, selectedProgresStatus, selectedFase, selectedMekanisme, selectedPelaksanaan, selectedBidangFilter, selectedSkpaFilter]);
+  }, [selectedProgres, selectedProgresStatus, selectedFase, selectedMekanisme, selectedPelaksanaan, selectedSkpaFilter]);
 
   // View modal handlers
   const handleOpenViewModal = (fs2Id: string) => {
@@ -929,7 +916,7 @@ function Fs2Disetujui() {
         team_id: fs2.team_id || '',
         anggota_tim: fs2.anggota_tim || '',
         anggota_tim_names: fs2.anggota_tim_names || '',
-        bidang_id: fs2.bidang_id || '',
+        
         // PKSI Reference (for DESAIN status)
         pksi_id: fs2.pksi_id || '',
         // Dokumen Pengajuan F.S.2
@@ -955,7 +942,6 @@ function Fs2Disetujui() {
         // Keterangan
         keterangan: fs2.keterangan || '',
         // Tahapan completion dates
-        tanggal_pengajuan_selesai: fs2.tanggal_pengajuan_selesai || '',
         tanggal_asesmen: fs2.tanggal_asesmen || '',
         target_pemrograman: fs2.target_pemrograman || '',
         tanggal_pemrograman: fs2.tanggal_pemrograman || '',
@@ -970,7 +956,6 @@ function Fs2Disetujui() {
       // - First tahapan without completion date (after all Selesai) = "Dalam proses"
       // - Others = "Belum dimulai"
       const completionDates: Record<string, string> = {
-        'PENGAJUAN': fs2.tanggal_pengajuan_selesai || '',
         'ASESMEN': fs2.tanggal_asesmen || '',
         'PEMROGRAMAN': fs2.tanggal_pemrograman || '',
         'PENGUJIAN': fs2.tanggal_pengujian_selesai || '',
@@ -1282,7 +1267,6 @@ function Fs2Disetujui() {
     try {
       // Derive statuses from completion dates before submitting
       const completionDates: Record<string, string> = {
-        'PENGAJUAN': (editFormData.tanggal_pengajuan_selesai || '').substring(0, 10),
         'ASESMEN': (editFormData.tanggal_asesmen || '').substring(0, 10),
         'PEMROGRAMAN': (editFormData.tanggal_pemrograman || '').substring(0, 10),
         'PENGUJIAN': (editFormData.tanggal_pengujian_selesai || '').substring(0, 10),
@@ -1335,7 +1319,6 @@ function Fs2Disetujui() {
         progres: currentTahapanKey || undefined,
         progres_status: currentTahapanStatus,
         // Include tahapan statuses derived from completion dates
-        tahapan_status_pengajuan: derivedStatuses['PENGAJUAN'] || undefined,
         tahapan_status_asesmen: derivedStatuses['ASESMEN'] || undefined,
         tahapan_status_pemrograman: derivedStatuses['PEMROGRAMAN'] || undefined,
         tahapan_status_pengujian: derivedStatuses['PENGUJIAN'] || undefined,
@@ -1365,7 +1348,6 @@ function Fs2Disetujui() {
       
       await downloadApprovedFs2Excel({
         search: keyword || undefined,
-        bidang_id: selectedBidangFilter || undefined,
         skpa_id: selectedSkpaFilter || undefined,
         progres: progresFilter,
         progres_status: progresStatusFilter,
@@ -2289,79 +2271,41 @@ function Fs2Disetujui() {
               </Box>
             </Box>
 
-            {/* Row 3: Bidang & SKPA */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2.5 }}>
-              {/* Bidang Filter */}
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#DC2626' }} />
-                  Bidang
-                </Typography>
-                <FormControl fullWidth size="small">
-                  <Select
-                    value={selectedBidangFilter}
-                    displayEmpty
-                    onChange={(e) => setSelectedBidangFilter(e.target.value)}
+            {/* SKPA Filter (searchable) */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#4F46E5' }} />
+                SKPA
+              </Typography>
+              <Autocomplete
+                size="small"
+                options={skpaList}
+                value={selectedSkpaFilter ? skpaList.find(s => s.id === selectedSkpaFilter) || null : null}
+                getOptionLabel={(opt) => `${opt.kode_skpa} - ${opt.nama_skpa}`}
+                onChange={(_, value) => setSelectedSkpaFilter(value ? value.id : '')}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                filterOptions={(options, { inputValue }) => {
+                  const q = inputValue.trim().toLowerCase();
+                  if (!q) return options;
+                  return options.filter(o => (`${o.kode_skpa} ${o.nama_skpa}`).toLowerCase().includes(q));
+                }}
+                clearOnEscape
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder="Semua SKPA"
+                    fullWidth
                     sx={{
-                      borderRadius: '12px',
-                      bgcolor: 'rgba(255, 255, 255, 0.9)',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '12px',
+                        bgcolor: 'rgba(255, 255, 255, 0.9)',
                       },
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#DC2626',
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#DC2626',
-                        borderWidth: 2,
-                      },
+                      '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.08)' },
+                      '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#4F46E5', borderWidth: 2 },
                     }}
-                  >
-                    <MenuItem value="">
-                      <em>Semua Bidang</em>
-                    </MenuItem>
-                    {bidangList.map((bidang) => (
-                      <MenuItem key={bidang.id} value={bidang.id}>{bidang.nama_bidang}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-
-              {/* SKPA Filter */}
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#4F46E5' }} />
-                  SKPA
-                </Typography>
-                <FormControl fullWidth size="small">
-                  <Select
-                    value={selectedSkpaFilter}
-                    displayEmpty
-                    onChange={(e) => setSelectedSkpaFilter(e.target.value)}
-                    sx={{
-                      borderRadius: '12px',
-                      bgcolor: 'rgba(255, 255, 255, 0.9)',
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(0, 0, 0, 0.1)',
-                      },
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#4F46E5',
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#4F46E5',
-                        borderWidth: 2,
-                      },
-                    }}
-                  >
-                    <MenuItem value="">
-                      <em>Semua SKPA</em>
-                    </MenuItem>
-                    {skpaList.map((skpa) => (
-                      <MenuItem key={skpa.id} value={skpa.id}>{skpa.kode_skpa} - {skpa.nama_skpa}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
+                  />
+                )}
+              />
             </Box>
 
             {/* Reset Button */}
@@ -2448,7 +2392,6 @@ function Fs2Disetujui() {
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('progresStatus') && { position: 'sticky', left: getStickyLeft('progresStatus'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('progresStatus') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Status</TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 130, ...(stickyColumns.has('fasePengajuan') && { position: 'sticky', left: getStickyLeft('fasePengajuan'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('fasePengajuan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Fase Pengajuan</TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 80, ...(stickyColumns.has('iku') && { position: 'sticky', left: getStickyLeft('iku'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('iku') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>IKU</TableCell>
-              <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Bidang</TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>SKPA</TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100, ...(stickyColumns.has('mekanisme') && { position: 'sticky', left: getStickyLeft('mekanisme'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('mekanisme') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Mekanisme</TableCell>
               <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 140, ...(stickyColumns.has('pelaksanaan') && { position: 'sticky', left: getStickyLeft('pelaksanaan'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('pelaksanaan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>Pelaksanaan</TableCell>
@@ -2587,8 +2530,6 @@ function Fs2Disetujui() {
                     <TableCell sx={{ py: 1, px: 2, minWidth: 80, ...(stickyColumns.has('iku') && { position: 'sticky', left: getStickyLeft('iku'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('iku') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                       <Chip label={row.iku === 'Y' ? 'Ya' : row.iku === 'T' ? 'Tidak' : row.iku} size="small" sx={{ bgcolor: row.iku === 'Y' ? '#D1FAE5' : '#FEE2E2', color: row.iku === 'Y' ? '#059669' : '#DC2626', fontWeight: 500, fontSize: '0.7rem' }} />
                     </TableCell>
-                    {/* Bidang */}
-                    <TableCell sx={{ py: 1, px: 2, fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>{row.bidang}</TableCell>
                     {/* SKPA */}
                     <TableCell sx={{ py: 1, px: 2, minWidth: 100, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 1, bgcolor: '#fff' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                       <Chip label={row.skpa} size="small" sx={{ bgcolor: skpaColor.bg, color: skpaColor.text, fontWeight: 500, fontSize: '0.7rem' }} />
@@ -3067,34 +3008,35 @@ function Fs2Disetujui() {
                     <Typography sx={{ color: '#86868b', fontSize: '0.85rem' }}>-</Typography>
                   )}
                 </Box>
-                {/* PKSI field - only show when status_tahapan is DESAIN */}
-                {selectedFs2.pksi_nama && (
-                  <Box sx={{ flex: 1 }}>
-                    <Typography sx={{ 
-                      fontSize: '0.7rem', 
-                      color: '#86868b', 
-                      mb: 0.5,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      fontWeight: 500,
-                    }}>
-                      PKSI Terkait
-                    </Typography>
-                    <Chip
-                      label={selectedFs2.pksi_nama}
-                      size="small"
-                      sx={{
-                        bgcolor: 'rgba(59, 130, 246, 0.15)',
-                        color: '#3B82F6',
-                        fontWeight: 600,
-                        fontSize: '0.65rem',
-                        height: 22,
-                        borderRadius: '6px',
-                      }}
-                    />
-                  </Box>
-                )}
               </Box>
+
+              {/* PKSI field - only show for DESAIN fase_pengajuan, displayed below the three fields */}
+              {selectedFs2.pksi_nama && selectedFs2.fase_pengajuan === 'DESAIN' && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography sx={{ 
+                    fontSize: '0.7rem', 
+                    color: '#86868b', 
+                    mb: 0.5,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    fontWeight: 500,
+                  }}>
+                    PKSI Terkait
+                  </Typography>
+                  <Chip
+                    label={selectedFs2.pksi_nama}
+                    size="small"
+                    sx={{
+                      bgcolor: 'rgba(59, 130, 246, 0.15)',
+                      color: '#3B82F6',
+                      fontWeight: 600,
+                      fontSize: '0.65rem',
+                      height: 22,
+                      borderRadius: '6px',
+                    }}
+                  />
+                </Box>
+              )}
             </Box>
           )}
 
@@ -3628,42 +3570,7 @@ function Fs2Disetujui() {
               </Select>
             </FormControl>
 
-            <FormControl fullWidth size="small">
-              <InputLabel sx={{ '&.Mui-focused': { color: '#31A24C' } }}>Bidang</InputLabel>
-              <Select
-                value={editFormData.bidang_id || ''}
-                label="Bidang"
-                onChange={(e) => setEditFormData({ ...editFormData, bidang_id: e.target.value })}
-                sx={{
-                  borderRadius: '14px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                  backdropFilter: 'blur(10px)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 0, 0, 0.08)',
-                    transition: 'all 0.3s ease',
-                  },
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(49, 162, 76, 0.3)',
-                    },
-                  },
-                  '&.Mui-focused': {
-                    backgroundColor: 'rgba(255, 255, 255, 1)',
-                    boxShadow: '0 4px 20px rgba(49, 162, 76, 0.12)',
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#31A24C',
-                      borderWidth: '1.5px',
-                    },
-                  },
-                }}
-              >
-                {bidangList.map((bidang) => (
-                  <MenuItem key={bidang.id} value={bidang.id}>{bidang.nama_bidang}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            
           </Box>
 
           {/* Tim Field */}
