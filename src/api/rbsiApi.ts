@@ -14,6 +14,7 @@ export interface RbsiResponse {
 export interface RbsiProgramResponse {
   id: string;
   rbsi_id: string;
+  kep_id: string;
   tahun: number;
   nomor_program: string;
   nama_program: string;
@@ -125,8 +126,7 @@ export async function getProgramsByRbsi(rbsiId: string, tahun?: number): Promise
 }
 
 export interface CreateProgramRequest {
-  rbsi_id: string;
-  tahun: number;
+  kep_id: string;
   nomor_program: string;
   nama_program: string;
   inisiatifs?: {
@@ -170,6 +170,36 @@ export async function getInisiatifGroups(rbsiId: string): Promise<BaseApiRespons
   return apiRequest<InisiatifGroupResponse[]>(`${BASE_URL}/rbsi/${rbsiId}/inisiatif-groups`, 'GET');
 }
 
+// --- Dropdown grouped response (server-side grouped by program group) ---
+export interface InisiatifGroupDropdownItemDto {
+  inisiatif_group_id?: string;
+  inisiatif_group_name?: string;
+  inisiatif_group_nomor?: string | null;
+  // camelCase variants that might be returned by some layers
+  inisiatifGroupId?: string;
+  inisiatifGroupName?: string;
+  inisiatifGroupNomor?: string | null;
+}
+
+export interface InisiatifGroupDropdownDto {
+  program_group_id?: string | null;
+  program_group_name?: string | null;
+  program_group_nomor?: string | null;
+  // camelCase variants
+  programGroupId?: string | null;
+  programGroupName?: string | null;
+  programGroupNomor?: string | null;
+  inisiatif_groups?: InisiatifGroupDropdownItemDto[];
+  inisiatifGroups?: InisiatifGroupDropdownItemDto[];
+}
+
+/**
+ * Get inisiatif groups as grouped dropdown (server returns grouped by program group)
+ */
+export async function getInisiatifGroupsDropdown(rbsiId: string): Promise<BaseApiResponse<InisiatifGroupDropdownDto[]>> {
+  return apiRequest<InisiatifGroupDropdownDto[]>(`${BASE_URL}/rbsi/${rbsiId}/inisiatif-groups-dropdown`, 'GET');
+}
+
 /**
  * Create or Update Inisiatif
  */
@@ -178,8 +208,7 @@ export async function createInisiatif(request: CreateInisiatifRequest): Promise<
 }
 
 export interface UpdateProgramRequest {
-  rbsi_id: string;
-  tahun: number;
+  kep_id: string;
   nomor_program: string;
   nama_program: string;
 }

@@ -17,8 +17,10 @@ const Layout = ({ children }: LayoutProps) => {
         component="main"
         sx={{
           flexGrow: 1,
+          minWidth: 0,
           minHeight: '100vh',
           bgcolor: '#fbfbfd',
+          overflow: 'hidden',
           transition: 'margin 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >

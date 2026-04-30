@@ -249,7 +249,7 @@ function RbsiManagementPage() {
     id: string;
     nomor: string;
     nama: string;
-    rbsiId?: string;
+    kepId?: string;
     programId?: string;
     tahun: number;
     groupId?: string | null; // Current group_id of initiative (null or UUID)
@@ -294,24 +294,17 @@ function RbsiManagementPage() {
     return { start: startYear, end: endYear };
   }, [selectedRbsi]);
 
-  // Tahun options from RBSI periode
+  // Tahun options: only years that have a KEP
   const tahunOptions = React.useMemo(() => {
-    if (!selectedRbsi) return [];
-    const [startYear, endYear] = selectedRbsi.periode.split('-').map(Number);
-    const years: number[] = [];
-    for (let year = startYear; year <= endYear; year++) {
-      years.push(year);
-    }
-    return years;
-  }, [selectedRbsi]);
+    return kepList.map(k => k.tahunPelaporan).sort((a, b) => a - b);
+  }, [kepList]);
 
-  // Previous year for copy
+  // Previous KEP year for copy (the KEP immediately before selectedTahun)
   const previousTahun = React.useMemo(() => {
-    if (!selectedRbsi || !selectedTahun) return null;
-    const [startYear] = selectedRbsi.periode.split('-').map(Number);
-    const prevYear = selectedTahun - 1;
-    return prevYear >= startYear ? prevYear : null;
-  }, [selectedRbsi, selectedTahun]);
+    const sortedYears = kepList.map(k => k.tahunPelaporan).sort((a, b) => a - b);
+    const currentIdx = sortedYears.indexOf(selectedTahun);
+    return currentIdx > 0 ? sortedYears[currentIdx - 1] : null;
+  }, [kepList, selectedTahun]);
 
   // ============ COMPARISON HELPER FUNCTIONS ============
 
@@ -422,23 +415,21 @@ function RbsiManagementPage() {
 
   // Update selectedKep when selectedTahun or kepList changes
   useEffect(() => {
-    if (selectedTahun && kepList.length > 0) {
+    if (kepList.length > 0) {
       const kep = kepList.find(k => k.tahunPelaporan === selectedTahun);
       setSelectedKep(kep || null);
+    } else {
+      setSelectedKep(null);
     }
   }, [selectedTahun, kepList]);
 
-  // Set default tahun when selectedRbsi changes
+  // Set default tahun to the latest KEP year when kepList loads/changes
   useEffect(() => {
-    if (selectedRbsi) {
-      const [startYear, endYear] = selectedRbsi.periode.split('-').map(Number);
-      if (currentYear >= startYear && currentYear <= endYear) {
-        setSelectedTahun(currentYear);
-      } else {
-        setSelectedTahun(endYear);
-      }
+    if (kepList.length > 0) {
+      const latestKepYear = Math.max(...kepList.map(k => k.tahunPelaporan));
+      setSelectedTahun(latestKepYear);
     }
-  }, [selectedRbsi, currentYear]);
+  }, [kepList]);
 
   // Fetch optimized monitoring data (single API call) when in monitoring mode
   useEffect(() => {
@@ -955,7 +946,7 @@ function RbsiManagementPage() {
       id: program.id,
       nomor: program.nomor_program,
       nama: program.nama_program,
-      rbsiId: program.rbsi_id,
+      kepId: program.kep_id,
       tahun: program.tahun ?? selectedTahun,
     });
     setEditNomor(program.nomor_program);
@@ -1003,8 +994,7 @@ function RbsiManagementPage() {
     try {
       if (editDialogType === 'program') {
         await apiUpdateProgram(editingItem.id, {
-          rbsi_id: editingItem.rbsiId || selectedRbsi.id,
-          tahun: tahun,
+          kep_id: editingItem.kepId || selectedKep?.id || '',
           nomor_program: editNomor,
           nama_program: editNama,
         });
@@ -1454,6 +1444,10 @@ function RbsiManagementPage() {
               <IconButton
                 size="small"
                 onClick={() => {
+                  if (!selectedRbsi) {
+                    setSnackbar({ open: true, message: 'Pilih periode RBSI terlebih dahulu', severity: 'warning' });
+                    return;
+                  }
                   const maxYear = kepList.length > 0 ? Math.max(...kepList.map(k => k.tahunPelaporan)) : currentYear;
                   setNewKepYear(maxYear + 1);
                   setNewKepNomor(`KEP-${String(kepList.length + 1).padStart(3, '0')}/${maxYear + 1}`);
@@ -1472,25 +1466,41 @@ function RbsiManagementPage() {
             <Box sx={{ width: 1, height: 24, bgcolor: '#e0e0e0', mx: 0.5 }} />
 
             {/* Primary action: Add Program */}
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={<AddIcon sx={{ fontSize: 18 }} />}
-              onClick={() => setOpenAddProgramModal(true)}
-              sx={{
-                background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
-                borderRadius: '8px',
-                textTransform: 'none',
-                fontWeight: 600,
-                fontSize: '0.8rem',
-                py: 0.75,
-                px: 1.5,
-                minWidth: 'auto',
-                '&:hover': { background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)' },
-              }}
-            >
-              Program
-            </Button>
+            <Tooltip title={!selectedRbsi ? 'Pilih periode RBSI terlebih dahulu' : !selectedKep ? 'Buat KEP untuk tahun ini terlebih dahulu' : ''}>
+              <span>
+                <Button
+                  size="small"
+                  variant="contained"
+                  startIcon={<AddIcon sx={{ fontSize: 18 }} />}
+                  onClick={() => {
+                    if (!selectedRbsi) {
+                      setSnackbar({ open: true, message: 'Pilih periode RBSI terlebih dahulu', severity: 'warning' });
+                      return;
+                    }
+                    if (!selectedKep) {
+                      setSnackbar({ open: true, message: 'Buat KEP untuk tahun ini terlebih dahulu', severity: 'warning' });
+                      return;
+                    }
+                    setOpenAddProgramModal(true);
+                  }}
+                  disabled={!selectedRbsi || !selectedKep}
+                  sx={{
+                    background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.8rem',
+                    py: 0.75,
+                    px: 1.5,
+                    minWidth: 'auto',
+                    '&:hover': { background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)' },
+                    '&.Mui-disabled': { background: '#e5e5e7' },
+                  }}
+                >
+                  Program
+                </Button>
+              </span>
+            </Tooltip>
 
             {/* Save Button (monitoring mode only, shown when there are changes) */}
             {viewMode === 'monitoring' && hasChanges && (
@@ -1549,6 +1559,31 @@ function RbsiManagementPage() {
                 <Typography variant="body2" sx={{ mt: 1, color: '#666' }}>
                   Memuat data...
                 </Typography>
+              </Box>
+            ) : !kepLoading && kepList.length === 0 ? (
+              /* No KEP yet — prompt user to create one first */
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 6, gap: 2 }}>
+                <KepIcon sx={{ fontSize: 56, color: '#b0bec5' }} />
+                <Typography variant="h6" sx={{ color: '#555', fontWeight: 600 }}>
+                  Belum ada KEP
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#86868b', textAlign: 'center', maxWidth: 360 }}>
+                  Buat KEP terlebih dahulu sebelum menambahkan program dan inisiatif. KEP menentukan tahun pelaporan yang aktif.
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<KepIcon />}
+                  onClick={() => {
+                    if (!selectedRbsi) return;
+                    const maxYear = currentYear;
+                    setNewKepYear(maxYear);
+                    setNewKepNomor(`KEP-001/${maxYear}`);
+                    setAddKepDialogOpen(true);
+                  }}
+                  sx={{ bgcolor: '#1565C0', '&:hover': { bgcolor: '#0D47A1' }, borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                >
+                  Buat KEP Pertama
+                </Button>
               </Box>
             ) : filteredMonitoringPrograms.length === 0 ? (
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 4 }}>
@@ -1916,12 +1951,38 @@ function RbsiManagementPage() {
                       </Typography>
                     </TableCell>
                   </TableRow>
+                ) : !kepLoading && kepList.length === 0 ? (
+                  <TableRow>
+                    <TableCell sx={{ textAlign: 'center', py: 6 }}>
+                      <KepIcon sx={{ fontSize: 48, color: '#b0bec5', mb: 1 }} />
+                      <Typography variant="body1" sx={{ color: '#555', fontWeight: 600, mb: 0.5 }}>
+                        Belum ada KEP
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#86868b', mb: 2 }}>
+                        Buat KEP terlebih dahulu untuk mulai menambahkan program dan inisiatif.
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<KepIcon />}
+                        onClick={() => {
+                          if (!selectedRbsi) return;
+                          setNewKepYear(currentYear);
+                          setNewKepNomor(`KEP-001/${currentYear}`);
+                          setAddKepDialogOpen(true);
+                        }}
+                        sx={{ bgcolor: '#1565C0', '&:hover': { bgcolor: '#0D47A1' }, borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                      >
+                        Buat KEP Pertama
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 ) : filteredPrograms.length === 0 ? (
                   <TableRow>
                     <TableCell sx={{ textAlign: 'center', py: 4 }}>
                       <FolderOpenRounded sx={{ fontSize: 48, color: '#ccc', mb: 1 }} />
                       <Typography variant="body2" sx={{ color: '#666' }}>
-                        {keyword ? 'Tidak ada program yang sesuai pencarian' : 'Belum ada data program'}
+                        {keyword ? 'Tidak ada program yang sesuai pencarian' : 'Belum ada data program untuk tahun ini'}
                       </Typography>
                     </TableCell>
                   </TableRow>
@@ -2099,27 +2160,30 @@ function RbsiManagementPage() {
                                       ))
                                   )}
                                   {/* Tambah Inisiatif Row */}
-                                  <TableRow>
-                                    <TableCell colSpan={4} sx={{ py: 1.5 }}>
-                                      <Button
-                                        size="small"
-                                        startIcon={<AddIcon />}
-                                        onClick={e => {
-                                          e.stopPropagation();
-                                          setSelectedProgramIdForInisiatif(program.id);
-                                          setOpenAddInisiatifModal(true);
-                                        }}
-                                        sx={{
-                                          color: '#DA251C',
-                                          fontSize: '0.85rem',
-                                          fontWeight: 500,
-                                          '&:hover': { bgcolor: 'rgba(218, 37, 28, 0.08)' },
-                                        }}
-                                      >
-                                        Tambah Inisiatif
-                                      </Button>
-                                    </TableCell>
-                                  </TableRow>
+                                  {selectedKep && (
+                                    <TableRow>
+                                      <TableCell colSpan={4} sx={{ py: 1.5 }}>
+                                        <Button
+                                          size="small"
+                                          startIcon={<AddIcon />}
+                                          onClick={e => {
+                                            e.stopPropagation();
+                                            setSelectedProgramIdForInisiatif(program.id);
+                                            setOpenAddInisiatifModal(true);
+                                          }}
+                                          sx={{
+                                            color: '#DA251C',
+                                            fontSize: '0.85rem',
+                                            fontWeight: 500,
+                                            '&:hover': { bgcolor: 'rgba(218, 37, 28, 0.08)' },
+                                          }}
+                                        >
+                                          Tambah Inisiatif
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+
                                 </TableBody>
                               </Table>
                             </Box>
@@ -2197,8 +2261,7 @@ function RbsiManagementPage() {
             fetchPrograms(selectedRbsi.id, selectedTahun, true);
           }
         }}
-        rbsiId={selectedRbsi?.id || ''}
-        tahun={selectedTahun}
+        kepId={selectedKep?.id || ''}
       />
 
       {/* Add Inisiatif Modal */}
