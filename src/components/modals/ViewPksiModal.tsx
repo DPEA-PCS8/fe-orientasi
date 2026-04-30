@@ -517,20 +517,39 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
               </Box>
 
               {/* Program Inisiatif RBSI */}
-              {pksiData.program_inisiatif_rbsi && (
-                <Box sx={{ 
-                  mt: 2, 
-                  p: 2, 
-                  borderRadius: '12px', 
-                  bgcolor: 'rgba(218, 37, 28, 0.03)',
-                  border: '1px solid rgba(218, 37, 28, 0.1)',
-                }}>
-                  <Typography variant="caption" sx={{ color: '#DA251C', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 1 }}>
+              {(pksiData.inisiatif_nama || pksiData.program_inisiatif_rbsi) && (
+                <Box sx={{ mt: 2, p: 2, borderRadius: '12px', bgcolor: 'rgba(218, 37, 28, 0.03)', border: '1px solid rgba(218, 37, 28, 0.1)' }}>
+                  <Typography variant="caption" sx={{ color: '#DA251C', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 1.5 }}>
                     Program Inisiatif RBSI
                   </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500, color: '#1d1d1f' }}>
-                    {pksiData.program_inisiatif_rbsi}
-                  </Typography>
+                  {pksiData.program_nama ? (
+                    <Box>
+                      {/* Program row */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#DA251C', flexShrink: 0 }} />
+                        <Box component="span" sx={{ px: 1, py: 0.2, borderRadius: '6px', bgcolor: 'rgba(218,37,28,0.10)', fontSize: '0.7rem', fontWeight: 700, color: '#DA251C', flexShrink: 0 }}>
+                          {pksiData.program_nomor}
+                        </Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f' }}>{pksiData.program_nama}</Typography>
+                      </Box>
+                      {/* Inisiatif row — indented child */}
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', mt: 1, pl: 1.5 }}>
+                        {/* Connector */}
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mr: 1, pt: 0.5 }}>
+                          <Box sx={{ width: 1.5, height: 12, bgcolor: 'rgba(218,37,28,0.25)' }} />
+                          <Box sx={{ width: 10, height: 1.5, bgcolor: 'rgba(218,37,28,0.25)', alignSelf: 'flex-end' }} />
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                          <Box component="span" sx={{ px: 1, py: 0.2, borderRadius: '6px', bgcolor: 'rgba(218,37,28,0.06)', fontSize: '0.7rem', fontWeight: 700, color: '#DA251C', border: '1px solid rgba(218,37,28,0.15)', flexShrink: 0 }}>
+                            {pksiData.inisiatif_nomor}
+                          </Box>
+                          <Typography variant="body2" sx={{ fontWeight: 500, color: '#374151' }}>{pksiData.inisiatif_nama}</Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Typography variant="body1" sx={{ fontWeight: 500, color: '#1d1d1f' }}>{pksiData.program_inisiatif_rbsi}</Typography>
+                  )}
                 </Box>
               )}
             </GlassCard>
@@ -843,7 +862,29 @@ const ViewPksiModal: React.FC<ViewPksiModalProps> = ({ open, onClose, pksiId, sh
                     </InfoRow>
                     <InfoRow>
                       <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500 }}>Inisiatif RBSI</Typography>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.inisiatif_rbsi || pksiData.program_inisiatif_rbsi || '-'}</Typography>
+                      {pksiData.inisiatif_nama ? (
+                        <Box>
+                          {/* Program */}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                            <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: '#DA251C', flexShrink: 0 }} />
+                            {pksiData.program_nomor && <Box component="span" sx={{ px: 0.75, py: 0.1, borderRadius: '5px', bgcolor: 'rgba(218,37,28,0.1)', fontSize: '0.68rem', fontWeight: 700, color: '#DA251C' }}>{pksiData.program_nomor}</Box>}
+                            <Typography variant="caption" sx={{ color: '#374151', fontWeight: 600 }}>{pksiData.program_nama || '-'}</Typography>
+                          </Box>
+                          {/* Inisiatif — indented child */}
+                          <Box sx={{ display: 'flex', alignItems: 'flex-start', mt: 0.75, pl: 1.25 }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mr: 0.75, pt: 0.4 }}>
+                              <Box sx={{ width: 1.5, height: 10, bgcolor: 'rgba(218,37,28,0.25)' }} />
+                              <Box sx={{ width: 8, height: 1.5, bgcolor: 'rgba(218,37,28,0.25)', alignSelf: 'flex-end' }} />
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                              {pksiData.inisiatif_nomor && <Box component="span" sx={{ px: 0.75, py: 0.1, borderRadius: '5px', bgcolor: 'rgba(218,37,28,0.06)', fontSize: '0.68rem', fontWeight: 700, color: '#DA251C', border: '1px solid rgba(218,37,28,0.15)' }}>{pksiData.inisiatif_nomor}</Box>}
+                              <Typography variant="body2" sx={{ color: '#1d1d1f', fontWeight: 500 }}>{pksiData.inisiatif_nama}</Typography>
+                            </Box>
+                          </Box>
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{pksiData.inisiatif_rbsi || pksiData.program_inisiatif_rbsi || '-'}</Typography>
+                      )}
                     </InfoRow>
                   </Box>
                 </Box>

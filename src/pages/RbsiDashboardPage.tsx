@@ -235,49 +235,11 @@ function RbsiDashboardPage() {
     fetchRbsiList();
   }, []);
 
-  // Fetch KEP list when RBSI changes
-  useEffect(() => {
-    if (!selectedRbsi) return;
-    
-    const fetchKepList = async () => {
-      setKepLoading(true);
-      try {
-        const response = await getKepList(selectedRbsi.id);
-        const list = response.data || [];
-        setKepList(list);
-        
-        // Set default KEP to previous year or closest available
-        if (list.length > 0) {
-          const currentYear = new Date().getFullYear();
-          const lastYear = currentYear - 1;
-          
-          // Find KEP from last year, or closest to it
-          const lastYearKep = list.find(k => k.tahun_pelaporan === lastYear);
-          if (lastYearKep) {
-            setSelectedKepId(lastYearKep.id);
-          } else {
-            // Fallback: use latest KEP
-            const sortedKeps = [...list].sort((a, b) => b.tahun_pelaporan - a.tahun_pelaporan);
-            setSelectedKepId(sortedKeps[0].id);
-          }
-        } else {
-          setSelectedKepId('');
-        }
-      } catch (err) {
-        console.error('Failed to fetch KEP list:', err);
-        setKepList([]);
-        setSelectedKepId('');
-      } finally {
-        setKepLoading(false);
-      }
-    };
-    fetchKepList();
-  }, [selectedRbsi]);
-
-  // Fetch dashboard data
-  const fetchDashboard = useCallback(async () => {
+  // Fetch dashboard data — accepts explicit params to avoid stale-closure races
+  const fetchDashboard = useCallback(async (overrideKepId?: string) => {
     if (!selectedRbsi) return;
 
+    const kepId = overrideKepId !== undefined ? overrideKepId : selectedKepId;
     setLoading(true);
     setError('');
     try {
@@ -286,7 +248,7 @@ function RbsiDashboardPage() {
         selectedTahun,
         pksiStatusFilter || undefined,
         undefined, // comparisonYear
-        selectedKepId || undefined
+        kepId || undefined
       );
       setDashboardData(response.data);
     } catch (err) {
@@ -296,11 +258,56 @@ function RbsiDashboardPage() {
     }
   }, [selectedRbsi, selectedTahun, pksiStatusFilter, selectedKepId]);
 
+  // Fetch KEP list when RBSI changes, then immediately fetch dashboard with resolved KEP id
   useEffect(() => {
-    if (selectedRbsi) {
-      fetchDashboard();
-    }
-  }, [fetchDashboard, selectedRbsi]);
+    if (!selectedRbsi) return;
+
+    let cancelled = false;
+    const fetchKepThenDashboard = async () => {
+      setKepLoading(true);
+      try {
+        const response = await getKepList(selectedRbsi.id);
+        if (cancelled) return;
+        const list = response.data || [];
+        setKepList(list);
+
+        let resolvedKepId = '';
+        if (list.length > 0) {
+          const lastYear = new Date().getFullYear() - 1;
+          const lastYearKep = list.find(k => k.tahun_pelaporan === lastYear);
+          resolvedKepId = lastYearKep
+            ? lastYearKep.id
+            : [...list].sort((a, b) => b.tahun_pelaporan - a.tahun_pelaporan)[0].id;
+          setSelectedKepId(resolvedKepId);
+        } else {
+          setSelectedKepId('');
+        }
+
+        if (!cancelled) {
+          await fetchDashboard(resolvedKepId);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Failed to fetch KEP list:', err);
+          setKepList([]);
+          setSelectedKepId('');
+        }
+      } finally {
+        if (!cancelled) setKepLoading(false);
+      }
+    };
+
+    fetchKepThenDashboard();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRbsi]); // intentionally omit fetchDashboard — called inline with resolved kepId
+
+  // Refetch dashboard when filters change (not RBSI — that's handled above)
+  useEffect(() => {
+    if (!selectedRbsi) return;
+    fetchDashboard();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTahun, pksiStatusFilter]); // intentionally omit selectedRbsi/fetchDashboard
 
   const handleRbsiChange = (event: SelectChangeEvent<string>) => {
     const rbsi = rbsiList.find(r => r.id === event.target.value);
@@ -324,7 +331,9 @@ function RbsiDashboardPage() {
   };
 
   const handleKepChange = (event: SelectChangeEvent<string>) => {
-    setSelectedKepId(event.target.value);
+    const newKepId = event.target.value;
+    setSelectedKepId(newKepId);
+    fetchDashboard(newKepId);
   };
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -768,10 +777,10 @@ function RbsiDashboardPage() {
           </FormControl>
 
           <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Tahun</InputLabel>
+            <InputLabel>Tahun PKSI</InputLabel>
             <Select
               value={selectedTahun}
-              label="Tahun"
+              label="Tahun PKSI"
               onChange={handleTahunChange}
             >
               {yearRange.map(year => (
@@ -862,7 +871,7 @@ function RbsiDashboardPage() {
             {/* PKSI Status Chart */}
             <Paper sx={{ p: 3, borderRadius: 2 }}>
               <DonutChart
-                title={`Status PKSI di Tahun ${selectedTahun}`}
+                title={`Status Inisiatif di Tahun ${selectedTahun}`}
                 data={[
                   { label: 'Memiliki PKSI', value: dashboardData.summary.inisiatif_with_pksi, color: '#4caf50' },
                   { label: 'Belum Memiliki', value: dashboardData.summary.inisiatif_without_pksi, color: '#ff9800' },
@@ -929,8 +938,10 @@ function RbsiDashboardPage() {
                   placeholder="Cari inisiatif..."
                   value={searchQuery}
                   onChange={handleSearchChange}
-                  InputProps={{
-                    startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />,
+                  slotProps={{
+                    input: {
+                      startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />,
+                    },
                   }}
                   sx={{ minWidth: 300 }}
                 />

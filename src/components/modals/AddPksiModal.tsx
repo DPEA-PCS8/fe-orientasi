@@ -25,6 +25,7 @@ import {
   CircularProgress,
   Popover,
   MenuItem,
+  InputBase,
 } from "@mui/material";
 import {
   Close as CloseIcon,
@@ -36,6 +37,7 @@ import {
   Download as DownloadIcon,
   Visibility as VisibilityIcon,
   Add as AddIcon,
+  Search as SearchIcon,
 } from "@mui/icons-material";
 import { getAllSkpa, type SkpaData } from "../../api/skpaApi";
 import { getAllAplikasi, type AplikasiData } from "../../api/aplikasiApi";
@@ -46,11 +48,17 @@ import {
 import { getUserInfo } from "../../api/authApi";
 import {
   getAllRbsi,
-  getRbsiById,
+  getInisiatifGroupsDropdown,
   type RbsiResponse,
-  type RbsiProgramResponse,
-  type RbsiInisiatifResponse,
 } from "../../api/rbsiApi";
+
+interface FlatInisiatif {
+  id: string;
+  nama_inisiatif: string;
+  nama_program: string;
+  nomor_program: string;
+  nomor_inisiatif: string;
+}
 import { 
   uploadPksiTempFiles, 
   movePksiTempFilesToPermanent, 
@@ -319,17 +327,11 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const [skpaOptions, setSkpaOptions] = useState<SkpaOption[]>([]);
   const [aplikasiOptions, setAplikasiOptions] = useState<AplikasiData[]>([]);
   const [rbsiOptions, setRbsiOptions] = useState<RbsiResponse[]>([]);
-  const [programOptions, setProgramOptions] = useState<RbsiProgramResponse[]>(
-    [],
-  );
   const [selectedRbsi, setSelectedRbsi] = useState<RbsiResponse | null>(null);
-  const [selectedProgram, setSelectedProgram] =
-    useState<RbsiProgramResponse | null>(null);
-  const [selectedInisiatif, setSelectedInisiatif] =
-    useState<RbsiInisiatifResponse | null>(null);
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [inisiatifGroups, setInisiatifGroups] = useState<FlatInisiatif[]>([]);
+  const [selectedInisiatifGroup, setSelectedInisiatifGroup] = useState<FlatInisiatif | null>(null);
+  const [inisiatifSearch, setInisiatifSearch] = useState('');
   const [inisiatifPopoverAnchor, setInisiatifPopoverAnchor] = useState<HTMLElement | null>(null);
-  const [popoverWidth, setPopoverWidth] = useState<number>(0);
   const [formData, setFormData] = useState<FormData>({
     namaPksi: "",
     aplikasiId: "",
@@ -397,33 +399,20 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
   const [pendingFiles, setPendingFiles] = useState<Array<{ file: File; tanggal: string }>>([]);
   const sessionIdRef = useRef<string>(`pksi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
-  // Period years derived from selected RBSI
-  const periodYears = useMemo(() => {
-    if (!selectedRbsi) return [];
-    const [startYear, endYear] = selectedRbsi.periode.split('-').map(Number);
-    const years: number[] = [];
-    for (let year = startYear; year <= endYear; year++) {
-      years.push(year);
+  // Inisiatif groups filtered by search, grouped by program
+  const filteredInisiatifGroups = useMemo(() => {
+    const q = inisiatifSearch.toLowerCase();
+    const programMap: Record<string, { programNomor: string; programNama: string; items: FlatInisiatif[] }> = {};
+    for (const ig of inisiatifGroups) {
+      if (!q || ig.nama_inisiatif.toLowerCase().includes(q) || ig.nomor_inisiatif.toLowerCase().includes(q)) {
+        if (!programMap[ig.nomor_program]) {
+          programMap[ig.nomor_program] = { programNomor: ig.nomor_program, programNama: ig.nama_program, items: [] };
+        }
+        programMap[ig.nomor_program].items.push(ig);
+      }
     }
-    return years;
-  }, [selectedRbsi]);
-
-  // All inisiatifs grouped by program with year filter
-  const groupedInisiatifs = useMemo(() => {
-    if (!programOptions.length) return [];
-    
-    return programOptions
-      .map(program => {
-        const inisiatifs = (program.inisiatifs || []).filter(
-          inisiatif => !selectedYear || inisiatif.tahun === selectedYear
-        );
-        return {
-          program,
-          inisiatifs,
-        };
-      })
-      .filter(group => group.inisiatifs.length > 0);
-  }, [programOptions, selectedYear]);
+    return Object.values(programMap);
+  }, [inisiatifGroups, inisiatifSearch]);
 
   // Fetch SKPA and Aplikasi options on mount
   useEffect(() => {
@@ -592,10 +581,9 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     });
     setSelectedStages(new Set(['usreq', 'sit', 'uat', 'goLive']));
     setSelectedRbsi(null);
-    setSelectedProgram(null);
-    setSelectedInisiatif(null);
-    setSelectedYear(null);
-    setProgramOptions([]);
+    setSelectedInisiatifGroup(null);
+    setInisiatifGroups([]);
+    setInisiatifSearch('');
     // Generate new session ID for next form
     sessionIdRef.current = `pksi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
@@ -720,7 +708,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
 
       const requestData: PksiDocumentRequest = {
         aplikasi_id: formData.aplikasiId || undefined,
-        inisiatif_id: selectedInisiatif?.id || undefined,
+        inisiatif_group_id: selectedInisiatifGroup?.id || undefined,
         nama_pksi: formData.namaPksi,
         jenis_pksi: formData.jenisPksi,
         tanggal_pengajuan: formData.tanggalPengajuan || undefined,
@@ -1010,10 +998,9 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                     value={selectedRbsi}
                     onChange={async (_, newValue) => {
                       setSelectedRbsi(newValue);
-                      setSelectedProgram(null);
-                      setSelectedInisiatif(null);
-                      setSelectedYear(null);
-                      setProgramOptions([]);
+                      setSelectedInisiatifGroup(null);
+                      setInisiatifGroups([]);
+                      setInisiatifSearch('');
                       setFormData((prev) => ({
                         ...prev,
                         programInisiatifRBSI: "",
@@ -1021,10 +1008,25 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
 
                       if (newValue) {
                         try {
-                          const response = await getRbsiById(newValue.id);
-                          setProgramOptions(response.data.programs || []);
+                          const res = await getInisiatifGroupsDropdown(newValue.id);
+                          const flat: FlatInisiatif[] = [];
+                          for (const pg of res.data || []) {
+                            const programNomor = pg.program_group_nomor ?? pg.programGroupNomor ?? '';
+                            const programNama  = pg.program_group_name  ?? pg.programGroupName  ?? '';
+                            const items = pg.inisiatif_groups ?? pg.inisiatifGroups ?? [];
+                            for (const ig of items) {
+                              flat.push({
+                                id:              ig.inisiatif_group_id    ?? ig.inisiatifGroupId    ?? '',
+                                nama_inisiatif:  ig.inisiatif_group_name  ?? ig.inisiatifGroupName  ?? '',
+                                nama_program:    programNama,
+                                nomor_program:   programNomor,
+                                nomor_inisiatif: ig.inisiatif_group_nomor ?? ig.inisiatifGroupNomor ?? '',
+                              });
+                            }
+                          }
+                          setInisiatifGroups(flat);
                         } catch (error) {
-                          console.error("Error fetching RBSI programs:", error);
+                          console.error("Error fetching inisiatif groups:", error);
                         }
                       }
                     }}
@@ -1043,7 +1045,6 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                 <Box
                   onClick={(e) => {
                     if (selectedRbsi) {
-                      setPopoverWidth(e.currentTarget.offsetWidth);
                       setInisiatifPopoverAnchor(e.currentTarget);
                     }
                   }}
@@ -1063,13 +1064,13 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                     opacity: selectedRbsi ? 1 : 0.6,
                   }}
                 >
-                  {selectedInisiatif && selectedProgram ? (
+                  {selectedInisiatifGroup ? (
                     <Box sx={{ overflow: 'hidden', flex: 1 }}>
                       <Typography sx={{ fontSize: '0.875rem', color: '#1d1d1f', fontWeight: 500, wordWrap: 'break-word', whiteSpace: 'normal' }}>
-                        {selectedInisiatif.nomor_inisiatif} - {selectedInisiatif.nama_inisiatif}
+                        {selectedInisiatifGroup.nomor_inisiatif} - {selectedInisiatifGroup.nama_inisiatif}
                       </Typography>
                       <Typography sx={{ fontSize: '0.7rem', color: '#86868b', wordWrap: 'break-word', whiteSpace: 'normal' }}>
-                        {selectedProgram.nomor_program} - {selectedProgram.nama_program}
+                        {selectedInisiatifGroup.nomor_program} - {selectedInisiatifGroup.nama_program}
                       </Typography>
                     </Box>
                   ) : (
@@ -1087,124 +1088,101 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                   }}
                   anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
                   transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-                  PaperProps={{ 
-                    sx: { 
-                      borderRadius: '12px', 
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.15)', 
-                      width: popoverWidth || 'auto',
-                      maxHeight: 450,
+                  PaperProps={{
+                    sx: {
+                      borderRadius: '12px',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+                      width: 400,
                       mt: 0.5,
-                    } 
+                      overflow: 'hidden',
+                    }
                   }}
                 >
-                  <Box sx={{ py: 1 }}>
-                    {/* Year Filter */}
-                    <Box sx={{ px: 2, pb: 1, borderBottom: '1px solid #e0e0e0' }}>
-                      <Typography variant="caption" sx={{ color: '#86868b', mb: 0.5, display: 'block', fontWeight: 600 }}>
-                        Filter berdasarkan tahun
-                      </Typography>
-                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                        <Chip
-                          label="Semua"
-                          size="small"
-                          onClick={() => setSelectedYear(null)}
-                          sx={{
-                            bgcolor: selectedYear === null ? '#DA251C' : '#f5f5f5',
-                            color: selectedYear === null ? 'white' : '#666',
-                            fontSize: '0.7rem',
-                            height: 24,
-                            '&:hover': { opacity: 0.8 },
-                          }}
-                        />
-                        {periodYears.map(year => (
-                          <Chip
-                            key={year}
-                            label={year}
-                            size="small"
-                            onClick={() => setSelectedYear(year)}
-                            sx={{
-                              bgcolor: selectedYear === year ? '#DA251C' : '#f5f5f5',
-                              color: selectedYear === year ? 'white' : '#666',
-                              fontSize: '0.7rem',
-                              height: 24,
-                              '&:hover': { opacity: 0.8 },
-                            }}
-                          />
-                        ))}
-                      </Box>
-                    </Box>
+                  {/* Search bar */}
+                  <Box sx={{ px: 1.5, py: 1, borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <SearchIcon sx={{ fontSize: 18, color: '#aaa' }} />
+                    <InputBase
+                      autoFocus
+                      fullWidth
+                      placeholder="Cari nama atau nomor inisiatif..."
+                      value={inisiatifSearch}
+                      onChange={e => setInisiatifSearch(e.target.value)}
+                      sx={{ fontSize: '0.875rem' }}
+                    />
+                    {inisiatifSearch && (
+                      <IconButton size="small" onClick={() => setInisiatifSearch('')} sx={{ color: '#aaa' }}>
+                        <CloseIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    )}
+                  </Box>
 
-                    {/* Program + Inisiatif List */}
-                    <Box sx={{ maxHeight: 330, overflow: 'auto' }}>
-                      {groupedInisiatifs.length === 0 ? (
-                        <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
-                          <Typography variant="body2" sx={{ color: '#86868b' }}>
-                            {selectedYear ? `Tidak ada inisiatif untuk tahun ${selectedYear}` : 'Tidak ada program & inisiatif'}
-                          </Typography>
-                        </Box>
-                      ) : (
-                        groupedInisiatifs.map(({ program, inisiatifs }) => (
-                          <Box key={program.id}>
-                            {/* Program Header */}
-                            <Box
-                              sx={{
-                                px: 2,
-                                py: 1,
-                                bgcolor: '#f8f8f8',
-                                borderBottom: '1px solid #e0e0e0',
-                                position: 'sticky',
-                                top: 0,
-                                zIndex: 1,
-                              }}
-                            >
-                              <Typography sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#DA251C', wordWrap: 'break-word', whiteSpace: 'normal' }}>
-                                {program.nomor_program} - {program.nama_program}
-                              </Typography>
-                            </Box>
-                            {/* Inisiatif Items */}
-                            {inisiatifs.map(inisiatif => (
-                              <MenuItem
-                                key={inisiatif.id}
-                                selected={selectedInisiatif?.id === inisiatif.id}
+                  {/* Program + Inisiatif List */}
+                  <Box sx={{ maxHeight: 360, overflowY: 'auto' }}>
+                    {filteredInisiatifGroups.length === 0 ? (
+                      <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
+                        <SearchIcon sx={{ fontSize: 32, color: '#ddd', mb: 1 }} />
+                        <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.82rem' }}>
+                          {inisiatifGroups.length === 0 ? 'Tidak ada inisiatif untuk periode ini' : 'Tidak ditemukan'}
+                        </Typography>
+                      </Box>
+                    ) : (
+                      filteredInisiatifGroups.map(group => (
+                        <Box key={group.programNomor}>
+                          <Box sx={{ px: 2, py: 0.75, bgcolor: '#f8f8f8', borderBottom: '1px solid #ececec', position: 'sticky', top: 0, zIndex: 1 }}>
+                            <Typography sx={{ fontWeight: 700, fontSize: '0.7rem', color: '#DA251C', letterSpacing: '0.02em', textTransform: 'uppercase' }}>
+                              {group.programNomor} — {group.programNama}
+                            </Typography>
+                          </Box>
+                          {group.items.map(item => {
+                            const isSelected = selectedInisiatifGroup?.id === item.id;
+                            return (
+                              <Box
+                                key={item.id}
                                 onClick={() => {
-                                  setSelectedProgram(program);
-                                  setSelectedInisiatif(inisiatif);
-                                  const label = `${inisiatif.nomor_inisiatif} - ${inisiatif.nama_inisiatif} (${program.nomor_program})`;
-                                  setFormData((prev) => ({
+                                  setSelectedInisiatifGroup(item);
+                                  setFormData(prev => ({
                                     ...prev,
-                                    programInisiatifRBSI: label,
+                                    programInisiatifRBSI: `${item.nomor_inisiatif} - ${item.nama_inisiatif} (${item.nomor_program})`,
                                   }));
                                   setInisiatifPopoverAnchor(null);
+                                  setInisiatifSearch('');
                                 }}
-                                sx={{ 
-                                  fontSize: '0.85rem', 
-                                  py: 1.5, 
-                                  px: 2,
-                                  pl: 3,
-                                  borderLeft: '3px solid transparent',
-                                  '&.Mui-selected': {
-                                    borderLeftColor: '#DA251C',
-                                    bgcolor: 'rgba(218, 37, 28, 0.08)',
-                                  },
-                                  '&:hover': {
-                                    borderLeftColor: '#DA251C',
-                                  },
+                                sx={{
+                                  px: 2, py: 1.1, cursor: 'pointer',
+                                  borderLeft: isSelected ? '3px solid #DA251C' : '3px solid transparent',
+                                  bgcolor: isSelected ? 'rgba(218,37,28,0.04)' : 'transparent',
+                                  '&:hover': { bgcolor: isSelected ? 'rgba(218,37,28,0.07)' : 'rgba(0,0,0,0.03)', borderLeftColor: '#DA251C' },
+                                  display: 'flex', alignItems: 'center', gap: 1.5,
                                 }}
                               >
-                                <Box>
-                                    <Typography sx={{ fontWeight: 500, fontSize: '0.85rem', wordWrap: 'break-word', whiteSpace: 'normal' }}>
-                                      {inisiatif.nomor_inisiatif} - {inisiatif.nama_inisiatif}
-                                    </Typography>
-                                    <Typography sx={{ fontSize: '0.7rem', color: '#86868b' }}>
-                                      Tahun {inisiatif.tahun}
-                                    </Typography>
-                                  </Box>
-                              </MenuItem>
-                            ))}
-                          </Box>
-                        ))
-                      )}
-                    </Box>
+                                <Box sx={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
+                                  <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: '#DA251C', flexShrink: 0, lineHeight: 1.5 }}>
+                                    {item.nomor_inisiatif}
+                                  </Typography>
+                                  <Typography sx={{ fontSize: '0.82rem', fontWeight: 500, lineHeight: 1.4, color: '#1d1d1f' }}>
+                                    {item.nama_inisiatif}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            );
+                          })}
+                        </Box>
+                      ))
+                    )}
+                  </Box>
+
+                  {/* Footer */}
+                  <Box sx={{ px: 2, py: 0.75, borderTop: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography sx={{ fontSize: '0.7rem', color: '#bbb' }}>{inisiatifGroups.length} inisiatif</Typography>
+                    {selectedInisiatifGroup && (
+                      <Button size="small" color="error" onClick={() => {
+                        setSelectedInisiatifGroup(null);
+                        setFormData(prev => ({ ...prev, programInisiatifRBSI: '' }));
+                        setInisiatifPopoverAnchor(null);
+                      }} sx={{ fontSize: '0.7rem', minWidth: 0, py: 0.25 }}>
+                        Hapus pilihan
+                      </Button>
+                    )}
                   </Box>
                 </Popover>
               </Box>

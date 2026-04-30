@@ -3,18 +3,26 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box,
   Typography, Autocomplete, CircularProgress, Stack, Accordion, AccordionSummary,
   AccordionDetails, IconButton, Chip, styled, Popover, MenuItem, List, ListItem,
-  ListItemIcon, ListItemText, ListItemSecondaryAction,
+  ListItemIcon, ListItemText, ListItemSecondaryAction, InputBase,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon, Close as CloseIcon, CloudUpload as CloudUploadIcon,
   Delete as DeleteIcon, InsertDriveFile as FileIcon, Download as DownloadIcon,
-  Visibility as VisibilityIcon, Add as AddIcon,
+  Visibility as VisibilityIcon, Add as AddIcon, Search as SearchIcon,
 } from '@mui/icons-material';
 import { getAllSkpa, type SkpaData } from '../../api/skpaApi';
 import { getAllAplikasi, type AplikasiData } from '../../api/aplikasiApi';
 import { getPksiDocumentById, updatePksiDocument, type PksiDocumentRequest } from '../../api/pksiApi';
 import { getUserInfo } from '../../api/authApi';
-import { getAllRbsi, getRbsiById, type RbsiResponse, type RbsiProgramResponse, type RbsiInisiatifResponse } from '../../api/rbsiApi';
+import { getAllRbsi, getInisiatifGroupsDropdown, type RbsiResponse } from '../../api/rbsiApi';
+
+interface FlatInisiatif {
+  id: string;
+  nama_inisiatif: string;
+  nama_program: string;
+  nomor_program: string;
+  nomor_inisiatif: string;
+}
 import { uploadPksiFiles, getPksiFiles, deletePksiFile, downloadPksiFile, type PksiFileData } from '../../api/pksiFileApi';
 import { StageSelector } from '../StageSelector';
 import FilePreviewModal from './FilePreviewModal';
@@ -248,15 +256,13 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
   const [skpaOptions, setSkpaOptions] = useState<SkpaOption[]>([]);
   const [aplikasiOptions, setAplikasiOptions] = useState<AplikasiData[]>([]);
   const [rbsiOptions, setRbsiOptions] = useState<RbsiResponse[]>([]);
-  const [programOptions, setProgramOptions] = useState<RbsiProgramResponse[]>([]);
+  const [inisiatifGroups, setInisiatifGroups] = useState<FlatInisiatif[]>([]);
   const [selectedRbsi, setSelectedRbsi] = useState<RbsiResponse | null>(null);
-  const [selectedProgram, setSelectedProgram] = useState<RbsiProgramResponse | null>(null);
-  const [selectedInisiatif, setSelectedInisiatif] = useState<RbsiInisiatifResponse | null>(null);
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [selectedInisiatifGroup, setSelectedInisiatifGroup] = useState<FlatInisiatif | null>(null);
+  const [inisiatifSearch, setInisiatifSearch] = useState('');
   const [inisiatifPopoverAnchor, setInisiatifPopoverAnchor] = useState<HTMLElement | null>(null);
-  const [popoverWidth, setPopoverWidth] = useState<number>(0);
   const [isLoadingData, setIsLoadingData] = useState(false);
-  const [loadedInisiatifId, setLoadedInisiatifId] = useState<string | null>(null);
+  const [loadedInisiatifGroupId, setLoadedInisiatifGroupId] = useState<string | null>(null);
   const [timelinePhases, setTimelinePhases] = useState<TimelinePhases>({
     usreq: [currentMonthValue()],
     sit: [currentMonthValue()],
@@ -309,21 +315,19 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<PksiFileData | null>(null);
 
-  const periodYears = useMemo(() => {
-    if (!selectedRbsi) return [];
-    const [startYear, endYear] = selectedRbsi.periode.split('-').map(Number);
-    const years: number[] = [];
-    for (let year = startYear; year <= endYear; year++) years.push(year);
-    return years;
-  }, [selectedRbsi]);
-
-  const groupedInisiatifs = useMemo(() => {
-    if (!programOptions.length) return [];
-    return programOptions.map(program => {
-      const inisiatifs = (program.inisiatifs || []).filter(i => !selectedYear || i.tahun === selectedYear);
-      return { program, inisiatifs };
-    }).filter(g => g.inisiatifs.length > 0);
-  }, [programOptions, selectedYear]);
+  const filteredInisiatifGroups = useMemo(() => {
+    const q = inisiatifSearch.toLowerCase();
+    const programMap: Record<string, { programNomor: string; programNama: string; items: FlatInisiatif[] }> = {};
+    for (const ig of inisiatifGroups) {
+      if (!q || ig.nama_inisiatif.toLowerCase().includes(q) || ig.nomor_inisiatif.toLowerCase().includes(q)) {
+        if (!programMap[ig.nomor_program]) {
+          programMap[ig.nomor_program] = { programNomor: ig.nomor_program, programNama: ig.nama_program, items: [] };
+        }
+        programMap[ig.nomor_program].items.push(ig);
+      }
+    }
+    return Object.values(programMap);
+  }, [inisiatifGroups, inisiatifSearch]);
 
   const handleAccordionChange = (panel: string) => (_: React.SyntheticEvent, isExpanded: boolean) => {
     setExpandedSection(isExpanded ? panel : false);
@@ -516,7 +520,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
         
         setTimelinePhases(phases);
         
-        if (data.inisiatif_id) setLoadedInisiatifId(data.inisiatif_id);
+        if (data.inisiatif_group_id) setLoadedInisiatifGroupId(data.inisiatif_group_id);
         try {
           const existingFiles = await getPksiFiles(pksiData.id);
           setFilesT01(existingFiles.filter(f => f.file_type === 'T01' || !f.file_type));
@@ -529,28 +533,41 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
   }, [pksiData?.id, open]);
 
   useEffect(() => {
-    if (!loadedInisiatifId || !programOptions.length) return;
-    for (const program of programOptions) {
-      const match = program.inisiatifs?.find(i => i.id === loadedInisiatifId);
-      if (match) { setSelectedInisiatif(match); setSelectedProgram(program); setLoadedInisiatifId(null); break; }
-    }
-  }, [loadedInisiatifId, programOptions]);
+    if (!loadedInisiatifGroupId) return;
+    const match = inisiatifGroups.find(g => g.id === loadedInisiatifGroupId);
+    if (match) { setSelectedInisiatifGroup(match); setLoadedInisiatifGroupId(null); }
+  }, [loadedInisiatifGroupId, inisiatifGroups]);
 
   useEffect(() => {
     const autoSelectRbsi = async () => {
-      if (!loadedInisiatifId || !rbsiOptions.length || selectedRbsi) return;
+      if (!loadedInisiatifGroupId || !rbsiOptions.length || selectedRbsi) return;
       for (const rbsi of rbsiOptions) {
         try {
-          const resp = await getRbsiById(rbsi.id);
-          const programs = resp.data?.programs || [];
-          if (programs.some(p => p.inisiatifs?.some(i => i.id === loadedInisiatifId))) {
-            setSelectedRbsi(rbsi); setProgramOptions(programs); break;
+          const res = await getInisiatifGroupsDropdown(rbsi.id);
+          const flat: FlatInisiatif[] = [];
+          for (const pg of res.data || []) {
+            const programNomor = pg.program_group_nomor ?? pg.programGroupNomor ?? '';
+            const programNama  = pg.program_group_name  ?? pg.programGroupName  ?? '';
+            for (const ig of pg.inisiatif_groups ?? pg.inisiatifGroups ?? []) {
+              flat.push({
+                id:              ig.inisiatif_group_id    ?? ig.inisiatifGroupId    ?? '',
+                nama_inisiatif:  ig.inisiatif_group_name  ?? ig.inisiatifGroupName  ?? '',
+                nama_program:    programNama,
+                nomor_program:   programNomor,
+                nomor_inisiatif: ig.inisiatif_group_nomor ?? ig.inisiatifGroupNomor ?? '',
+              });
+            }
+          }
+          if (flat.some(g => g.id === loadedInisiatifGroupId)) {
+            setSelectedRbsi(rbsi);
+            setInisiatifGroups(flat);
+            break;
           }
         } catch (error) { console.error('Error checking RBSI:', error); }
       }
     };
     autoSelectRbsi();
-  }, [loadedInisiatifId, rbsiOptions, selectedRbsi]);
+  }, [loadedInisiatifGroupId, rbsiOptions, selectedRbsi]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -654,7 +671,7 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
       }
 
       const requestData: PksiDocumentRequest = {
-        aplikasi_id: formData.aplikasiId || undefined, inisiatif_id: selectedInisiatif?.id || undefined,
+        aplikasi_id: formData.aplikasiId || undefined, inisiatif_group_id: selectedInisiatifGroup?.id || undefined,
         nama_pksi: formData.namaPksi, jenis_pksi: formData.jenisPksi, tanggal_pengajuan: formData.tanggalPengajuan || undefined,
         pic_satker_ba: formData.picSatkerBA.length > 0 ? formData.picSatkerBA.join(',') : undefined,
         program_inisiatif_rbsi: formData.programInisiatifRBSI || undefined,
@@ -684,8 +701,8 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
     setErrors({}); setExpandedSection('jadwal'); setFilesT01([]); setFilesT11([]);
     setIsUploadingT01(false); setIsUploadingT11(false); setPendingFilesT01([]); setPendingFilesT11([]); setErrorMessage('');
     setPreviewOpen(false); setPreviewFile(null);
-    setSelectedRbsi(null); setSelectedProgram(null); setSelectedInisiatif(null);
-    setSelectedYear(null); setLoadedInisiatifId(null); onClose();
+    setSelectedRbsi(null); setSelectedInisiatifGroup(null); setInisiatifGroups([]);
+    setInisiatifSearch(''); setLoadedInisiatifGroupId(null); onClose();
   };
 
   const renderFileSection = (title: string, fileType: string, files: PksiFileData[], isUploading: boolean, uploadId: string, iconColor: string, pendingFiles: Array<{ file: File; tanggal: string }>, onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void, onPendingDateChange: (index: number, date: string) => void, onRemovePending: (index: number) => void, onUploadPending: () => void) => (
@@ -774,49 +791,83 @@ const EditPksiModal: React.FC<EditPksiModalProps> = ({ open, onClose, pksiData, 
                   <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#DA251C', fontSize: '0.85rem' }}>Program Inisiatif RBSI</Typography>
                   <Stack spacing={2}>
                     <Autocomplete fullWidth options={rbsiOptions} getOptionLabel={(o) => o.periode} value={selectedRbsi}
-                      onChange={async (_, v) => { setSelectedRbsi(v); setSelectedProgram(null); setSelectedInisiatif(null); setSelectedYear(null); setProgramOptions([]); setFormData(prev => ({ ...prev, programInisiatifRBSI: '' })); if (v) { try { const r = await getRbsiById(v.id); setProgramOptions(r.data.programs || []); } catch (e) { console.error('Error:', e); } } }}
+                      onChange={async (_, v) => {
+                        setSelectedRbsi(v); setSelectedInisiatifGroup(null); setInisiatifGroups([]); setInisiatifSearch('');
+                        setFormData(prev => ({ ...prev, programInisiatifRBSI: '' }));
+                        if (v) {
+                          try {
+                            const res = await getInisiatifGroupsDropdown(v.id);
+                            const flat: FlatInisiatif[] = [];
+                            for (const pg of res.data || []) {
+                              const programNomor = pg.program_group_nomor ?? pg.programGroupNomor ?? '';
+                              const programNama  = pg.program_group_name  ?? pg.programGroupName  ?? '';
+                              for (const ig of pg.inisiatif_groups ?? pg.inisiatifGroups ?? []) {
+                                flat.push({
+                                  id:              ig.inisiatif_group_id    ?? ig.inisiatifGroupId    ?? '',
+                                  nama_inisiatif:  ig.inisiatif_group_name  ?? ig.inisiatifGroupName  ?? '',
+                                  nama_program:    programNama,
+                                  nomor_program:   programNomor,
+                                  nomor_inisiatif: ig.inisiatif_group_nomor ?? ig.inisiatifGroupNomor ?? '',
+                                });
+                              }
+                            }
+                            setInisiatifGroups(flat);
+                          } catch (e) { console.error('Error:', e); }
+                        }
+                      }}
                       renderInput={(params) => <GlassTextField {...params} label="Pilih RBSI (Periode)" size="small" />} size="small" />
                     <Box>
-                      <Box onClick={(e) => { if (selectedRbsi) { setPopoverWidth(e.currentTarget.offsetWidth); setInisiatifPopoverAnchor(e.currentTarget); } }}
+                      <Box onClick={(e) => { if (selectedRbsi) setInisiatifPopoverAnchor(e.currentTarget); }}
                         sx={{ cursor: selectedRbsi ? 'pointer' : 'not-allowed', py: 1.5, px: 1.5, borderRadius: '12px', border: '1px solid rgba(0, 0, 0, 0.08)', bgcolor: selectedRbsi ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.04)', backdropFilter: 'blur(10px)', '&:hover': selectedRbsi ? { bgcolor: 'rgba(255, 255, 255, 0.8)', borderColor: 'rgba(0, 0, 0, 0.2)' } : {}, minHeight: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', opacity: selectedRbsi ? 1 : 0.6 }}>
-                        {selectedInisiatif && selectedProgram ? (
+                        {selectedInisiatifGroup ? (
                           <Box sx={{ overflow: 'hidden', flex: 1 }}>
-                            <Typography sx={{ fontSize: '0.875rem', color: '#1d1d1f', fontWeight: 500, wordWrap: 'break-word', whiteSpace: 'normal' }}>{selectedInisiatif.nomor_inisiatif} - {selectedInisiatif.nama_inisiatif}</Typography>
-                            <Typography sx={{ fontSize: '0.7rem', color: '#86868b', wordWrap: 'break-word', whiteSpace: 'normal' }}>{selectedProgram.nomor_program} - {selectedProgram.nama_program}</Typography>
+                            <Typography sx={{ fontSize: '0.875rem', color: '#1d1d1f', fontWeight: 500, wordWrap: 'break-word', whiteSpace: 'normal' }}>{selectedInisiatifGroup.nomor_inisiatif} - {selectedInisiatifGroup.nama_inisiatif}</Typography>
+                            <Typography sx={{ fontSize: '0.7rem', color: '#86868b', wordWrap: 'break-word', whiteSpace: 'normal' }}>{selectedInisiatifGroup.nomor_program} - {selectedInisiatifGroup.nama_program}</Typography>
                           </Box>
                         ) : (<Typography sx={{ fontSize: '0.875rem', color: '#86868b' }}>Pilih Program & Inisiatif...</Typography>)}
                         <ExpandMoreIcon sx={{ color: '#86868b', fontSize: '1.2rem' }} />
                       </Box>
-                      <Popover open={Boolean(inisiatifPopoverAnchor)} anchorEl={inisiatifPopoverAnchor} onClose={() => setInisiatifPopoverAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }} PaperProps={{ sx: { borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.15)', width: popoverWidth || 'auto', maxHeight: 450, mt: 0.5 } }}>
-                        <Box sx={{ py: 1 }}>
-                          <Box sx={{ px: 2, pb: 1, borderBottom: '1px solid #e0e0e0' }}>
-                            <Typography variant="caption" sx={{ color: '#86868b', mb: 0.5, display: 'block', fontWeight: 600 }}>Filter berdasarkan tahun</Typography>
-                            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                              <Chip label="Semua" size="small" onClick={() => setSelectedYear(null)} sx={{ bgcolor: selectedYear === null ? '#DA251C' : '#f5f5f5', color: selectedYear === null ? 'white' : '#666', fontSize: '0.7rem', height: 24, '&:hover': { opacity: 0.8 } }} />
-                              {periodYears.map(yr => <Chip key={yr} label={yr} size="small" onClick={() => setSelectedYear(yr)} sx={{ bgcolor: selectedYear === yr ? '#DA251C' : '#f5f5f5', color: selectedYear === yr ? 'white' : '#666', fontSize: '0.7rem', height: 24, '&:hover': { opacity: 0.8 } }} />)}
+                      <Popover open={Boolean(inisiatifPopoverAnchor)} anchorEl={inisiatifPopoverAnchor} onClose={() => setInisiatifPopoverAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                        PaperProps={{ sx: { borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)', width: 400, mt: 0.5, overflow: 'hidden' } }}>
+                        {/* Search bar */}
+                        <Box sx={{ px: 1.5, py: 1, borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <SearchIcon sx={{ fontSize: 18, color: '#aaa' }} />
+                          <InputBase autoFocus fullWidth placeholder="Cari nama atau nomor inisiatif..." value={inisiatifSearch} onChange={e => setInisiatifSearch(e.target.value)} sx={{ fontSize: '0.875rem' }} />
+                          {inisiatifSearch && <IconButton size="small" onClick={() => setInisiatifSearch('')} sx={{ color: '#aaa' }}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>}
+                        </Box>
+                        {/* Program + Inisiatif List */}
+                        <Box sx={{ maxHeight: 360, overflowY: 'auto' }}>
+                          {filteredInisiatifGroups.length === 0 ? (
+                            <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
+                              <SearchIcon sx={{ fontSize: 32, color: '#ddd', mb: 1 }} />
+                              <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.82rem' }}>{inisiatifGroups.length === 0 ? 'Tidak ada inisiatif untuk periode ini' : 'Tidak ditemukan'}</Typography>
                             </Box>
-                          </Box>
-                          <Box sx={{ maxHeight: 330, overflow: 'auto' }}>
-                            {groupedInisiatifs.length === 0 ? (
-                              <Box sx={{ px: 2, py: 3, textAlign: 'center' }}><Typography variant="body2" sx={{ color: '#86868b' }}>{selectedYear ? `Tidak ada inisiatif untuk tahun ${selectedYear}` : 'Tidak ada program & inisiatif'}</Typography></Box>
-                            ) : groupedInisiatifs.map(({ program, inisiatifs }) => (
-                              <Box key={program.id}>
-                                <Box sx={{ px: 2, py: 1, bgcolor: '#f8f8f8', borderBottom: '1px solid #e0e0e0', position: 'sticky', top: 0, zIndex: 1 }}>
-                                  <Typography sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#DA251C', wordWrap: 'break-word', whiteSpace: 'normal' }}>{program.nomor_program} - {program.nama_program}</Typography>
-                                </Box>
-                                {inisiatifs.map(inisiatif => (
-                                  <MenuItem key={inisiatif.id} selected={selectedInisiatif?.id === inisiatif.id}
-                                    onClick={() => { setSelectedProgram(program); setSelectedInisiatif(inisiatif); setFormData(prev => ({ ...prev, programInisiatifRBSI: `${inisiatif.nomor_inisiatif} - ${inisiatif.nama_inisiatif} (${program.nomor_program})` })); setInisiatifPopoverAnchor(null); }}
-                                    sx={{ fontSize: '0.85rem', py: 1.5, px: 2, pl: 3, borderLeft: '3px solid transparent', '&.Mui-selected': { borderLeftColor: '#DA251C', bgcolor: 'rgba(218, 37, 28, 0.08)' }, '&:hover': { borderLeftColor: '#DA251C' } }}>
-                                    <Box>
-                                      <Typography sx={{ fontWeight: 500, fontSize: '0.85rem', wordWrap: 'break-word', whiteSpace: 'normal' }}>{inisiatif.nomor_inisiatif} - {inisiatif.nama_inisiatif}</Typography>
-                                      <Typography sx={{ fontSize: '0.7rem', color: '#86868b' }}>Tahun {inisiatif.tahun}</Typography>
-                                    </Box>
-                                  </MenuItem>
-                                ))}
+                          ) : filteredInisiatifGroups.map(group => (
+                            <Box key={group.programNomor}>
+                              <Box sx={{ px: 2, py: 0.75, bgcolor: '#f8f8f8', borderBottom: '1px solid #ececec', position: 'sticky', top: 0, zIndex: 1 }}>
+                                <Typography sx={{ fontWeight: 700, fontSize: '0.7rem', color: '#DA251C', letterSpacing: '0.02em', textTransform: 'uppercase' }}>{group.programNomor} — {group.programNama}</Typography>
                               </Box>
-                            ))}
-                          </Box>
+                              {group.items.map(item => {
+                                const isSelected = selectedInisiatifGroup?.id === item.id;
+                                return (
+                                  <Box key={item.id} onClick={() => { setSelectedInisiatifGroup(item); setFormData(prev => ({ ...prev, programInisiatifRBSI: `${item.nomor_inisiatif} - ${item.nama_inisiatif} (${item.nomor_program})` })); setInisiatifPopoverAnchor(null); setInisiatifSearch(''); }}
+                                    sx={{ px: 2, py: 1.1, cursor: 'pointer', borderLeft: isSelected ? '3px solid #DA251C' : '3px solid transparent', bgcolor: isSelected ? 'rgba(218,37,28,0.04)' : 'transparent', '&:hover': { bgcolor: isSelected ? 'rgba(218,37,28,0.07)' : 'rgba(0,0,0,0.03)', borderLeftColor: '#DA251C' }, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                    <Box sx={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' }}>
+                                      <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: '#DA251C', flexShrink: 0, lineHeight: 1.5 }}>{item.nomor_inisiatif}</Typography>
+                                      <Typography sx={{ fontSize: '0.82rem', fontWeight: 500, lineHeight: 1.4, color: '#1d1d1f' }}>{item.nama_inisiatif}</Typography>
+                                    </Box>
+                                  </Box>
+                                );
+                              })}
+                            </Box>
+                          ))}
+                        </Box>
+                        {/* Footer */}
+                        <Box sx={{ px: 2, py: 0.75, borderTop: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography sx={{ fontSize: '0.7rem', color: '#bbb' }}>{inisiatifGroups.length} inisiatif</Typography>
+                          {selectedInisiatifGroup && (
+                            <Button size="small" color="error" onClick={() => { setSelectedInisiatifGroup(null); setFormData(prev => ({ ...prev, programInisiatifRBSI: '' })); setInisiatifPopoverAnchor(null); }} sx={{ fontSize: '0.7rem', minWidth: 0, py: 0.25 }}>Hapus pilihan</Button>
+                          )}
                         </Box>
                       </Popover>
                     </Box>
