@@ -94,7 +94,7 @@ const AplikasiListPage = () => {
     try {
       // Load ALL data without pagination - client-side rendering
       const params: AplikasiSearchParams = {
-        page: 0,
+        page: 1,
         size: 9999, // Load all data
       };
       const response = await searchAplikasi(params);
