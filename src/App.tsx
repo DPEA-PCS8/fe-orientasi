@@ -3,6 +3,7 @@ import { ThemeProvider, CssBaseline } from '@mui/material';
 import theme from './styles/theme';
 import { SidebarProvider } from './context/SidebarContext';
 import { LoginPage } from './pages';
+import SsoCallback from './pages/Login/SsoCallback';
 import Layout from './components/Layout';
 import AddPksi from './pages/AddPksi';
 import AddProgram from './pages/AddProgram';
@@ -46,6 +47,8 @@ function App() {
               isAuthenticated() ? <Navigate to="/" replace /> : <LoginPage />
             } 
           />
+          {/* SSO callback - public, handles code/state from SSO redirect */}
+          <Route path="/signin-oidc" element={<SsoCallback />} />
           {/* Smart landing page - redirects based on user permissions */}
           <Route 
             path="/" 
