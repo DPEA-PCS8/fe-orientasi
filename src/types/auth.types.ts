@@ -1,9 +1,3 @@
-export interface LoginCredentials {
-  username: string;
-  password: string;
-  rememberMe: boolean;
-}
-
 export interface UserInfo {
   uuid: string;
   username: string;
