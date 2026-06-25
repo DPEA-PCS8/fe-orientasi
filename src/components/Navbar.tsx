@@ -34,9 +34,11 @@ const Navbar = () => {
   };
 
   const handleLogout = () => {
-    clearAuthData();
-    navigate('/login');
     handleClose();
+    clearAuthData();
+    // RP-initiated logout: end the SSO session too, else the SSO cookie logs us straight back in.
+    // BE redirects to SSO /connect/logout, which returns to the FE login page.
+    window.location.href = '/api/auth/sso/logout';
   };
 
   const getInitials = (name: string | undefined): string => {

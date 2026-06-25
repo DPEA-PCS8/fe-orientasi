@@ -1,46 +1,19 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
-  TextField,
   Button,
-  Checkbox,
-  FormControlLabel,
-  IconButton,
-  CircularProgress,
-  InputAdornment,
-  Snackbar,
 } from '@mui/material';
-import {
-  Visibility,
-  VisibilityOff,
-} from '@mui/icons-material';
+import LoginIcon from '@mui/icons-material/Login';
 import Alert from '@mui/material/Alert';
 import OJKLogo from '../../assets/OJK_Logo.png';
 import DPEALogo from '../../assets/DPEA_Logo.png';
 import OfficeJobImage from '../../assets/office-job.jpg';
-import { useLoginForm } from '../../hooks/useLoginForm';
-import { login, storeAuthData } from '../../api/authApi';
 
 const LoginPage = () => {
-  const navigate = useNavigate();
-  const {
-    values,
-    errors,
-    touched,
-    handleChange,
-    handleBlur,
-    handleRememberMeChange,
-    validateForm,
-  } = useLoginForm();
-
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [showNoRoleWarning, setShowNoRoleWarning] = useState(false);
 
-  // Check for logout message from auto-logout (token expired)
+  // Check for logout message from auto-logout (token expired) or SSO callback errors
   useEffect(() => {
     const logoutMessage = sessionStorage.getItem('logout_message');
     if (logoutMessage) {
@@ -49,45 +22,9 @@ const LoginPage = () => {
     }
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    setIsLoading(true);
-    setLoginError(null);
-
-    try {
-      const response = await login(values.username, values.password);
-
-      storeAuthData(
-        response.data.token,
-        response.data.user_info,
-        values.rememberMe
-      );
-
-      // Check if user has a role assigned
-      if (!response.data.user_info.has_role) {
-        setShowNoRoleWarning(true);
-      }
-
-      navigate('/');
-    } catch (error) {
-      console.error('Login failed:', error);
-      setLoginError(
-        error instanceof Error
-          ? error.message
-          : 'Login gagal. Periksa kembali username dan password Anda.'
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleTogglePassword = () => {
-    setShowPassword((prev) => !prev);
+  const handleSsoLogin = () => {
+    // Redirect the browser to the BE SSO entrypoint (via vite proxy /api -> :8080).
+    window.location.href = '/api/auth/sso/login';
   };
 
   const clearError = () => {
@@ -110,13 +47,12 @@ const LoginPage = () => {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'flex-start',
+          justifyContent: 'center',
           padding: { xs: 2, sm: 3, md: 4 },
-          paddingTop: { xs: 1.5, sm: 2, md: 3 },
           overflowY: 'auto',
         }}
       >
-        {/* Form Content */}
+        {/* Content */}
         <Box
           sx={{
             width: '100%',
@@ -171,7 +107,7 @@ const LoginPage = () => {
               fontSize: '0.95rem',
             }}
           >
-            Silakan masuk dengan akun Anda
+            Silakan masuk menggunakan akun SSO Anda
           </Typography>
 
           {/* Error Alert */}
@@ -191,155 +127,15 @@ const LoginPage = () => {
             </Alert>
           )}
 
-          {/* Form */}
-          <Box component="form" onSubmit={handleSubmit} noValidate sx={{ width: '100%' }}>
-            {/* Username Field */}
-            <Box sx={{ mb: 2.5, minHeight: '88px', display: 'flex', flexDirection: 'column' }}>
-              <TextField
-                fullWidth
-                id="username"
-                name="username"
-                placeholder="Username atau Email"
-                value={values.username}
-                onChange={handleChange}
-                onBlur={() => handleBlur('username')}
-                error={touched.username && !!errors.username}
-                helperText={touched.username && errors.username}
-                disabled={isLoading}
-                autoComplete="username"
-                autoFocus
-                variant="outlined"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 2,
-                    backgroundColor: '#f5f5f7',
-                    fontSize: '1rem',
-                    '& fieldset': {
-                      borderColor: '#d2d2d7',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: '#d2d2d7',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#0071e3',
-                      borderWidth: '2px',
-                    },
-                  },
-                  '& .MuiInputBase-input': {
-                    py: 1.75,
-                    px: 2,
-                  },
-                  '& .MuiInputBase-input::placeholder': {
-                    color: '#86868b',
-                    opacity: 1,
-                  },
-                  '& .MuiFormHelperText-root': {
-                    minHeight: '1.25rem',
-                    marginTop: '0.5rem',
-                    fontSize: '0.75rem',
-                  },
-                }}
-              />
-            </Box>
-
-            {/* Password Field */}
-            <Box sx={{ mb: 2, minHeight: '88px', display: 'flex', flexDirection: 'column' }}>
-              <TextField
-                fullWidth
-                id="password"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Password"
-                value={values.password}
-                onChange={handleChange}
-                onBlur={() => handleBlur('password')}
-                error={touched.password && !!errors.password}
-                helperText={touched.password && errors.password}
-                disabled={isLoading}
-                autoComplete="current-password"
-                variant="outlined"
-                slotProps={{
-                  input: {
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
-                          onClick={handleTogglePassword}
-                          edge="end"
-                          disabled={isLoading}
-                          sx={{ color: '#86868b' }}
-                        >
-                          {showPassword ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  },
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 2,
-                    backgroundColor: '#f5f5f7',
-                    fontSize: '1rem',
-                    '& fieldset': {
-                      borderColor: '#d2d2d7',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: '#d2d2d7',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#0071e3',
-                      borderWidth: '2px',
-                    },
-                  },
-                  '& .MuiInputBase-input': {
-                    py: 1.75,
-                    px: 2,
-                  },
-                  '& .MuiInputBase-input::placeholder': {
-                    color: '#86868b',
-                    opacity: 1,
-                  },
-                  '& .MuiFormHelperText-root': {
-                    minHeight: '1.25rem',
-                    marginTop: '0.5rem',
-                    fontSize: '0.75rem',
-                  },
-                }}
-              />
-            </Box>
-
-            {/* Remember Me */}
-            <Box sx={{ mb: 2 }}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={values.rememberMe}
-                    onChange={(e) => handleRememberMeChange(e.target.checked)}
-                    disabled={isLoading}
-                    size="small"
-                    sx={{
-                      color: '#86868b',
-                      '&.Mui-checked': {
-                        color: '#0071e3',
-                      },
-                    }}
-                  />
-                }
-                label={
-                  <Typography sx={{ color: '#1d1d1f', fontSize: '0.875rem' }}>
-                    Ingat saya
-                  </Typography>
-                }
-              />
-            </Box>
-
-            {/* Submit Button */}
+          {/* SSO Login Button */}
+          <Box sx={{ width: '100%' }}>
             <Button
-              type="submit"
+              type="button"
               fullWidth
               variant="contained"
               size="large"
-              disabled={isLoading}
+              startIcon={<LoginIcon />}
+              onClick={handleSsoLogin}
               sx={{
                 py: 1.5,
                 borderRadius: 2,
@@ -352,20 +148,9 @@ const LoginPage = () => {
                   backgroundColor: '#0077ed',
                   boxShadow: 'none',
                 },
-                '&:disabled': {
-                  backgroundColor: '#d2d2d7',
-                  color: '#86868b',
-                },
               }}
             >
-              {isLoading ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CircularProgress size={20} color="inherit" />
-                  <span>Memproses...</span>
-                </Box>
-              ) : (
-                'Masuk'
-              )}
+              Login dengan SSO
             </Button>
           </Box>
 
@@ -443,15 +228,6 @@ const LoginPage = () => {
           </Typography>
         </Box>
       </Box>
-
-      {/* No Role Warning Snackbar */}
-      <Snackbar
-        open={showNoRoleWarning}
-        autoHideDuration={8000}
-        onClose={() => setShowNoRoleWarning(false)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        message="Akun Anda belum diberikan role. Silakan hubungi administrator untuk mendapatkan akses ke fitur aplikasi."
-      />
     </Box>
   );
 };
