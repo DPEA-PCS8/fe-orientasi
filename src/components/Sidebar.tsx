@@ -359,17 +359,17 @@ const Sidebar = () => {
                   sx={{ 
                     width: 32,
                     height: 32,
-                    color: '#86868b',
+                    color: '#64748B',
                     bgcolor: 'transparent',
                     border: '1.5px solid rgba(0, 0, 0, 0.08)',
                     borderRadius: '10px',
                     transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
-                      bgcolor: 'rgba(218, 37, 28, 0.06)',
-                      color: '#DA251C',
-                      borderColor: 'rgba(218, 37, 28, 0.15)',
+                      bgcolor: 'rgba(189, 31, 39, 0.06)',
+                      color: '#BD1F27',
+                      borderColor: 'rgba(189, 31, 39, 0.15)',
                       transform: 'scale(1.05)',
-                      boxShadow: '0 2px 8px rgba(218, 37, 28, 0.08)',
+                      boxShadow: '0 2px 8px rgba(189, 31, 39, 0.08)',
                     },
                     '&:active': {
                       transform: 'scale(0.95)',
@@ -400,7 +400,7 @@ const Sidebar = () => {
                 <Typography
                   variant="caption"
                   sx={{
-                    color: '#86868b',
+                    color: '#64748B',
                     fontWeight: 600,
                     fontSize: '0.6875rem',
                     letterSpacing: '0.02em',
@@ -417,17 +417,17 @@ const Sidebar = () => {
                       sx={{ 
                         width: 28,
                         height: 28,
-                        color: '#86868b',
+                        color: '#64748B',
                         bgcolor: 'transparent',
                         border: '1px solid rgba(0, 0, 0, 0.08)',
                         borderRadius: '8px',
                         transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                         '&:hover': {
-                          bgcolor: 'rgba(218, 37, 28, 0.06)',
-                          color: '#DA251C',
-                          borderColor: 'rgba(218, 37, 28, 0.15)',
+                          bgcolor: 'rgba(189, 31, 39, 0.06)',
+                          color: '#BD1F27',
+                          borderColor: 'rgba(189, 31, 39, 0.15)',
                           transform: 'scale(1.05)',
-                          boxShadow: '0 2px 8px rgba(218, 37, 28, 0.08)',
+                          boxShadow: '0 2px 8px rgba(189, 31, 39, 0.08)',
                         },
                         '&:active': {
                           transform: 'scale(0.95)',
@@ -474,17 +474,17 @@ const Sidebar = () => {
                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                         position: 'relative',
                         '&.Mui-selected': {
-                          background: 'linear-gradient(135deg, rgba(218, 37, 28, 0.15) 0%, rgba(255, 77, 69, 0.08) 100%)',
+                          background: 'linear-gradient(135deg, rgba(189, 31, 39, 0.15) 0%, rgba(139, 22, 32, 0.08) 100%)',
                           backdropFilter: 'blur(10px)',
-                          color: '#DA251C',
-                          border: '1px solid rgba(218, 37, 28, 0.2)',
-                          boxShadow: '0 4px 20px rgba(218, 37, 28, 0.12)',
+                          color: '#BD1F27',
+                          border: '1px solid rgba(189, 31, 39, 0.2)',
+                          boxShadow: '0 4px 20px rgba(189, 31, 39, 0.12)',
                           '&:hover': {
-                            background: 'linear-gradient(135deg, rgba(218, 37, 28, 0.2) 0%, rgba(255, 77, 69, 0.12) 100%)',
-                            boxShadow: '0 6px 28px rgba(218, 37, 28, 0.16)',
+                            background: 'linear-gradient(135deg, rgba(189, 31, 39, 0.2) 0%, rgba(139, 22, 32, 0.12) 100%)',
+                            boxShadow: '0 6px 28px rgba(189, 31, 39, 0.16)',
                           },
                           '& .MuiListItemIcon-root': {
-                            color: '#DA251C',
+                            color: '#BD1F27',
                           },
                         },
                         '&:hover': {
@@ -492,9 +492,9 @@ const Sidebar = () => {
                           transform: isCollapsed ? 'scale(1.05)' : 'translateX(2px)',
                         },
                         ...(hasSubItems && active && {
-                          color: '#DA251C',
+                          color: '#BD1F27',
                           '& .MuiListItemIcon-root': {
-                            color: '#DA251C',
+                            color: '#BD1F27',
                           },
                         }),
                       }}
@@ -502,7 +502,7 @@ const Sidebar = () => {
                       <ListItemIcon
                         sx={{
                           minWidth: isCollapsed ? 'auto' : 32,
-                          color: active ? '#DA251C' : '#86868b',
+                          color: active ? '#BD1F27' : '#64748B',
                           '& svg': { fontSize: 20 },
                           justifyContent: 'center',
                         }}
@@ -520,7 +520,7 @@ const Sidebar = () => {
                             }}
                           />
                           {hasSubItems && (
-                            isOpen ? <ExpandLess sx={{ fontSize: 20, color: '#86868b' }} /> : <ExpandMore sx={{ fontSize: 20, color: '#86868b' }} />
+                            isOpen ? <ExpandLess sx={{ fontSize: 20, color: '#64748B' }} /> : <ExpandMore sx={{ fontSize: 20, color: '#64748B' }} />
                           )}
                         </>
                       )}
@@ -565,13 +565,13 @@ const Sidebar = () => {
                                     justifyContent: 'space-between',
                                     alignItems: 'center',
                                     '&.Mui-selected': {
-                                      bgcolor: 'rgba(218, 37, 28, 0.08)',
-                                      color: '#DA251C',
+                                      bgcolor: 'rgba(189, 31, 39, 0.08)',
+                                      color: '#BD1F27',
                                       '&:hover': {
-                                        bgcolor: 'rgba(218, 37, 28, 0.12)',
+                                        bgcolor: 'rgba(189, 31, 39, 0.12)',
                                       },
                                       '& .MuiListItemIcon-root': {
-                                        color: '#DA251C',
+                                        color: '#BD1F27',
                                       },
                                     },
                                     '&:hover': {
@@ -583,7 +583,7 @@ const Sidebar = () => {
                                     <ListItemIcon
                                       sx={{
                                         minWidth: 28,
-                                        color: subActive ? '#DA251C' : '#86868b',
+                                        color: subActive ? '#BD1F27' : '#64748B',
                                         '& svg': { fontSize: 16 },
                                       }}
                                     >
@@ -643,7 +643,7 @@ const Sidebar = () => {
           <Typography
             variant="caption"
             sx={{ 
-              color: '#86868b', 
+              color: '#64748B', 
               display: 'block', 
               textAlign: 'center', 
               fontSize: '0.625rem',
@@ -710,10 +710,10 @@ const Sidebar = () => {
                 },
               }),
               '&.Mui-selected': {
-                bgcolor: 'rgba(218, 37, 28, 0.08)',
-                color: '#DA251C',
+                bgcolor: 'rgba(189, 31, 39, 0.08)',
+                color: '#BD1F27',
                 '&:hover': {
-                  bgcolor: 'rgba(218, 37, 28, 0.12)',
+                  bgcolor: 'rgba(189, 31, 39, 0.12)',
                 },
                 ...(subItem.isMasterData && {
                   color: '#FF9800',
@@ -728,7 +728,7 @@ const Sidebar = () => {
             <ListItemIcon
               sx={{
                 minWidth: 32,
-                color: isActive(subItem.href) ? (subItem.isMasterData ? '#FF9800' : '#DA251C') : (subItem.isMasterData ? '#FF9800' : '#86868b'),
+                color: isActive(subItem.href) ? (subItem.isMasterData ? '#FF9800' : '#BD1F27') : (subItem.isMasterData ? '#FF9800' : '#64748B'),
                 '& svg': { fontSize: 18 },
               }}
             >
