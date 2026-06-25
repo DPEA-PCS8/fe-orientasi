@@ -4,6 +4,7 @@ import theme from './styles/theme';
 import { SidebarProvider } from './context/SidebarContext';
 import { LoginPage } from './pages';
 import SsoCallback from './pages/Login/SsoCallback';
+import SignoutCallback from './pages/Login/SignoutCallback';
 import Layout from './components/Layout';
 import AddPksi from './pages/AddPksi';
 import AddProgram from './pages/AddProgram';
@@ -49,6 +50,8 @@ function App() {
           />
           {/* SSO callback - public, handles code/state from SSO redirect */}
           <Route path="/signin-oidc" element={<SsoCallback />} />
+          {/* SSO post-logout callback - public, clears session and returns to login */}
+          <Route path="/signout-callback-oidc" element={<SignoutCallback />} />
           {/* Smart landing page - redirects based on user permissions */}
           <Route 
             path="/" 
