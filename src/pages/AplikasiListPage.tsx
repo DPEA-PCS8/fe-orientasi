@@ -419,7 +419,7 @@ const AplikasiListPage = () => {
         }
       />
 
-      <Box sx={{ p: { xs: 3, md: 4.5, xl: 6 } }}>
+      <Box sx={{ p: { xs: 2, md: 2.5 } }}>
       {/* Error Alert */}
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -427,8 +427,10 @@ const AplikasiListPage = () => {
         </Alert>
       )}
 
-      {/* Filters */}
-      <Paper sx={{ p: 2, mb: 2 }}>
+      {/* Single cohesive card: toolbar + count + table */}
+      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+      {/* Toolbar / Filters */}
+      <Box sx={{ p: 2.5, borderBottom: '1px solid #E2E8F0' }}>
         <Box display="flex" gap={2} flexWrap="wrap">
           <TextField
             size="small"
@@ -547,10 +549,10 @@ const AplikasiListPage = () => {
             )}
           </Button>
         </Box>
-      </Paper>
+      </Box>
 
       {/* Data Count Display */}
-      <Box sx={{ my: 2.5 }}>
+      <Box>
         <DataCountDisplay
           count={totalElements}
           isLoading={loading}
@@ -565,7 +567,7 @@ const AplikasiListPage = () => {
       </Box>
 
       {/* Table */}
-      <TableContainer component={Paper}>
+      <TableContainer>
         <Table>
           <TableHead>
             <TableRow>
@@ -704,6 +706,7 @@ const AplikasiListPage = () => {
           labelRowsPerPage="Baris per halaman:"
         />
       </TableContainer>
+      </Paper>
 
       {/* Status Popover */}
       <Popover
