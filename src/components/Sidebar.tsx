@@ -341,7 +341,18 @@ const Sidebar = () => {
       >
       <Toolbar sx={{ minHeight: '64px !important', height: 64 }} />
 
-      <Box sx={{ overflow: 'auto', px: isCollapsed ? 0.5 : 1.5, py: 1.5 }}>
+      <Box
+        sx={{
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          px: isCollapsed ? 0.5 : 1.5,
+          py: 1.5,
+          // hide ugly default scrollbar, keep scrollability
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          '&::-webkit-scrollbar': { display: 'none' },
+        }}
+      >
         {/* Toggle Button - Only visible when collapsed */}
         {isCollapsed && (
           <>
