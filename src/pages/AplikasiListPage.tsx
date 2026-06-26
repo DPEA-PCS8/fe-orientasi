@@ -571,9 +571,9 @@ const AplikasiListPage = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell><strong>Nama Aplikasi</strong></TableCell>
-              <TableCell><strong>Bidang</strong></TableCell>
-              <TableCell><strong>SKPA</strong></TableCell>
+              <TableCell align="left"><strong>Nama Aplikasi</strong></TableCell>
+              <TableCell align="left"><strong>Bidang</strong></TableCell>
+              <TableCell align="left"><strong>SKPA</strong></TableCell>
               <TableCell><strong>Sub Kategori</strong></TableCell>
               <TableCell><strong>Status</strong></TableCell>
               <TableCell align="center"><strong>Aksi</strong></TableCell>
@@ -599,7 +599,7 @@ const AplikasiListPage = () => {
             ) : (
               paginatedList.map((app) => (
                 <TableRow key={app.id} hover>
-                  <TableCell>
+                  <TableCell align="left">
                     <Box>
                       <Typography fontWeight={500}>
                         {app.nama_aplikasi}
@@ -611,7 +611,7 @@ const AplikasiListPage = () => {
                       )}
                     </Box>
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="left">
                     {app.bidang ? (
                       <Box>
                         <Typography variant="body2" fontWeight={600}>{app.bidang.kode_bidang}</Typography>
@@ -619,7 +619,7 @@ const AplikasiListPage = () => {
                       </Box>
                     ) : '-'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="left">
                     {app.skpa ? (
                       <Box>
                         <Typography variant="body2" fontWeight={600}>{app.skpa.kode_skpa}</Typography>
