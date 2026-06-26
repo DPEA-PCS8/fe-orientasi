@@ -574,7 +574,7 @@ function ProgramList() {
             {programsLoading ? (
               <TableRow>
                 <TableCell colSpan={1} sx={{ textAlign: 'center', py: 4 }}>
-                  <CircularProgress size={32} sx={{ color: '#DA251C' }} />
+                  <CircularProgress size={32} sx={{ color: '#BD1F27' }} />
                   <Typography variant="body2" sx={{ mt: 1, color: '#666' }}>
                     Memuat data program...
                   </Typography>
@@ -595,8 +595,8 @@ function ProgramList() {
                 {/* Program Row */}
                 <TableRow
                   sx={{
-                    borderLeft: '4px solid #DA251C',
-                    '&:hover': { bgcolor: 'rgba(218, 37, 28, 0.04)' },
+                    borderLeft: '4px solid #BD1F27',
+                    '&:hover': { bgcolor: 'rgba(189, 31, 39, 0.04)' },
                     cursor: 'pointer',
                   }}
                   onClick={() => toggleExpand(program.id)}
@@ -606,7 +606,7 @@ function ProgramList() {
                       <IconButton size="small">
                         {expandedPrograms.has(program.id) ? <ExpandIcon /> : <CollapseIcon />}
                       </IconButton>
-                      <FolderRounded sx={{ color: '#DA251C', fontSize: 20 }} />
+                      <FolderRounded sx={{ color: '#BD1F27', fontSize: 20 }} />
                       <Typography fontWeight={600} sx={{ color: '#2C3E50', fontSize: '0.95rem' }}>
                         {program.nomor_program} - {program.nama_program}
                       </Typography>
@@ -651,7 +651,7 @@ function ProgramList() {
                                 <TableRow
                                   key={inisiatif.id}
                                   sx={{
-                                    '&:hover': { bgcolor: 'rgba(218, 37, 28, 0.04)' },
+                                    '&:hover': { bgcolor: 'rgba(189, 31, 39, 0.04)' },
                                   }}
                                 >
                                   <TableCell>
@@ -687,11 +687,11 @@ function ProgramList() {
                                     setOpenAddInisiatifModal(true);
                                   }}
                                   sx={{
-                                    color: '#DA251C',
+                                    color: '#BD1F27',
                                     fontSize: '0.85rem',
                                     fontWeight: 500,
                                     '&:hover': {
-                                      bgcolor: 'rgba(218, 37, 28, 0.08)',
+                                      bgcolor: 'rgba(189, 31, 39, 0.08)',
                                     },
                                   }}
                                 >
@@ -730,7 +730,7 @@ function ProgramList() {
           sx: {
             mt: 1,
             borderRadius: '16px',
-            boxShadow: '0 20px 40px rgba(218, 37, 28, 0.1)',
+            boxShadow: '0 20px 40px rgba(189, 31, 39, 0.1)',
             overflow: 'hidden',
             border: '1px solid #ffebeb',
           },
@@ -738,7 +738,7 @@ function ProgramList() {
       >
         {/* Header */}
         <Box sx={{
-          background: '#DA251C',
+          background: '#BD1F27',
           p: 2.5,
           display: 'flex', 
           justifyContent: 'space-between', 
@@ -754,7 +754,7 @@ function ProgramList() {
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-              <TuneRounded sx={{ fontSize: 16, color: '#DA251C' }} />
+              <TuneRounded sx={{ fontSize: 16, color: '#BD1F27' }} />
             </Box>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'white' }}>
               Filter
@@ -776,7 +776,7 @@ function ProgramList() {
 
           {/* Tahun & KEP Filter */}
           <Box sx={{ mb: 2.5 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: '#0F172A', mb: 1.5 }}>
               Tahun & KEP
             </Typography>
             <Stack spacing={1}>
@@ -793,13 +793,13 @@ function ProgramList() {
                       px: 2,
                       py: 1.5,
                       ...(selectedTahun === tahun ? {
-                        bgcolor: '#DA251C',
+                        bgcolor: '#BD1F27',
                         color: 'white',
                         '&:hover': { bgcolor: '#B91C14' },
                       } : {
                         borderColor: '#e5e5e7',
-                        color: '#1d1d1f',
-                        '&:hover': { borderColor: '#DA251C', bgcolor: '#fff5f5' },
+                        color: '#0F172A',
+                        '&:hover': { borderColor: '#BD1F27', bgcolor: '#fff5f5' },
                       }),
                     }}
                   >

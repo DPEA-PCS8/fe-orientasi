@@ -456,7 +456,7 @@ const AplikasiListPage = () => {
               <Box component="li" {...props}>
                 <Box>
                   <Typography sx={{ fontWeight: 600, fontSize: '0.85rem' }}>{option.kode_bidang}</Typography>
-                  <Typography sx={{ fontSize: '0.7rem', color: '#86868b' }}>{option.nama_bidang}</Typography>
+                  <Typography sx={{ fontSize: '0.7rem', color: '#64748B' }}>{option.nama_bidang}</Typography>
                 </Box>
               </Box>
             )}
@@ -485,7 +485,7 @@ const AplikasiListPage = () => {
               <Box component="li" {...props}>
                 <Box>
                   <Typography sx={{ fontWeight: 600, fontSize: '0.85rem' }}>{option.kode_skpa}</Typography>
-                  <Typography sx={{ fontSize: '0.7rem', color: '#86868b' }}>{option.nama_skpa}</Typography>
+                  <Typography sx={{ fontSize: '0.7rem', color: '#64748B' }}>{option.nama_skpa}</Typography>
                 </Box>
               </Box>
             )}

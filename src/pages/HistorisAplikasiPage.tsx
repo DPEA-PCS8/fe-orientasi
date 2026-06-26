@@ -609,7 +609,7 @@ const HistorisAplikasiPage = () => {
               <Box component="li" {...props}>
                 <Box>
                   <Typography sx={{ fontWeight: 600, fontSize: '0.85rem' }}>{option.kode_bidang}</Typography>
-                  <Typography sx={{ fontSize: '0.7rem', color: '#86868b' }}>{option.nama_bidang}</Typography>
+                  <Typography sx={{ fontSize: '0.7rem', color: '#64748B' }}>{option.nama_bidang}</Typography>
                 </Box>
               </Box>
             )}
@@ -636,7 +636,7 @@ const HistorisAplikasiPage = () => {
               <Box component="li" {...props}>
                 <Box>
                   <Typography sx={{ fontWeight: 600, fontSize: '0.85rem' }}>{option.kode_skpa}</Typography>
-                  <Typography sx={{ fontSize: '0.7rem', color: '#86868b' }}>{option.nama_skpa}</Typography>
+                  <Typography sx={{ fontSize: '0.7rem', color: '#64748B' }}>{option.nama_skpa}</Typography>
                 </Box>
               </Box>
             )}
@@ -880,7 +880,7 @@ const HistorisAplikasiPage = () => {
       >
         <DialogTitle sx={{ 
           pb: 1,
-          background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+          background: 'linear-gradient(135deg, #BD1F27 0%, #FF4D45 100%)',
           color: 'white'
         }}>
           <Box display="flex" alignItems="center" gap={1.5}>
@@ -893,7 +893,7 @@ const HistorisAplikasiPage = () => {
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-              <Edit sx={{ fontSize: 20, color: '#DA251C' }} />
+              <Edit sx={{ fontSize: 20, color: '#BD1F27' }} />
             </Box>
             <Box>
               <Typography variant="h6" fontWeight={600}>
@@ -910,7 +910,7 @@ const HistorisAplikasiPage = () => {
             
             {/* Data Snapshot Card */}
             <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid rgba(0,0,0,0.08)' }}>
-              <Typography variant="subtitle1" fontWeight={600} mb={2} color="#1d1d1f">
+              <Typography variant="subtitle1" fontWeight={600} mb={2} color="#0F172A">
                 Informasi Dasar
               </Typography>
               <Box display="flex" flexDirection="column" gap={2}>
@@ -944,7 +944,7 @@ const HistorisAplikasiPage = () => {
 
             {/* Organization Card */}
             <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid rgba(0,0,0,0.08)' }}>
-              <Typography variant="subtitle1" fontWeight={600} mb={2} color="#1d1d1f">
+              <Typography variant="subtitle1" fontWeight={600} mb={2} color="#0F172A">
                 Bidang & SKPA
               </Typography>
               <Box display="flex" gap={2}>
@@ -971,7 +971,7 @@ const HistorisAplikasiPage = () => {
 
             {/* Status & Access Card */}
             <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid rgba(0,0,0,0.08)' }}>
-              <Typography variant="subtitle1" fontWeight={600} mb={2} color="#1d1d1f">
+              <Typography variant="subtitle1" fontWeight={600} mb={2} color="#0F172A">
                 Status & Akses
               </Typography>
               <Box display="flex" flexDirection="column" gap={2}>
@@ -1027,7 +1027,7 @@ const HistorisAplikasiPage = () => {
             {/* Existing Changelogs Card */}
             {selectedSnapshot && selectedSnapshot.changelogs && selectedSnapshot.changelogs.length > 0 && (
               <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid rgba(0,0,0,0.08)' }}>
-                <Typography variant="subtitle1" fontWeight={600} mb={2} color="#1d1d1f">
+                <Typography variant="subtitle1" fontWeight={600} mb={2} color="#0F172A">
                   Riwayat Changelog
                 </Typography>
                 <Box display="flex" flexDirection="column" gap={1.5}>
@@ -1084,13 +1084,13 @@ const HistorisAplikasiPage = () => {
                     onChange={(e) => setAddChangelogOnEdit(e.target.checked)}
                     sx={{
                       '&.Mui-checked': {
-                        color: '#DA251C',
+                        color: '#BD1F27',
                       },
                     }}
                   />
                 }
                 label={
-                  <Typography variant="subtitle1" fontWeight={600} color="#1d1d1f">
+                  <Typography variant="subtitle1" fontWeight={600} color="#0F172A">
                     Tambahkan Changelog Baru
                   </Typography>
                 }
@@ -1140,7 +1140,7 @@ const HistorisAplikasiPage = () => {
             disabled={updating}
             startIcon={updating ? <CircularProgress size={16} /> : undefined}
             sx={{
-              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+              background: 'linear-gradient(135deg, #BD1F27 0%, #FF4D45 100%)',
               '&:hover': {
                 background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
               },
