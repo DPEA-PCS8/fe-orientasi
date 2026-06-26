@@ -1976,16 +1976,18 @@ function PksiList() {
                 <TableCell 
                   colSpan={visibleTimelineColumns.size} 
                   align="center" 
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#6B7280', 
-                    py: 1.5, 
-                    px: 2, 
-                    fontSize: '0.8rem', 
-                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.04) 0%, rgba(99, 102, 241, 0.03) 100%)',
+                  sx={{
+                    fontWeight: 700,
+                    color: '#64748B',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    py: 1.25,
+                    px: 2,
+                    fontSize: '0.8rem',
+                    borderBottom: '1px solid #E2E8F0',
                     cursor: 'pointer',
                     '&:hover': {
-                      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(99, 102, 241, 0.06) 100%)',
+                      bgcolor: '#E9EEF5',
                     },
                   }}
                   onClick={(e) => setTimelineColumnsAnchorEl(e.currentTarget)}
@@ -1994,10 +1996,10 @@ function PksiList() {
                     Timeline Development
                     <IconButton 
                       size="small" 
-                      sx={{ 
+                      sx={{
                         p: 0.5,
-                        color: '#8B5CF6',
-                        '&:hover': { bgcolor: 'rgba(139, 92, 246, 0.1)' },
+                        color: '#94A3B8',
+                        '&:hover': { bgcolor: '#E2E8F0' },
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -2009,11 +2011,11 @@ function PksiList() {
                     <Chip
                       label={`${visibleTimelineColumns.size}/9`}
                       size="small"
-                      sx={{ 
-                        height: 18, 
+                      sx={{
+                        height: 18,
                         fontSize: '0.65rem',
-                        bgcolor: 'rgba(139, 92, 246, 0.15)',
-                        color: '#7C3AED',
+                        bgcolor: '#E2E8F0',
+                        color: '#475569',
                         fontWeight: 600,
                       }}
                     />
@@ -2032,47 +2034,47 @@ function PksiList() {
               {/* Second row - Timeline sub-headers (only visible, softer colors) */}
               <TableRow sx={{ bgcolor: '#F1F5F9' }}>
                 {visibleTimelineColumns.has('usreq') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 95, background: 'rgba(139, 92, 246, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 95 }}>
                     USREQ
                   </TableCell>
                 )}
                 {visibleTimelineColumns.has('pengadaan') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 100, background: 'rgba(5, 150, 105, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 100 }}>
                     Pengadaan
                   </TableCell>
                 )}
                 {visibleTimelineColumns.has('desain') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 90, background: 'rgba(220, 38, 38, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 90 }}>
                     Desain
                   </TableCell>
                 )}
                 {visibleTimelineColumns.has('coding') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 90, background: 'rgba(37, 99, 235, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 90 }}>
                     Coding
                   </TableCell>
                 )}
                 {visibleTimelineColumns.has('unitTest') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 100, background: 'rgba(217, 119, 6, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 100 }}>
                     Unit Test
                   </TableCell>
                 )}
                 {visibleTimelineColumns.has('sit') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 80, background: 'rgba(124, 58, 237, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 80 }}>
                     SIT
                   </TableCell>
                 )}
                 {visibleTimelineColumns.has('uat') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 80, background: 'rgba(8, 145, 178, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 80 }}>
                     UAT
                   </TableCell>
                 )}
                 {visibleTimelineColumns.has('deployment') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 110, background: 'rgba(219, 39, 119, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 110 }}>
                     Deployment
                   </TableCell>
                 )}
                 {visibleTimelineColumns.has('goLive') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 95, background: 'rgba(5, 150, 105, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 95 }}>
                     Go Live
                   </TableCell>
                 )}
@@ -2102,7 +2104,7 @@ function PksiList() {
                   sx={{
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
-                      bgcolor: 'rgba(218, 37, 28, 0.02)',
+                      bgcolor: 'rgba(189, 31, 39, 0.04)',
                     },
                     '&:not(:last-child)': {
                       borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
@@ -2262,7 +2264,7 @@ function PksiList() {
                   </TableCell>
                   {/* Timeline - USREQ */}
                   {visibleTimelineColumns.has('usreq') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetUsreq && item.targetUsreq.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetUsreq.map((date, idx) => (
@@ -2279,7 +2281,7 @@ function PksiList() {
                   )}
                   {/* Timeline - Pengadaan */}
                   {visibleTimelineColumns.has('pengadaan') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetPengadaan && item.targetPengadaan.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetPengadaan.map((date, idx) => (
@@ -2296,7 +2298,7 @@ function PksiList() {
                   )}
                   {/* Timeline - Desain */}
                   {visibleTimelineColumns.has('desain') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(220, 38, 38, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetDesain && item.targetDesain.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetDesain.map((date, idx) => (
@@ -2313,7 +2315,7 @@ function PksiList() {
                   )}
                   {/* Timeline - Coding */}
                   {visibleTimelineColumns.has('coding') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(37, 99, 235, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetCoding && item.targetCoding.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetCoding.map((date, idx) => (
@@ -2330,7 +2332,7 @@ function PksiList() {
                   )}
                   {/* Timeline - Unit Test */}
                   {visibleTimelineColumns.has('unitTest') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetUnitTest && item.targetUnitTest.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetUnitTest.map((date, idx) => (
@@ -2347,7 +2349,7 @@ function PksiList() {
                   )}
                   {/* Timeline - SIT */}
                   {visibleTimelineColumns.has('sit') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(124, 58, 237, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetSit && item.targetSit.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetSit.map((date, idx) => (
@@ -2364,7 +2366,7 @@ function PksiList() {
                   )}
                   {/* Timeline - UAT */}
                   {visibleTimelineColumns.has('uat') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetUat && item.targetUat.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetUat.map((date, idx) => (
@@ -2381,7 +2383,7 @@ function PksiList() {
                   )}
                   {/* Timeline - Deployment */}
                   {visibleTimelineColumns.has('deployment') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(219, 39, 119, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetDeployment && item.targetDeployment.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetDeployment.map((date, idx) => (
@@ -2398,7 +2400,7 @@ function PksiList() {
                   )}
                   {/* Timeline - Go Live */}
                   {visibleTimelineColumns.has('goLive') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetGoLive && item.targetGoLive.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetGoLive.map((date, idx) => (
