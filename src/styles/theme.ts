@@ -209,6 +209,8 @@ const theme = createTheme({
           padding: '9px 14px',
           fontSize: '0.875rem',
           color: COLORS.TEXT_PRIMARY,
+          textAlign: 'center',
+          verticalAlign: 'middle',
         },
         head: {
           fontWeight: 600,
@@ -217,6 +219,7 @@ const theme = createTheme({
           background: COLORS.SURFACE,
           borderBottom: `1px solid ${COLORS.BORDER}`,
           whiteSpace: 'nowrap',
+          textAlign: 'center',
         },
       },
     },
