@@ -1954,16 +1954,16 @@ function PksiList() {
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', textAlign: 'center', fontSize: '0.8rem', width: 50, minWidth: 50, ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                   No
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150, textAlign: 'left', ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                   Nama Aplikasi
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 200, ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 200, textAlign: 'left', ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                   Nama PKSI
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150 }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 90 }}>
                   Jenis PKSI
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 90, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 90, textAlign: 'left', ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                   SKPA
                 </TableCell>
                 <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('jangkaWaktu') && { position: 'sticky', left: getStickyLeft('jangkaWaktu'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('jangkaWaktu') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
@@ -2136,7 +2136,7 @@ function PksiList() {
                     whiteSpace: 'normal', 
                     wordWrap: 'break-word',
                     minWidth: 150,
-                    ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 1, bgcolor: '#fff' }),
+                    textAlign: 'left', ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 1, bgcolor: '#fff' }),
                     ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                   }}>
                     <Typography 
@@ -2156,7 +2156,7 @@ function PksiList() {
                     whiteSpace: 'normal', 
                     wordWrap: 'break-word',
                     minWidth: 200,
-                    ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 1, bgcolor: '#fff' }),
+                    textAlign: 'left', ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 1, bgcolor: '#fff' }),
                     ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                   }}>
                     <Typography 
@@ -2177,7 +2177,7 @@ function PksiList() {
                     px: 2,
                     whiteSpace: 'normal',
                     wordWrap: 'break-word',
-                    minWidth: 150,
+                    minWidth: 100,
                   }}>
                     <Typography 
                       variant="body2" 
@@ -2194,7 +2194,7 @@ function PksiList() {
                     py: 1.5,
                     px: 1,
                     minWidth: 90,
-                    ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 1, bgcolor: '#fff' }),
+                    textAlign: 'left', ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 1, bgcolor: '#fff' }),
                     ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                   }}>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.3 }}>
