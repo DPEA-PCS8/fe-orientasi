@@ -42,6 +42,8 @@ import {
 import { AddProgramModal, AddInisiatifModal, AddPeriodeModal, CopyFromYearModal, HistoryComparisonModal } from '../components/modals';
 import { getAllRbsi, createRbsi, getProgramsByRbsi, getKepList, createKep } from '../api/rbsiApi';
 import type { RbsiResponse, RbsiProgramResponse, RbsiKepResponse } from '../api/rbsiApi';
+import PageHeader from '../components/PageHeader';
+import { COLORS } from '../styles/theme';
 
 // KEP data structure
 interface KepData {
@@ -343,120 +345,79 @@ function ProgramList() {
   }).sort((a, b) => compareNomor(a.nomor_program, b.nomor_program));
 
   return (
-    <Box sx={{ 
-      p: 3.5,
-      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
-      minHeight: '100vh',
-    }}>
+    <Box>
       {/* Header */}
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <Box>
-          <Typography 
-            variant="h4" 
-            sx={{ 
-              fontWeight: 700, 
-              color: '#1d1d1f',
-              letterSpacing: '-0.02em',
-              mb: 0.5,
-            }}
-          >
-            Daftar Program & Inisiatif
-          </Typography>
-          <Typography variant="body1" sx={{ color: '#86868b' }}>
-            Kelola data program dan inisiatif RBSI
-          </Typography>
-        </Box>
+      <PageHeader
+        eyebrow="CONTROL CENTER"
+        title="Daftar Program & Inisiatif"
+        subtitle="Kelola data program dan inisiatif RBSI."
+        actions={
+          <Box>
+            <Button
+              endIcon={rbsiLoading ? <CircularProgress size={16} /> : (periodeAnchorEl ? <ArrowUpIcon /> : <ArrowDownIcon />)}
+              onClick={(e) => setPeriodeAnchorEl(e.currentTarget)}
+              disabled={rbsiLoading}
+              variant="outlined"
+              sx={{
+                minWidth: '180px',
+                justifyContent: 'space-between',
+              }}
+            >
+              {selectedRbsi ? `Periode ${selectedRbsi.periode}` : 'Pilih Periode'}
+            </Button>
+            <Menu
+              anchorEl={periodeAnchorEl}
+              open={Boolean(periodeAnchorEl)}
+              onClose={() => setPeriodeAnchorEl(null)}
+              PaperProps={{
+                sx: { mt: 1, minWidth: '200px' }
+              }}
+            >
+              {rbsiList.length === 0 && !rbsiLoading && (
+                <MenuItem disabled>
+                  <Typography variant="body2" sx={{ color: COLORS.TEXT_SECONDARY }}>
+                    Tidak ada data RBSI
+                  </Typography>
+                </MenuItem>
+              )}
+              {rbsiList.map(rbsi => (
+                <MenuItem
+                  key={rbsi.id}
+                  selected={selectedRbsi?.id === rbsi.id}
+                  onClick={() => {
+                    setSelectedRbsi(rbsi);
+                    setPeriodeAnchorEl(null);
+                  }}
+                >
+                  {rbsi.periode}
+                </MenuItem>
+              ))}
+              <Box sx={{ borderTop: `1px solid ${COLORS.BORDER}`, mt: 1, pt: 1 }}>
+                <MenuItem
+                  onClick={() => {
+                    setPeriodeAnchorEl(null);
+                    setOpenAddPeriodeModal(true);
+                  }}
+                  sx={{
+                    color: COLORS.PRIMARY,
+                    fontWeight: 600,
+                  }}
+                >
+                  <AddIcon sx={{ mr: 1, fontSize: 18 }} />
+                  Tambah Periode
+                </MenuItem>
+              </Box>
+            </Menu>
+          </Box>
+        }
+      />
 
-        {/* RBSI (Periode) Dropdown */}
-        <Box>
-          <Button
-            endIcon={rbsiLoading ? <CircularProgress size={16} /> : (periodeAnchorEl ? <ArrowUpIcon /> : <ArrowDownIcon />)}
-            onClick={(e) => setPeriodeAnchorEl(e.currentTarget)}
-            disabled={rbsiLoading}
-            sx={{
-              bgcolor: 'white',
-              border: '1px solid #e0e0e0',
-              borderRadius: '12px',
-              py: 1,
-              px: 2,
-              color: '#1d1d1f',
-              fontWeight: 600,
-              fontSize: '0.95rem',
-              minWidth: '180px',
-              justifyContent: 'space-between',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-              '&:hover': {
-                bgcolor: '#fafafa',
-                borderColor: '#DA251C',
-              },
-              '&:disabled': {
-                bgcolor: '#f5f5f5',
-              },
-            }}
-          >
-            {selectedRbsi ? `Periode ${selectedRbsi.periode}` : 'Pilih Periode'}
-          </Button>
-          <Menu
-            anchorEl={periodeAnchorEl}
-            open={Boolean(periodeAnchorEl)}
-            onClose={() => setPeriodeAnchorEl(null)}
-            PaperProps={{
-              sx: { 
-                mt: 1, 
-                borderRadius: '12px', 
-                minWidth: '200px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
-              }
-            }}
-          >
-            {rbsiList.length === 0 && !rbsiLoading && (
-              <MenuItem disabled>
-                <Typography variant="body2" sx={{ color: '#86868b' }}>
-                  Tidak ada data RBSI
-                </Typography>
-              </MenuItem>
-            )}
-            {rbsiList.map(rbsi => (
-              <MenuItem 
-                key={rbsi.id} 
-                selected={selectedRbsi?.id === rbsi.id}
-                onClick={() => { 
-                  setSelectedRbsi(rbsi); 
-                  setPeriodeAnchorEl(null); 
-                }}
-              >
-                {rbsi.periode}
-              </MenuItem>
-            ))}
-            <Box sx={{ borderTop: '1px solid #e5e5e7', mt: 1, pt: 1 }}>
-              <MenuItem 
-                onClick={() => { 
-                  setPeriodeAnchorEl(null); 
-                  setOpenAddPeriodeModal(true); 
-                }}
-                sx={{ 
-                  color: '#DA251C', 
-                  fontWeight: 600,
-                  '&:hover': {
-                    bgcolor: 'rgba(218, 37, 28, 0.05)',
-                  }
-                }}
-              >
-                <AddIcon sx={{ mr: 1, fontSize: 18 }} />
-                Tambah Periode
-              </MenuItem>
-            </Box>
-          </Menu>
-        </Box>
-      </Box>
-
+      <Box sx={{ p: { xs: 3, md: 4.5, xl: 6 } }}>
       {/* Main Card */}
       <Paper
         elevation={0}
         sx={{
           width: '100%',
-          borderRadius: 2,
-          border: '1px solid rgba(0, 0, 0, 0.08)',
           overflow: 'hidden',
         }}
       >
@@ -476,27 +437,11 @@ function ProgramList() {
               size="small"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              sx={{ 
-                width: 320,
-                '& .MuiOutlinedInput-root': {
-                  bgcolor: '#f5f5f7',
-                  borderRadius: '10px',
-                  '& fieldset': {
-                    borderColor: 'transparent',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: 'transparent',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#DA251C',
-                    borderWidth: 2,
-                  },
-                },
-              }}
+              sx={{ width: 320 }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon sx={{ color: '#86868b', fontSize: 20 }} />
+                    <SearchIcon sx={{ color: COLORS.TEXT_SUBTLE, fontSize: 20 }} />
                   </InputAdornment>
                 ),
               }}
@@ -506,11 +451,8 @@ function ProgramList() {
               startIcon={<TuneRounded sx={{ fontSize: 18 }} />}
               onClick={handleFilterOpen}
               sx={{
-                color: selectedTahun !== null ? '#DA251C' : '#86868b',
+                color: selectedTahun !== null ? COLORS.PRIMARY : COLORS.TEXT_SECONDARY,
                 fontWeight: 500,
-                '&:hover': {
-                  bgcolor: 'rgba(0, 0, 0, 0.04)',
-                },
               }}
             >
               {selectedTahun !== null ? (
@@ -539,17 +481,6 @@ function ProgramList() {
               variant="outlined"
               startIcon={<HistoryIcon />}
               onClick={() => setOpenHistoryModal(true)}
-              sx={{
-                borderColor: '#86868b',
-                color: '#86868b',
-                fontWeight: 500,
-                px: 2.5,
-                '&:hover': {
-                  borderColor: '#1d1d1f',
-                  color: '#1d1d1f',
-                  bgcolor: 'rgba(0, 0, 0, 0.04)',
-                },
-              }}
             >
               Riwayat
             </Button>
@@ -558,16 +489,6 @@ function ProgramList() {
                 variant="outlined"
                 startIcon={<ContentCopyIcon />}
                 onClick={() => setOpenCopyModal(true)}
-                sx={{
-                  borderColor: '#DA251C',
-                  color: '#DA251C',
-                  fontWeight: 500,
-                  px: 2.5,
-                  '&:hover': {
-                    borderColor: '#B91C14',
-                    bgcolor: 'rgba(218, 37, 28, 0.04)',
-                  },
-                }}
               >
                 Salin dari {previousTahun}
               </Button>
@@ -576,14 +497,6 @@ function ProgramList() {
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => setOpenAddProgramModal(true)}
-              sx={{
-                background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
-                fontWeight: 500,
-                px: 2.5,
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
-                },
-              }}
             >
               Tambah Program
             </Button>
@@ -653,8 +566,8 @@ function ProgramList() {
         <TableContainer>
           <Table>
           <TableHead>
-            <TableRow sx={{ bgcolor: '#f8f9fa' }}>
-              <TableCell sx={{ fontWeight: 600, color: '#2C3E50', py: 2 }}>Program</TableCell>
+            <TableRow>
+              <TableCell sx={{ py: 2 }}>Program</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -1006,6 +919,7 @@ function ProgramList() {
           {snackbar.message}
         </Alert>
       </Snackbar>
+      </Box>
     </Box>
   );
 }

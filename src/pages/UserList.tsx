@@ -19,7 +19,6 @@ import {
   Menu,
   MenuItem,
   Link,
-  Chip,
   Snackbar,
   Alert,
   Dialog,
@@ -41,6 +40,10 @@ import {
 } from '@mui/icons-material';
 import { Popover, Checkbox, FormControlLabel, FormGroup } from '@mui/material';
 import { AddPksiModal } from '../components/modals';
+import PageHeader from '../components/PageHeader';
+import Badge from '../components/Badge';
+import type { BadgeVariant } from '../components/Badge';
+import { COLORS } from '../styles/theme';
 
 // Interface untuk data PKSI
 interface PksiData {
@@ -173,39 +176,22 @@ const PROGRESS_OPTIONS = [
   'Unit Test', 'SIT', 'UAT', 'Deployment', 'Selesai',
 ];
 
-const getProgressColor = (progress?: string): { bg: string; color: string } => {
-  switch (progress) {
-    case 'Selesai': return { bg: 'rgba(46,125,50,0.12)', color: '#2e7d32' };
-    case 'Deployment': return { bg: 'rgba(156,39,176,0.12)', color: '#7b1fa2' };
-    case 'UAT': return { bg: 'rgba(2,136,209,0.12)', color: '#0277bd' };
-    case 'SIT': return { bg: 'rgba(0,150,136,0.12)', color: '#00695c' };
-    case 'Unit Test': return { bg: 'rgba(33,150,243,0.12)', color: '#1565c0' };
-    case 'Coding': return { bg: 'rgba(3,169,244,0.12)', color: '#0288d1' };
-    case 'Desain': return { bg: 'rgba(103,58,183,0.12)', color: '#512da8' };
-    case 'Pengadaan': return { bg: 'rgba(255,152,0,0.12)', color: '#e65100' };
-    default: return { bg: 'rgba(237,108,2,0.12)', color: '#bf360c' };
-  }
+// Progress step -> badge variant. "Selesai" is success, otherwise neutral/in-progress.
+const getProgressVariant = (progress?: string): BadgeVariant => {
+  if (progress === 'Selesai') return 'green';
+  if (progress === 'Deployment' || progress === 'UAT' || progress === 'SIT') return 'amber';
+  return 'slate';
 };
 
-// Liquid glass style constants
-const GLASS_DIALOG_PAPER_SX = {
-  borderRadius: '20px',
-  background: 'rgba(255, 255, 255, 0.82)',
-  backdropFilter: 'blur(40px) saturate(200%)',
-  WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-  border: '1px solid rgba(255, 255, 255, 0.5)',
-  boxShadow: '0 20px 60px rgba(0,0,0,0.15), 0 1px 0 rgba(255,255,255,0.8) inset',
-};
-
-// Status color mapping
-const getStatusColor = (status: PksiData['status']) => {
+// Status -> badge variant mapping.
+const getStatusVariant = (status: PksiData['status']): BadgeVariant => {
   switch (status) {
     case 'disetujui':
-      return { bgcolor: 'rgba(46, 125, 50, 0.1)', color: '#2e7d32' };
+      return 'green';
     case 'tidak_disetujui':
-      return { bgcolor: 'rgba(211, 47, 47, 0.1)', color: '#d32f2f' };
+      return 'red';
     default:
-      return { bgcolor: 'rgba(237, 108, 2, 0.1)', color: '#ed6c02' };
+      return 'amber';
   }
 };
 
@@ -384,32 +370,28 @@ const UserList = () => {
   );
 
   return (
-    <Box sx={{ p: 3, width: '100%' }}>
+    <Box>
       {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography 
-          variant="h4" 
-          sx={{ 
-            fontWeight: 600, 
-            color: '#1d1d1f',
-            letterSpacing: '-0.02em',
-            mb: 0.5,
-          }}
-        >
-          Semua PKSI
-        </Typography>
-        <Typography variant="body1" sx={{ color: '#86868b' }}>
-          Kelola data pengajuan PKSI dan dokumen T.01
-        </Typography>
-      </Box>
+      <PageHeader
+        eyebrow="CONTROL CENTER"
+        title="Semua PKSI"
+        subtitle="Kelola data pengajuan PKSI dan dokumen T.01."
+        actions={
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setAddModalOpen(true)}
+          >
+            Tambah PKSI
+          </Button>
+        }
+      />
 
+      <Box sx={{ p: { xs: 3, md: 4.5, xl: 6 } }}>
       {/* Main Card */}
       <Paper
-        elevation={0}
         sx={{
           width: '100%',
-          borderRadius: 2,
-          border: '1px solid rgba(0, 0, 0, 0.08)',
           overflow: 'hidden',
         }}
       >
@@ -420,7 +402,7 @@ const UserList = () => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+            borderBottom: `1px solid ${COLORS.BORDER}`,
           }}
         >
           <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
@@ -430,28 +412,12 @@ const UserList = () => {
               size="small"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              sx={{ 
-                width: 280,
-                '& .MuiOutlinedInput-root': {
-                  bgcolor: '#f5f5f7',
-                  borderRadius: '10px',
-                  '& fieldset': {
-                    borderColor: 'transparent',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: 'transparent',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#DA251C',
-                    borderWidth: 2,
-                  },
-                },
-              }}
+              sx={{ width: 280 }}
               slotProps={{
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon sx={{ color: '#86868b', fontSize: 20 }} />
+                      <SearchIcon sx={{ color: COLORS.TEXT_SUBTLE, fontSize: 20 }} />
                     </InputAdornment>
                   ),
                 },
@@ -462,34 +428,13 @@ const UserList = () => {
               startIcon={<TuneRounded sx={{ fontSize: 18 }} />}
               onClick={handleFilterOpen}
               sx={{
-                color: selectedJangkaWaktu.size > 0 || selectedStatus.size > 0 ? '#DA251C' : '#86868b',
-                fontWeight: 500,
-                '&:hover': {
-                  bgcolor: 'rgba(0, 0, 0, 0.04)',
-                },
+                color: selectedJangkaWaktu.size > 0 || selectedStatus.size > 0 ? COLORS.PRIMARY : COLORS.TEXT_SECONDARY,
+                fontWeight: 600,
               }}
             >
               Filters
             </Button>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setAddModalOpen(true)}
-            sx={{
-              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
-              fontWeight: 500,
-              px: 2.5,
-              borderRadius: '12px',
-              boxShadow: '0 4px 15px rgba(218, 37, 28, 0.3)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
-                boxShadow: '0 6px 20px rgba(218, 37, 28, 0.4)',
-              },
-            }}
-          >
-            Tambah PKSI
-          </Button>
         </Box>
 
         {/* Filter Popover */}
@@ -505,21 +450,11 @@ const UserList = () => {
             vertical: 'top',
             horizontal: 'left',
           }}
-          PaperProps={{
-            sx: {
-              mt: 1,
-              borderRadius: '16px',
-              background: 'rgba(255,255,255,0.88)',
-              backdropFilter: 'blur(24px) saturate(180%)',
-              WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-              border: '1px solid rgba(255,255,255,0.5)',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-            },
-          }}
+          PaperProps={{ sx: { mt: 1 } }}
         >
           <Box sx={{ p: 2.5, minWidth: 300 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: COLORS.INK }}>
                 Filter
               </Typography>
               <IconButton size="small" onClick={handleFilterClose}>
@@ -529,7 +464,7 @@ const UserList = () => {
 
             {/* Jangka Waktu Filter */}
             <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: COLORS.INK, mb: 1 }}>
                 Jangka Waktu
               </Typography>
               <FormGroup>
@@ -556,11 +491,11 @@ const UserList = () => {
               </FormGroup>
             </Box>
 
-            <Box sx={{ borderTop: '1px solid rgba(0,0,0,0.06)', my: 2 }} />
+            <Box sx={{ borderTop: `1px solid ${COLORS.BORDER}`, my: 2 }} />
 
             {/* Status Filter */}
             <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: COLORS.INK, mb: 1 }}>
                 Status
               </Typography>
               <FormGroup>
@@ -597,7 +532,7 @@ const UserList = () => {
               </FormGroup>
             </Box>
 
-            <Box sx={{ borderTop: '1px solid rgba(0,0,0,0.06)', my: 2 }} />
+            <Box sx={{ borderTop: `1px solid ${COLORS.BORDER}`, my: 2 }} />
 
             {/* Reset Button */}
             <Button
@@ -605,14 +540,6 @@ const UserList = () => {
               variant="outlined"
               size="small"
               onClick={handleResetFilter}
-              sx={{
-                color: '#DA251C',
-                borderColor: '#DA251C',
-                '&:hover': {
-                  bgcolor: 'rgba(218, 37, 28, 0.04)',
-                  borderColor: '#DA251C',
-                },
-              }}
             >
               Reset Filter
             </Button>
@@ -671,11 +598,11 @@ const UserList = () => {
                 <TableRow>
                   <TableCell colSpan={8} sx={{ py: 8, textAlign: 'center' }}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <SearchIcon sx={{ fontSize: 48, color: '#d1d1d6', mb: 2 }} />
-                      <Typography variant="body1" sx={{ color: '#86868b', fontWeight: 500 }}>
+                      <SearchIcon sx={{ fontSize: 48, color: COLORS.TEXT_SUBTLE, mb: 2 }} />
+                      <Typography variant="body1" sx={{ color: COLORS.TEXT_SECONDARY, fontWeight: 500 }}>
                         Data tidak ditemukan
                       </Typography>
-                      <Typography variant="body2" sx={{ color: '#aeaeb2' }}>
+                      <Typography variant="body2" sx={{ color: COLORS.TEXT_SUBTLE }}>
                         Coba sesuaikan kata kunci pencarian
                       </Typography>
                     </Box>
@@ -685,47 +612,27 @@ const UserList = () => {
                 paginatedPksi.map((item, index) => (
                   <TableRow
                     key={item.id}
+                    hover
                     sx={{
                       '&:last-child td': { borderBottom: 0 },
                     }}
                   >
-                    <TableCell sx={{ pl: 3, color: '#86868b', fontSize: '0.875rem', boxShadow: item.isMendesak ? 'inset 4px 0 0 #FF3B30' : 'none', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+                    <TableCell sx={{ pl: 3, color: COLORS.TEXT_SECONDARY, boxShadow: item.isMendesak ? `inset 4px 0 0 ${COLORS.PRIMARY}` : 'none' }}>
                       {page * rowsPerPage + index + 1}
                     </TableCell>
                     <TableCell>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          fontWeight: 500, 
-                          color: '#1d1d1f',
-                        }}
+                      <Typography
+                        variant="body2"
+                        sx={{ fontWeight: 600, color: COLORS.INK }}
                       >
                         {item.namaPksi}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Box
-                        sx={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          px: 1.5,
-                          py: 0.5,
-                          borderRadius: '6px',
-                          bgcolor: item.jangkaWaktu.includes('Multiyears') 
-                            ? 'rgba(63, 81, 181, 0.08)' 
-                            : 'rgba(156, 39, 176, 0.08)',
-                          color: item.jangkaWaktu.includes('Multiyears') 
-                            ? '#3f51b5' 
-                            : '#9c27b0',
-                          fontSize: '0.75rem',
-                          fontWeight: 500,
-                        }}
-                      >
-                        {item.jangkaWaktu}
-                      </Box>
+                      <Badge variant="slate">{item.jangkaWaktu}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
+                      <Typography variant="body2" sx={{ color: COLORS.TEXT_PRIMARY }}>
                         {new Date(item.tanggalPengajuan).toLocaleDateString('id-ID', {
                           day: 'numeric',
                           month: 'long',
@@ -742,13 +649,8 @@ const UserList = () => {
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: 0.5,
-                          color: '#DA251C',
-                          textDecoration: 'none',
                           fontWeight: 500,
                           fontSize: '0.875rem',
-                          '&:hover': {
-                            textDecoration: 'underline',
-                          },
                         }}
                       >
                         Lihat Dokumen
@@ -757,47 +659,23 @@ const UserList = () => {
                     </TableCell>
                     <TableCell>
                       <Tooltip title="Klik untuk mengubah status">
-                        <Button
+                        <Box
+                          component="span"
                           onClick={(e) => handleStatusMenuOpen(e, item.id)}
-                          endIcon={<ArrowDownIcon />}
-                          sx={{
-                            textTransform: 'none',
-                            fontWeight: 500,
-                            fontSize: '0.8125rem',
-                            px: 1.5,
-                            py: 0.5,
-                            borderRadius: '8px',
-                            ...getStatusColor(item.status),
-                            '&:hover': {
-                              ...getStatusColor(item.status),
-                              filter: 'brightness(0.95)',
-                            },
-                          }}
+                          sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, cursor: 'pointer', '&:hover': { opacity: 0.85 } }}
                         >
-                          {STATUS_LABELS[item.status]}
-                        </Button>
+                          <Badge variant={getStatusVariant(item.status)}>{STATUS_LABELS[item.status]}</Badge>
+                          <ArrowDownIcon sx={{ fontSize: 16, color: COLORS.TEXT_SUBTLE }} />
+                        </Box>
                       </Tooltip>
                     </TableCell>
                     {/* Progress chip */}
                     <TableCell>
-                      <Box
-                        sx={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 0.5,
-                          px: 1.5,
-                          py: 0.5,
-                          borderRadius: '20px',
-                          bgcolor: getProgressColor(item.progress).bg,
-                          color: getProgressColor(item.progress).color,
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          backdropFilter: 'blur(8px)',
-                          border: `1px solid ${getProgressColor(item.progress).color}22`,
-                        }}
-                      >
-                        <TrendingUpIcon sx={{ fontSize: 13 }} />
-                        {item.progress || 'Penyusunan Usreq'}
+                      <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                        <Badge variant={getProgressVariant(item.progress)}>
+                          <TrendingUpIcon sx={{ fontSize: 13, mr: 0.5 }} />
+                          {item.progress || 'Penyusunan Usreq'}
+                        </Badge>
                       </Box>
                     </TableCell>
                     {/* Edit action */}
@@ -805,20 +683,8 @@ const UserList = () => {
                       <Tooltip title="Edit Progress & Tanggal">
                         <IconButton
                           size="small"
+                          color="primary"
                           onClick={() => handleEditOpen(item)}
-                          sx={{
-                            background: 'rgba(218, 37, 28, 0.06)',
-                            backdropFilter: 'blur(8px)',
-                            border: '1px solid rgba(218, 37, 28, 0.12)',
-                            borderRadius: '10px',
-                            color: '#DA251C',
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              background: 'rgba(218, 37, 28, 0.12)',
-                              transform: 'scale(1.08)',
-                              boxShadow: '0 4px 12px rgba(218,37,28,0.2)',
-                            },
-                          }}
                         >
                           <EditIcon sx={{ fontSize: 16 }} />
                         </IconButton>
@@ -838,36 +704,15 @@ const UserList = () => {
           onClose={handleStatusMenuClose}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
           transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-          PaperProps={{
-            sx: {
-              mt: 0.5,
-              borderRadius: '16px',
-              background: 'rgba(255,255,255,0.88)',
-              backdropFilter: 'blur(24px) saturate(180%)',
-              WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-              border: '1px solid rgba(255,255,255,0.5)',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-              overflow: 'hidden',
-            },
-          }}
         >
-          <MenuItem
-            onClick={() => handleStatusChange('disetujui')}
-            sx={{ '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.08)' }, borderRadius: '8px', mx: 0.5, my: 0.25 }}
-          >
-            <Chip label="Disetujui" size="small" sx={{ bgcolor: 'rgba(46,125,50,0.1)', color: '#2e7d32', fontWeight: 500 }} />
+          <MenuItem onClick={() => handleStatusChange('disetujui')}>
+            <Badge variant="green">Disetujui</Badge>
           </MenuItem>
-          <MenuItem
-            onClick={() => handleStatusChange('tidak_disetujui')}
-            sx={{ '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.08)' }, borderRadius: '8px', mx: 0.5, my: 0.25 }}
-          >
-            <Chip label="Tidak Disetujui" size="small" sx={{ bgcolor: 'rgba(211,47,47,0.1)', color: '#d32f2f', fontWeight: 500 }} />
+          <MenuItem onClick={() => handleStatusChange('tidak_disetujui')}>
+            <Badge variant="red">Tidak Disetujui</Badge>
           </MenuItem>
-          <MenuItem
-            onClick={() => handleStatusChange('pending')}
-            sx={{ '&:hover': { bgcolor: 'rgba(237,108,2,0.08)' }, borderRadius: '8px', mx: 0.5, my: 0.25 }}
-          >
-            <Chip label="Pending" size="small" sx={{ bgcolor: 'rgba(237,108,2,0.1)', color: '#ed6c02', fontWeight: 500 }} />
+          <MenuItem onClick={() => handleStatusChange('pending')}>
+            <Badge variant="amber">Pending</Badge>
           </MenuItem>
         </Menu>
 
@@ -879,11 +724,11 @@ const UserList = () => {
             alignItems: 'center',
             px: 3,
             py: 2,
-            borderTop: '1px solid rgba(0, 0, 0, 0.06)',
-            bgcolor: '#fbfbfd',
+            borderTop: `1px solid ${COLORS.BORDER}`,
+            bgcolor: COLORS.SOFT,
           }}
         >
-          <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8125rem' }}>
+          <Typography variant="body2" sx={{ color: COLORS.TEXT_SECONDARY, fontSize: '0.8125rem' }}>
             Menampilkan {page * rowsPerPage + 1} sampai {Math.min((page + 1) * rowsPerPage, filteredPksi.length)} dari {filteredPksi.length} data
           </Typography>
           <TablePagination
@@ -896,11 +741,6 @@ const UserList = () => {
             rowsPerPageOptions={[5, 10, 25]}
             labelRowsPerPage=""
             sx={{
-              '& .MuiTablePagination-select': {
-                borderRadius: '8px',
-                bgcolor: '#f5f5f7',
-                mr: 1,
-              },
               '& .MuiTablePagination-displayedRows': {
                 display: 'none',
               },
@@ -909,22 +749,12 @@ const UserList = () => {
         </Box>
       </Paper>
 
-      {/* ── Edit Progress & Tanggal Dialog (Liquid Glass) ── */}
+      {/* ── Edit Progress & Tanggal Dialog ── */}
       <Dialog
         open={editDialogOpen}
         onClose={handleEditClose}
         maxWidth="sm"
         fullWidth
-        slotProps={{
-          backdrop: {
-            sx: {
-              background: 'rgba(0, 0, 0, 0.18)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-            },
-          },
-        }}
-        PaperProps={{ sx: GLASS_DIALOG_PAPER_SX }}
       >
         <DialogTitle
           sx={{
@@ -937,23 +767,14 @@ const UserList = () => {
           }}
         >
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, color: '#1d1d1f', letterSpacing: '-0.02em' }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: COLORS.INK }}>
               Edit Progress PKSI
             </Typography>
-            <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 400 }}>
+            <Typography variant="caption" sx={{ color: COLORS.TEXT_SECONDARY }}>
               {editingPksi?.namaPksi}
             </Typography>
           </Box>
-          <IconButton
-            onClick={handleEditClose}
-            size="small"
-            sx={{
-              background: 'rgba(0,0,0,0.05)',
-              backdropFilter: 'blur(8px)',
-              borderRadius: '10px',
-              '&:hover': { background: 'rgba(0,0,0,0.1)' },
-            }}
-          >
+          <IconButton onClick={handleEditClose} size="small">
             <CloseIcon sx={{ fontSize: 18 }} />
           </IconButton>
         </DialogTitle>
@@ -961,7 +782,7 @@ const UserList = () => {
         <DialogContent sx={{ px: 3, pb: 1, pt: 2 }}>
           {/* Progress selector */}
           <Box sx={{ mb: 2.5 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: COLORS.INK, mb: 1 }}>
               Progress Tahapan
             </Typography>
             <FormControl fullWidth>
@@ -969,61 +790,10 @@ const UserList = () => {
                 value={editProgress}
                 onChange={(e) => setEditProgress(e.target.value)}
                 size="small"
-                sx={{
-                  borderRadius: '12px',
-                  background: 'rgba(255,255,255,0.7)',
-                  backdropFilter: 'blur(12px)',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0,0,0,0.1)',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(218,37,28,0.4)',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#DA251C',
-                    borderWidth: 2,
-                  },
-                }}
-                MenuProps={{
-                  PaperProps: {
-                    sx: {
-                      borderRadius: '14px',
-                      background: 'rgba(255,255,255,0.9)',
-                      backdropFilter: 'blur(24px) saturate(180%)',
-                      border: '1px solid rgba(255,255,255,0.6)',
-                      boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-                    },
-                  },
-                }}
               >
                 {PROGRESS_OPTIONS.map((opt) => (
-                  <MenuItem
-                    key={opt}
-                    value={opt}
-                    sx={{
-                      borderRadius: '8px',
-                      mx: 0.5,
-                      my: 0.25,
-                      '&.Mui-selected': {
-                        background: 'rgba(218,37,28,0.08)',
-                        color: '#DA251C',
-                        fontWeight: 600,
-                      },
-                      '&:hover': { background: 'rgba(218,37,28,0.06)' },
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box
-                        sx={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          bgcolor: getProgressColor(opt).color,
-                          flexShrink: 0,
-                        }}
-                      />
-                      {opt}
-                    </Box>
+                  <MenuItem key={opt} value={opt}>
+                    {opt}
                   </MenuItem>
                 ))}
               </Select>
@@ -1032,72 +802,30 @@ const UserList = () => {
             {/* Preview chip */}
             {editProgress && (
               <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="caption" sx={{ color: '#86868b' }}>Preview:</Typography>
-                <Box
-                  sx={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 1.5,
-                    py: 0.4,
-                    borderRadius: '20px',
-                    bgcolor: getProgressColor(editProgress).bg,
-                    color: getProgressColor(editProgress).color,
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    border: `1px solid ${getProgressColor(editProgress).color}22`,
-                  }}
-                >
-                  <TrendingUpIcon sx={{ fontSize: 13 }} />
+                <Typography variant="caption" sx={{ color: COLORS.TEXT_SECONDARY }}>Preview:</Typography>
+                <Badge variant={getProgressVariant(editProgress)}>
+                  <TrendingUpIcon sx={{ fontSize: 13, mr: 0.5 }} />
                   {editProgress}
-                </Box>
+                </Badge>
               </Box>
             )}
           </Box>
 
           {/* Date picker */}
           <Box>
-            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: COLORS.INK, mb: 1 }}>
               Tanggal Pengajuan
             </Typography>
-            <Box
-              sx={{
-                position: 'relative',
-                borderRadius: '12px',
-                background: 'rgba(255,255,255,0.7)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid rgba(0,0,0,0.1)',
-                transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
-                '&:focus-within': {
-                  borderColor: '#DA251C',
-                  borderWidth: '2px',
-                  boxShadow: '0 0 0 3px rgba(218,37,28,0.08)',
-                },
-              }}
-            >
-              <input
-                type="date"
-                value={editTanggal}
-                onChange={(e) => setEditTanggal(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  border: 'none',
-                  outline: 'none',
-                  background: 'transparent',
-                  fontSize: '0.875rem',
-                  color: '#1d1d1f',
-                  fontFamily: 'inherit',
-                  borderRadius: '12px',
-                  boxSizing: 'border-box',
-                  cursor: 'pointer',
-                  appearance: 'none',
-                  WebkitAppearance: 'none',
-                }}
-              />
-            </Box>
+            <TextField
+              type="date"
+              size="small"
+              fullWidth
+              value={editTanggal}
+              onChange={(e) => setEditTanggal(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
             {editTanggal && (
-              <Typography variant="caption" sx={{ color: '#86868b', mt: 0.75, display: 'block' }}>
+              <Typography variant="caption" sx={{ color: COLORS.TEXT_SECONDARY, mt: 0.75, display: 'block' }}>
                 {new Date(editTanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </Typography>
             )}
@@ -1105,41 +833,10 @@ const UserList = () => {
         </DialogContent>
 
         <DialogActions sx={{ px: 3, pb: 3, pt: 2, gap: 1 }}>
-          <Button
-            onClick={handleEditClose}
-            sx={{
-              borderRadius: '12px',
-              px: 2.5,
-              py: 1,
-              color: '#86868b',
-              background: 'rgba(0,0,0,0.04)',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(0,0,0,0.08)',
-              fontWeight: 500,
-              '&:hover': { background: 'rgba(0,0,0,0.08)' },
-            }}
-          >
+          <Button onClick={handleEditClose} variant="outlined">
             Batal
           </Button>
-          <Button
-            onClick={handleEditSave}
-            variant="contained"
-            sx={{
-              borderRadius: '12px',
-              px: 3,
-              py: 1,
-              fontWeight: 600,
-              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
-              boxShadow: '0 4px 15px rgba(218,37,28,0.35)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
-                boxShadow: '0 6px 20px rgba(218,37,28,0.45)',
-                transform: 'translateY(-1px)',
-              },
-              transition: 'all 0.2s ease',
-            }}
-          >
+          <Button onClick={handleEditSave} variant="contained">
             Simpan Perubahan
           </Button>
         </DialogActions>
@@ -1168,27 +865,12 @@ const UserList = () => {
           onClose={() => setToast(prev => ({ ...prev, open: false }))}
           severity={toast.severity}
           variant="filled"
-          sx={{
-            borderRadius: '14px',
-            background: toast.severity === 'success'
-              ? 'linear-gradient(135deg, rgba(46,125,50,0.92), rgba(76,175,80,0.92))'
-              : toast.severity === 'error'
-              ? 'linear-gradient(135deg, rgba(211,47,47,0.92), rgba(239,83,80,0.92))'
-              : 'linear-gradient(135deg, rgba(2,136,209,0.92), rgba(3,169,244,0.92))',
-            backdropFilter: 'blur(20px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-            border: '1px solid rgba(255,255,255,0.25)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-            color: '#fff',
-            fontWeight: 500,
-            minWidth: 280,
-            '& .MuiAlert-icon': { color: 'rgba(255,255,255,0.9)' },
-            '& .MuiAlert-action .MuiIconButton-root': { color: 'rgba(255,255,255,0.8)' },
-          }}
+          sx={{ minWidth: 280, color: '#fff' }}
         >
           {toast.message}
         </Alert>
       </Snackbar>
+      </Box>
     </Box>
   );
 };

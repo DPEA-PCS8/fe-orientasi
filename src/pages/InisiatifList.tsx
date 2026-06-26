@@ -18,7 +18,6 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  Chip,
   Popover,
   Checkbox,
   FormControlLabel,
@@ -38,6 +37,10 @@ import {
   Close as CloseIcon,
   MoreVert as MoreVertIcon,
 } from '@mui/icons-material';
+import PageHeader from '../components/PageHeader';
+import Badge from '../components/Badge';
+import type { BadgeVariant } from '../components/Badge';
+import { COLORS } from '../styles/theme';
 
 interface InisiatifData {
   id: string;
@@ -78,31 +81,31 @@ const PRIORITAS_LABELS: Record<InisiatifData['prioritas'], string> = {
   low: 'Rendah',
 };
 
-const getStatusColor = (status: InisiatifData['status']) => {
+const getStatusVariant = (status: InisiatifData['status']): BadgeVariant => {
   switch (status) {
     case 'completed':
-      return '#31A24C';
+      return 'green';
     case 'cancelled':
-      return '#FF3B30';
+      return 'red';
     case 'ongoing':
-      return '#007AFF';
+      return 'slate';
     case 'planning':
-      return '#FF9500';
+      return 'amber';
     default:
-      return '#86868b';
+      return 'slate';
   }
 };
 
-const getPrioritasColor = (prioritas: InisiatifData['prioritas']) => {
+const getPrioritasVariant = (prioritas: InisiatifData['prioritas']): BadgeVariant => {
   switch (prioritas) {
     case 'high':
-      return '#FF3B30';
+      return 'red';
     case 'medium':
-      return '#FF9500';
+      return 'amber';
     case 'low':
-      return '#34C759';
+      return 'green';
     default:
-      return '#86868b';
+      return 'slate';
   }
 };
 
@@ -230,35 +233,20 @@ function InisiatifList() {
   const displayedData = sortedData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   return (
-    <Box sx={{ 
-      p: 3.5,
-      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
-      minHeight: '100vh',
-    }}>
+    <Box>
       {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography 
-          variant="h4" 
-          sx={{ 
-            fontWeight: 700, 
-            color: '#1d1d1f',
-            mb: 0.5 
-          }}
-        >
-          Daftar Inisiatif
-        </Typography>
-        <Typography variant="body1" sx={{ color: '#86868b' }}>
-          Kelola inisiatif strategis organisasi
-        </Typography>
-      </Box>
+      <PageHeader
+        eyebrow="CONTROL CENTER"
+        title="Daftar Inisiatif"
+        subtitle="Kelola inisiatif strategis organisasi."
+      />
 
+      <Box sx={{ p: { xs: 3, md: 4.5, xl: 6 } }}>
       {/* Main Card */}
       <Paper
         elevation={0}
         sx={{
           width: '100%',
-          borderRadius: 2,
-          border: '1px solid rgba(0, 0, 0, 0.08)',
           overflow: 'hidden',
         }}
       >
@@ -278,28 +266,12 @@ function InisiatifList() {
               size="small"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              sx={{ 
-                width: 350,
-                '& .MuiOutlinedInput-root': {
-                  bgcolor: '#f5f5f7',
-                  borderRadius: '10px',
-                  '& fieldset': {
-                    borderColor: 'transparent',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: 'transparent',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#DA251C',
-                    borderWidth: 2,
-                  },
-                },
-              }}
+              sx={{ width: 350 }}
               slotProps={{
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon sx={{ color: '#86868b', fontSize: 20 }} />
+                      <SearchIcon sx={{ color: COLORS.TEXT_SUBTLE, fontSize: 20 }} />
                     </InputAdornment>
                   ),
                 },
@@ -310,11 +282,8 @@ function InisiatifList() {
               startIcon={<TuneRounded sx={{ fontSize: 18 }} />}
               onClick={handleFilterOpen}
               sx={{
-                color: selectedStatus.size > 0 || selectedPrioritas.size > 0 ? '#DA251C' : '#86868b',
+                color: selectedStatus.size > 0 || selectedPrioritas.size > 0 ? COLORS.PRIMARY : COLORS.TEXT_SECONDARY,
                 fontWeight: 500,
-                '&:hover': {
-                  bgcolor: 'rgba(0, 0, 0, 0.04)',
-                },
               }}
             >
               Filter
@@ -324,14 +293,6 @@ function InisiatifList() {
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => setShowAddDialog(true)}
-            sx={{
-              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
-              fontWeight: 500,
-              px: 2.5,
-              '&:hover': {
-                background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
-              },
-            }}
           >
             Tambah Inisiatif
           </Button>
@@ -353,14 +314,12 @@ function InisiatifList() {
           PaperProps={{
             sx: {
               mt: 1,
-              borderRadius: 2,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
             },
           }}
         >
           <Box sx={{ p: 2.5, minWidth: 300 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: COLORS.INK }}>
                 Filter
               </Typography>
               <IconButton size="small" onClick={handleFilterClose}>
@@ -370,7 +329,7 @@ function InisiatifList() {
 
             {/* Status Filter */}
             <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: COLORS.INK, mb: 1 }}>
                 Status
               </Typography>
               <FormGroup>
@@ -392,7 +351,7 @@ function InisiatifList() {
 
             {/* Prioritas Filter */}
             <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: COLORS.INK, mb: 1 }}>
                 Prioritas
               </Typography>
               <FormGroup>
@@ -428,8 +387,8 @@ function InisiatifList() {
         <TableContainer>
           <Table>
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f5f5f7' }}>
-                <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', width: '25%' }}>
+              <TableRow>
+                <TableCell sx={{ width: '25%' }}>
                   <TableSortLabel
                     active={orderBy === 'namaInisiatif'}
                     direction={orderBy === 'namaInisiatif' ? order : 'asc'}
@@ -438,13 +397,13 @@ function InisiatifList() {
                     Nama Inisiatif
                   </TableSortLabel>
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', width: '15%' }}>
+                <TableCell sx={{ width: '15%' }}>
                   Departemen
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', width: '10%' }}>
+                <TableCell sx={{ width: '10%' }}>
                   PIC
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', width: '10%' }}>
+                <TableCell sx={{ width: '10%' }}>
                   <TableSortLabel
                     active={orderBy === 'status'}
                     direction={orderBy === 'status' ? order : 'asc'}
@@ -453,61 +412,47 @@ function InisiatifList() {
                     Status
                   </TableSortLabel>
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', width: '10%' }}>
+                <TableCell sx={{ width: '10%' }}>
                   Prioritas
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', width: '15%' }}>
+                <TableCell sx={{ width: '15%' }}>
                   Periode
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', width: '5%', textAlign: 'center' }}>
+                <TableCell sx={{ width: '5%', textAlign: 'center' }}>
                   Aksi
                 </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {displayedData.map((row) => (
-                <TableRow key={row.id} hover sx={{ '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.02)' } }}>
+                <TableRow key={row.id} hover>
                   <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 500, color: '#1d1d1f' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, color: COLORS.INK }}>
                       {row.namaInisiatif}
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" sx={{ color: '#86868b' }}>
+                    <Typography variant="body2" sx={{ color: COLORS.TEXT_SECONDARY }}>
                       {row.departemen}
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" sx={{ color: '#86868b' }}>
+                    <Typography variant="body2" sx={{ color: COLORS.TEXT_SECONDARY }}>
                       {row.pic}
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Chip
-                      label={STATUS_LABELS[row.status]}
-                      size="small"
-                      sx={{
-                        bgcolor: `${getStatusColor(row.status)}20`,
-                        color: getStatusColor(row.status),
-                        fontWeight: 500,
-                        fontSize: '0.75rem',
-                      }}
-                    />
+                    <Badge variant={getStatusVariant(row.status)}>
+                      {STATUS_LABELS[row.status]}
+                    </Badge>
                   </TableCell>
                   <TableCell>
-                    <Chip
-                      label={PRIORITAS_LABELS[row.prioritas]}
-                      size="small"
-                      sx={{
-                        bgcolor: `${getPrioritasColor(row.prioritas)}20`,
-                        color: getPrioritasColor(row.prioritas),
-                        fontWeight: 500,
-                        fontSize: '0.75rem',
-                      }}
-                    />
+                    <Badge variant={getPrioritasVariant(row.prioritas)}>
+                      {PRIORITAS_LABELS[row.prioritas]}
+                    </Badge>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8125rem' }}>
+                    <Typography variant="body2" sx={{ color: COLORS.TEXT_SECONDARY, fontSize: '0.8125rem' }}>
                       {new Date(row.tanggalMulai).toLocaleDateString('id-ID')} - {new Date(row.tanggalSelesai).toLocaleDateString('id-ID')}
                     </Typography>
                   </TableCell>
@@ -516,7 +461,7 @@ function InisiatifList() {
                       size="small"
                       onClick={(e) => handleMenuOpen(e, row.id)}
                     >
-                      <MoreVertIcon sx={{ fontSize: 18, color: '#86868b' }} />
+                      <MoreVertIcon sx={{ fontSize: 18, color: COLORS.TEXT_SECONDARY }} />
                     </IconButton>
                   </TableCell>
                 </TableRow>
@@ -548,7 +493,7 @@ function InisiatifList() {
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           sx={{
-            borderTop: '1px solid rgba(0, 0, 0, 0.06)',
+            borderTop: `1px solid ${COLORS.BORDER}`,
             '& .MuiTablePagination-selectLabel': {
               mb: 0,
             },
@@ -558,7 +503,7 @@ function InisiatifList() {
 
       {/* Add Dialog */}
       <Dialog open={showAddDialog} onClose={() => setShowAddDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, color: '#1d1d1f' }}>Tambah Inisiatif Baru</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700, color: COLORS.INK }}>Tambah Inisiatif Baru</DialogTitle>
         <DialogContent sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
           <TextField
             fullWidth
@@ -671,12 +616,12 @@ function InisiatifList() {
               });
               setAddErrors({});
             }}
-            sx={{ background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)' }}
           >
             Simpan
           </Button>
         </DialogActions>
       </Dialog>
+      </Box>
     </Box>
   );
 }

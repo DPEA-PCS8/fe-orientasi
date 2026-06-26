@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import type { SelectChangeEvent } from '@mui/material/Select';
-import { ArrowBack, Save, Add, Delete, Apps, Lock } from '@mui/icons-material';
+import { ArrowBack, Save, Add, Delete, Lock } from '@mui/icons-material';
 import {
   getAplikasiById, createAplikasi, updateAplikasi, getVariablesByKategori,
   type AplikasiRequest, type UrlRequest, type SatkerInternalRequest,
@@ -19,6 +19,8 @@ import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getAllSubKategori, type SubKategoriData } from '../api/subKategoriApi';
 import { usePermissions } from '../hooks/usePermissions';
+import PageHeader from '../components/PageHeader';
+import { COLORS } from '../styles/theme';
 
 const MENU_CODE = 'APLIKASI';
 
@@ -502,39 +504,33 @@ const AplikasiFormPage = () => {
   }
 
   return (
-    <Box p={3}>
-      {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box display="flex" alignItems="center" gap={2}>
-          <Button
-            startIcon={<ArrowBack />}
-            onClick={() => navigate('/aplikasi')}
-          >
-            Kembali
-          </Button>
-          <Apps color="primary" />
-          <Typography variant="h5" fontWeight={600}>
-            {isEdit ? 'Edit Aplikasi' : 'Tambah Aplikasi'}
-          </Typography>
-        </Box>
-        <Box display="flex" gap={1}>
-          <Button
-            variant="outlined"
-            onClick={() => navigate('/aplikasi')}
-          >
-            Batal
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <Save />}
-            onClick={handleSubmit}
-            disabled={submitting}
-          >
-            Simpan
-          </Button>
-        </Box>
-      </Box>
+    <Box>
+      <PageHeader
+        eyebrow="CONTROL CENTER"
+        title={isEdit ? 'Edit Aplikasi' : 'Tambah Aplikasi'}
+        subtitle="Lengkapi informasi aplikasi, URL, pengguna, dan penghargaan."
+        actions={
+          <>
+            <Button
+              variant="outlined"
+              startIcon={<ArrowBack />}
+              onClick={() => navigate('/aplikasi')}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <Save />}
+              onClick={handleSubmit}
+              disabled={submitting}
+            >
+              Simpan
+            </Button>
+          </>
+        }
+      />
 
+      <Box p={3}>
       {error && (
         <Alert severity="error" sx={{ mb: 2, whiteSpace: 'pre-line' }} onClose={() => setError(null)}>
           <Typography component="div" sx={{ whiteSpace: 'pre-wrap', fontSize: '0.875rem', lineHeight: 1.6 }}>
@@ -596,7 +592,7 @@ const AplikasiFormPage = () => {
                 ))}
               </Select>
               {fieldErrors['status_aplikasi'] && (
-                <Typography sx={{ fontSize: '0.75rem', color: '#d32f2f', mt: 0.5 }}>
+                <Typography sx={{ fontSize: '0.75rem', color: COLORS.ERROR, mt: 0.5 }}>
                   {fieldErrors['status_aplikasi']}
                 </Typography>
               )}
@@ -615,7 +611,7 @@ const AplikasiFormPage = () => {
                 <Box component="li" {...props}>
                   <Box>
                     <Typography sx={{ fontWeight: 600, fontSize: '0.85rem' }}>{option.kode_bidang}</Typography>
-                    <Typography sx={{ fontSize: '0.7rem', color: '#86868b' }}>{option.nama_bidang}</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.TEXT_SECONDARY }}>{option.nama_bidang}</Typography>
                   </Box>
                 </Box>
               )}
@@ -642,7 +638,7 @@ const AplikasiFormPage = () => {
                 <Box component="li" {...props}>
                   <Box>
                     <Typography sx={{ fontWeight: 600, fontSize: '0.85rem' }}>{option.kode_skpa}</Typography>
-                    <Typography sx={{ fontSize: '0.7rem', color: '#86868b' }}>{option.nama_skpa}</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.TEXT_SECONDARY }}>{option.nama_skpa}</Typography>
                   </Box>
                 </Box>
               )}
@@ -669,8 +665,8 @@ const AplikasiFormPage = () => {
                 <Box component="li" {...props}>
                   <Box>
                     <Typography sx={{ fontWeight: 600, fontSize: '0.85rem' }}>{option.kode}</Typography>
-                    <Typography sx={{ fontSize: '0.7rem', color: '#86868b' }}>{option.nama}</Typography>
-                    <Typography sx={{ fontSize: '0.65rem', color: '#aaa' }}>{option.category_code} - {option.category_name}</Typography>
+                    <Typography sx={{ fontSize: '0.7rem', color: COLORS.TEXT_SECONDARY }}>{option.nama}</Typography>
+                    <Typography sx={{ fontSize: '0.65rem', color: COLORS.TEXT_SUBTLE }}>{option.category_code} - {option.category_name}</Typography>
                   </Box>
                 </Box>
               )}
@@ -729,7 +725,7 @@ const AplikasiFormPage = () => {
 
       {/* Idle Info (conditional) */}
       {form.status_aplikasi === APPLICATION_STATUS.IDLE && (
-        <Paper sx={{ p: 3, mb: 3, border: fieldErrors['kategori_idle'] ? '1px solid #d32f2f' : undefined }}>
+        <Paper sx={{ p: 3, mb: 3, border: fieldErrors['kategori_idle'] ? `1px solid ` : undefined }}>
           <Typography variant="h6" gutterBottom>Informasi Status Idle</Typography>
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 6 }}>
@@ -746,7 +742,7 @@ const AplikasiFormPage = () => {
                   ))}
                 </Select>
                 {fieldErrors['kategori_idle'] && (
-                  <Typography sx={{ fontSize: '0.75rem', color: '#d32f2f', mt: 0.5 }}>
+                  <Typography sx={{ fontSize: '0.75rem', color: COLORS.ERROR, mt: 0.5 }}>
                     {fieldErrors['kategori_idle']}
                   </Typography>
                 )}
@@ -790,12 +786,12 @@ const AplikasiFormPage = () => {
       )}
 
       {/* URLs */}
-      <Paper sx={{ p: 3, mb: 3, border: fieldErrors['urls'] ? '1px solid #d32f2f' : undefined }}>
+      <Paper sx={{ p: 3, mb: 3, border: fieldErrors['urls'] ? `1px solid ` : undefined }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
           <Box>
             <Typography variant="h6">URL Aplikasi *</Typography>
             {fieldErrors['urls'] && (
-              <Typography sx={{ fontSize: '0.875rem', color: '#d32f2f', mt: 0.5 }}>
+              <Typography sx={{ fontSize: '0.875rem', color: COLORS.ERROR, mt: 0.5 }}>
                 {fieldErrors['urls']}
               </Typography>
             )}
@@ -1128,7 +1124,7 @@ const AplikasiFormPage = () => {
                     ))}
                   </Select>
                   {fieldErrors[`penghargaan_kategori_${index}`] && (
-                    <Typography sx={{ fontSize: '0.75rem', color: '#d32f2f', mt: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: COLORS.ERROR, mt: 0.5 }}>
                       {fieldErrors[`penghargaan_kategori_${index}`]}
                     </Typography>
                   )}
@@ -1172,6 +1168,7 @@ const AplikasiFormPage = () => {
           </Typography>
         )}
       </Paper>
+      </Box>
     </Box>
   );
 };

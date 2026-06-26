@@ -6,9 +6,9 @@ import {
   Select, MenuItem, FormControl, InputLabel, Tooltip, Chip, Skeleton,
   Divider, TextField, Badge, Popover, Autocomplete, Checkbox, FormControlLabel
 } from '@mui/material';
-import { 
-  HistoryRounded, FilterAlt, BarChart,
-  Add, Lock, Edit, Delete, CompareArrows, TrendingUp, 
+import {
+  FilterAlt, BarChart,
+  Add, Lock, Edit, Delete, CompareArrows, TrendingUp,
   TrendingFlat, Close, Search, Download
 } from '@mui/icons-material';
 import {
@@ -32,6 +32,10 @@ import { APPLICATION_STATUS_LABELS, ACCESS_TYPE_LABELS } from '../api/aplikasiAp
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { usePermissions } from '../hooks/usePermissions';
+import PageHeader from '../components/PageHeader';
+import StatusBadge from '../components/Badge';
+import type { BadgeVariant } from '../components/Badge';
+import { COLORS } from '../styles/theme';
 
 const MENU_CODE = 'HISTORIS_APLIKASI';
 
@@ -395,19 +399,16 @@ const HistorisAplikasiPage = () => {
     }
   };
 
-  const getStatusChip = (status: string, size: 'small' | 'medium' = 'small') => {
-    const colorMap: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
-      AKTIF: 'success',
-      IDLE: 'warning',
-      DIAKHIRI: 'error',
+  const getStatusChip = (status: string) => {
+    const variantMap: Record<string, BadgeVariant> = {
+      AKTIF: 'green',
+      IDLE: 'amber',
+      DIAKHIRI: 'red',
     };
     return (
-      <Chip
-        label={APPLICATION_STATUS_LABELS[status] || status}
-        color={colorMap[status] || 'default'}
-        size={size}
-        sx={{ fontWeight: 500 }}
-      />
+      <StatusBadge variant={variantMap[status] || 'slate'}>
+        {APPLICATION_STATUS_LABELS[status] || status}
+      </StatusBadge>
     );
   };
 
@@ -455,49 +456,46 @@ const HistorisAplikasiPage = () => {
   }
 
   return (
-    <Box p={3}>
+    <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Box display="flex" alignItems="center" gap={1}>
-          <HistoryRounded color="primary" />
-          <Typography variant="h5" fontWeight={600}>
-            Historis Aplikasi
-          </Typography>
-        </Box>
-        <Box display="flex" gap={1}>
-          <Tooltip title="Download Excel">
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Download />}
-              onClick={handleOpenDownloadDialog}
-            >
-              Download
-            </Button>
-          </Tooltip>
-          <Badge badgeContent={totalStats} color="primary" max={999}>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<BarChart />}
-              onClick={(e) => setStatsAnchorEl(e.currentTarget)}
-            >
-              Statistik
-            </Button>
-          </Badge>
-          {canCreate && (
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<Add />}
-              onClick={() => setShowGenerateDialog(true)}
-            >
-              Generate Snapshot
-            </Button>
-          )}
-        </Box>
-      </Box>
+      <PageHeader
+        eyebrow="CONTROL CENTER"
+        title="Historis Aplikasi"
+        subtitle="Pantau snapshot dan perubahan data aplikasi antar tahun."
+        actions={
+          <>
+            <Tooltip title="Download Excel">
+              <Button
+                variant="outlined"
+                startIcon={<Download />}
+                onClick={handleOpenDownloadDialog}
+              >
+                Download
+              </Button>
+            </Tooltip>
+            <Badge badgeContent={totalStats} color="primary" max={999}>
+              <Button
+                variant="outlined"
+                startIcon={<BarChart />}
+                onClick={(e) => setStatsAnchorEl(e.currentTarget)}
+              >
+                Statistik
+              </Button>
+            </Badge>
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => setShowGenerateDialog(true)}
+              >
+                Generate Snapshot
+              </Button>
+            )}
+          </>
+        }
+      />
 
+      <Box sx={{ p: { xs: 3, md: 4.5, xl: 6 } }}>
       {/* Statistics Popover */}
       <Popover
         open={statsOpen}
@@ -670,19 +668,19 @@ const HistorisAplikasiPage = () => {
         <TableContainer>
           <Table size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: 'grey.100' }}>
-                <TableCell sx={{ fontWeight: 600, minWidth: 40 }}>#</TableCell>
-                <TableCell sx={{ fontWeight: 600, minWidth: 220, position: 'sticky', left: 0, bgcolor: 'grey.100', zIndex: 1 }}>
+              <TableRow>
+                <TableCell sx={{ minWidth: 40 }}>#</TableCell>
+                <TableCell sx={{ minWidth: 220, position: 'sticky', left: 0, bgcolor: COLORS.SOFT, zIndex: 1 }}>
                   Nama Aplikasi
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, minWidth: 150 }}>Bidang</TableCell>
-                <TableCell sx={{ fontWeight: 600, minWidth: 150 }}>SKPA</TableCell>
+                <TableCell sx={{ minWidth: 150 }}>Bidang</TableCell>
+                <TableCell sx={{ minWidth: 150 }}>SKPA</TableCell>
                 {years.map(year => (
-                  <TableCell key={year} align="center" sx={{ fontWeight: 600, minWidth: 100 }}>
+                  <TableCell key={year} align="center" sx={{ minWidth: 100 }}>
                     {year}
                   </TableCell>
                 ))}
-                <TableCell align="center" sx={{ fontWeight: 600, minWidth: 130 }}>Aksi</TableCell>
+                <TableCell align="center" sx={{ minWidth: 130 }}>Aksi</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -1692,6 +1690,7 @@ const HistorisAplikasiPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      </Box>
     </Box>
   );
 };
