@@ -204,14 +204,16 @@ const theme = createTheme({
     },
     MuiTableCell: {
       styleOverrides: {
-        root: {
+        // Function form so the per-cell `align` prop still wins. Default to
+        // center only when align is not explicitly set (align="left" works).
+        root: ({ ownerState }) => ({
           borderBottom: `1px solid ${COLORS.BORDER}`,
           padding: '9px 14px',
           fontSize: '0.875rem',
           color: COLORS.TEXT_PRIMARY,
-          textAlign: 'center',
           verticalAlign: 'middle',
-        },
+          ...(!ownerState.align || ownerState.align === 'inherit' ? { textAlign: 'center' } : {}),
+        }),
         head: {
           fontWeight: 600,
           fontSize: '0.875rem',
@@ -219,7 +221,6 @@ const theme = createTheme({
           background: COLORS.SURFACE,
           borderBottom: `1px solid ${COLORS.BORDER}`,
           whiteSpace: 'nowrap',
-          textAlign: 'center',
         },
       },
     },
