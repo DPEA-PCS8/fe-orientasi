@@ -1089,7 +1089,7 @@ function PksiList() {
               sx={{ 
                 width: 280,
                 '& .MuiOutlinedInput-root': {
-                  bgcolor: '#F1F5F9',
+                  bgcolor: '#FFFFFF',
                   borderRadius: '10px',
                   '& fieldset': {
                     borderColor: 'transparent',
@@ -1950,26 +1950,26 @@ function PksiList() {
           <Table sx={{ minWidth: 1800 }}>
             <TableHead>
               {/* First row - Grouped headers */}
-              <TableRow sx={{ bgcolor: '#F1F5F9' }}>
-                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', py: 1.25, px: 2, whiteSpace: 'nowrap', textAlign: 'center', fontSize: '0.8rem', width: 50, minWidth: 50, ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 3, bgcolor: '#F1F5F9' }), ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+              <TableRow sx={{ bgcolor: '#FFFFFF' }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', textAlign: 'center', fontSize: '0.8rem', width: 50, minWidth: 50, ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                   No
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', py: 1.25, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#F1F5F9' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                   Nama Aplikasi
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', py: 1.25, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 200, ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 3, bgcolor: '#F1F5F9' }), ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 200, ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                   Nama PKSI
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', py: 1.25, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150 }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150 }}>
                   Jenis PKSI
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', py: 1.25, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#F1F5F9' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                   SKPA
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', py: 1.25, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('jangkaWaktu') && { position: 'sticky', left: getStickyLeft('jangkaWaktu'), zIndex: 3, bgcolor: '#F1F5F9' }), ...(isLastStickyColumn('jangkaWaktu') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('jangkaWaktu') && { position: 'sticky', left: getStickyLeft('jangkaWaktu'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('jangkaWaktu') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                   Jangka Waktu
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', py: 1.25, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150 }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150 }}>
                   Tanggal Pengajuan
                 </TableCell>
                 {/* Timeline - grouped (9 stages) */}
@@ -2021,18 +2021,18 @@ function PksiList() {
                     />
                   </Box>
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', py: 1.25, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 90 }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 90 }}>
                   Docs T.01
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', py: 1.25, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 130 }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 130 }}>
                   Status
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', py: 1.25, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100 }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#334155', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100 }}>
                   Aksi
                 </TableCell>
               </TableRow>
               {/* Second row - Timeline sub-headers (only visible, softer colors) */}
-              <TableRow sx={{ bgcolor: '#F1F5F9' }}>
+              <TableRow sx={{ bgcolor: '#FFFFFF' }}>
                 {visibleTimelineColumns.has('usreq') && (
                   <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 95 }}>
                     USREQ
@@ -2572,7 +2572,7 @@ function PksiList() {
           sx={{
             borderTop: '1px solid rgba(0, 0, 0, 0.06)',
             '& .MuiTablePagination-select': {
-              bgcolor: '#F1F5F9',
+              bgcolor: '#FFFFFF',
               borderRadius: '8px',
               border: '1px solid rgba(0, 0, 0, 0.08)',
             },
