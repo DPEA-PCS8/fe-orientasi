@@ -20,7 +20,7 @@ const PageHeader = ({ eyebrow = 'CONTROL CENTER', title, subtitle, actions }: Pa
         borderTop: `1px solid ${COLORS.BORDER}`,
         borderBottom: `1px solid ${COLORS.BORDER}`,
         px: { xs: 3, md: 4.5, xl: 6 },
-        py: 3,
+        py: 2,
       }}
     >
       <Box
@@ -49,8 +49,8 @@ const PageHeader = ({ eyebrow = 'CONTROL CENTER', title, subtitle, actions }: Pa
           <Typography
             component="h1"
             sx={{
-              mt: 0.5,
-              fontSize: { xs: '1.75rem', md: '2.25rem' },
+              mt: 0.25,
+              fontSize: { xs: '1.5rem', md: '1.875rem' },
               fontWeight: 700,
               lineHeight: 1.15,
               color: COLORS.INK,

@@ -206,7 +206,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderBottom: `1px solid ${COLORS.BORDER}`,
-          padding: '14px 18px',
+          padding: '9px 14px',
           fontSize: '0.875rem',
           color: COLORS.TEXT_PRIMARY,
         },
