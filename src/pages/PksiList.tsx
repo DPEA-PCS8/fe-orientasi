@@ -39,7 +39,6 @@ import {
   Visibility as VisibilityIcon,
   PushPin as PushPinIcon,
   ViewColumn as ViewColumnIcon,
-  ListAltRounded,
   InsertDriveFile as FileIcon,
   Download as DownloadIcon,
   AttachFile as AttachFileIcon,
@@ -64,6 +63,9 @@ import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, getAvailable
 import { getPksiFiles, downloadPksiFile, type PksiFileData } from '../api/pksiFileApi';
 import { getAllTeams, type Team } from '../api/teamApi';
 import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
+import PageHeader from '../components/PageHeader';
+import Badge from '../components/Badge';
+import type { BadgeVariant } from '../components/Badge';
 
 // Interface untuk data PKSI (transformed from API)
 interface PksiData {
@@ -254,18 +256,18 @@ const STATUS_LABELS: Record<PksiData['status'], string> = {
   dikerjakan_cara_lain: 'Dikerjakan Cara Lain',
 };
 
-const getStatusColor = (status: PksiData['status']) => {
+const getStatusVariant = (status: PksiData['status']): BadgeVariant => {
   switch (status) {
     case 'disetujui':
-      return '#31A24C';
+      return 'green';
     case 'tidak_disetujui':
-      return '#FF3B30';
+      return 'red';
     case 'dikerjakan_cara_lain':
-      return '#8E8E93'; // Gray color for nested PKSI
+      return 'slate';
     case 'pending':
-      return '#FF9500';
+      return 'amber';
     default:
-      return '#86868b';
+      return 'slate';
   }
 };
 
@@ -1052,44 +1054,25 @@ function PksiList() {
   const paginatedPksi = filteredPksi;
 
   return (
-    <Box sx={{ 
-      p: 3.5,
-      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
-      minHeight: '100vh',
-      overflowX: 'hidden',
-    }}>
+    <Box sx={{ overflowX: 'hidden' }}>
       {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-          <ListAltRounded sx={{ fontSize: 32, color: '#DA251C' }} />
-          <Typography 
-            variant="h4" 
-            sx={{ 
-              fontWeight: 700, 
-              color: '#1d1d1f',
-              letterSpacing: '-0.02em',
-            }}
-          >
-            Semua PKSI
-          </Typography>
-        </Box>
-        <Typography variant="body1" sx={{ color: '#86868b' }}>
-          Kelola data pengajuan PKSI
-        </Typography>
-      </Box>
+      <PageHeader
+        eyebrow="CONTROL CENTER"
+        title="Semua PKSI"
+        subtitle="Kelola data pengajuan PKSI."
+      />
 
+      <Box sx={{ p: { xs: 3, md: 4.5, xl: 6 } }}>
       {/* Main Card */}
       <Paper
         elevation={0}
         sx={{
-          width: isCollapsed 
-            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)` 
+          width: isCollapsed
+            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)`
             : '80vw',
-          maxWidth: isCollapsed 
-            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)` 
+          maxWidth: isCollapsed
+            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)`
             : '80vw',
-          borderRadius: 2,
-          border: '1px solid rgba(0, 0, 0, 0.08)',
           overflow: 'hidden',
           transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
@@ -2464,31 +2447,15 @@ function PksiList() {
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 0.5,
-                        px: 1.5,
-                        py: 0.75,
-                        borderRadius: '8px',
-                        bgcolor: `${getStatusColor(item.status)}15`,
                         cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        border: `1px solid ${getStatusColor(item.status)}30`,
-                        '&:hover': {
-                          bgcolor: `${getStatusColor(item.status)}25`,
-                          transform: 'translateY(-1px)',
-                          boxShadow: `0 2px 8px ${getStatusColor(item.status)}20`,
-                        },
+                        transition: 'opacity 0.2s',
+                        '&:hover': { opacity: 0.8 },
                       }}
                     >
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontWeight: 600,
-                          fontSize: '0.7rem',
-                          color: getStatusColor(item.status),
-                        }}
-                      >
+                      <Badge variant={getStatusVariant(item.status)}>
                         {STATUS_LABELS[item.status]}
-                      </Typography>
-                      <ArrowDownIcon sx={{ fontSize: 12, color: getStatusColor(item.status) }} />
+                        <ArrowDownIcon sx={{ fontSize: 12, ml: 0.5 }} />
+                      </Badge>
                     </Box>
                   </TableCell>
                   {/* Aksi */}
@@ -3224,6 +3191,7 @@ function PksiList() {
           </Button>
         </DialogActions>
       </Dialog>
+      </Box>
     </Box>
   );
 }

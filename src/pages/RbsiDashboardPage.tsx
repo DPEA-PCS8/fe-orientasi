@@ -3,8 +3,6 @@ import {
   Box,
   Typography,
   Paper,
-  Card,
-  CardContent,
   Select,
   MenuItem,
   FormControl,
@@ -39,6 +37,9 @@ import {
   ArrowUpward,
   ArrowDownward,
 } from '@mui/icons-material';
+import PageHeader from '../components/PageHeader';
+import Badge from '../components/Badge';
+import { COLORS } from '../styles/theme';
 import { getAllRbsi, getDashboardData, getKepList } from '../api/rbsiApi';
 import type {
   RbsiResponse,
@@ -139,42 +140,48 @@ interface StatCardProps {
   value: number | string;
   subtitle?: string;
   icon: React.ReactNode;
-  color: string;
-  bgColor: string;
 }
 
-const StatCard = ({ title, value, subtitle, icon, color, bgColor }: StatCardProps) => (
-  <Card sx={{ height: '100%', borderLeft: `4px solid ${color}` }}>
-    <CardContent>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <Box>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            {title}
+const StatCard = ({ title, value, subtitle, icon }: StatCardProps) => (
+  <Paper sx={{ height: '100%', p: 2.5 }}>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1.5 }}>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography
+          sx={{
+            fontSize: '0.72rem',
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: COLORS.TEXT_SECONDARY,
+          }}
+        >
+          {title}
+        </Typography>
+        <Typography sx={{ mt: 0.5, fontSize: '2rem', fontWeight: 700, lineHeight: 1.1, color: COLORS.INK }}>
+          {value}
+        </Typography>
+        {subtitle && (
+          <Typography sx={{ mt: 0.5, fontSize: '0.75rem', color: COLORS.TEXT_SECONDARY }}>
+            {subtitle}
           </Typography>
-          <Typography variant="h4" fontWeight={700} sx={{ color }}>
-            {value}
-          </Typography>
-          {subtitle && (
-            <Typography variant="caption" color="text.secondary">
-              {subtitle}
-            </Typography>
-          )}
-        </Box>
-        <Box sx={{
-          width: 48,
-          height: 48,
-          borderRadius: '12px',
-          bgcolor: bgColor,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: color
-        }}>
-          {icon}
-        </Box>
+        )}
       </Box>
-    </CardContent>
-  </Card>
+      <Box sx={{
+        width: 44,
+        height: 44,
+        borderRadius: '12px',
+        bgcolor: COLORS.SOFT,
+        border: `1px solid ${COLORS.BORDER}`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: COLORS.PRIMARY,
+        flexShrink: 0,
+      }}>
+        {icon}
+      </Box>
+    </Box>
+  </Paper>
 );
 
 function RbsiDashboardPage() {
@@ -659,11 +666,9 @@ function RbsiDashboardPage() {
                           }}>
                             <TableCell>{pksi.nama_pksi}</TableCell>
                             <TableCell>
-                              <Chip
-                                size="small"
-                                label={pksi.status}
-                                color={pksi.status === 'DISETUJUI' ? 'success' : 'default'}
-                              />
+                              <Badge variant={pksi.status === 'DISETUJUI' ? 'green' : 'slate'}>
+                                {pksi.status}
+                              </Badge>
                             </TableCell>
                             <TableCell>
                               <Box>
@@ -724,22 +729,16 @@ function RbsiDashboardPage() {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-          <AssessmentIcon sx={{ fontSize: 32, color: '#DA251C' }} />
-          <Typography variant="h4" fontWeight={700}>
-            Dashboard RBSI
-          </Typography>
-        </Box>
-        <Typography variant="body1" color="text.secondary">
-          Analisis hubungan antara Inisiatif RBSI, KEP Progress, dan PKSI
-        </Typography>
-      </Box>
+    <Box>
+      <PageHeader
+        eyebrow="CONTROL CENTER"
+        title="Dashboard RBSI"
+        subtitle="Analisis hubungan antara Inisiatif RBSI, KEP Progress, dan PKSI"
+      />
 
+      <Box sx={{ p: { xs: 3, md: 4.5, xl: 6 } }}>
       {/* Filters */}
-      <Paper sx={{ p: 3, mb: 4, borderRadius: 2 }}>
+      <Paper sx={{ p: 3, mb: 4 }}>
         <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>
           Filter Data
         </Typography>
@@ -833,31 +832,23 @@ function RbsiDashboardPage() {
               value={dashboardData.summary.total_inisiatif}
               subtitle={`Tahun ${selectedTahun}`}
               icon={<AssessmentIcon />}
-              color="#1976d2"
-              bgColor="#e3f2fd"
             />
             <StatCard
               title={`Memiliki PKSI (Tahun ${selectedTahun})`}
               value={dashboardData.summary.inisiatif_with_pksi}
               subtitle={`${dashboardData.summary.percentage_with_pksi.toFixed(1)}% dari total`}
               icon={<CheckCircleIcon />}
-              color="#4caf50"
-              bgColor="#e8f5e9"
             />
             <StatCard
               title={`Belum Memiliki PKSI (Tahun ${selectedTahun})`}
               value={dashboardData.summary.inisiatif_without_pksi}
               icon={<CancelIcon />}
-              color="#ff9800"
-              bgColor="#fff3e0"
             />
             <StatCard
               title="Tingkat Kepatuhan KEP"
               value={`${dashboardData.summary.kep_compliance_percentage.toFixed(1)}%`}
               subtitle={`${dashboardData.summary.kep_realized_with_pksi}/${dashboardData.summary.kep_expected_with_pksi} terealisasi`}
               icon={<TrendingUpIcon />}
-              color="#9c27b0"
-              bgColor="#f3e5f5"
             />
           </Box>
 
@@ -869,7 +860,7 @@ function RbsiDashboardPage() {
             mb: 4
           }}>
             {/* PKSI Status Chart */}
-            <Paper sx={{ p: 3, borderRadius: 2 }}>
+            <Paper sx={{ p: 3 }}>
               <DonutChart
                 title={`Status Inisiatif di Tahun ${selectedTahun}`}
                 data={[
@@ -880,7 +871,7 @@ function RbsiDashboardPage() {
             </Paper>
 
             {/* KEP Compliance Chart */}
-            <Paper sx={{ p: 3, borderRadius: 2 }}>
+            <Paper sx={{ p: 3 }}>
               <DonutChart
                 title={`Realisasi KEP Progress Tahun ${selectedTahun}${selectedKepId ? ' (KEP terpilih)' : ''}`}
                 data={[
@@ -893,7 +884,7 @@ function RbsiDashboardPage() {
           </Box>
 
           {/* Legend */}
-          <Paper sx={{ p: 2, mb: 2, borderRadius: 2 }}>
+          <Paper sx={{ p: 2, mb: 2 }}>
             <Typography variant="subtitle2" gutterBottom>Legenda KEP Progress:</Typography>
             <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'center' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -920,8 +911,8 @@ function RbsiDashboardPage() {
           </Paper>
 
           {/* Initiatives Table */}
-          <Paper sx={{ borderRadius: 2 }}>
-            <Box sx={{ p: 2, borderBottom: '1px solid #e0e0e0' }}>
+          <Paper>
+            <Box sx={{ p: 2, borderBottom: `1px solid ${COLORS.BORDER}` }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h6" fontWeight={600}>
                   Detail Inisiatif
@@ -1031,6 +1022,7 @@ function RbsiDashboardPage() {
           </Paper>
         </>
       )}
+      </Box>
     </Box>
   );
 }

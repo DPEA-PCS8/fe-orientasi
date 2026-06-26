@@ -15,6 +15,8 @@ import {
   ArrowBack as ArrowBackIcon,
   Save as SaveIcon,
 } from '@mui/icons-material';
+import PageHeader from '../components/PageHeader';
+import { COLORS } from '../styles/theme';
 
 interface FormData {
   namaInisiatif: string;
@@ -153,32 +155,33 @@ const AddInisiatif = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-        <Button
-          variant="text"
-          startIcon={<ArrowBackIcon />}
-          onClick={handleCancel}
-          sx={{ color: '#86868b' }}
-        >
-          Kembali
-        </Button>
-        <Typography variant="h5" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
-          Tambah Inisiatif Baru
-        </Typography>
-      </Box>
+    <Box>
+      <PageHeader
+        eyebrow="CONTROL CENTER"
+        title="Tambah Inisiatif Baru"
+        subtitle="Lengkapi informasi inisiatif di bawah ini."
+        actions={
+          <Button
+            variant="outlined"
+            startIcon={<ArrowBackIcon />}
+            onClick={handleCancel}
+          >
+            Kembali
+          </Button>
+        }
+      />
 
+      <Box sx={{ p: 3 }}>
       {successMessage && (
         <Alert severity="success" sx={{ mb: 3 }}>
           {successMessage}
         </Alert>
       )}
 
-      <Paper sx={{ p: 3, borderRadius: 2, maxWidth: 600 }}>
+      <Paper sx={{ p: 3, maxWidth: 600 }}>
         <Stack spacing={3}>
           <Box>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: '#1d1d1f' }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
               Informasi Inisiatif
             </Typography>
             <Stack spacing={2.5}>
@@ -245,7 +248,7 @@ const AddInisiatif = () => {
 
               {/* 4. Progress */}
               <Box>
-                <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>
+                <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
                   Progress: {formData.progress}%
                 </Typography>
                 <Slider
@@ -260,12 +263,12 @@ const AddInisiatif = () => {
                     { value: 100, label: '100%' },
                   ]}
                   sx={{
-                    color: '#DA251C',
+                    color: COLORS.PRIMARY,
                     '& .MuiSlider-thumb': {
-                      bgcolor: '#DA251C',
+                      bgcolor: COLORS.PRIMARY,
                     },
                     '& .MuiSlider-track': {
-                      bgcolor: '#DA251C',
+                      bgcolor: COLORS.PRIMARY,
                     },
                   }}
                 />
@@ -278,14 +281,6 @@ const AddInisiatif = () => {
             <Button
               variant="outlined"
               onClick={handleCancel}
-              sx={{
-                borderColor: '#86868b',
-                color: '#86868b',
-                '&:hover': {
-                  borderColor: '#1d1d1f',
-                  bgcolor: 'transparent',
-                },
-              }}
             >
               Batal
             </Button>
@@ -294,21 +289,13 @@ const AddInisiatif = () => {
               startIcon={<SaveIcon />}
               onClick={handleSubmit}
               disabled={isSubmitting}
-              sx={{
-                background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
-                },
-                '&.Mui-disabled': {
-                  background: '#e5e5e7',
-                },
-              }}
             >
               {isSubmitting ? 'Menyimpan...' : 'Simpan Inisiatif'}
             </Button>
           </Box>
         </Stack>
       </Paper>
+      </Box>
     </Box>
   );
 };
