@@ -2190,10 +2190,10 @@ function PksiList() {
                     </Typography>
                   </TableCell>
                   {/* SKPA */}
-                  <TableCell sx={{ 
+                  <TableCell sx={{
                     py: 1.5,
                     px: 1,
-                    minWidth: 150,
+                    minWidth: 90,
                     ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 1, bgcolor: '#fff' }),
                     ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                   }}>
