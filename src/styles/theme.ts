@@ -221,6 +221,7 @@ const theme = createTheme({
           background: COLORS.SURFACE,
           borderBottom: `2px solid ${COLORS.BORDER}`,
           whiteSpace: 'nowrap',
+          padding: '14px 16px',
         },
       },
     },
