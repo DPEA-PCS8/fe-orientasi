@@ -51,7 +51,7 @@ import {
   GavelRounded,
 } from '@mui/icons-material';
 import { Chip } from '@mui/material';
-import { isAdmin, getUserRoles } from '../api/authApi';
+import { isAdmin, isPengembang, getUserRoles } from '../api/authApi';
 import { getMyPermissions } from '../api/rolePermissionApi';
 import type { MenuPermissionItem } from '../types/rbac.types';
 import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
@@ -185,6 +185,13 @@ const Sidebar = () => {
 
   // Build menu sections dynamically based on user roles and permissions
   const allMenuSections: MenuSection[] = useMemo(() => [
+    ...(isPengembang() ? [{
+      title: 'Pengembang',
+      requiresPermission: false,
+      items: [
+        { label: 'Dashboard', icon: <DashboardRounded />, href: '/my-work' },
+      ],
+    }] : []),
     {
       title: 'Features',
       requiresPermission: true,
