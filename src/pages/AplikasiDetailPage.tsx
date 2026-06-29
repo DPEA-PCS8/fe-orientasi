@@ -22,7 +22,6 @@ import {
   KATEGORI_IDLE_LABELS
 } from '../api/aplikasiApi';
 import { getPksiByAplikasi } from '../api/pksiApi';
-import ViewPksiModal from '../components/modals/ViewPksiModal';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { usePermissions } from '../hooks/usePermissions';
@@ -150,7 +149,6 @@ const AplikasiDetailPage = () => {
   const [ruangLingkupModal, setRuangLingkupModal] = useState<{ open: boolean; namaPksi: string; ruangLingkup: string }>({
     open: false, namaPksi: '', ruangLingkup: ''
   });
-  const [pksiViewModalId, setPksiViewModalId] = useState<string | null>(null);
 
   const { getMenuPermissions, permissionsLoaded } = usePermissions();
   const { canView, canUpdate } = getMenuPermissions(MENU_CODE);
@@ -1005,7 +1003,7 @@ const AplikasiDetailPage = () => {
                             <Tooltip title="Lihat detail PKSI">
                               <IconButton
                                 size="small"
-                                onClick={() => setPksiViewModalId(pksi.id)}
+                                onClick={() => navigate(`/pksi/${pksi.id}`)}
                                 sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
                               >
                                 <Visibility sx={{ fontSize: 16 }} />
@@ -1366,11 +1364,6 @@ const AplikasiDetailPage = () => {
         </DialogActions>
       </Dialog>
 
-      <ViewPksiModal
-        open={pksiViewModalId !== null}
-        onClose={() => setPksiViewModalId(null)}
-        pksiId={pksiViewModalId}
-      />
     </Box>
   );
 };

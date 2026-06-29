@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Box,
   TextField,
@@ -62,7 +62,7 @@ import {
 import { searchPksiDocumentsForMonitoring, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getUserRoles } from '../api/authApi';
-import { ViewPksiModal, FilePreviewModal } from '../components/modals';
+import { FilePreviewModal } from '../components/modals';
 import { StageSelector } from '../components/StageSelector';
 import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
 import { 
@@ -599,6 +599,7 @@ const TimelineStage = ({ label, stages, gradient, rgb, onChange, onAddPhase, onR
 
 function PksiDisetujui() {
   const { isCollapsed } = useSidebar();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
   const [keyword, setKeyword] = useState(initialSearch);
@@ -753,11 +754,6 @@ function PksiDisetujui() {
     setVisibleTimelineColumns(new Set(TIMELINE_COLUMN_OPTIONS.map(col => col.id)));
   };
 
-  // View modal state
-  const [openViewModal, setOpenViewModal] = useState(false);
-  const [selectedPksiIdForView, setSelectedPksiIdForView] = useState<string | null>(null);
-  const [viewingNestedPksiInfo, setViewingNestedPksiInfo] = useState<{isNested: boolean, nestedName?: string, parentName?: string} | null>(null);
-
   // Edit approval dialog state
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [selectedPksiForEdit, setSelectedPksiForEdit] = useState<PksiData | null>(null);
@@ -874,19 +870,19 @@ function PksiDisetujui() {
   }, []);
 
   const handleViewClick = (item: PksiData) => {
-    // If nested PKSI, show parent detail instead with explanation
     if (item.isNestedPksi && item.parentPksiId) {
-      setSelectedPksiIdForView(item.parentPksiId);
-      setViewingNestedPksiInfo({
-        isNested: true,
-        nestedName: item.namaPksi,
-        parentName: item.parentPksiNama,
+      navigate(`/pksi/${item.parentPksiId}`, {
+        state: {
+          nestedPksiInfo: {
+            isNested: true,
+            nestedName: item.namaPksi,
+            parentName: item.parentPksiNama,
+          },
+        },
       });
     } else {
-      setSelectedPksiIdForView(item.id);
-      setViewingNestedPksiInfo(null);
+      navigate(`/pksi/${item.id}`);
     }
-    setOpenViewModal(true);
   };
 
   const handleEditClick = async (pksi: PksiData) => {
@@ -3770,19 +3766,6 @@ function PksiDisetujui() {
           }}
         />
       </Paper>
-
-      {/* View PKSI Modal */}
-      <ViewPksiModal
-        open={openViewModal}
-        onClose={() => {
-          setOpenViewModal(false);
-          setSelectedPksiIdForView(null);
-          setViewingNestedPksiInfo(null);
-        }}
-        pksiId={selectedPksiIdForView}
-        showMonitoringSection={true}
-        nestedPksiInfo={viewingNestedPksiInfo}
-      />
 
       {/* File Preview Modal */}
       <FilePreviewModal

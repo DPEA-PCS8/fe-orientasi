@@ -56,7 +56,8 @@ import {
   ListItemText,
   ListItemSecondaryAction,
 } from '@mui/material';
-import { AddPksiModal, EditPksiModal, ViewPksiModal, FilePreviewModal } from '../components/modals';
+import { useNavigate } from 'react-router-dom';
+import { AddPksiModal, EditPksiModal, FilePreviewModal } from '../components/modals';
 import { usePermissions } from '../hooks/usePermissions';
 import { DataCountDisplay } from '../components/DataCountDisplay';
 import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, getAvailableParentPksi, type PksiDocumentData, type ParentPksiSummary } from '../api/pksiApi';
@@ -309,12 +310,11 @@ const getSkpaColor = (skpaCode: string): { bg: string; text: string } => {
 };
 
 function PksiList() {
+  const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
-  const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedPksiForEdit, setSelectedPksiForEdit] = useState<PksiData | null>(null);
-  const [selectedPksiIdForView, setSelectedPksiIdForView] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const orderBy = 'namaPksi' as const;
@@ -789,8 +789,7 @@ function PksiList() {
   };
 
   const handleViewClick = (pksiId: string) => {
-    setSelectedPksiIdForView(pksiId);
-    setOpenViewModal(true);
+    navigate(`/pksi/${pksiId}`);
   };
 
   // File dialog functions
@@ -1743,16 +1742,6 @@ function PksiList() {
           }}
           onSuccess={handleEditSuccess}
           pksiData={selectedPksiForEdit}
-        />
-
-        {/* View PKSI Modal */}
-        <ViewPksiModal
-          open={openViewModal}
-          onClose={() => {
-            setOpenViewModal(false);
-            setSelectedPksiIdForView(null);
-          }}
-          pksiId={selectedPksiIdForView}
         />
 
         {/* File List Dialog */}

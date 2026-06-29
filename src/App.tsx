@@ -35,6 +35,7 @@ import Fs2Disetujui from './pages/Fs2Disetujui';
 import FormasiEfektifPage from './pages/FormasiEfektifPage';
 import FormasiEfektifDetailPage from './pages/FormasiEfektifDetailPage';
 import MyWorkPage from './pages/MyWorkPage';
+import PksiDetailPage from './pages/PksiDetailPage';
 
 function App() {
   return (
@@ -326,6 +327,17 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <MyWorkPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        {/* PKSI Detail Page - accessible by all authenticated users */}
+        <Route
+          path="/pksi/:id"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <PksiDetailPage />
               </Layout>
             </ProtectedRoute>
           }

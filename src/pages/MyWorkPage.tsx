@@ -195,7 +195,7 @@ export default function MyWorkPage() {
             <Grid container spacing={2.5}>
               {data!.pksi_list.map((item) => (
                 <Grid item xs={12} sm={6} lg={4} key={item.id}>
-                  <PksiCard item={item} onNavigate={() => navigate('/pksi-disetujui')} />
+                  <PksiCard item={item} onNavigate={() => navigate(`/pksi/${item.id}`)} />
                 </Grid>
               ))}
             </Grid>
