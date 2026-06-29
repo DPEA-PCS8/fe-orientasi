@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Box, CircularProgress } from '@mui/material';
-import { isAuthenticated, hasRole, getUserRoles, isAdmin } from '../api/authApi';
+import { isAuthenticated, hasRole, getUserRoles, isAdmin, isPengembang } from '../api/authApi';
 import { getMyPermissions } from '../api/rolePermissionApi';
 
 /**
@@ -33,6 +33,13 @@ const SmartLanding = () => {
       // Admin has access to everything - default to PKSI list
       if (isAdmin()) {
         setRedirectPath('/pksi-list');
+        setLoading(false);
+        return;
+      }
+
+      // Pengembang gets their personal work dashboard
+      if (isPengembang()) {
+        setRedirectPath('/my-work');
         setLoading(false);
         return;
       }

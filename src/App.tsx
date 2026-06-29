@@ -34,6 +34,7 @@ import Fs2List from './pages/Fs2List';
 import Fs2Disetujui from './pages/Fs2Disetujui';
 import FormasiEfektifPage from './pages/FormasiEfektifPage';
 import FormasiEfektifDetailPage from './pages/FormasiEfektifDetailPage';
+import MyWorkPage from './pages/MyWorkPage';
 
 function App() {
   return (
@@ -314,6 +315,17 @@ function App() {
             <ProtectedRoute requireMenuPermission='FS2_APPROVED'>
               <Layout>
                 <Fs2Disetujui />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        {/* Developer My Work */}
+        <Route
+          path="/my-work"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <MyWorkPage />
               </Layout>
             </ProtectedRoute>
           }
