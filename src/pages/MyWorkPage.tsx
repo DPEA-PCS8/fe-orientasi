@@ -276,11 +276,11 @@ export default function MyWorkPage() {
     <Box sx={{ minHeight: '100vh', background: COLORS.BACKGROUND }}>
       <PageHeader
         eyebrow="DASHBOARD PENGEMBANG"
-        title={`Selamat datang, ${userInfo?.fullName ?? userInfo?.username ?? 'Pengembang'}`}
+        title={`Selamat datang, ${userInfo?.full_name ?? userInfo?.username ?? 'Pengembang'}`}
         subtitle={`Tim: ${teamNames}`}
       />
 
-      <Box sx={{ px: { xs: 3, md: 4.5, xl: 6 }, py: 4, maxWidth: 1400, mx: 'auto' }}>
+      <Box sx={{ px: { xs: 3, md: 4.5, xl: 6 }, py: 4,  mx: 'auto' }}>
         {error && (
           <Box sx={{ p: 2, borderRadius: 2, background: '#FEF2F2', color: COLORS.ERROR, mb: 3, fontSize: '0.875rem' }}>
             {error}

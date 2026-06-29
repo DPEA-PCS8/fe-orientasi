@@ -44,7 +44,7 @@ import { getPksiDocumentById, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa } from '../api/skpaApi';
 import { getPksiFiles, downloadPksiFile, type PksiFileData } from '../api/pksiFileApi';
 import FilePreviewModal from '../components/modals/FilePreviewModal';
-import EditPksiModal from '../components/modals/EditPksiModal';
+import EditPksiMonitoringModal from '../components/modals/EditPksiMonitoringModal';
 import PksiChangeLog from '../components/PksiChangeLog';
 import { FileVersionHistory } from '../components/FileVersionHistory';
 import PageHeader from '../components/PageHeader';
@@ -1024,21 +1024,11 @@ const PksiDetailPage: React.FC = () => {
       />
 
       {pksiData && (
-        <EditPksiModal
+        <EditPksiMonitoringModal
           open={editOpen}
           onClose={() => setEditOpen(false)}
-          pksiData={{
-            id: pksiData.id,
-            namaPksi: pksiData.nama_pksi,
-            namaAplikasi: pksiData.nama_aplikasi ?? '',
-            picSatkerBA: pksiData.pic_satker_ba ?? '',
-            jangkaWaktu: '',
-            tanggalPengajuan: pksiData.tanggal_pengajuan ?? '',
-            linkDocsT01: '',
-            status: (['disetujui', 'tidak_disetujui', 'dikerjakan_cara_lain'] as const)
-              .find(s => pksiData.status.toLowerCase().replace('_dengan_cara_lain', '_cara_lain') === s)
-              ?? 'pending',
-          }}
+          pksiId={pksiData.id}
+          pksiData={pksiData}
           onSuccess={() => {
             setEditOpen(false);
             fetchPksiDetails();
