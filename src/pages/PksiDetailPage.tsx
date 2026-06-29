@@ -38,11 +38,13 @@ import {
   Timeline as TimelineIcon,
   Gavel as GavelIcon,
   Person as PersonIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 import { getPksiDocumentById, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa } from '../api/skpaApi';
 import { getPksiFiles, downloadPksiFile, type PksiFileData } from '../api/pksiFileApi';
 import FilePreviewModal from '../components/modals/FilePreviewModal';
+import EditPksiModal from '../components/modals/EditPksiModal';
 import PksiChangeLog from '../components/PksiChangeLog';
 import { FileVersionHistory } from '../components/FileVersionHistory';
 import PageHeader from '../components/PageHeader';
@@ -149,6 +151,7 @@ const PksiDetailPage: React.FC = () => {
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<PksiFileData | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
     const fetchSkpaData = async () => {
@@ -166,21 +169,22 @@ const PksiDetailPage: React.FC = () => {
     fetchSkpaData();
   }, []);
 
+  const fetchPksiDetails = async () => {
+    if (!pksiId) return;
+    setIsLoading(true);
+    try {
+      const data = await getPksiDocumentById(pksiId);
+      setPksiData(data);
+    } catch (error) {
+      console.error('Error fetching PKSI details:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchPksiDetails = async () => {
-      if (!pksiId) return;
-      setIsLoading(true);
-      try {
-        const data = await getPksiDocumentById(pksiId);
-        setPksiData(data);
-      } catch (error) {
-        console.error('Error fetching PKSI details:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchPksiDetails();
-  }, [pksiId]);
+  }, [pksiId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const fetchFiles = async () => {
@@ -270,23 +274,40 @@ const PksiDetailPage: React.FC = () => {
         title={isLoading ? 'Memuat...' : (pksiData?.nama_pksi ?? 'Detail PKSI')}
         subtitle="Informasi lengkap dokumen PKSI"
         actions={
-          <Button
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate(-1)}
-            variant="outlined"
-            size="small"
-            sx={{
-              borderColor: COLORS.BORDER,
-              color: COLORS.TEXT_PRIMARY,
-              '&:hover': { borderColor: COLORS.PRIMARY, color: COLORS.PRIMARY },
-            }}
-          >
-            Kembali
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {pksiData && (
+              <Button
+                startIcon={<EditIcon />}
+                onClick={() => setEditOpen(true)}
+                variant="contained"
+                size="small"
+                sx={{
+                  bgcolor: COLORS.PRIMARY,
+                  '&:hover': { bgcolor: '#b71c1c' },
+                  boxShadow: 'none',
+                }}
+              >
+                Edit
+              </Button>
+            )}
+            <Button
+              startIcon={<ArrowBackIcon />}
+              onClick={() => navigate(-1)}
+              variant="outlined"
+              size="small"
+              sx={{
+                borderColor: COLORS.BORDER,
+                color: COLORS.TEXT_PRIMARY,
+                '&:hover': { borderColor: COLORS.PRIMARY, color: COLORS.PRIMARY },
+              }}
+            >
+              Kembali
+            </Button>
+          </Box>
         }
       />
 
-      <Box sx={{ px: { xs: 3, md: 4.5, xl: 6 }, py: 4, maxWidth: 1200, mx: 'auto' }}>
+      <Box sx={{ px: { xs: 3, md: 4.5, xl: 6 }, py: 4, mx: 'auto' }}>
         {/* Nested PKSI Info Banner */}
         {nestedPksiInfo?.isNested && (
           <Box
@@ -1001,6 +1022,29 @@ const PksiDetailPage: React.FC = () => {
         onDownload={handlePreviewDownload}
         downloadUrl={`/api/pksi/files/download/${previewFile?.id}`}
       />
+
+      {pksiData && (
+        <EditPksiModal
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          pksiData={{
+            id: pksiData.id,
+            namaPksi: pksiData.nama_pksi,
+            namaAplikasi: pksiData.nama_aplikasi ?? '',
+            picSatkerBA: pksiData.pic_satker_ba ?? '',
+            jangkaWaktu: '',
+            tanggalPengajuan: pksiData.tanggal_pengajuan ?? '',
+            linkDocsT01: '',
+            status: (['disetujui', 'tidak_disetujui', 'dikerjakan_cara_lain'] as const)
+              .find(s => pksiData.status.toLowerCase().replace('_dengan_cara_lain', '_cara_lain') === s)
+              ?? 'pending',
+          }}
+          onSuccess={() => {
+            setEditOpen(false);
+            fetchPksiDetails();
+          }}
+        />
+      )}
     </Box>
   );
 };
