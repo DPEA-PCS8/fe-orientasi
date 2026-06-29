@@ -1,16 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
-  Box, Grid, Card, CardContent, CardActions,
-  Typography, Button, CircularProgress, Skeleton,
+  Box, Typography, Tabs, Tab, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow, Paper, IconButton,
+  InputAdornment, TextField, Skeleton, Chip, Tooltip,
 } from '@mui/material';
+import {
+  OpenInNew as OpenInNewIcon,
+  Search as SearchIcon,
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { getMyWork, type MyWorkData, type PksiCardItem, type Fs2CardItem } from '../api/myWorkApi';
 import { getUserInfo } from '../api/authApi';
-import StatusBadge from '../components/StatusBadge';
 import PageHeader from '../components/PageHeader';
 import { COLORS } from '../styles/theme';
 
-// ─── helpers ────────────────────────────────────────────────────────────────
+// ─── helpers ─────────────────────────────────────────────────────────────────
 
 const PHASE_LABEL: Record<string, string> = {
   USREQ: 'User Requirement', PENGADAAN: 'Pengadaan', DESAIN: 'Desain',
@@ -22,142 +26,244 @@ const FS2_PROGRES_LABEL: Record<string, string> = {
   ASESMEN: 'Asesmen', CODING: 'Pemrograman', PDKK: 'PDKK', DEPLOY_SELESAI: 'Selesai',
 };
 
+const STATUS_COLOR: Record<string, { bg: string; color: string; label: string }> = {
+  DISETUJUI:                  { bg: 'rgba(21,128,61,0.1)',  color: '#15803D', label: 'Disetujui' },
+  DIKERJAKAN_DENGAN_CARA_LAIN:{ bg: 'rgba(37,99,235,0.1)',  color: '#2563EB', label: 'Cara Lain' },
+  PENDING:                    { bg: 'rgba(217,119,6,0.1)',  color: '#D97706', label: 'Pending' },
+  DITOLAK:                    { bg: 'rgba(220,38,38,0.1)',  color: '#DC2626', label: 'Ditolak' },
+};
+
+function statusChip(status: string) {
+  const s = STATUS_COLOR[status] ?? { bg: 'rgba(107,114,128,0.1)', color: '#6B7280', label: status };
+  return (
+    <Chip
+      label={s.label}
+      size="small"
+      sx={{ bgcolor: s.bg, color: s.color, fontWeight: 600, fontSize: '0.7rem', height: 20, borderRadius: '6px' }}
+    />
+  );
+}
+
 function fmtDate(d: string | null): string {
-  if (!d) return '-';
+  if (!d) return '—';
   return new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-// ─── sub-components ─────────────────────────────────────────────────────────
-
-function SectionHeading({ title, count }: { title: string; count: number }) {
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
-      <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: COLORS.INK }}>
-        {title}
-      </Typography>
-      <Box sx={{
-        px: 1, py: 0.2, borderRadius: '12px',
-        background: COLORS.PRIMARY, color: '#fff',
-        fontSize: '0.72rem', fontWeight: 700,
-      }}>
-        {count}
-      </Box>
-    </Box>
-  );
+function isOverdue(d: string | null): boolean {
+  if (!d) return false;
+  return new Date(d) < new Date();
 }
 
-function CardRow({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <Box sx={{ display: 'flex', gap: 0.75, mb: 0.75, alignItems: 'flex-start' }}>
-      <Typography sx={{ fontSize: '0.72rem', color: COLORS.TEXT_SUBTLE, minWidth: 88, pt: '1px' }}>
-        {label}
-      </Typography>
-      <Typography sx={{ fontSize: '0.8rem', color: COLORS.TEXT_PRIMARY, fontWeight: 500 }}>
-        {value || '-'}
-      </Typography>
-    </Box>
-  );
-}
+// ─── table components ────────────────────────────────────────────────────────
 
-function EmptyState({ message }: { message: string }) {
-  return (
-    <Box sx={{
-      py: 4, px: 3, borderRadius: 2,
-      border: `1.5px dashed ${COLORS.BORDER}`,
-      textAlign: 'center', color: COLORS.TEXT_SUBTLE,
-      fontSize: '0.875rem',
-    }}>
-      {message}
-    </Box>
-  );
-}
+const TH_SX = { fontWeight: 700, fontSize: '0.72rem', color: '#6B7280', textTransform: 'uppercase' as const, letterSpacing: '0.05em', py: 1.2, whiteSpace: 'nowrap' as const };
+const TD_SX = { fontSize: '0.82rem', py: 1, color: COLORS.INK };
 
-function PksiCard({ item, onNavigate }: { item: PksiCardItem; onNavigate: () => void }) {
+function TableSkeleton({ cols }: { cols: number }) {
   return (
-    <Card variant="outlined" sx={{
-      height: '100%', display: 'flex', flexDirection: 'column',
-      borderColor: COLORS.BORDER,
-      '&:hover': { boxShadow: COLORS.SHADOW_CARD, borderColor: COLORS.PRIMARY },
-      transition: 'box-shadow 0.2s, border-color 0.2s',
-    }}>
-      <CardContent sx={{ flex: 1, pb: 1 }}>
-        <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: COLORS.INK, mb: 1.5, lineHeight: 1.35 }}>
-          {item.nama_pksi}
-        </Typography>
-        <StatusBadge status={item.status} />
-        <Box sx={{ mt: 1.5 }}>
-          <CardRow label="Aplikasi" value={item.nama_aplikasi} />
-          <CardRow label="Jenis" value={item.jenis_pksi} />
-          <CardRow label="Tahapan" value={item.progress ? (PHASE_LABEL[item.progress] ?? item.progress) : null} />
-          <CardRow label="Target Go Live" value={fmtDate(item.target_go_live)} />
-          <CardRow label="Tim" value={item.team_name} />
-        </Box>
-      </CardContent>
-      <CardActions sx={{ px: 2, pb: 1.5 }}>
-        <Button size="small" variant="outlined" onClick={onNavigate}
-          sx={{ fontSize: '0.75rem', borderColor: COLORS.BORDER, color: COLORS.TEXT_PRIMARY,
-            '&:hover': { borderColor: COLORS.PRIMARY, color: COLORS.PRIMARY } }}>
-          Lihat Detail
-        </Button>
-      </CardActions>
-    </Card>
-  );
-}
-
-function Fs2Card({ item, onNavigate }: { item: Fs2CardItem; onNavigate: () => void }) {
-  return (
-    <Card variant="outlined" sx={{
-      height: '100%', display: 'flex', flexDirection: 'column',
-      borderColor: COLORS.BORDER,
-      '&:hover': { boxShadow: COLORS.SHADOW_CARD, borderColor: COLORS.PRIMARY },
-      transition: 'box-shadow 0.2s, border-color 0.2s',
-    }}>
-      <CardContent sx={{ flex: 1, pb: 1 }}>
-        <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: COLORS.INK, mb: 1.5, lineHeight: 1.35 }}>
-          {item.nama_fs2 || '—'}
-        </Typography>
-        <StatusBadge status={item.status} />
-        <Box sx={{ mt: 1.5 }}>
-          <CardRow label="Aplikasi" value={item.nama_aplikasi} />
-          <CardRow label="Fase" value={item.fase_pengajuan} />
-          <CardRow label="Progres" value={item.progres ? (FS2_PROGRES_LABEL[item.progres] ?? item.progres) : null} />
-          <CardRow label="Target Go Live" value={fmtDate(item.target_go_live)} />
-          <CardRow label="Tim" value={item.team_name} />
-        </Box>
-      </CardContent>
-      <CardActions sx={{ px: 2, pb: 1.5 }}>
-        <Button size="small" variant="outlined" onClick={onNavigate}
-          sx={{ fontSize: '0.75rem', borderColor: COLORS.BORDER, color: COLORS.TEXT_PRIMARY,
-            '&:hover': { borderColor: COLORS.PRIMARY, color: COLORS.PRIMARY } }}>
-          Lihat Detail
-        </Button>
-      </CardActions>
-    </Card>
-  );
-}
-
-function CardGridSkeleton() {
-  return (
-    <Grid container spacing={2.5}>
-      {[1, 2, 3].map((i) => (
-        <Grid item xs={12} sm={6} lg={4} key={i}>
-          <Skeleton variant="rounded" height={220} />
-        </Grid>
+    <>
+      {[1, 2, 3, 4].map(i => (
+        <TableRow key={i}>
+          {Array.from({ length: cols }).map((_, j) => (
+            <TableCell key={j}><Skeleton variant="text" width={j === 0 ? 180 : 80} /></TableCell>
+          ))}
+        </TableRow>
       ))}
-    </Grid>
+    </>
   );
 }
 
-// ─── main page ───────────────────────────────────────────────────────────────
+function EmptyRow({ cols }: { cols: number }) {
+  return (
+    <TableRow>
+      <TableCell colSpan={cols} sx={{ textAlign: 'center', py: 5, color: '#9CA3AF', fontSize: '0.875rem', border: 0 }}>
+        Tidak ada data aktif untuk tim kamu saat ini.
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function PksiTable({ items, loading, onOpen }: {
+  items: PksiCardItem[];
+  loading: boolean;
+  onOpen: (id: string) => void;
+}) {
+  const [q, setQ] = useState('');
+  const filtered = useMemo(() =>
+    items.filter(i =>
+      !q || i.nama_pksi.toLowerCase().includes(q.toLowerCase()) ||
+      (i.nama_aplikasi ?? '').toLowerCase().includes(q.toLowerCase())
+    ), [items, q]);
+
+  return (
+    <Box>
+      <Box sx={{ mb: 2 }}>
+        <TextField
+          size="small"
+          placeholder="Cari nama PKSI atau aplikasi…"
+          value={q}
+          onChange={e => setQ(e.target.value)}
+          InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: '#9CA3AF' }} /></InputAdornment> }}
+          sx={{ width: 300, '& .MuiOutlinedInput-root': { fontSize: '0.82rem' } }}
+        />
+      </Box>
+      <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '10px', borderColor: COLORS.BORDER }}>
+        <Table size="small">
+          <TableHead sx={{ bgcolor: '#F9FAFB' }}>
+            <TableRow>
+              <TableCell sx={TH_SX}>Nama PKSI</TableCell>
+              <TableCell sx={TH_SX}>Aplikasi</TableCell>
+              <TableCell sx={TH_SX}>Status</TableCell>
+              <TableCell sx={TH_SX}>Tahapan</TableCell>
+              <TableCell sx={TH_SX}>Jenis</TableCell>
+              <TableCell sx={TH_SX}>Target Go Live</TableCell>
+              <TableCell sx={TH_SX}>Tim</TableCell>
+              <TableCell sx={{ ...TH_SX, width: 40 }} />
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {loading ? (
+              <TableSkeleton cols={8} />
+            ) : filtered.length === 0 ? (
+              <EmptyRow cols={8} />
+            ) : (
+              filtered.map(item => (
+                <TableRow
+                  key={item.id}
+                  hover
+                  sx={{ cursor: 'pointer', '&:last-child td': { border: 0 } }}
+                  onClick={() => onOpen(item.id)}
+                >
+                  <TableCell sx={{ ...TD_SX, fontWeight: 600, maxWidth: 260 }}>
+                    <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: COLORS.INK, lineHeight: 1.3 }}>
+                      {item.nama_pksi}
+                    </Typography>
+                  </TableCell>
+                  <TableCell sx={{ ...TD_SX, color: '#6B7280' }}>{item.nama_aplikasi ?? '—'}</TableCell>
+                  <TableCell sx={TD_SX}>{statusChip(item.status)}</TableCell>
+                  <TableCell sx={{ ...TD_SX, color: '#6B7280' }}>
+                    {item.progress ? (PHASE_LABEL[item.progress] ?? item.progress) : '—'}
+                  </TableCell>
+                  <TableCell sx={{ ...TD_SX, color: '#6B7280' }}>{item.jenis_pksi ?? '—'}</TableCell>
+                  <TableCell sx={{ ...TD_SX, color: isOverdue(item.target_go_live) ? '#DC2626' : TD_SX.color, fontWeight: isOverdue(item.target_go_live) ? 600 : 400 }}>
+                    {fmtDate(item.target_go_live)}
+                  </TableCell>
+                  <TableCell sx={{ ...TD_SX, color: '#6B7280' }}>{item.team_name ?? '—'}</TableCell>
+                  <TableCell sx={{ py: 0.5, pr: 1 }}>
+                    <Tooltip title="Lihat Detail">
+                      <IconButton size="small" onClick={e => { e.stopPropagation(); onOpen(item.id); }}
+                        sx={{ color: '#9CA3AF', '&:hover': { color: COLORS.PRIMARY } }}>
+                        <OpenInNewIcon sx={{ fontSize: 15 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
+  );
+}
+
+function Fs2Table({ items, loading, onOpen }: {
+  items: Fs2CardItem[];
+  loading: boolean;
+  onOpen: (id: string) => void;
+}) {
+  const [q, setQ] = useState('');
+  const filtered = useMemo(() =>
+    items.filter(i =>
+      !q || (i.nama_fs2 ?? '').toLowerCase().includes(q.toLowerCase()) ||
+      (i.nama_aplikasi ?? '').toLowerCase().includes(q.toLowerCase())
+    ), [items, q]);
+
+  return (
+    <Box>
+      <Box sx={{ mb: 2 }}>
+        <TextField
+          size="small"
+          placeholder="Cari nama FS2 atau aplikasi…"
+          value={q}
+          onChange={e => setQ(e.target.value)}
+          InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: '#9CA3AF' }} /></InputAdornment> }}
+          sx={{ width: 300, '& .MuiOutlinedInput-root': { fontSize: '0.82rem' } }}
+        />
+      </Box>
+      <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '10px', borderColor: COLORS.BORDER }}>
+        <Table size="small">
+          <TableHead sx={{ bgcolor: '#F9FAFB' }}>
+            <TableRow>
+              <TableCell sx={TH_SX}>Nama FS2</TableCell>
+              <TableCell sx={TH_SX}>Aplikasi</TableCell>
+              <TableCell sx={TH_SX}>Status</TableCell>
+              <TableCell sx={TH_SX}>Fase</TableCell>
+              <TableCell sx={TH_SX}>Progres</TableCell>
+              <TableCell sx={TH_SX}>Target Go Live</TableCell>
+              <TableCell sx={TH_SX}>Tim</TableCell>
+              <TableCell sx={{ ...TH_SX, width: 40 }} />
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {loading ? (
+              <TableSkeleton cols={8} />
+            ) : filtered.length === 0 ? (
+              <EmptyRow cols={8} />
+            ) : (
+              filtered.map(item => (
+                <TableRow
+                  key={item.id}
+                  hover
+                  sx={{ cursor: 'pointer', '&:last-child td': { border: 0 } }}
+                  onClick={() => onOpen(item.id)}
+                >
+                  <TableCell sx={{ ...TD_SX, maxWidth: 260 }}>
+                    <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: COLORS.INK, lineHeight: 1.3 }}>
+                      {item.nama_fs2 || '—'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell sx={{ ...TD_SX, color: '#6B7280' }}>{item.nama_aplikasi ?? '—'}</TableCell>
+                  <TableCell sx={TD_SX}>{statusChip(item.status)}</TableCell>
+                  <TableCell sx={{ ...TD_SX, color: '#6B7280' }}>{item.fase_pengajuan ?? '—'}</TableCell>
+                  <TableCell sx={{ ...TD_SX, color: '#6B7280' }}>
+                    {item.progres ? (FS2_PROGRES_LABEL[item.progres] ?? item.progres) : '—'}
+                  </TableCell>
+                  <TableCell sx={{ ...TD_SX, color: isOverdue(item.target_go_live) ? '#DC2626' : TD_SX.color, fontWeight: isOverdue(item.target_go_live) ? 600 : 400 }}>
+                    {fmtDate(item.target_go_live)}
+                  </TableCell>
+                  <TableCell sx={{ ...TD_SX, color: '#6B7280' }}>{item.team_name ?? '—'}</TableCell>
+                  <TableCell sx={{ py: 0.5, pr: 1 }}>
+                    <Tooltip title="Lihat Detail">
+                      <IconButton size="small" onClick={e => { e.stopPropagation(); onOpen(item.id); }}
+                        sx={{ color: '#9CA3AF', '&:hover': { color: COLORS.PRIMARY } }}>
+                        <OpenInNewIcon sx={{ fontSize: 15 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
+  );
+}
+
+// ─── main page ────────────────────────────────────────────────────────────────
 
 export default function MyWorkPage() {
   const navigate = useNavigate();
   const [data, setData] = useState<MyWorkData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState(0);
 
   const userInfo = getUserInfo();
-  const teamNames = data?.teams.map((t) => t.name).join(', ') || '—';
+  const teamNames = data?.teams.map(t => t.name).join(', ') || '—';
+  const pksiCount = data?.pksi_list.length ?? 0;
+  const fs2Count = data?.fs2_list.length ?? 0;
 
   useEffect(() => {
     getMyWork()
@@ -181,47 +287,59 @@ export default function MyWorkPage() {
           </Box>
         )}
 
-        {/* PKSI section */}
-        <Box sx={{ mb: 5 }}>
-          {loading
-            ? <Skeleton variant="text" width={200} height={32} sx={{ mb: 2.5 }} />
-            : <SectionHeading title="PKSI Aktif Tim Saya" count={data?.pksi_list.length ?? 0} />}
-
-          {loading ? (
-            <CardGridSkeleton />
-          ) : data?.pksi_list.length === 0 ? (
-            <EmptyState message="Tidak ada PKSI aktif untuk tim kamu saat ini." />
-          ) : (
-            <Grid container spacing={2.5}>
-              {data!.pksi_list.map((item) => (
-                <Grid item xs={12} sm={6} lg={4} key={item.id}>
-                  <PksiCard item={item} onNavigate={() => navigate(`/pksi/${item.id}`)} />
-                </Grid>
-              ))}
-            </Grid>
-          )}
+        {/* Tabs */}
+        <Box sx={{ borderBottom: `1px solid ${COLORS.BORDER}`, mb: 3 }}>
+          <Tabs
+            value={tab}
+            onChange={(_, v) => setTab(v)}
+            sx={{
+              minHeight: 40,
+              '& .MuiTab-root': { minHeight: 40, fontSize: '0.82rem', fontWeight: 600, textTransform: 'none', px: 2 },
+              '& .MuiTabs-indicator': { bgcolor: COLORS.PRIMARY },
+            }}
+          >
+            <Tab
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  PKSI
+                  {!loading && (
+                    <Box sx={{ px: 0.8, py: 0.1, borderRadius: '10px', bgcolor: tab === 0 ? COLORS.PRIMARY : '#E5E7EB', color: tab === 0 ? '#fff' : '#6B7280', fontSize: '0.68rem', fontWeight: 700, lineHeight: 1.6 }}>
+                      {pksiCount}
+                    </Box>
+                  )}
+                </Box>
+              }
+            />
+            <Tab
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  FS2
+                  {!loading && (
+                    <Box sx={{ px: 0.8, py: 0.1, borderRadius: '10px', bgcolor: tab === 1 ? COLORS.PRIMARY : '#E5E7EB', color: tab === 1 ? '#fff' : '#6B7280', fontSize: '0.68rem', fontWeight: 700, lineHeight: 1.6 }}>
+                      {fs2Count}
+                    </Box>
+                  )}
+                </Box>
+              }
+            />
+          </Tabs>
         </Box>
 
-        {/* FS2 section */}
-        <Box>
-          {loading
-            ? <Skeleton variant="text" width={200} height={32} sx={{ mb: 2.5 }} />
-            : <SectionHeading title="FS2 Aktif Tim Saya" count={data?.fs2_list.length ?? 0} />}
-
-          {loading ? (
-            <CardGridSkeleton />
-          ) : data?.fs2_list.length === 0 ? (
-            <EmptyState message="Tidak ada FS2 aktif untuk tim kamu saat ini." />
-          ) : (
-            <Grid container spacing={2.5}>
-              {data!.fs2_list.map((item) => (
-                <Grid item xs={12} sm={6} lg={4} key={item.id}>
-                  <Fs2Card item={item} onNavigate={() => navigate('/fs2-disetujui')} />
-                </Grid>
-              ))}
-            </Grid>
-          )}
-        </Box>
+        {/* Tab panels */}
+        {tab === 0 && (
+          <PksiTable
+            items={data?.pksi_list ?? []}
+            loading={loading}
+            onOpen={id => navigate(`/pksi/${id}`)}
+          />
+        )}
+        {tab === 1 && (
+          <Fs2Table
+            items={data?.fs2_list ?? []}
+            loading={loading}
+            onOpen={id => navigate(`/fs2/${id}`)}
+          />
+        )}
       </Box>
     </Box>
   );
