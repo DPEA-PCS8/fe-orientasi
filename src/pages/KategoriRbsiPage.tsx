@@ -3,10 +3,10 @@ import {
   Box, Typography, Button, TextField, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Paper, IconButton, Dialog, DialogContent, DialogTitle,
   CircularProgress, Alert, Skeleton, FormControl, InputLabel, Select, MenuItem,
-  Tabs, Tab, Chip, Accordion, AccordionSummary, AccordionDetails, Badge
+  Tabs, Tab, Chip
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material/Select';
-import { Close, Save, Lock, Delete, Add, Edit, Search, History, Photo, ExpandMore, LibraryAdd } from '@mui/icons-material';
+import { Close, Save, Lock, Delete, Add, Edit, Search, History, Photo, LibraryAdd } from '@mui/icons-material';
 import {
   getAllSubKategori, createSubKategori, updateSubKategori, deleteSubKategori,
   bulkCreateSubKategori, getDistinctSnapshotYears, getSnapshotsByYear, createYearlySnapshot,
@@ -299,16 +299,12 @@ const KategoriRbsiPage = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const groupedByCategory = filteredList.reduce((acc, item) => {
-    const key = item.category_code;
-    if (!acc[key]) acc[key] = { name: item.category_name, code: key, items: [] };
-    acc[key].items.push(item);
-    return acc;
-  }, {} as Record<string, { name: string; code: string; items: SubKategoriData[] }>);
-
-  const categoryStats = Object.entries(groupedByCategory).map(([code, data]) => ({
-    code, name: data.name, count: data.items.length,
-  }));
+  // Stable totals from full list (don't change when search/filter active)
+  const categoryStats = CATEGORY_CODE_OPTIONS.map(opt => ({
+    code: opt.code,
+    name: opt.name,
+    count: subKategoriList.filter(i => i.category_code === opt.code).length,
+  })).filter(s => s.count > 0);
 
   if (!permissionsLoaded) {
     return (
@@ -331,169 +327,112 @@ const KategoriRbsiPage = () => {
   }
 
   return (
-    <Box p={{ xs: 2, md: 2.5 }}>
-      <PageHeader eyebrow="Master Data" title="Kategori RBSI" />
+    <Box>
+      <PageHeader
+        eyebrow="Master Data"
+        title="Kategori RBSI"
+        actions={canCreate ? (
+          <>
+            <Button variant="outlined" startIcon={<LibraryAdd />} onClick={handleOpenBulkDialog} disabled={loading}>
+              Bulk Insert
+            </Button>
+            <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenDialog()} disabled={loading}>
+              Tambah
+            </Button>
+          </>
+        ) : undefined}
+      />
 
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}
+      <Box sx={{ p: { xs: 2, md: 2.5 } }}>
+        {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
+        {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>{success}</Alert>}
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 1.5 }}>
-        <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
-          <Tab label="Data Master" />
-          <Tab label="Historis Snapshot" icon={<History />} iconPosition="start" />
-        </Tabs>
-      </Box>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 1.5 }}>
+          <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
+            <Tab label="Data Master" />
+            <Tab label="Historis Snapshot" icon={<History />} iconPosition="start" />
+          </Tabs>
+        </Box>
 
       {/* Tab 0: Main Data */}
       <TabPanel value={tabValue} index={0}>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2} gap={2} flexWrap="wrap">
-          <Box display="flex" gap={2} flexWrap="wrap">
-            <TextField
-              label="Cari kode/nama"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              size="small"
-              InputProps={{ endAdornment: <Search /> }}
-              sx={{ minWidth: 200 }}
-            />
-            <FormControl size="small" sx={{ minWidth: 180 }}>
-              <InputLabel>Filter Kategori</InputLabel>
-              <Select value={filterCategory} label="Filter Kategori" onChange={(e) => setFilterCategory(e.target.value)}>
-                <MenuItem value="">Semua</MenuItem>
-                {CATEGORY_CODE_OPTIONS.map(opt => (
-                  <MenuItem key={opt.code} value={opt.code}>{opt.code} - {opt.name}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-          {canCreate && (
-            <Box display="flex" gap={1}>
-              <Button variant="outlined" startIcon={<LibraryAdd />} onClick={handleOpenBulkDialog} disabled={loading}>
-                Bulk Insert
-              </Button>
-              <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenDialog()} disabled={loading}>
-                Tambah Sub Kategori
-              </Button>
-            </Box>
-          )}
+        {/* Search */}
+        <Box sx={{ mb: 2 }}>
+          <TextField
+            label="Cari kode/nama"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            size="small"
+            InputProps={{ endAdornment: <Search sx={{ fontSize: 18, color: COLORS.TEXT_SUBTLE }} /> }}
+            sx={{ minWidth: 220 }}
+          />
         </Box>
 
-        {loading && <Box display="flex" justifyContent="center" my={3}><CircularProgress /></Box>}
+        {loading && <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>}
 
-        {!loading && filteredList.length === 0 && (
-          <Alert severity="info">
-            {search || filterCategory ? 'Tidak ada data yang sesuai dengan pencarian' : 'Belum ada data Sub Kategori'}
-          </Alert>
-        )}
-
-        {!loading && filteredList.length > 0 && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {/* Category overview stat cards */}
-            {!filterCategory && !search && (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 1.5, mb: 0.5 }}>
-                {categoryStats.map(stat => (
-                  <Paper
-                    key={stat.code}
-                    elevation={0}
-                    sx={{
-                      p: 2,
-                      borderLeft: `3px solid ${getCategoryAccent(stat.code)}`,
-                      cursor: 'pointer',
-                      transition: 'transform 0.18s',
-                      '&:hover': { transform: 'translateY(-2px)' },
-                    }}
-                    onClick={() => setFilterCategory(stat.code)}
-                  >
-                    <Typography variant="h4" fontWeight={700} sx={{ color: getCategoryAccent(stat.code), mb: 0.25 }}>
-                      {stat.count}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: COLORS.TEXT_SECONDARY, fontWeight: 500 }}>
-                      {stat.code} — {stat.name}
-                    </Typography>
-                  </Paper>
-                ))}
-              </Box>
-            )}
-
-            {/* Accordion by category */}
-            {Object.entries(groupedByCategory).map(([categoryCode, categoryData]) => {
-              const accent = getCategoryAccent(categoryCode);
+        {!loading && (
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2, alignItems: 'start' }}>
+            {CATEGORY_CODE_OPTIONS.map(opt => {
+              const accent = getCategoryAccent(opt.code);
+              const items = filteredList.filter(i => i.category_code === opt.code);
               return (
-                <Accordion
-                  key={categoryCode}
-                  defaultExpanded={Object.keys(groupedByCategory).length === 1}
-                  sx={{ borderLeft: `3px solid ${accent}` }}
-                >
-                  <AccordionSummary
-                    expandIcon={<ExpandMore />}
-                    sx={{ '& .MuiAccordionSummary-content': { my: 1.5 } }}
-                  >
-                    <Box display="flex" alignItems="center" gap={2} width="100%">
-                      <Badge
-                        badgeContent={categoryData.items.length}
-                        color="primary"
-                        sx={{ '& .MuiBadge-badge': { bgcolor: accent, color: 'white', fontWeight: 700 } }}
-                      >
-                        <Chip
-                          label={categoryCode}
-                          sx={{ bgcolor: accent, color: 'white', fontWeight: 700, fontSize: '0.875rem', height: 32, minWidth: 52 }}
-                        />
-                      </Badge>
-                      <Box>
-                        <Typography variant="h6" fontWeight={600} sx={{ color: accent }}>{categoryData.name}</Typography>
-                        <Typography variant="caption" color="text.secondary">{categoryData.items.length} sub kategori</Typography>
-                      </Box>
+                <Paper key={opt.code} elevation={0} sx={{ overflow: 'hidden' }}>
+                  {/* Column header */}
+                  <Box sx={{ borderTop: `3px solid ${accent}`, px: 2, py: 1.5, borderBottom: `1px solid ${COLORS.BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box>
+                      <Typography variant="body2" fontWeight={700} sx={{ color: accent }}>{opt.code}</Typography>
+                      <Typography variant="caption" sx={{ color: COLORS.TEXT_SECONDARY }}>{opt.name}</Typography>
                     </Box>
-                  </AccordionSummary>
-                  <AccordionDetails sx={{ p: 0 }}>
-                    <TableContainer>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell align="left" sx={{ fontWeight: 700 }}>Kode</TableCell>
-                            <TableCell align="left" sx={{ fontWeight: 700 }}>Nama Sub Kategori</TableCell>
-                            {(canUpdate || canDelete) && (
-                              <TableCell align="right" width={100} sx={{ fontWeight: 700 }}>Aksi</TableCell>
-                            )}
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {categoryData.items.map(item => (
-                            <TableRow key={item.id}>
-                              <TableCell align="left">
-                                <Chip
-                                  label={item.kode}
-                                  size="small"
-                                  sx={{ bgcolor: accent, color: 'white', fontWeight: 600, fontSize: '0.75rem' }}
-                                />
-                              </TableCell>
-                              <TableCell align="left">
-                                <Typography variant="body2">{item.nama}</Typography>
-                              </TableCell>
-                              {(canUpdate || canDelete) && (
-                                <TableCell align="right">
-                                  {canUpdate && (
-                                    <IconButton size="small" onClick={() => handleOpenDialog(item)} title="Edit" sx={{ color: accent }}>
-                                      <Edit fontSize="small" />
-                                    </IconButton>
-                                  )}
-                                  {canDelete && (
-                                    <IconButton size="small" onClick={() => setDeleteConfirmId(item.id)} title="Hapus" color="error">
-                                      <Delete fontSize="small" />
-                                    </IconButton>
-                                  )}
-                                </TableCell>
+                    <Chip label={items.length} size="small" sx={{ bgcolor: accent, color: 'white', fontWeight: 700, height: 22, fontSize: '0.75rem' }} />
+                  </Box>
+
+                  {/* Items */}
+                  {items.length === 0 ? (
+                    <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
+                      <Typography variant="caption" color="text.disabled">Kosong</Typography>
+                    </Box>
+                  ) : (
+                    <Box>
+                      {items.map((item, idx) => (
+                        <Box
+                          key={item.id}
+                          sx={{
+                            px: 2, py: 1,
+                            display: 'flex', alignItems: 'center', gap: 1,
+                            borderBottom: idx < items.length - 1 ? `1px solid ${COLORS.BORDER}` : 'none',
+                            '&:hover': { bgcolor: COLORS.SOFT, '& .item-actions': { opacity: 1 } },
+                          }}
+                        >
+                          <Chip label={item.kode} size="small" sx={{ bgcolor: accent, color: 'white', fontWeight: 600, fontSize: '0.7rem', flexShrink: 0 }} />
+                          <Typography variant="body2" sx={{ flex: 1, color: COLORS.TEXT_PRIMARY, fontSize: '0.8125rem' }}>
+                            {item.nama}
+                          </Typography>
+                          {(canUpdate || canDelete) && (
+                            <Box className="item-actions" sx={{ opacity: 0, transition: 'opacity 0.15s', display: 'flex', gap: 0.25 }}>
+                              {canUpdate && (
+                                <IconButton size="small" onClick={() => handleOpenDialog(item)} sx={{ color: accent, p: 0.5 }}>
+                                  <Edit sx={{ fontSize: 15 }} />
+                                </IconButton>
                               )}
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </AccordionDetails>
-                </Accordion>
+                              {canDelete && (
+                                <IconButton size="small" onClick={() => setDeleteConfirmId(item.id)} color="error" sx={{ p: 0.5 }}>
+                                  <Delete sx={{ fontSize: 15 }} />
+                                </IconButton>
+                              )}
+                            </Box>
+                          )}
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+                </Paper>
               );
             })}
           </Box>
+        )}
+
+        {!loading && filteredList.length === 0 && search && (
+          <Alert severity="info" sx={{ mt: 2 }}>Tidak ada data yang sesuai pencarian</Alert>
         )}
       </TabPanel>
 
@@ -523,97 +462,60 @@ const KategoriRbsiPage = () => {
         {loadingSnapshot && <Box display="flex" justifyContent="center" my={3}><CircularProgress /></Box>}
 
         {!loadingSnapshot && selectedSnapshotYear && (
-          <>
-            <Box sx={{ my: 2.5 }}>
-              <DataCountDisplay count={snapshotData.length} isLoading={loadingSnapshot} label="Total" unit="Record Snapshot" />
-            </Box>
+          <Paper elevation={0}>
+            <DataCountDisplay count={snapshotData.length} isLoading={loadingSnapshot} label="Total" unit="Record Snapshot" />
 
-            {snapshotData.length === 0 && <Alert severity="info">Tidak ada data snapshot untuk tahun ini</Alert>}
+            {snapshotData.length === 0 && <Box p={3}><Alert severity="info">Tidak ada data snapshot untuk tahun ini</Alert></Box>}
 
             {snapshotData.length > 0 && (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {(() => {
-                  const groupedSnapshots = snapshotData.reduce((acc, item) => {
-                    const cat = item.category_code;
-                    if (!acc[cat]) acc[cat] = { name: item.category_name, code: cat, items: [] };
-                    acc[cat].items.push(item);
-                    return acc;
-                  }, {} as Record<string, { name: string; code: string; items: typeof snapshotData }>);
-
-                  return Object.entries(groupedSnapshots).map(([categoryCode, categoryData]) => {
-                    const accent = getCategoryAccent(categoryCode);
-                    return (
-                      <Accordion key={categoryCode} defaultExpanded sx={{ borderLeft: `3px solid ${accent}` }}>
-                        <AccordionSummary
-                          expandIcon={<ExpandMore />}
-                          sx={{ '& .MuiAccordionSummary-content': { my: 1.5 } }}
-                        >
-                          <Box display="flex" alignItems="center" gap={2} width="100%">
-                            <Badge
-                              badgeContent={categoryData.items.length}
-                              color="primary"
-                              sx={{ '& .MuiBadge-badge': { bgcolor: accent, color: 'white', fontWeight: 700 } }}
-                            >
-                              <Chip
-                                label={categoryCode}
-                                sx={{ bgcolor: accent, color: 'white', fontWeight: 700, fontSize: '0.875rem', height: 32, minWidth: 52 }}
-                              />
-                            </Badge>
-                            <Box>
-                              <Typography variant="h6" fontWeight={600} sx={{ color: accent }}>{categoryData.name}</Typography>
-                              <Typography variant="caption" color="text.secondary">{categoryData.items.length} record snapshot</Typography>
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell align="left" width={110}>Kode</TableCell>
+                      <TableCell align="left">Nama Sub Kategori</TableCell>
+                      <TableCell align="left" width={200}>Kategori</TableCell>
+                      <TableCell align="left" width={110}>Perubahan</TableCell>
+                      <TableCell align="left" width={170}>Tanggal</TableCell>
+                      <TableCell align="left" width={140}>Oleh</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {snapshotData.map(row => {
+                      const accent = getCategoryAccent(row.category_code);
+                      return (
+                        <TableRow key={row.id}>
+                          <TableCell align="left">
+                            <Chip label={row.kode} size="small" sx={{ bgcolor: accent, color: 'white', fontWeight: 600, fontSize: '0.75rem' }} />
+                          </TableCell>
+                          <TableCell align="left">
+                            <Typography variant="body2">{row.nama}</Typography>
+                          </TableCell>
+                          <TableCell align="left">
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box sx={{ width: 3, height: 16, borderRadius: 1, bgcolor: accent, flexShrink: 0 }} />
+                              <Typography variant="body2" sx={{ color: COLORS.TEXT_SECONDARY }}>
+                                {row.category_code} — {row.category_name}
+                              </Typography>
                             </Box>
-                          </Box>
-                        </AccordionSummary>
-                        <AccordionDetails sx={{ p: 0 }}>
-                          <TableContainer>
-                            <Table size="small">
-                              <TableHead>
-                                <TableRow>
-                                  <TableCell align="left" sx={{ fontWeight: 700 }}>Kode</TableCell>
-                                  <TableCell align="left" sx={{ fontWeight: 700 }}>Nama Sub Kategori</TableCell>
-                                  <TableCell align="left" sx={{ fontWeight: 700 }}>Perubahan</TableCell>
-                                  <TableCell align="left" sx={{ fontWeight: 700 }}>Tanggal</TableCell>
-                                  <TableCell align="left" sx={{ fontWeight: 700 }}>Oleh</TableCell>
-                                </TableRow>
-                              </TableHead>
-                              <TableBody>
-                                {categoryData.items.map(row => (
-                                  <TableRow key={row.id}>
-                                    <TableCell align="left">
-                                      <Chip
-                                        label={row.kode}
-                                        size="small"
-                                        sx={{ bgcolor: accent, color: 'white', fontWeight: 600, fontSize: '0.75rem' }}
-                                      />
-                                    </TableCell>
-                                    <TableCell align="left">
-                                      <Typography variant="body2">{row.nama}</Typography>
-                                    </TableCell>
-                                    <TableCell align="left">
-                                      <StatusBadge status={row.change_type} />
-                                    </TableCell>
-                                    <TableCell align="left">
-                                      <Typography variant="caption">
-                                        {new Date(row.snapshot_date).toLocaleString('id-ID')}
-                                      </Typography>
-                                    </TableCell>
-                                    <TableCell align="left">
-                                      <Typography variant="caption">{row.created_by || '-'}</Typography>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </TableContainer>
-                        </AccordionDetails>
-                      </Accordion>
-                    );
-                  });
-                })()}
-              </Box>
+                          </TableCell>
+                          <TableCell align="left">
+                            <StatusBadge status={row.change_type} />
+                          </TableCell>
+                          <TableCell align="left">
+                            <Typography variant="caption">{new Date(row.snapshot_date).toLocaleString('id-ID')}</Typography>
+                          </TableCell>
+                          <TableCell align="left">
+                            <Typography variant="caption">{row.created_by || '-'}</Typography>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             )}
-          </>
+          </Paper>
         )}
 
         {!selectedSnapshotYear && !loadingSnapshot && (
@@ -794,6 +696,7 @@ const KategoriRbsiPage = () => {
           </Box>
         </DialogContent>
       </Dialog>
+      </Box>{/* end padded content */}
     </Box>
   );
 };

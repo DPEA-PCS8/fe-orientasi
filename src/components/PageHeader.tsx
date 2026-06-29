@@ -20,7 +20,7 @@ const PageHeader = ({ eyebrow = 'CONTROL CENTER', title, subtitle, actions }: Pa
         borderTop: `1px solid ${COLORS.BORDER}`,
         borderBottom: `1px solid ${COLORS.BORDER}`,
         px: { xs: 3, md: 4.5, xl: 6 },
-        py: 2,
+        py: 4,
       }}
     >
       <Box
