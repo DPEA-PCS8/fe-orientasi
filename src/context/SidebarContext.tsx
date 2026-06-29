@@ -9,7 +9,7 @@ interface SidebarContextType {
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
 export const SidebarProvider = ({ children }: { children: ReactNode }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   const toggleSidebar = () => {
     setIsCollapsed((prev) => !prev);

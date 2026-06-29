@@ -91,7 +91,6 @@ import {
 } from '../api/fs2FileApi';
 import ViewFs2Modal from '../components/modals/ViewFs2Modal';
 import { FilePreviewModal } from '../components/modals';
-import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
 
 // Interface for transformed data
 interface Fs2Data {
@@ -152,13 +151,13 @@ const getStatusColor = (status: Fs2Data['status']) => {
     case 'pending':
       return '#FF9500';
     default:
-      return '#86868b';
+      return '#64748B';
   }
 };
 
 // Color palette for SKPA chips
 const SKPA_COLORS = [
-  { bg: '#DA251C', text: '#FFFFFF' },
+  { bg: '#BD1F27', text: '#FFFFFF' },
   { bg: '#2563EB', text: '#FFFFFF' },
   { bg: '#059669', text: '#FFFFFF' },
   { bg: '#7C3AED', text: '#FFFFFF' },
@@ -196,23 +195,23 @@ const GlassTextField = styled(TextField)({
       borderColor: 'rgba(0, 0, 0, 0.15)',
     },
     '&.Mui-focused fieldset': {
-      borderColor: '#DA251C',
+      borderColor: '#BD1F27',
       borderWidth: '1.5px',
     },
     '&.Mui-focused': {
       backgroundColor: 'rgba(255, 255, 255, 0.9)',
-      boxShadow: '0 4px 20px rgba(218, 37, 28, 0.1)',
+      boxShadow: '0 4px 20px rgba(189, 31, 39, 0.1)',
     },
   },
   '& .MuiInputLabel-root': {
-    color: '#86868b',
+    color: '#64748B',
     fontWeight: 500,
     '&.Mui-focused': {
-      color: '#DA251C',
+      color: '#BD1F27',
     },
   },
   '& .MuiOutlinedInput-input': {
-    color: '#1d1d1f',
+    color: '#0F172A',
   },
 });
 
@@ -279,8 +278,6 @@ function Fs2List() {
   const [isLoading, setIsLoading] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedFs2Id, setSelectedFs2Id] = useState<string | null>(null);
-
-  const { isCollapsed } = useSidebar();
 
   // Permission check for FS2 menu
   const { getMenuPermissions } = usePermissions();
@@ -1352,14 +1349,14 @@ function Fs2List() {
           variant="h4" 
           sx={{ 
             fontWeight: 700, 
-            color: '#1d1d1f',
+            color: '#0F172A',
             letterSpacing: '-0.02em',
             mb: 0.5,
           }}
         >
           Dashboard F.S.2
         </Typography>
-        <Typography variant="body1" sx={{ color: '#86868b' }}>
+        <Typography variant="body1" sx={{ color: '#64748B' }}>
           Kelola data pengajuan F.S.2
         </Typography>
       </Box>
@@ -1368,16 +1365,10 @@ function Fs2List() {
       <Paper
         elevation={0}
         sx={{
-          width: isCollapsed
-            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)`
-            : '80vw',
-          maxWidth: isCollapsed
-            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)`
-            : '80vw',
+          width: '100%',
           borderRadius: 2,
           border: '1px solid rgba(0, 0, 0, 0.08)',
           overflow: 'hidden',
-          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         {/* Toolbar */}
@@ -1401,7 +1392,7 @@ function Fs2List() {
               sx={{ 
                 width: 280,
                 '& .MuiOutlinedInput-root': {
-                  bgcolor: '#f5f5f7',
+                  bgcolor: '#FFFFFF',
                   borderRadius: '10px',
                   '& fieldset': {
                     borderColor: 'transparent',
@@ -1410,7 +1401,7 @@ function Fs2List() {
                     borderColor: 'transparent',
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#DA251C',
+                    borderColor: '#BD1F27',
                     borderWidth: 2,
                   },
                 },
@@ -1419,7 +1410,7 @@ function Fs2List() {
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon sx={{ color: '#86868b', fontSize: 20 }} />
+                      <SearchIcon sx={{ color: '#64748B', fontSize: 20 }} />
                     </InputAdornment>
                   ),
                 },
@@ -1432,18 +1423,18 @@ function Fs2List() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1,
-                bgcolor: selectedYearFilter ? 'rgba(218, 37, 28, 0.08)' : '#f5f5f7',
+                bgcolor: selectedYearFilter ? 'rgba(189, 31, 39, 0.08)' : '#f5f5f7',
                 borderRadius: '12px',
                 px: 1.5,
                 py: 0.5,
-                border: selectedYearFilter ? '1.5px solid rgba(218, 37, 28, 0.3)' : '1.5px solid transparent',
+                border: selectedYearFilter ? '1.5px solid rgba(189, 31, 39, 0.3)' : '1.5px solid transparent',
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  bgcolor: selectedYearFilter ? 'rgba(218, 37, 28, 0.12)' : '#eeeeef',
+                  bgcolor: selectedYearFilter ? 'rgba(189, 31, 39, 0.12)' : '#eeeeef',
                 },
               }}
             >
-              <CalendarIcon sx={{ fontSize: 18, color: selectedYearFilter ? '#DA251C' : '#86868b' }} />
+              <CalendarIcon sx={{ fontSize: 18, color: selectedYearFilter ? '#BD1F27' : '#64748B' }} />
               <FormControl size="small" variant="standard" sx={{ minWidth: 100 }}>
                 <Select
                   value={selectedYearFilter}
@@ -1453,13 +1444,13 @@ function Fs2List() {
                   sx={{
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    color: selectedYearFilter ? '#DA251C' : '#1d1d1f',
+                    color: selectedYearFilter ? '#BD1F27' : '#0F172A',
                     '& .MuiSelect-select': {
                       py: 0.5,
                       pr: 3,
                     },
                     '& .MuiSvgIcon-root': {
-                      color: selectedYearFilter ? '#DA251C' : '#86868b',
+                      color: selectedYearFilter ? '#BD1F27' : '#64748B',
                     },
                   }}
                   MenuProps={{
@@ -1483,7 +1474,7 @@ function Fs2List() {
                       sx={{ 
                         fontSize: '0.875rem',
                         fontWeight: year === new Date().getFullYear().toString() ? 600 : 400,
-                        color: year === new Date().getFullYear().toString() ? '#DA251C' : 'inherit',
+                        color: year === new Date().getFullYear().toString() ? '#BD1F27' : 'inherit',
                       }}
                     >
                       {year}
@@ -1495,7 +1486,7 @@ function Fs2List() {
                             ml: 1, 
                             height: 18, 
                             fontSize: '0.65rem',
-                            bgcolor: '#DA251C',
+                            bgcolor: '#BD1F27',
                             color: 'white',
                           }} 
                         />
@@ -1512,14 +1503,14 @@ function Fs2List() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1,
-                bgcolor: selectedStartMonth ? 'rgba(218, 37, 28, 0.08)' : '#f5f5f7',
+                bgcolor: selectedStartMonth ? 'rgba(189, 31, 39, 0.08)' : '#f5f5f7',
                 borderRadius: '12px',
                 px: 1.5,
                 py: 0.5,
-                border: selectedStartMonth ? '1.5px solid rgba(218, 37, 28, 0.3)' : '1.5px solid transparent',
+                border: selectedStartMonth ? '1.5px solid rgba(189, 31, 39, 0.3)' : '1.5px solid transparent',
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  bgcolor: selectedStartMonth ? 'rgba(218, 37, 28, 0.12)' : '#eeeeef',
+                  bgcolor: selectedStartMonth ? 'rgba(189, 31, 39, 0.12)' : '#eeeeef',
                 },
               }}
             >
@@ -1538,13 +1529,13 @@ function Fs2List() {
                   sx={{
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    color: selectedStartMonth ? '#DA251C' : '#1d1d1f',
+                    color: selectedStartMonth ? '#BD1F27' : '#0F172A',
                     '& .MuiSelect-select': {
                       py: 0.5,
                       pr: 3,
                     },
                     '& .MuiSvgIcon-root': {
-                      color: selectedStartMonth ? '#DA251C' : '#86868b',
+                      color: selectedStartMonth ? '#BD1F27' : '#64748B',
                     },
                   }}
                   MenuProps={{
@@ -1576,7 +1567,7 @@ function Fs2List() {
             </Box>
 
             {/* Month Range Separator */}
-            <Typography sx={{ color: '#86868b', fontSize: '0.875rem', fontWeight: 500 }}>
+            <Typography sx={{ color: '#64748B', fontSize: '0.875rem', fontWeight: 500 }}>
               s/d
             </Typography>
 
@@ -1586,14 +1577,14 @@ function Fs2List() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1,
-                bgcolor: selectedEndMonth ? 'rgba(218, 37, 28, 0.08)' : '#f5f5f7',
+                bgcolor: selectedEndMonth ? 'rgba(189, 31, 39, 0.08)' : '#f5f5f7',
                 borderRadius: '12px',
                 px: 1.5,
                 py: 0.5,
-                border: selectedEndMonth ? '1.5px solid rgba(218, 37, 28, 0.3)' : '1.5px solid transparent',
+                border: selectedEndMonth ? '1.5px solid rgba(189, 31, 39, 0.3)' : '1.5px solid transparent',
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  bgcolor: selectedEndMonth ? 'rgba(218, 37, 28, 0.12)' : '#eeeeef',
+                  bgcolor: selectedEndMonth ? 'rgba(189, 31, 39, 0.12)' : '#eeeeef',
                 },
               }}
             >
@@ -1606,13 +1597,13 @@ function Fs2List() {
                   sx={{
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    color: selectedEndMonth ? '#DA251C' : '#1d1d1f',
+                    color: selectedEndMonth ? '#BD1F27' : '#0F172A',
                     '& .MuiSelect-select': {
                       py: 0.5,
                       pr: 3,
                     },
                     '& .MuiSvgIcon-root': {
-                      color: selectedEndMonth ? '#DA251C' : '#86868b',
+                      color: selectedEndMonth ? '#BD1F27' : '#64748B',
                     },
                   }}
                   MenuProps={{
@@ -1650,7 +1641,7 @@ function Fs2List() {
               startIcon={<TuneRounded sx={{ fontSize: 18 }} />}
               onClick={handleFilterClick}
               sx={{
-                color: activeFiltersCount > 0 ? '#DA251C' : '#86868b',
+                color: activeFiltersCount > 0 ? '#BD1F27' : '#64748B',
                 fontWeight: 500,
                 '&:hover': {
                   bgcolor: 'rgba(0, 0, 0, 0.04)',
@@ -1662,7 +1653,7 @@ function Fs2List() {
                 <Chip
                   label={activeFiltersCount}
                   size="small"
-                  sx={{ ml: 1, bgcolor: '#DA251C', color: 'white', height: 20, fontSize: '0.7rem' }}
+                  sx={{ ml: 1, bgcolor: '#BD1F27', color: 'white', height: 20, fontSize: '0.7rem' }}
                 />
               )}
             </Button>
@@ -1674,7 +1665,7 @@ function Fs2List() {
                 startIcon={<PushPinIcon sx={{ fontSize: 18 }} />}
                 onClick={(e) => setStickyColumnsAnchorEl(e.currentTarget)}
                 sx={{
-                  color: stickyColumns.size > 0 ? '#2563EB' : '#86868b',
+                  color: stickyColumns.size > 0 ? '#2563EB' : '#64748B',
                   fontWeight: 500,
                   flexShrink: 0,
                   '&:hover': {
@@ -1722,7 +1713,7 @@ function Fs2List() {
               startIcon={<AddIcon />}
               onClick={handleOpenAddModal}
               sx={{
-                background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+                background: 'linear-gradient(135deg, #BD1F27 0%, #8B1620 100%)',
                 fontWeight: 500,
                 px: 2.5,
                 flexShrink: 0,
@@ -1754,7 +1745,7 @@ function Fs2List() {
           sx: {
             mt: 1,
             borderRadius: '16px',
-            boxShadow: '0 20px 40px rgba(218, 37, 28, 0.1)',
+            boxShadow: '0 20px 40px rgba(189, 31, 39, 0.1)',
             overflow: 'hidden',
             border: '1px solid #ffebeb',
           },
@@ -1762,7 +1753,7 @@ function Fs2List() {
       >
         {/* Header */}
         <Box sx={{
-          background: '#DA251C',
+          background: '#BD1F27',
           p: 2.5,
           display: 'flex', 
           justifyContent: 'space-between', 
@@ -1778,7 +1769,7 @@ function Fs2List() {
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-              <TuneRounded sx={{ fontSize: 16, color: '#DA251C' }} />
+              <TuneRounded sx={{ fontSize: 16, color: '#BD1F27' }} />
             </Box>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'white' }}>
               Filter
@@ -1799,7 +1790,7 @@ function Fs2List() {
         <Box sx={{ p: 3, minWidth: 320, maxHeight: 450, overflowY: 'auto', bgcolor: 'white' }}>
           {/* Status Filter */}
           <Box sx={{ mb: 2.5 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: '#0F172A', mb: 1.5 }}>
               Status
             </Typography>
             <FormGroup sx={{ '& .MuiFormControlLabel-root': { mb: 1.5, alignItems: 'flex-start' }, '& .MuiCheckbox-root': { pt: 0.5 } }}>
@@ -1813,7 +1804,7 @@ function Fs2List() {
                       onChange={(e) => handleStatusFilterChange(status, e.target.checked)}
                       sx={{
                         '&.Mui-checked': {
-                          color: '#DA251C',
+                          color: '#BD1F27',
                         },
                       }}
                     />
@@ -1828,7 +1819,7 @@ function Fs2List() {
 
           {/* Nama Aplikasi Filter - Multiple Selection with Typing */}
           <Box sx={{ mb: 2.5 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: '#0F172A', mb: 1.5 }}>
               Nama Aplikasi
             </Typography>
             <Autocomplete
@@ -1849,7 +1840,7 @@ function Fs2List() {
                     <Checkbox
                       size="small"
                       checked={selected}
-                      sx={{ mr: 1, '&.Mui-checked': { color: '#DA251C' } }}
+                      sx={{ mr: 1, '&.Mui-checked': { color: '#BD1F27' } }}
                     />
                     {option.kode_aplikasi} - {option.nama_aplikasi}
                   </li>
@@ -1863,8 +1854,8 @@ function Fs2List() {
                     '& .MuiOutlinedInput-root': {
                       borderRadius: '8px',
                       '& fieldset': { borderColor: '#e5e5e7' },
-                      '&:hover fieldset': { borderColor: '#DA251C' },
-                      '&.Mui-focused fieldset': { borderColor: '#DA251C', borderWidth: 2 },
+                      '&:hover fieldset': { borderColor: '#BD1F27' },
+                      '&.Mui-focused fieldset': { borderColor: '#BD1F27', borderWidth: 2 },
                     },
                   }}
                 />
@@ -1879,7 +1870,7 @@ function Fs2List() {
                       size="small"
                       {...tagProps}
                       sx={{ 
-                        bgcolor: '#DA251C', 
+                        bgcolor: '#BD1F27', 
                         color: 'white', 
                         fontWeight: 500,
                         '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } 
@@ -1895,7 +1886,7 @@ function Fs2List() {
 
           {/* Status Tahapan Filter */}
           <Box sx={{ mb: 2.5 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: '#0F172A', mb: 1.5 }}>
               Status Tahapan Aplikasi
             </Typography>
             <FormControl fullWidth size="small">
@@ -1911,10 +1902,10 @@ function Fs2List() {
                     borderColor: '#e5e5e7',
                   },
                   '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#DA251C',
+                    borderColor: '#BD1F27',
                   },
                   '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#DA251C',
+                    borderColor: '#BD1F27',
                   },
                 }}
               >
@@ -1929,7 +1920,7 @@ function Fs2List() {
 
           {/* SKPA Filter - Multiple Selection with Typing */}
           <Box sx={{ mb: 2.5 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: '#0F172A', mb: 1.5 }}>
               SKPA
             </Typography>
             <Autocomplete
@@ -1950,7 +1941,7 @@ function Fs2List() {
                     <Checkbox
                       size="small"
                       checked={selected}
-                      sx={{ mr: 1, '&.Mui-checked': { color: '#DA251C' } }}
+                      sx={{ mr: 1, '&.Mui-checked': { color: '#BD1F27' } }}
                     />
                     {option.kode_skpa} - {option.nama_skpa}
                   </li>
@@ -1964,8 +1955,8 @@ function Fs2List() {
                     '& .MuiOutlinedInput-root': {
                       borderRadius: '8px',
                       '& fieldset': { borderColor: '#e5e5e7' },
-                      '&:hover fieldset': { borderColor: '#DA251C' },
-                      '&.Mui-focused fieldset': { borderColor: '#DA251C', borderWidth: 2 },
+                      '&:hover fieldset': { borderColor: '#BD1F27' },
+                      '&.Mui-focused fieldset': { borderColor: '#BD1F27', borderWidth: 2 },
                     },
                   }}
                 />
@@ -1980,7 +1971,7 @@ function Fs2List() {
                       size="small"
                       {...tagProps}
                       sx={{ 
-                        bgcolor: '#DA251C', 
+                        bgcolor: '#BD1F27', 
                         color: 'white', 
                         fontWeight: 500,
                         '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } 
@@ -1996,7 +1987,7 @@ function Fs2List() {
 
           {/* Bidang Filter - Multiple Selection with Typing */}
           <Box sx={{ mb: 2.5 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: '#0F172A', mb: 1.5 }}>
               Bidang
             </Typography>
             <Autocomplete
@@ -2017,7 +2008,7 @@ function Fs2List() {
                     <Checkbox
                       size="small"
                       checked={selected}
-                      sx={{ mr: 1, '&.Mui-checked': { color: '#DA251C' } }}
+                      sx={{ mr: 1, '&.Mui-checked': { color: '#BD1F27' } }}
                     />
                     {option.kode_bidang} - {option.nama_bidang}
                   </li>
@@ -2031,8 +2022,8 @@ function Fs2List() {
                     '& .MuiOutlinedInput-root': {
                       borderRadius: '8px',
                       '& fieldset': { borderColor: '#e5e5e7' },
-                      '&:hover fieldset': { borderColor: '#DA251C' },
-                      '&.Mui-focused fieldset': { borderColor: '#DA251C', borderWidth: 2 },
+                      '&:hover fieldset': { borderColor: '#BD1F27' },
+                      '&.Mui-focused fieldset': { borderColor: '#BD1F27', borderWidth: 2 },
                     },
                   }}
                 />
@@ -2047,7 +2038,7 @@ function Fs2List() {
                       size="small"
                       {...tagProps}
                       sx={{ 
-                        bgcolor: '#DA251C', 
+                        bgcolor: '#BD1F27', 
                         color: 'white', 
                         fontWeight: 500,
                         '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } 
@@ -2069,12 +2060,12 @@ function Fs2List() {
             sx={{
               py: 1,
               borderRadius: '8px',
-              color: '#DA251C',
-              borderColor: '#DA251C',
+              color: '#BD1F27',
+              borderColor: '#BD1F27',
               fontWeight: 600,
               '&:hover': {
                 bgcolor: '#fff5f5',
-                borderColor: '#DA251C',
+                borderColor: '#BD1F27',
               },
             }}
           >
@@ -2107,14 +2098,14 @@ function Fs2List() {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#0F172A' }}>
             Kolom Sticky
           </Typography>
           <IconButton size="small" onClick={() => setStickyColumnsAnchorEl(null)}>
             <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
-        <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mb: 2 }}>
+        <Typography variant="caption" sx={{ color: '#64748B', display: 'block', mb: 2 }}>
           Pilih kolom yang akan tetap terlihat saat scroll horizontal
         </Typography>
         <FormGroup>
@@ -2148,7 +2139,7 @@ function Fs2List() {
           variant="text"
           size="small"
           onClick={() => setStickyColumns(new Set())}
-          sx={{ mt: 1, color: '#86868b' }}
+          sx={{ mt: 1, color: '#64748B' }}
         >
           Reset Semua
         </Button>
@@ -2186,16 +2177,16 @@ function Fs2List() {
       }}>
         <Table sx={{ minWidth: 1400 }}>
           <TableHead>
-            <TableRow sx={{ bgcolor: '#f5f5f7' }}>
+            <TableRow sx={{ bgcolor: '#FFFFFF' }}>
               <TableCell 
                 sx={{ 
                   fontWeight: 600, 
-                  color: '#1d1d1f', 
+                  color: '#0F172A', 
                   py: 2,
                   width: 50,
                   minWidth: 50,
                   textAlign: 'center',
-                  ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                  ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 3, bgcolor: '#FFFFFF' }),
                   ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                 }}
               >
@@ -2205,10 +2196,10 @@ function Fs2List() {
                 sortDirection={orderBy === 'namaAplikasi' ? order : false}
                 sx={{ 
                   fontWeight: 600, 
-                  color: '#1d1d1f', 
+                  color: '#0F172A', 
                   py: 2,
                   minWidth: 150,
-                  ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                  ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#FFFFFF' }),
                   ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                 }}
               >
@@ -2224,10 +2215,10 @@ function Fs2List() {
                 sortDirection={orderBy === 'namaFs2' ? order : false}
                 sx={{ 
                   fontWeight: 600, 
-                  color: '#1d1d1f', 
+                  color: '#0F172A', 
                   py: 2,
                   minWidth: 180,
-                  ...(stickyColumns.has('namaFs2') && { position: 'sticky', left: getStickyLeft('namaFs2'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                  ...(stickyColumns.has('namaFs2') && { position: 'sticky', left: getStickyLeft('namaFs2'), zIndex: 3, bgcolor: '#FFFFFF' }),
                   ...(isLastStickyColumn('namaFs2') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                 }}
               >
@@ -2241,45 +2232,45 @@ function Fs2List() {
               </TableCell>
               <TableCell sx={{ 
                 fontWeight: 600, 
-                color: '#1d1d1f', 
+                color: '#0F172A', 
                 py: 2, 
                 minWidth: 180,
-                ...(stickyColumns.has('statusTahapan') && { position: 'sticky', left: getStickyLeft('statusTahapan'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                ...(stickyColumns.has('statusTahapan') && { position: 'sticky', left: getStickyLeft('statusTahapan'), zIndex: 3, bgcolor: '#FFFFFF' }),
                 ...(isLastStickyColumn('statusTahapan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
               }}>Status Tahapan Aplikasi</TableCell>
               <TableCell sx={{ 
                 fontWeight: 600, 
-                color: '#1d1d1f', 
+                color: '#0F172A', 
                 py: 2, 
                 minWidth: 100,
-                ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#FFFFFF' }),
                 ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
               }}>SKPA</TableCell>
               <TableCell sx={{ 
                 fontWeight: 600, 
-                color: '#1d1d1f', 
+                color: '#0F172A', 
                 py: 2, 
                 minWidth: 120,
-                ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 3, bgcolor: '#FFFFFF' }),
                 ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
               }}>Bidang</TableCell>
               {/* HIDDEN: Urgensi column as per requirement */}
               {/* <TableCell sx={{ 
                 fontWeight: 600, 
-                color: '#1d1d1f', 
+                color: '#0F172A', 
                 py: 2, 
                 minWidth: 100,
-                ...(stickyColumns.has('urgensi') && { position: 'sticky', left: getStickyLeft('urgensi'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                ...(stickyColumns.has('urgensi') && { position: 'sticky', left: getStickyLeft('urgensi'), zIndex: 3, bgcolor: '#FFFFFF' }),
                 ...(isLastStickyColumn('urgensi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
               }}>Urgensi</TableCell> */}
               <TableCell 
                 sortDirection={orderBy === 'tanggalPengajuan' ? order : false}
                 sx={{ 
                   fontWeight: 600, 
-                  color: '#1d1d1f', 
+                  color: '#0F172A', 
                   py: 2,
                   minWidth: 150,
-                  ...(stickyColumns.has('tanggalPengajuan') && { position: 'sticky', left: getStickyLeft('tanggalPengajuan'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                  ...(stickyColumns.has('tanggalPengajuan') && { position: 'sticky', left: getStickyLeft('tanggalPengajuan'), zIndex: 3, bgcolor: '#FFFFFF' }),
                   ...(isLastStickyColumn('tanggalPengajuan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                 }}
               >
@@ -2294,7 +2285,7 @@ function Fs2List() {
               <TableCell 
                 sx={{ 
                   fontWeight: 600, 
-                  color: '#1d1d1f', 
+                  color: '#0F172A', 
                   py: 2,
                   minWidth: 90,
                 }}
@@ -2303,21 +2294,21 @@ function Fs2List() {
               </TableCell>
               <TableCell sx={{ 
                 fontWeight: 600, 
-                color: '#1d1d1f', 
+                color: '#0F172A', 
                 py: 2, 
                 minWidth: 130,
-                ...(stickyColumns.has('status') && { position: 'sticky', left: getStickyLeft('status'), zIndex: 3, bgcolor: '#f5f5f7' }),
+                ...(stickyColumns.has('status') && { position: 'sticky', left: getStickyLeft('status'), zIndex: 3, bgcolor: '#FFFFFF' }),
                 ...(isLastStickyColumn('status') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
               }}>Status</TableCell>
-              <TableCell sx={{ fontWeight: 600, color: '#1d1d1f', py: 2, minWidth: 120 }}>Aksi</TableCell>
+              <TableCell sx={{ fontWeight: 600, color: '#0F172A', py: 2, minWidth: 120 }}>Aksi</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={10} sx={{ textAlign: 'center', py: 6 }}>
-                  <CircularProgress size={40} sx={{ color: '#DA251C' }} />
-                  <Typography variant="body2" sx={{ mt: 2, color: '#86868b' }}>
+                  <CircularProgress size={40} sx={{ color: '#BD1F27' }} />
+                  <Typography variant="body2" sx={{ mt: 2, color: '#64748B' }}>
                     Memuat data...
                   </Typography>
                 </TableCell>
@@ -2325,7 +2316,7 @@ function Fs2List() {
             ) : filteredFs2Data.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={10} sx={{ textAlign: 'center', py: 6 }}>
-                  <Typography variant="body2" sx={{ color: '#86868b' }}>
+                  <Typography variant="body2" sx={{ color: '#64748B' }}>
                     Tidak ada data F.S.2 ditemukan
                   </Typography>
                 </TableCell>
@@ -2338,7 +2329,7 @@ function Fs2List() {
                     key={row.id}
                     sx={{
                       '&:hover': {
-                        bgcolor: 'rgba(218, 37, 28, 0.02)',
+                        bgcolor: 'rgba(189, 31, 39, 0.02)',
                       },
                       '&:not(:last-child)': {
                         borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
@@ -2347,7 +2338,7 @@ function Fs2List() {
                   >
                     <TableCell 
                       sx={{ 
-                        color: '#86868b', 
+                        color: '#64748B', 
                         py: 2,
                         textAlign: 'center',
                         fontWeight: 500,
@@ -2370,7 +2361,7 @@ function Fs2List() {
                       <Typography 
                         variant="body2" 
                         sx={{ 
-                          color: '#1d1d1f',
+                          color: '#0F172A',
                           fontSize: '0.85rem',
                         }}
                       >
@@ -2388,7 +2379,7 @@ function Fs2List() {
                       <Typography 
                         variant="body2" 
                         sx={{ 
-                          color: '#1d1d1f',
+                          color: '#0F172A',
                           fontSize: '0.85rem',
                         }}
                       >
@@ -2401,7 +2392,7 @@ function Fs2List() {
                       ...(stickyColumns.has('statusTahapan') && { position: 'sticky', left: getStickyLeft('statusTahapan'), zIndex: 1, bgcolor: '#fff' }),
                       ...(isLastStickyColumn('statusTahapan') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                     }}>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.85rem' }}>
+                      <Typography variant="body2" sx={{ color: '#0F172A', fontSize: '0.85rem' }}>
                         {STATUS_TAHAPAN_LABELS[row.statusTahapan] || row.statusTahapan}
                       </Typography>
                     </TableCell>
@@ -2430,7 +2421,7 @@ function Fs2List() {
                       ...(stickyColumns.has('bidang') && { position: 'sticky', left: getStickyLeft('bidang'), zIndex: 1, bgcolor: '#fff' }),
                       ...(isLastStickyColumn('bidang') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                     }}>
-                      <Typography variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.85rem' }}>{row.bidang}</Typography>
+                      <Typography variant="body2" sx={{ color: '#0F172A', fontSize: '0.85rem' }}>{row.bidang}</Typography>
                     </TableCell>
                     {/* HIDDEN: Urgensi column as per requirement */}
                     {/* <TableCell sx={{ 
@@ -2461,7 +2452,7 @@ function Fs2List() {
                       <Typography 
                         variant="body2" 
                         sx={{ 
-                          color: '#1d1d1f',
+                          color: '#0F172A',
                           fontSize: '0.85rem',
                         }}
                       >
@@ -2605,7 +2596,7 @@ function Fs2List() {
         sx={{
           borderTop: '1px solid rgba(0, 0, 0, 0.06)',
           '& .MuiTablePagination-select': {
-            bgcolor: '#f5f5f7',
+            bgcolor: '#FFFFFF',
             borderRadius: '8px',
             border: '1px solid rgba(0, 0, 0, 0.08)',
           },
@@ -2694,7 +2685,7 @@ function Fs2List() {
         >
           <Typography
             variant="h6"
-            sx={{ fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.02em' }}
+            sx={{ fontWeight: 600, color: '#0F172A', letterSpacing: '-0.02em' }}
           >
             Tambah F.S.2
           </Typography>
@@ -2702,7 +2693,7 @@ function Fs2List() {
             onClick={handleCloseAddModal}
             size="small"
             sx={{
-              color: '#86868b',
+              color: '#64748B',
               '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' },
             }}
           >
@@ -2748,7 +2739,7 @@ function Fs2List() {
               }}
             >
               <AccordionSummary
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                expandIcon={<ExpandMoreIcon sx={{ color: '#64748B', transition: 'transform 0.3s ease' }} />}
                 sx={{
                   borderRadius: '20px',
                   px: 2.5,
@@ -2759,7 +2750,7 @@ function Fs2List() {
                 <Typography
                   sx={{
                     fontWeight: 600,
-                    color: '#1d1d1f',
+                    color: '#0F172A',
                     fontSize: '0.95rem',
                     letterSpacing: '-0.01em',
                   }}
@@ -2848,7 +2839,7 @@ function Fs2List() {
                         borderColor: 'rgba(0, 0, 0, 0.15)',
                       },
                       '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#DA251C',
+                        borderColor: '#BD1F27',
                       },
                     }}
                   >
@@ -2986,7 +2977,7 @@ function Fs2List() {
                         borderColor: 'rgba(0, 0, 0, 0.15)',
                       },
                       '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#DA251C',
+                        borderColor: '#BD1F27',
                       },
                     }}
                   >
@@ -3024,7 +3015,7 @@ function Fs2List() {
               }}
             >
               <AccordionSummary
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                expandIcon={<ExpandMoreIcon sx={{ color: '#64748B', transition: 'transform 0.3s ease' }} />}
                 sx={{
                   borderRadius: '20px',
                   px: 2.5,
@@ -3035,7 +3026,7 @@ function Fs2List() {
                 <Typography
                   sx={{
                     fontWeight: 600,
-                    color: '#1d1d1f',
+                    color: '#0F172A',
                     fontSize: '0.95rem',
                     letterSpacing: '-0.01em',
                   }}
@@ -3059,7 +3050,7 @@ function Fs2List() {
                 )}
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                   <Box sx={{ flex: '1 1 33.333%', minWidth: 220 }}>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
+                    <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 500, mb: 0.5, display: 'block' }}>
                       2.1 Target Pengujian {formData.status_tahapan === 'PEMELIHARAAN' ? '*' : ''}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
@@ -3101,7 +3092,7 @@ function Fs2List() {
                     )}
                   </Box>
                   <Box sx={{ flex: '1 1 33.333%', minWidth: 220 }}>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
+                    <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 500, mb: 0.5, display: 'block' }}>
                       2.2 Target Deployment {formData.status_tahapan === 'PEMELIHARAAN' ? '*' : ''}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
@@ -3143,7 +3134,7 @@ function Fs2List() {
                     )}
                   </Box>
                   <Box sx={{ flex: '1 1 33.333%', minWidth: 220 }}>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
+                    <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 500, mb: 0.5, display: 'block' }}>
                       2.3 Target Go Live {formData.status_tahapan === 'PEMELIHARAAN' ? '*' : ''}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
@@ -3208,7 +3199,7 @@ function Fs2List() {
               }}
             >
               <AccordionSummary
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                expandIcon={<ExpandMoreIcon sx={{ color: '#64748B', transition: 'transform 0.3s ease' }} />}
                 sx={{
                   borderRadius: '20px',
                   px: 2.5,
@@ -3219,7 +3210,7 @@ function Fs2List() {
                 <Typography
                   sx={{
                     fontWeight: 600,
-                    color: '#1d1d1f',
+                    color: '#0F172A',
                     fontSize: '0.95rem',
                     letterSpacing: '-0.01em',
                   }}
@@ -3231,7 +3222,7 @@ function Fs2List() {
                 <Stack spacing={2}>
                   {/* File Upload Dropzone */}
                   <Box>
-                    <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#1d1d1f' }}>Berkas F.S.2</Typography>
+                    <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#0F172A' }}>Berkas F.S.2</Typography>
                     <Box
                       onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                       onDragLeave={() => setIsDragging(false)}
@@ -3265,20 +3256,20 @@ function Fs2List() {
                       {isUploadingAdd ? (
                         <>
                           <CircularProgress size={48} sx={{ color: '#31A24C', mb: 1 }} />
-                          <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                          <Typography variant="body1" sx={{ color: '#0F172A', fontWeight: 500 }}>
                             Mengupload file...
                           </Typography>
                         </>
                       ) : (
                         <>
-                          <CloudUploadIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
-                          <Typography variant="body1" sx={{ color: '#1d1d1f', fontWeight: 500 }}>
+                          <CloudUploadIcon sx={{ fontSize: 48, color: '#64748B', mb: 1 }} />
+                          <Typography variant="body1" sx={{ color: '#0F172A', fontWeight: 500 }}>
                             Klik untuk upload file
                           </Typography>
-                          <Typography variant="body2" sx={{ color: '#86868b', mt: 0.5 }}>
+                          <Typography variant="body2" sx={{ color: '#64748B', mt: 0.5 }}>
                             atau drag & drop file di sini
                           </Typography>
-                          <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mt: 1 }}>
+                          <Typography variant="caption" sx={{ color: '#64748B', display: 'block', mt: 1 }}>
                             Format yang didukung: PDF, Word (max 8MB)
                           </Typography>
                         </>
@@ -3289,7 +3280,7 @@ function Fs2List() {
                   {/* Pending files with date picker - File akan diupload */}
                   {pendingFilesAdd.length > 0 && (
                     <Box>
-                      <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.8rem', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ fontWeight: 600, color: '#0F172A', fontSize: '0.8rem', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
                         <FileIcon sx={{ color: '#31A24C', fontSize: 18 }} />
                         File akan diupload ({pendingFilesAdd.length})
                       </Typography>
@@ -3298,8 +3289,8 @@ function Fs2List() {
                           <Box key={index} sx={{ p: 1.5, background: 'linear-gradient(145deg, rgba(49, 162, 76, 0.06) 0%, rgba(49, 162, 76, 0.02) 100%)', borderRadius: '12px', border: '1px solid rgba(49, 162, 76, 0.2)' }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
                               <FileIcon sx={{ color: '#31A24C', fontSize: 18, flexShrink: 0 }} />
-                              <Typography sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pending.file.name}</Typography>
-                              <Typography sx={{ color: '#86868b', fontSize: '0.7rem', whiteSpace: 'nowrap', mx: 1 }}>{formatFileSize(pending.file.size)}</Typography>
+                              <Typography sx={{ fontWeight: 500, color: '#0F172A', fontSize: '0.85rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pending.file.name}</Typography>
+                              <Typography sx={{ color: '#64748B', fontSize: '0.7rem', whiteSpace: 'nowrap', mx: 1 }}>{formatFileSize(pending.file.size)}</Typography>
                               <IconButton size="small" onClick={() => setPendingFilesAdd(prev => prev.filter((_, i) => i !== index))} sx={{ color: '#DC2626', width: 28, height: 28, borderRadius: '8px', background: 'rgba(220,38,38,0.08)', '&:hover': { background: 'rgba(220,38,38,0.15)' } }}>
                                 <DeleteIcon sx={{ fontSize: 15 }} />
                               </IconButton>
@@ -3333,7 +3324,7 @@ function Fs2List() {
                   {/* Uploaded files list */}
                   {uploadedFileData.length > 0 && (
                     <Box>
-                      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>
+                      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#0F172A' }}>
                         File yang diupload ({uploadedFileData.length})
                       </Typography>
                       <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px' }}>
@@ -3350,15 +3341,15 @@ function Fs2List() {
                             <ListItemText
                               primary={file.display_name || file.original_name}
                               secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
-                              primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem' } }}
-                              secondaryTypographyProps={{ sx: { color: '#86868b', fontSize: '0.75rem' } }}
+                              primaryTypographyProps={{ sx: { fontWeight: 500, color: '#0F172A', fontSize: '0.85rem' } }}
+                              secondaryTypographyProps={{ sx: { color: '#64748B', fontSize: '0.75rem' } }}
                             />
                             <ListItemSecondaryAction>
                               <IconButton
                                 edge="end"
                                 onClick={() => handleRemoveFile(index)}
                                 disabled={isUploadingAdd}
-                                sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
+                                sx={{ color: '#64748B', '&:hover': { color: '#BD1F27' } }}
                               >
                                 <DeleteIcon />
                               </IconButton>
@@ -3390,7 +3381,7 @@ function Fs2List() {
             onClick={handleCloseAddModal}
             disabled={isUploadingAdd}
             sx={{
-              color: '#86868b',
+              color: '#64748B',
               '&:hover': {
                 bgcolor: 'rgba(0, 0, 0, 0.04)',
               },
@@ -3403,7 +3394,7 @@ function Fs2List() {
             onClick={handleAddFs2}
             disabled={isUploadingAdd}
             sx={{
-              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+              background: 'linear-gradient(135deg, #BD1F27 0%, #8B1620 100%)',
               fontWeight: 500,
               px: 3,
               '&:hover': {
@@ -3456,7 +3447,7 @@ function Fs2List() {
         >
           <Typography
             variant="h6"
-            sx={{ fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.02em' }}
+            sx={{ fontWeight: 600, color: '#0F172A', letterSpacing: '-0.02em' }}
           >
             Edit F.S.2
           </Typography>
@@ -3464,7 +3455,7 @@ function Fs2List() {
             onClick={handleCloseEditModal}
             size="small"
             sx={{
-              color: '#86868b',
+              color: '#64748B',
               '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' },
             }}
           >
@@ -3499,7 +3490,7 @@ function Fs2List() {
               }}
             >
               <AccordionSummary
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                expandIcon={<ExpandMoreIcon sx={{ color: '#64748B', transition: 'transform 0.3s ease' }} />}
                 sx={{
                   borderRadius: '20px',
                   px: 2.5,
@@ -3510,7 +3501,7 @@ function Fs2List() {
                 <Typography
                   sx={{
                     fontWeight: 600,
-                    color: '#1d1d1f',
+                    color: '#0F172A',
                     fontSize: '0.95rem',
                     letterSpacing: '-0.01em',
                   }}
@@ -3605,7 +3596,7 @@ function Fs2List() {
                         borderColor: 'rgba(0, 0, 0, 0.15)',
                       },
                       '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#DA251C',
+                        borderColor: '#BD1F27',
                       },
                     }}
                   >
@@ -3732,7 +3723,7 @@ function Fs2List() {
               }}
             >
               <AccordionSummary
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                expandIcon={<ExpandMoreIcon sx={{ color: '#64748B', transition: 'transform 0.3s ease' }} />}
                 sx={{
                   borderRadius: '20px',
                   px: 2.5,
@@ -3743,7 +3734,7 @@ function Fs2List() {
                 <Typography
                   sx={{
                     fontWeight: 600,
-                    color: '#1d1d1f',
+                    color: '#0F172A',
                     fontSize: '0.95rem',
                     letterSpacing: '-0.01em',
                   }}
@@ -3767,7 +3758,7 @@ function Fs2List() {
                 )}
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                   <Box sx={{ flex: '1 1 33.333%', minWidth: 220 }}>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
+                    <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 500, mb: 0.5, display: 'block' }}>
                       2.1 Target Pengujian *
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
@@ -3809,7 +3800,7 @@ function Fs2List() {
                     )}
                   </Box>
                   <Box sx={{ flex: '1 1 33.333%', minWidth: 220 }}>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
+                    <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 500, mb: 0.5, display: 'block' }}>
                       2.2 Target Deployment *
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
@@ -3851,7 +3842,7 @@ function Fs2List() {
                     )}
                   </Box>
                   <Box sx={{ flex: '1 1 33.333%', minWidth: 220 }}>
-                    <Typography variant="caption" sx={{ color: '#86868b', fontWeight: 500, mb: 0.5, display: 'block' }}>
+                    <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 500, mb: 0.5, display: 'block' }}>
                       2.3 Target Go Live *
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
@@ -3916,7 +3907,7 @@ function Fs2List() {
               }}
             >
               <AccordionSummary
-                expandIcon={<ExpandMoreIcon sx={{ color: '#86868b', transition: 'transform 0.3s ease' }} />}
+                expandIcon={<ExpandMoreIcon sx={{ color: '#64748B', transition: 'transform 0.3s ease' }} />}
                 sx={{
                   borderRadius: '20px',
                   px: 2.5,
@@ -3927,7 +3918,7 @@ function Fs2List() {
                 <Typography
                   sx={{
                     fontWeight: 600,
-                    color: '#1d1d1f',
+                    color: '#0F172A',
                     fontSize: '0.95rem',
                     letterSpacing: '-0.01em',
                   }}
@@ -3940,11 +3931,11 @@ function Fs2List() {
                   {/* Existing Files Section */}
                   {isLoadingExistingFiles ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-                      <CircularProgress size={32} sx={{ color: '#DA251C' }} />
+                      <CircularProgress size={32} sx={{ color: '#BD1F27' }} />
                     </Box>
                   ) : existingFs2Files.length > 0 ? (
                     <Box>
-                      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>
+                      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#0F172A' }}>
                         File yang sudah diunggah ({existingFs2Files.length})
                       </Typography>
                       <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px' }}>
@@ -3956,7 +3947,7 @@ function Fs2List() {
                             }}
                           >
                             <ListItemIcon>
-                              <FileIcon sx={{ color: '#DA251C' }} />
+                              <FileIcon sx={{ color: '#BD1F27' }} />
                             </ListItemIcon>
                             <ListItemText
                               primary={
@@ -3978,15 +3969,15 @@ function Fs2List() {
                                 </Box>
                               }
                               secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
-                              primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }}
-                              secondaryTypographyProps={{ sx: { color: '#86868b' } }}
+                              primaryTypographyProps={{ sx: { fontWeight: 500, color: '#0F172A' } }}
+                              secondaryTypographyProps={{ sx: { color: '#64748B' } }}
                             />
                             <ListItemSecondaryAction>
                               <Tooltip title="Download">
                                 <IconButton
                                   edge="end"
                                   onClick={() => handleDownloadExistingFile(file)}
-                                  sx={{ color: '#86868b', '&:hover': { color: '#2563EB' }, mr: 0.5 }}
+                                  sx={{ color: '#64748B', '&:hover': { color: '#2563EB' }, mr: 0.5 }}
                                 >
                                   <DownloadIcon />
                                 </IconButton>
@@ -3995,7 +3986,7 @@ function Fs2List() {
                                 <IconButton
                                   edge="end"
                                   onClick={() => handleDeleteExistingFile(file.id)}
-                                  sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
+                                  sx={{ color: '#64748B', '&:hover': { color: '#BD1F27' } }}
                                 >
                                   <DeleteIcon />
                                 </IconButton>
@@ -4006,7 +3997,7 @@ function Fs2List() {
                       </List>
                     </Box>
                   ) : (
-                    <Typography variant="body2" sx={{ color: '#86868b', fontStyle: 'italic', textAlign: 'center', py: 2 }}>
+                    <Typography variant="body2" sx={{ color: '#64748B', fontStyle: 'italic', textAlign: 'center', py: 2 }}>
                       Belum ada file yang diunggah
                     </Typography>
                   )}
@@ -4043,16 +4034,16 @@ function Fs2List() {
                         accept=".pdf,.doc,.docx"
                         disabled={isUploadingEdit}
                       />
-                      <CloudUploadIcon sx={{ fontSize: 32, color: isDragging ? '#31A24C' : '#86868b', mb: 0.5 }} />
-                      <Typography variant="body2" sx={{ color: '#1d1d1f' }}>{isDragging ? 'Lepas untuk upload' : 'Upload file tambahan'}</Typography>
-                      <Typography variant="caption" sx={{ color: '#86868b' }}>PDF, Word (max 8MB)</Typography>
+                      <CloudUploadIcon sx={{ fontSize: 32, color: isDragging ? '#31A24C' : '#64748B', mb: 0.5 }} />
+                      <Typography variant="body2" sx={{ color: '#0F172A' }}>{isDragging ? 'Lepas untuk upload' : 'Upload file tambahan'}</Typography>
+                      <Typography variant="caption" sx={{ color: '#64748B' }}>PDF, Word (max 8MB)</Typography>
                     </Box>
                   </Box>
 
                   {/* Pending files with date picker - File akan diupload */}
                   {pendingFilesEdit.length > 0 && (
                     <Box>
-                      <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '0.8rem', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ fontWeight: 600, color: '#0F172A', fontSize: '0.8rem', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
                         <FileIcon sx={{ color: '#31A24C', fontSize: 18 }} />
                         File akan diupload ({pendingFilesEdit.length})
                       </Typography>
@@ -4061,8 +4052,8 @@ function Fs2List() {
                           <Box key={index} sx={{ p: 1.5, background: 'linear-gradient(145deg, rgba(49, 162, 76, 0.06) 0%, rgba(49, 162, 76, 0.02) 100%)', borderRadius: '12px', border: '1px solid rgba(49, 162, 76, 0.2)' }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
                               <FileIcon sx={{ color: '#31A24C', fontSize: 18, flexShrink: 0 }} />
-                              <Typography sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.85rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pending.file.name}</Typography>
-                              <Typography sx={{ color: '#86868b', fontSize: '0.7rem', whiteSpace: 'nowrap', mx: 1 }}>{formatFileSize(pending.file.size)}</Typography>
+                              <Typography sx={{ fontWeight: 500, color: '#0F172A', fontSize: '0.85rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pending.file.name}</Typography>
+                              <Typography sx={{ color: '#64748B', fontSize: '0.7rem', whiteSpace: 'nowrap', mx: 1 }}>{formatFileSize(pending.file.size)}</Typography>
                               <IconButton size="small" onClick={() => setPendingFilesEdit(prev => prev.filter((_, i) => i !== index))} sx={{ color: '#DC2626', width: 28, height: 28, borderRadius: '8px', background: 'rgba(220,38,38,0.08)', '&:hover': { background: 'rgba(220,38,38,0.15)' } }}>
                                 <DeleteIcon sx={{ fontSize: 15 }} />
                               </IconButton>
@@ -4114,7 +4105,7 @@ function Fs2List() {
           <Button 
             onClick={handleCloseEditModal}
             sx={{
-              color: '#86868b',
+              color: '#64748B',
               '&:hover': {
                 bgcolor: 'rgba(0, 0, 0, 0.04)',
               },
@@ -4126,7 +4117,7 @@ function Fs2List() {
             variant="contained" 
             onClick={handleEditFs2}
             sx={{
-              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+              background: 'linear-gradient(135deg, #BD1F27 0%, #8B1620 100%)',
               fontWeight: 500,
               px: 3,
               '&:hover': {
@@ -4160,13 +4151,13 @@ function Fs2List() {
       >
         <DialogTitle sx={{ 
           fontWeight: 600, 
-          color: '#1d1d1f',
+          color: '#0F172A',
           pb: 1,
         }}>
           Konfirmasi Hapus
         </DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ color: '#86868b' }}>
+          <DialogContentText sx={{ color: '#64748B' }}>
             Apakah Anda yakin ingin menghapus F.S.2 ini? Tindakan ini tidak dapat dibatalkan.
           </DialogContentText>
         </DialogContent>
@@ -4175,7 +4166,7 @@ function Fs2List() {
             onClick={handleCloseDeleteDialog}
             disabled={isDeleting}
             sx={{
-              color: '#86868b',
+              color: '#64748B',
               '&:hover': {
                 bgcolor: 'rgba(0, 0, 0, 0.04)',
               },
@@ -4214,14 +4205,14 @@ function Fs2List() {
       >
         <DialogTitle sx={{ 
           fontWeight: 600, 
-          color: '#1d1d1f',
+          color: '#0F172A',
           pb: 1,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <FileIcon sx={{ color: '#DA251C' }} />
+            <FileIcon sx={{ color: '#BD1F27' }} />
             Dokumen F.S.2
           </Box>
           <IconButton onClick={handleCloseFilePreviewDialog} size="small">
@@ -4231,7 +4222,7 @@ function Fs2List() {
         <DialogContent>
           {isLoadingFilePreview ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress size={32} sx={{ color: '#DA251C' }} />
+              <CircularProgress size={32} sx={{ color: '#BD1F27' }} />
             </Box>
           ) : filePreviewFiles.length > 0 ? (
             <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px', p: 1 }}>
@@ -4249,7 +4240,7 @@ function Fs2List() {
                   }}
                 >
                   <ListItemIcon sx={{ minWidth: 40 }}>
-                    <FileIcon sx={{ color: '#DA251C', fontSize: 24 }} />
+                    <FileIcon sx={{ color: '#BD1F27', fontSize: 24 }} />
                   </ListItemIcon>
                   <ListItemText
                     primary={
@@ -4274,12 +4265,12 @@ function Fs2List() {
                     primaryTypographyProps={{
                       sx: {
                         fontWeight: 500,
-                        color: '#1d1d1f',
+                        color: '#0F172A',
                         fontSize: '0.9rem',
                       },
                     }}
                     secondaryTypographyProps={{
-                      sx: { color: '#86868b', fontSize: '0.75rem' },
+                      sx: { color: '#64748B', fontSize: '0.75rem' },
                     }}
                   />
                   <ListItemSecondaryAction>
@@ -4290,8 +4281,8 @@ function Fs2List() {
                             size="small"
                             onClick={() => handleViewFileInNewTab(file)}
                             sx={{
-                              color: '#DA251C',
-                              '&:hover': { bgcolor: 'rgba(218, 37, 28, 0.1)' },
+                              color: '#BD1F27',
+                              '&:hover': { bgcolor: 'rgba(189, 31, 39, 0.1)' },
                             }}
                           >
                             <VisibilityIcon fontSize="small" />
@@ -4304,12 +4295,12 @@ function Fs2List() {
                           onClick={() => handleDownloadFilePreview(file)}
                           disabled={filePreviewDownloadingId === file.id}
                           sx={{
-                            color: '#DA251C',
-                            '&:hover': { bgcolor: 'rgba(218, 37, 28, 0.1)' },
+                            color: '#BD1F27',
+                            '&:hover': { bgcolor: 'rgba(189, 31, 39, 0.1)' },
                           }}
                         >
                           {filePreviewDownloadingId === file.id ? (
-                            <CircularProgress size={16} sx={{ color: '#DA251C' }} />
+                            <CircularProgress size={16} sx={{ color: '#BD1F27' }} />
                           ) : (
                             <DownloadIcon fontSize="small" />
                           )}
@@ -4321,7 +4312,7 @@ function Fs2List() {
               ))}
             </List>
           ) : (
-            <Box sx={{ textAlign: 'center', py: 4, color: '#86868b' }}>
+            <Box sx={{ textAlign: 'center', py: 4, color: '#64748B' }}>
               <FileIcon sx={{ fontSize: 48, mb: 1, opacity: 0.5 }} />
               <Typography variant="body2">Tidak ada dokumen yang diunggah</Typography>
             </Box>

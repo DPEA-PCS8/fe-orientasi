@@ -64,7 +64,7 @@ const getInitials = (name: string) => {
 
 const getAvatarColor = (name: string) => {
   const colors = [
-    '#DA251C', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
+    '#BD1F27', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
     '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE',
   ];
   const index = name.charCodeAt(0) % colors.length;
@@ -151,11 +151,11 @@ const FormModal = memo(({
               width: 40,
               height: 40,
               borderRadius: '12px',
-              background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+              background: 'linear-gradient(135deg, #BD1F27 0%, #FF4D45 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(218, 37, 28, 0.25)',
+              boxShadow: '0 4px 12px rgba(189, 31, 39, 0.25)',
             }}
           >
             <GroupIcon sx={{ color: 'white', fontSize: 22 }} />
@@ -164,7 +164,7 @@ const FormModal = memo(({
             variant="h6" 
             sx={{ 
               fontWeight: 700, 
-              color: '#1d1d1f',
+              color: '#0F172A',
               fontSize: '1.1rem',
               letterSpacing: '-0.01em',
             }}
@@ -176,11 +176,11 @@ const FormModal = memo(({
           onClick={onClose} 
           size="small"
           sx={{
-            color: '#86868b',
+            color: '#64748B',
             bgcolor: 'rgba(0, 0, 0, 0.04)',
             '&:hover': {
               bgcolor: 'rgba(0, 0, 0, 0.08)',
-              color: '#1d1d1f',
+              color: '#0F172A',
             },
           }}
         >
@@ -212,7 +212,7 @@ const FormModal = memo(({
             <Typography 
               variant="caption" 
               sx={{ 
-                color: '#86868b', 
+                color: '#64748B', 
                 fontWeight: 600, 
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
@@ -242,8 +242,8 @@ const FormModal = memo(({
                   },
                   '&.Mui-focused': {
                     bgcolor: 'white',
-                    boxShadow: '0 0 0 3px rgba(218, 37, 28, 0.1)',
-                    '& fieldset': { borderColor: '#DA251C', borderWidth: '1.5px' },
+                    boxShadow: '0 0 0 3px rgba(189, 31, 39, 0.1)',
+                    '& fieldset': { borderColor: '#BD1F27', borderWidth: '1.5px' },
                   },
                 },
               }}
@@ -255,7 +255,7 @@ const FormModal = memo(({
             <Typography 
               variant="caption" 
               sx={{ 
-                color: '#86868b', 
+                color: '#64748B', 
                 fontWeight: 600, 
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
@@ -287,8 +287,8 @@ const FormModal = memo(({
                   },
                   '&.Mui-focused': {
                     bgcolor: 'white',
-                    boxShadow: '0 0 0 3px rgba(218, 37, 28, 0.1)',
-                    '& fieldset': { borderColor: '#DA251C', borderWidth: '1.5px' },
+                    boxShadow: '0 0 0 3px rgba(189, 31, 39, 0.1)',
+                    '& fieldset': { borderColor: '#BD1F27', borderWidth: '1.5px' },
                   },
                 },
               }}
@@ -300,7 +300,7 @@ const FormModal = memo(({
             <Typography 
               variant="caption" 
               sx={{ 
-                color: '#86868b', 
+                color: '#64748B', 
                 fontWeight: 600, 
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
@@ -333,8 +333,8 @@ const FormModal = memo(({
                       },
                       '&.Mui-focused': {
                         bgcolor: 'white',
-                        boxShadow: '0 0 0 3px rgba(218, 37, 28, 0.1)',
-                        '& fieldset': { borderColor: '#DA251C', borderWidth: '1.5px' },
+                        boxShadow: '0 0 0 3px rgba(189, 31, 39, 0.1)',
+                        '& fieldset': { borderColor: '#BD1F27', borderWidth: '1.5px' },
                       },
                     },
                   }}
@@ -357,7 +357,7 @@ const FormModal = memo(({
                       mx: 0.5,
                       my: 0.25,
                       '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' },
-                      '&.Mui-focused': { bgcolor: 'rgba(218, 37, 28, 0.06)' },
+                      '&.Mui-focused': { bgcolor: 'rgba(189, 31, 39, 0.06)' },
                     }}
                   >
                     <Avatar 
@@ -372,10 +372,10 @@ const FormModal = memo(({
                       {getInitials(option.fullName)}
                     </Avatar>
                     <Box sx={{ flex: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#0F172A' }}>
                         {option.fullName}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: '#86868b' }}>
+                      <Typography variant="caption" sx={{ color: '#64748B' }}>
                         {option.department} • {option.email}
                       </Typography>
                     </Box>
@@ -399,8 +399,8 @@ const FormModal = memo(({
                   mt: 1.5, 
                   p: 1.5, 
                   borderRadius: '12px',
-                  bgcolor: 'rgba(218, 37, 28, 0.04)',
-                  border: '1px solid rgba(218, 37, 28, 0.1)',
+                  bgcolor: 'rgba(189, 31, 39, 0.04)',
+                  border: '1px solid rgba(189, 31, 39, 0.1)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 1.5,
@@ -417,10 +417,10 @@ const FormModal = memo(({
                   {getInitials(formData.pic.fullName)}
                 </Avatar>
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#DA251C' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#BD1F27' }}>
                     {formData.pic.fullName}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: '#86868b' }}>
+                  <Typography variant="caption" sx={{ color: '#64748B' }}>
                     {formData.pic.department}
                   </Typography>
                 </Box>
@@ -434,7 +434,7 @@ const FormModal = memo(({
             <Typography 
               variant="caption" 
               sx={{ 
-                color: '#86868b', 
+                color: '#64748B', 
                 fontWeight: 600, 
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
@@ -471,8 +471,8 @@ const FormModal = memo(({
                       },
                       '&.Mui-focused': {
                         bgcolor: 'white',
-                        boxShadow: '0 0 0 3px rgba(218, 37, 28, 0.1)',
-                        '& fieldset': { borderColor: '#DA251C', borderWidth: '1.5px' },
+                        boxShadow: '0 0 0 3px rgba(189, 31, 39, 0.1)',
+                        '& fieldset': { borderColor: '#BD1F27', borderWidth: '1.5px' },
                       },
                     },
                   }}
@@ -494,8 +494,8 @@ const FormModal = memo(({
                       borderRadius: '8px',
                       mx: 0.5,
                       my: 0.25,
-                      bgcolor: selected ? 'rgba(218, 37, 28, 0.06)' : 'transparent',
-                      '&:hover': { bgcolor: selected ? 'rgba(218, 37, 28, 0.08)' : 'rgba(0, 0, 0, 0.04)' },
+                      bgcolor: selected ? 'rgba(189, 31, 39, 0.06)' : 'transparent',
+                      '&:hover': { bgcolor: selected ? 'rgba(189, 31, 39, 0.08)' : 'rgba(0, 0, 0, 0.04)' },
                     }}
                   >
                     <Avatar 
@@ -510,15 +510,15 @@ const FormModal = memo(({
                       {getInitials(option.fullName)}
                     </Avatar>
                     <Box sx={{ flex: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#0F172A' }}>
                         {option.fullName}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: '#86868b' }}>
+                      <Typography variant="caption" sx={{ color: '#64748B' }}>
                         {option.department}
                       </Typography>
                     </Box>
                     {selected && (
-                      <CheckCircleIcon sx={{ color: '#DA251C', fontSize: 20 }} />
+                      <CheckCircleIcon sx={{ color: '#BD1F27', fontSize: 20 }} />
                     )}
                   </Box>
                 );
@@ -551,8 +551,8 @@ const FormModal = memo(({
                         border: 'none',
                         '& .MuiChip-label': { fontWeight: 500, fontSize: '0.8rem' },
                         '& .MuiChip-deleteIcon': {
-                          color: '#86868b',
-                          '&:hover': { color: '#DA251C' },
+                          color: '#64748B',
+                          '&:hover': { color: '#BD1F27' },
                         },
                       }}
                     />
@@ -591,7 +591,7 @@ const FormModal = memo(({
           onClick={onClose}
           variant="outlined"
           sx={{ 
-            color: '#86868b', 
+            color: '#64748B', 
             borderColor: 'rgba(0, 0, 0, 0.12)',
             textTransform: 'none',
             fontWeight: 600,
@@ -610,15 +610,15 @@ const FormModal = memo(({
           variant="contained"
           disabled={submitting || !formData.name.trim()}
           sx={{
-            background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+            background: 'linear-gradient(135deg, #BD1F27 0%, #FF4D45 100%)',
             textTransform: 'none',
             fontWeight: 600,
             borderRadius: '12px',
             px: 3,
-            boxShadow: '0 4px 14px rgba(218, 37, 28, 0.3)',
+            boxShadow: '0 4px 14px rgba(189, 31, 39, 0.3)',
             '&:hover': {
               background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
-              boxShadow: '0 6px 20px rgba(218, 37, 28, 0.4)',
+              boxShadow: '0 6px 20px rgba(189, 31, 39, 0.4)',
             },
             '&.Mui-disabled': {
               background: '#e5e5e7',
@@ -877,8 +877,8 @@ export default function TeamManagement() {
         flexDirection: 'column',
         gap: 2,
       }}>
-        <CircularProgress sx={{ color: '#DA251C' }} />
-        <Typography sx={{ color: '#86868b' }}>Memuat data tim...</Typography>
+        <CircularProgress sx={{ color: '#BD1F27' }} />
+        <Typography sx={{ color: '#64748B' }}>Memuat data tim...</Typography>
       </Box>
     );
   }
@@ -910,7 +910,7 @@ export default function TeamManagement() {
                   bgcolor: 'white',
                   '& fieldset': { borderColor: '#E5E7EB' },
                   '&:hover fieldset': { borderColor: '#D1D5DB' },
-                  '&.Mui-focused fieldset': { borderColor: '#DA251C', borderWidth: 1 },
+                  '&.Mui-focused fieldset': { borderColor: '#BD1F27', borderWidth: 1 },
                 },
               }}
               InputProps={{
@@ -927,7 +927,7 @@ export default function TeamManagement() {
                 onClick={handleOpenCreate}
                 variant="contained"
                 sx={{
-                  bgcolor: '#DA251C',
+                  bgcolor: '#BD1F27',
                   textTransform: 'none',
                   fontWeight: 600,
                   borderRadius: 2,
@@ -945,7 +945,7 @@ export default function TeamManagement() {
         {/* Stats */}
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, mb: 3 }}>
           {[
-            { label: 'Total Tim', value: teams.length, icon: <GroupIcon />, color: '#DA251C', bg: '#FEF2F2' },
+            { label: 'Total Tim', value: teams.length, icon: <GroupIcon />, color: '#BD1F27', bg: '#FEF2F2' },
             { label: 'Total User', value: users.length, icon: <PeopleIcon />, color: '#0891B2', bg: '#ECFEFF' },
             { label: 'PIC Assigned', value: teams.filter(t => t.pic).length, icon: <StarIcon />, color: '#F59E0B', bg: '#FFFBEB' },
           ].map((stat) => (
@@ -1007,7 +1007,7 @@ export default function TeamManagement() {
               fontWeight: 600,
               borderRadius: 1.5,
               color: viewMode === 'teams' ? 'white' : '#6B7280',
-              bgcolor: viewMode === 'teams' ? '#DA251C' : 'transparent',
+              bgcolor: viewMode === 'teams' ? '#BD1F27' : 'transparent',
               '&:hover': {
                 bgcolor: viewMode === 'teams' ? '#B91C14' : '#F3F4F6',
               },
@@ -1037,7 +1037,7 @@ export default function TeamManagement() {
               fontWeight: 600,
               borderRadius: 1.5,
               color: viewMode === 'users' ? 'white' : '#6B7280',
-              bgcolor: viewMode === 'users' ? '#DA251C' : 'transparent',
+              bgcolor: viewMode === 'users' ? '#BD1F27' : 'transparent',
               '&:hover': {
                 bgcolor: viewMode === 'users' ? '#B91C14' : '#F3F4F6',
               },
@@ -1077,7 +1077,7 @@ export default function TeamManagement() {
                 border: '1px solid #E5E7EB',
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  borderColor: '#DA251C',
+                  borderColor: '#BD1F27',
                   boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                 },
               }}
@@ -1099,7 +1099,7 @@ export default function TeamManagement() {
                       onClick={(e) => { e.stopPropagation(); handleOpenEdit(team); }}
                       sx={{ 
                         color: '#9CA3AF',
-                        '&:hover': { color: '#DA251C', bgcolor: '#FEF2F2' },
+                        '&:hover': { color: '#BD1F27', bgcolor: '#FEF2F2' },
                       }}
                     >
                       <EditIcon fontSize="small" />
@@ -1131,7 +1131,7 @@ export default function TeamManagement() {
                       sx={{ 
                         width: 36, 
                         height: 36, 
-                        bgcolor: '#DA251C',
+                        bgcolor: '#BD1F27',
                         fontWeight: 600,
                         fontSize: '0.85rem',
                       }}
@@ -1139,7 +1139,7 @@ export default function TeamManagement() {
                       {getInitials(team.pic.fullName)}
                     </Avatar>
                     <Box sx={{ flex: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#DA251C' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#BD1F27' }}>
                         {team.pic.fullName}
                       </Typography>
                       <Typography variant="caption" sx={{ color: '#9CA3AF' }}>
@@ -1248,7 +1248,7 @@ export default function TeamManagement() {
               onClick={handleOpenCreate}
               variant="contained"
               sx={{
-                bgcolor: '#DA251C',
+                bgcolor: '#BD1F27',
                 textTransform: 'none',
                 fontWeight: 600,
                 borderRadius: 2,
@@ -1298,7 +1298,7 @@ export default function TeamManagement() {
                       px: 0.5,
                       transition: 'all 0.2s ease',
                       ...(filterTeamAssignment === filter.value ? {
-                        bgcolor: '#DA251C',
+                        bgcolor: '#BD1F27',
                         color: 'white',
                         '& .MuiChip-icon': { color: 'white' },
                       } : {
@@ -1335,8 +1335,8 @@ export default function TeamManagement() {
                       onClick={() => handleSort('fullName')}
                       sx={{
                         '&.MuiTableSortLabel-root': { color: '#111827' },
-                        '&.Mui-active': { color: '#DA251C' },
-                        '& .MuiTableSortLabel-icon': { color: '#DA251C !important' },
+                        '&.Mui-active': { color: '#BD1F27' },
+                        '& .MuiTableSortLabel-icon': { color: '#BD1F27 !important' },
                       }}
                     >
                       Nama User
@@ -1349,8 +1349,8 @@ export default function TeamManagement() {
                       onClick={() => handleSort('department')}
                       sx={{
                         '&.MuiTableSortLabel-root': { color: '#111827' },
-                        '&.Mui-active': { color: '#DA251C' },
-                        '& .MuiTableSortLabel-icon': { color: '#DA251C !important' },
+                        '&.Mui-active': { color: '#BD1F27' },
+                        '& .MuiTableSortLabel-icon': { color: '#BD1F27 !important' },
                       }}
                     >
                       Departemen
@@ -1365,8 +1365,8 @@ export default function TeamManagement() {
                       onClick={() => handleSort('teamCount')}
                       sx={{
                         '&.MuiTableSortLabel-root': { color: '#111827' },
-                        '&.Mui-active': { color: '#DA251C' },
-                        '& .MuiTableSortLabel-icon': { color: '#DA251C !important' },
+                        '&.Mui-active': { color: '#BD1F27' },
+                        '& .MuiTableSortLabel-icon': { color: '#BD1F27 !important' },
                       }}
                     >
                       Status
@@ -1422,9 +1422,9 @@ export default function TeamManagement() {
                                 fontWeight: 600,
                                 ...(team.isPIC ? {
                                   bgcolor: '#FEF2F2',
-                                  color: '#DA251C',
+                                  color: '#BD1F27',
                                   border: '1px solid #FEE2E2',
-                                  '& .MuiChip-icon': { color: '#DA251C' },
+                                  '& .MuiChip-icon': { color: '#BD1F27' },
                                 } : {
                                   bgcolor: '#F3F4F6',
                                   color: '#6B7280',

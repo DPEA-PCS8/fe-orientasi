@@ -17,8 +17,8 @@ import {
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import OjkLogoPng from '../assets/OJK_Logo.png';
-import DpeaLogoPng from '../assets/DPEA_Logo.png';
 import { getUserInfo, clearAuthData } from '../api/authApi';
+import { COLORS } from '../styles/theme';
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -56,41 +56,24 @@ const Navbar = () => {
       elevation={0}
       sx={{
         zIndex: (theme) => theme.zIndex.drawer + 1,
-        backgroundColor: 'rgba(251, 251, 253, 0.97)',
-        backdropFilter: 'saturate(180%) blur(20px)',
-        borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+        backdropFilter: 'saturate(180%) blur(18px)',
+        borderTop: `3px solid ${COLORS.PRIMARY}`,
+        borderBottom: `1px solid ${COLORS.BORDER}`,
+        boxShadow: '0 8px 28px rgba(15, 23, 42, 0.06)',
       }}
     >
       <Toolbar sx={{ minHeight: '64px !important', height: 64, px: 3 }}>
         {/* Logo & Brand */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-            <img 
-            src={OjkLogoPng} 
-            alt="OJK Logo" 
-            style={{ height: 40, width: 'auto' }} 
-            />
-            <img 
-              src={DpeaLogoPng} 
-              alt="DPEA Logo" 
-              style={{ height: 90, width: 'auto' }} 
-            />
-          </Box>
-          <Box
-            sx={{
-              height: 36,
-              width: '1px',
-              bgcolor: 'rgba(0,0,0,0.12)',
-            }}
-          />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <img src={OjkLogoPng} alt="OJK Logo" style={{ height: 38, width: 'auto' }} />
+          <Box sx={{ height: 32, width: '1px', bgcolor: COLORS.BORDER }} />
           <Typography
-            variant="body1"
             component="div"
-            sx={{ 
-              fontWeight: 600, 
-              color: '#1d1d1f',
-              letterSpacing: '-0.02em',
+            sx={{
+              fontWeight: 600,
+              color: COLORS.INK,
+              letterSpacing: '-0.01em',
               fontSize: '0.95rem',
               whiteSpace: 'nowrap',
             }}
@@ -104,21 +87,23 @@ const Navbar = () => {
 
         {/* Right Side Icons */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <IconButton 
-            size="small" 
-            sx={{ 
-              color: '#1d1d1f',
-              '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' },
+          <IconButton
+            size="small"
+            sx={{
+              color: COLORS.TEXT_PRIMARY,
+              borderRadius: '12px',
+              '&:hover': { bgcolor: 'rgba(241, 245, 249, 0.9)' },
             }}
           >
             <SearchIcon sx={{ fontSize: 20 }} />
           </IconButton>
 
-          <IconButton 
-            size="small" 
-            sx={{ 
-              color: '#1d1d1f',
-              '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' },
+          <IconButton
+            size="small"
+            sx={{
+              color: COLORS.TEXT_PRIMARY,
+              borderRadius: '12px',
+              '&:hover': { bgcolor: 'rgba(241, 245, 249, 0.9)' },
             }}
           >
             <Badge 
@@ -155,20 +140,20 @@ const Navbar = () => {
           >
             <Avatar
               sx={{
-                width: 28,
-                height: 28,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                width: 30,
+                height: 30,
+                background: COLORS.PRIMARY_GRADIENT,
                 fontSize: '0.75rem',
-                fontWeight: 600,
+                fontWeight: 700,
               }}
             >
               {getInitials(userInfo?.full_name)}
             </Avatar>
             <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 0.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 500, color: '#1d1d1f', fontSize: '0.8125rem' }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: COLORS.INK, fontSize: '0.8125rem' }}>
                 {userInfo?.full_name || 'User'}
               </Typography>
-              <KeyboardArrowDown sx={{ fontSize: 16, color: '#86868b' }} />
+              <KeyboardArrowDown sx={{ fontSize: 16, color: COLORS.TEXT_SECONDARY }} />
             </Box>
           </Box>
 

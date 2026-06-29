@@ -313,7 +313,7 @@ export default function RolePermissions() {
       {/* Header */}
       <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <SecurityIcon sx={{ fontSize: 32, color: '#DA251C' }} />
+          <SecurityIcon sx={{ fontSize: 32, color: '#BD1F27' }} />
           <Box>
             <Typography variant="h5" fontWeight={600}>
               Role Permissions
@@ -340,7 +340,7 @@ export default function RolePermissions() {
               onClick={handleSave}
               disabled={!hasDirtyPermissions || saving}
               sx={{
-                bgcolor: hasDirtyPermissions ? '#DA251C' : '#e0e0e0',
+                bgcolor: hasDirtyPermissions ? '#BD1F27' : '#e0e0e0',
                 color: hasDirtyPermissions ? 'white' : '#9e9e9e',
                 '&:hover': { 
                   bgcolor: hasDirtyPermissions ? '#b91c14' : '#d5d5d5',
@@ -494,8 +494,8 @@ export default function RolePermissions() {
                       {/* Parent Row */}
                       <TableRow
                         sx={{
-                          bgcolor: parentMenu.isDirty ? 'rgba(218, 37, 28, 0.04)' : '#fafafa',
-                          '&:hover': { bgcolor: parentMenu.isDirty ? 'rgba(218, 37, 28, 0.08)' : '#f0f0f0' },
+                          bgcolor: parentMenu.isDirty ? 'rgba(189, 31, 39, 0.04)' : '#fafafa',
+                          '&:hover': { bgcolor: parentMenu.isDirty ? 'rgba(189, 31, 39, 0.08)' : '#f0f0f0' },
                           transition: 'background-color 0.2s',
                         }}
                       >
@@ -564,8 +564,8 @@ export default function RolePermissions() {
                         <TableRow
                           key={childMenu.menu_id}
                           sx={{
-                            bgcolor: childMenu.isDirty ? 'rgba(218, 37, 28, 0.04)' : 'white',
-                            '&:hover': { bgcolor: childMenu.isDirty ? 'rgba(218, 37, 28, 0.08)' : '#f5f5f5' },
+                            bgcolor: childMenu.isDirty ? 'rgba(189, 31, 39, 0.04)' : 'white',
+                            '&:hover': { bgcolor: childMenu.isDirty ? 'rgba(189, 31, 39, 0.08)' : '#f5f5f5' },
                             display: isExpanded ? 'table-row' : 'none',
                             transition: 'background-color 0.2s',
                           }}

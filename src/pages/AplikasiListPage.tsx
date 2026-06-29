@@ -9,7 +9,7 @@ import {
   Divider, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Collapse
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material/Select';
-import { Add, Edit, Search, Delete, Visibility, Lock, Apps, Download, FilterList, ExpandMore, ExpandLess, CheckBoxOutlineBlank, CheckBox, IndeterminateCheckBox } from '@mui/icons-material';
+import { Add, Edit, Search, Delete, Visibility, Lock, Download, FilterList, ExpandMore, ExpandLess, CheckBoxOutlineBlank, CheckBox, IndeterminateCheckBox } from '@mui/icons-material';
 import {
   searchAplikasi, deleteAplikasi, updateAplikasiStatusWithDetails, downloadAplikasiExcel,
   type AplikasiListItem, type AplikasiSearchParams, type AplikasiStatusUpdateRequest,
@@ -20,6 +20,9 @@ import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getAllSubKategori, type SubKategoriData } from '../api/subKategoriApi';
 import { usePermissions } from '../hooks/usePermissions';
 import { DataCountDisplay } from '../components/DataCountDisplay';
+import PageHeader from '../components/PageHeader';
+import Badge from '../components/Badge';
+import type { BadgeVariant } from '../components/Badge';
 
 const MENU_CODE = 'APLIKASI';
 
@@ -330,21 +333,24 @@ const AplikasiListPage = () => {
   );
 
   const getStatusChip = (status: string, isClickable: boolean = false, loading: boolean = false) => {
-    const colorMap: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
-      AKTIF: 'success',
-      IDLE: 'warning',
-      DIAKHIRI: 'error',
+    const variantMap: Record<string, BadgeVariant> = {
+      AKTIF: 'green',
+      IDLE: 'amber',
+      DIAKHIRI: 'red',
     };
     return (
-      <Chip
-        label={loading ? <CircularProgress size={14} color="inherit" /> : (APPLICATION_STATUS_LABELS[status] || status)}
-        color={colorMap[status] || 'default'}
-        size="small"
+      <Box
+        component="span"
         sx={{
+          display: 'inline-flex',
           cursor: isClickable ? 'pointer' : 'default',
           '&:hover': isClickable ? { opacity: 0.8 } : {},
         }}
-      />
+      >
+        <Badge variant={variantMap[status] || 'slate'}>
+          {loading ? <CircularProgress size={12} color="inherit" /> : (APPLICATION_STATUS_LABELS[status] || status)}
+        </Badge>
+      </Box>
     );
   };
 
@@ -383,37 +389,37 @@ const AplikasiListPage = () => {
   }
 
   return (
-    <Box p={3}>
+    <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box display="flex" alignItems="center" gap={1}>
-          <Apps color="primary" />
-          <Typography variant="h5" fontWeight={600}>
-            Manajemen Aplikasi
-          </Typography>
-        </Box>
-        <Box display="flex" gap={1}>
-          <Tooltip title="Download Excel">
-            <Button
-              variant="outlined"
-              startIcon={<Download />}
-              onClick={() => setShowDownloadDialog(true)}
-            >
-              Download
-            </Button>
-          </Tooltip>
-          {canCreate && (
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => navigate('/aplikasi/tambah')}
-            >
-              Tambah Aplikasi
-            </Button>
-          )}
-        </Box>
-      </Box>
+      <PageHeader
+        eyebrow="CONTROL CENTER"
+        title="Manajemen Aplikasi"
+        subtitle="Kelola data aplikasi, status, dan klasifikasi sub kategori."
+        actions={
+          <>
+            <Tooltip title="Download Excel">
+              <Button
+                variant="outlined"
+                startIcon={<Download />}
+                onClick={() => setShowDownloadDialog(true)}
+              >
+                Download
+              </Button>
+            </Tooltip>
+            {canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => navigate('/aplikasi/tambah')}
+              >
+                Tambah Aplikasi
+              </Button>
+            )}
+          </>
+        }
+      />
 
+      <Box sx={{ p: { xs: 2, md: 2.5 } }}>
       {/* Error Alert */}
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -421,8 +427,10 @@ const AplikasiListPage = () => {
         </Alert>
       )}
 
-      {/* Filters */}
-      <Paper sx={{ p: 2, mb: 2 }}>
+      {/* Single cohesive card: toolbar + count + table */}
+      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+      {/* Toolbar / Filters */}
+      <Box sx={{ p: 2.5, borderBottom: '1px solid #E2E8F0' }}>
         <Box display="flex" gap={2} flexWrap="wrap">
           <TextField
             size="small"
@@ -450,7 +458,7 @@ const AplikasiListPage = () => {
               <Box component="li" {...props}>
                 <Box>
                   <Typography sx={{ fontWeight: 600, fontSize: '0.85rem' }}>{option.kode_bidang}</Typography>
-                  <Typography sx={{ fontSize: '0.7rem', color: '#86868b' }}>{option.nama_bidang}</Typography>
+                  <Typography sx={{ fontSize: '0.7rem', color: '#64748B' }}>{option.nama_bidang}</Typography>
                 </Box>
               </Box>
             )}
@@ -479,7 +487,7 @@ const AplikasiListPage = () => {
               <Box component="li" {...props}>
                 <Box>
                   <Typography sx={{ fontWeight: 600, fontSize: '0.85rem' }}>{option.kode_skpa}</Typography>
-                  <Typography sx={{ fontSize: '0.7rem', color: '#86868b' }}>{option.nama_skpa}</Typography>
+                  <Typography sx={{ fontSize: '0.7rem', color: '#64748B' }}>{option.nama_skpa}</Typography>
                 </Box>
               </Box>
             )}
@@ -541,10 +549,10 @@ const AplikasiListPage = () => {
             )}
           </Button>
         </Box>
-      </Paper>
+      </Box>
 
       {/* Data Count Display */}
-      <Box sx={{ my: 2.5 }}>
+      <Box>
         <DataCountDisplay
           count={totalElements}
           isLoading={loading}
@@ -559,13 +567,13 @@ const AplikasiListPage = () => {
       </Box>
 
       {/* Table */}
-      <TableContainer component={Paper}>
+      <TableContainer>
         <Table>
           <TableHead>
-            <TableRow sx={{ bgcolor: 'grey.100' }}>
-              <TableCell><strong>Nama Aplikasi</strong></TableCell>
-              <TableCell><strong>Bidang</strong></TableCell>
-              <TableCell><strong>SKPA</strong></TableCell>
+            <TableRow>
+              <TableCell align="left"><strong>Nama Aplikasi</strong></TableCell>
+              <TableCell align="left"><strong>Bidang</strong></TableCell>
+              <TableCell align="left"><strong>SKPA</strong></TableCell>
               <TableCell><strong>Sub Kategori</strong></TableCell>
               <TableCell><strong>Status</strong></TableCell>
               <TableCell align="center"><strong>Aksi</strong></TableCell>
@@ -591,7 +599,7 @@ const AplikasiListPage = () => {
             ) : (
               paginatedList.map((app) => (
                 <TableRow key={app.id} hover>
-                  <TableCell>
+                  <TableCell align="left">
                     <Box>
                       <Typography fontWeight={500}>
                         {app.nama_aplikasi}
@@ -603,7 +611,7 @@ const AplikasiListPage = () => {
                       )}
                     </Box>
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="left">
                     {app.bidang ? (
                       <Box>
                         <Typography variant="body2" fontWeight={600}>{app.bidang.kode_bidang}</Typography>
@@ -611,7 +619,7 @@ const AplikasiListPage = () => {
                       </Box>
                     ) : '-'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="left">
                     {app.skpa ? (
                       <Box>
                         <Typography variant="body2" fontWeight={600}>{app.skpa.kode_skpa}</Typography>
@@ -698,6 +706,7 @@ const AplikasiListPage = () => {
           labelRowsPerPage="Baris per halaman:"
         />
       </TableContainer>
+      </Paper>
 
       {/* Status Popover */}
       <Popover
@@ -1038,6 +1047,7 @@ const AplikasiListPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      </Box>
     </Box>
   );
 };

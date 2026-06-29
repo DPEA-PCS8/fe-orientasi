@@ -39,7 +39,6 @@ import {
   Visibility as VisibilityIcon,
   PushPin as PushPinIcon,
   ViewColumn as ViewColumnIcon,
-  ListAltRounded,
   InsertDriveFile as FileIcon,
   Download as DownloadIcon,
   AttachFile as AttachFileIcon,
@@ -63,7 +62,9 @@ import { DataCountDisplay } from '../components/DataCountDisplay';
 import { deletePksiDocument, searchPksiDocuments, updatePksiStatus, getAvailableParentPksi, type PksiDocumentData, type ParentPksiSummary } from '../api/pksiApi';
 import { getPksiFiles, downloadPksiFile, type PksiFileData } from '../api/pksiFileApi';
 import { getAllTeams, type Team } from '../api/teamApi';
-import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
+import PageHeader from '../components/PageHeader';
+import Badge from '../components/Badge';
+import type { BadgeVariant } from '../components/Badge';
 
 // Interface untuk data PKSI (transformed from API)
 interface PksiData {
@@ -254,18 +255,18 @@ const STATUS_LABELS: Record<PksiData['status'], string> = {
   dikerjakan_cara_lain: 'Dikerjakan Cara Lain',
 };
 
-const getStatusColor = (status: PksiData['status']) => {
+const getStatusVariant = (status: PksiData['status']): BadgeVariant => {
   switch (status) {
     case 'disetujui':
-      return '#31A24C';
+      return 'green';
     case 'tidak_disetujui':
-      return '#FF3B30';
+      return 'red';
     case 'dikerjakan_cara_lain':
-      return '#8E8E93'; // Gray color for nested PKSI
+      return 'slate';
     case 'pending':
-      return '#FF9500';
+      return 'amber';
     default:
-      return '#86868b';
+      return 'slate';
   }
 };
 
@@ -282,7 +283,7 @@ const formatMonthYear = (dateString: string): string => {
 
 // Color palette for SKPA chips
 const SKPA_COLORS = [
-  { bg: '#DA251C', text: '#FFFFFF' }, // Red
+  { bg: '#BD1F27', text: '#FFFFFF' }, // Red
   { bg: '#2563EB', text: '#FFFFFF' }, // Blue
   { bg: '#059669', text: '#FFFFFF' }, // Green
   { bg: '#7C3AED', text: '#FFFFFF' }, // Purple
@@ -308,7 +309,6 @@ const getSkpaColor = (skpaCode: string): { bg: string; text: string } => {
 };
 
 function PksiList() {
-  const { isCollapsed } = useSidebar();
   const [keyword, setKeyword] = useState('');
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
@@ -385,7 +385,7 @@ function PksiList() {
     { id: 'no', label: 'No', width: 50 },
     { id: 'namaAplikasi', label: 'Nama Aplikasi', width: 150 },
     { id: 'namaPksi', label: 'Nama PKSI', width: 200 },
-    { id: 'skpa', label: 'SKPA', width: 150 },
+    { id: 'skpa', label: 'SKPA', width: 90 },
     { id: 'jangkaWaktu', label: 'Jangka Waktu', width: 120 },
   ];
 
@@ -1052,46 +1052,21 @@ function PksiList() {
   const paginatedPksi = filteredPksi;
 
   return (
-    <Box sx={{ 
-      p: 3.5,
-      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
-      minHeight: '100vh',
-      overflowX: 'hidden',
-    }}>
+    <Box sx={{ overflowX: 'hidden' }}>
       {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-          <ListAltRounded sx={{ fontSize: 32, color: '#DA251C' }} />
-          <Typography 
-            variant="h4" 
-            sx={{ 
-              fontWeight: 700, 
-              color: '#1d1d1f',
-              letterSpacing: '-0.02em',
-            }}
-          >
-            Semua PKSI
-          </Typography>
-        </Box>
-        <Typography variant="body1" sx={{ color: '#86868b' }}>
-          Kelola data pengajuan PKSI
-        </Typography>
-      </Box>
+      <PageHeader
+        eyebrow="CONTROL CENTER"
+        title="Semua PKSI"
+        subtitle="Kelola data pengajuan PKSI."
+      />
 
+      <Box sx={{ p: { xs: 2, md: 2.5 } }}>
       {/* Main Card */}
       <Paper
         elevation={0}
         sx={{
-          width: isCollapsed 
-            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)` 
-            : '80vw',
-          maxWidth: isCollapsed 
-            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)` 
-            : '80vw',
-          borderRadius: 2,
-          border: '1px solid rgba(0, 0, 0, 0.08)',
+          width: '100%',
           overflow: 'hidden',
-          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         {/* Toolbar */}
@@ -1114,7 +1089,7 @@ function PksiList() {
               sx={{ 
                 width: 280,
                 '& .MuiOutlinedInput-root': {
-                  bgcolor: '#f5f5f7',
+                  bgcolor: '#FFFFFF',
                   borderRadius: '10px',
                   '& fieldset': {
                     borderColor: 'transparent',
@@ -1123,7 +1098,7 @@ function PksiList() {
                     borderColor: 'transparent',
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#DA251C',
+                    borderColor: '#BD1F27',
                     borderWidth: 2,
                   },
                 },
@@ -1132,7 +1107,7 @@ function PksiList() {
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon sx={{ color: '#86868b', fontSize: 20 }} />
+                      <SearchIcon sx={{ color: '#64748B', fontSize: 20 }} />
                     </InputAdornment>
                   ),
                 },
@@ -1145,7 +1120,7 @@ function PksiList() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1,
-                bgcolor: selectedYearFilter ? 'rgba(218, 37, 28, 0.08)' : '#f5f5f7',
+                bgcolor: selectedYearFilter ? 'rgba(189, 31, 39, 0.08)' : '#F1F5F9',
                 borderRadius: '12px',
                 px: 1.5,
                 py: 0.5,
@@ -1156,7 +1131,7 @@ function PksiList() {
                 },
               }}
             >
-              <CalendarIcon sx={{ fontSize: 18, color: selectedYearFilter ? '#DA251C' : '#86868b' }} />
+              <CalendarIcon sx={{ fontSize: 18, color: selectedYearFilter ? '#BD1F27' : '#64748B' }} />
               <FormControl size="small" variant="standard" sx={{ minWidth: 100 }}>
                 <Select
                   value={selectedYearFilter}
@@ -1166,13 +1141,13 @@ function PksiList() {
                   sx={{
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    color: selectedYearFilter ? '#DA251C' : '#1d1d1f',
+                    color: selectedYearFilter ? '#BD1F27' : '#0F172A',
                     '& .MuiSelect-select': {
                       py: 0.5,
                       pr: 3,
                     },
                     '& .MuiSvgIcon-root': {
-                      color: selectedYearFilter ? '#DA251C' : '#86868b',
+                      color: selectedYearFilter ? '#BD1F27' : '#64748B',
                     },
                   }}
                   MenuProps={{
@@ -1196,7 +1171,7 @@ function PksiList() {
                       sx={{ 
                         fontSize: '0.875rem',
                         fontWeight: year === new Date().getFullYear().toString() ? 600 : 400,
-                        color: year === new Date().getFullYear().toString() ? '#DA251C' : 'inherit',
+                        color: year === new Date().getFullYear().toString() ? '#BD1F27' : 'inherit',
                       }}
                     >
                       {year}
@@ -1208,7 +1183,7 @@ function PksiList() {
                             ml: 1, 
                             height: 18, 
                             fontSize: '0.65rem',
-                            bgcolor: '#DA251C',
+                            bgcolor: '#BD1F27',
                             color: 'white',
                           }} 
                         />
@@ -1224,7 +1199,7 @@ function PksiList() {
               startIcon={<TuneRounded sx={{ fontSize: 18 }} />}
               onClick={handleFilterOpen}
               sx={{
-                color: activeFilterCount > 0 ? '#DA251C' : '#86868b',
+                color: activeFilterCount > 0 ? '#BD1F27' : '#64748B',
                 fontWeight: 500,
                 '&:hover': {
                   bgcolor: 'rgba(0, 0, 0, 0.04)',
@@ -1236,7 +1211,7 @@ function PksiList() {
                 <Chip
                   label={activeFilterCount}
                   size="small"
-                  sx={{ ml: 1, bgcolor: '#DA251C', color: 'white', height: 20, fontSize: '0.7rem' }}
+                  sx={{ ml: 1, bgcolor: '#BD1F27', color: 'white', height: 20, fontSize: '0.7rem' }}
                 />
               )}
             </Button>
@@ -1248,7 +1223,7 @@ function PksiList() {
                 startIcon={<PushPinIcon sx={{ fontSize: 18 }} />}
                 onClick={(e) => setStickyColumnsAnchorEl(e.currentTarget)}
                 sx={{
-                  color: stickyColumns.size > 0 ? '#2563EB' : '#86868b',
+                  color: stickyColumns.size > 0 ? '#2563EB' : '#64748B',
                   fontWeight: 500,
                   '&:hover': {
                     bgcolor: 'rgba(0, 0, 0, 0.04)',
@@ -1272,11 +1247,11 @@ function PksiList() {
               startIcon={<AddIcon />}
               onClick={() => setOpenAddModal(true)}
               sx={{
-                background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+                background: 'linear-gradient(135deg, #BD1F27 0%, #8B1620 100%)',
                 fontWeight: 500,
                 px: 2.5,
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
+                  background: 'linear-gradient(135deg, #8B1620 0%, #6F101A 100%)',
                 },
               }}
             >
@@ -1309,14 +1284,14 @@ function PksiList() {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#0F172A' }}>
               Kolom Sticky
             </Typography>
             <IconButton size="small" onClick={() => setStickyColumnsAnchorEl(null)}>
               <CloseIcon fontSize="small" />
             </IconButton>
           </Box>
-          <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mb: 2 }}>
+          <Typography variant="caption" sx={{ color: '#64748B', display: 'block', mb: 2 }}>
             Pilih kolom yang akan tetap terlihat saat scroll horizontal
           </Typography>
           <FormGroup>
@@ -1350,7 +1325,7 @@ function PksiList() {
             variant="text"
             size="small"
             onClick={() => setStickyColumns(new Set())}
-            sx={{ mt: 1, color: '#86868b' }}
+            sx={{ mt: 1, color: '#64748B' }}
           >
             Reset Semua
           </Button>
@@ -1380,14 +1355,14 @@ function PksiList() {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1d1d1f' }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#0F172A' }}>
               Kolom Timeline
             </Typography>
             <IconButton size="small" onClick={() => setTimelineColumnsAnchorEl(null)}>
               <CloseIcon fontSize="small" />
             </IconButton>
           </Box>
-          <Typography variant="caption" sx={{ color: '#86868b', display: 'block', mb: 2 }}>
+          <Typography variant="caption" sx={{ color: '#64748B', display: 'block', mb: 2 }}>
             Pilih kolom timeline yang ingin ditampilkan
           </Typography>
           <FormGroup>
@@ -1418,7 +1393,7 @@ function PksiList() {
               variant="text"
               size="small"
               onClick={() => setVisibleTimelineColumns(new Set(['usreq', 'sit', 'uat', 'goLive']))}
-              sx={{ color: '#86868b', fontSize: '0.75rem' }}
+              sx={{ color: '#64748B', fontSize: '0.75rem' }}
             >
               Default (4)
             </Button>
@@ -1459,7 +1434,7 @@ function PksiList() {
         >
           {/* Header */}
           <Box sx={{
-            background: '#DA251C',
+            background: '#BD1F27',
             p: 2.5,
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -1475,7 +1450,7 @@ function PksiList() {
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
-                <TuneRounded sx={{ fontSize: 16, color: '#DA251C' }} />
+                <TuneRounded sx={{ fontSize: 16, color: '#BD1F27' }} />
               </Box>
               <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'white' }}>
                 Filter
@@ -1497,7 +1472,7 @@ function PksiList() {
 
             {/* Nama Aplikasi Filter */}
             <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#0F172A', mb: 1.5 }}>
                 Nama Aplikasi
               </Typography>
               <FormControl fullWidth size="small">
@@ -1513,10 +1488,10 @@ function PksiList() {
                       borderColor: '#e5e5e7',
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#DA251C',
+                      borderColor: '#BD1F27',
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#DA251C',
+                      borderColor: '#BD1F27',
                     },
                   }}
                 >
@@ -1536,7 +1511,7 @@ function PksiList() {
 
             {/* SKPA Filter */}
             <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#0F172A', mb: 1.5 }}>
                 SKPA
               </Typography>
               <Autocomplete
@@ -1553,7 +1528,7 @@ function PksiList() {
                       <Checkbox
                         size="small"
                         checked={selected}
-                        sx={{ mr: 1, '&.Mui-checked': { color: '#DA251C' } }}
+                        sx={{ mr: 1, '&.Mui-checked': { color: '#BD1F27' } }}
                       />
                       {option}
                     </li>
@@ -1567,8 +1542,8 @@ function PksiList() {
                       '& .MuiOutlinedInput-root': {
                         borderRadius: '8px',
                         '& fieldset': { borderColor: '#e5e5e7' },
-                        '&:hover fieldset': { borderColor: '#DA251C' },
-                        '&.Mui-focused fieldset': { borderColor: '#DA251C' },
+                        '&:hover fieldset': { borderColor: '#BD1F27' },
+                        '&.Mui-focused fieldset': { borderColor: '#BD1F27' },
                       },
                     }}
                   />
@@ -1582,7 +1557,7 @@ function PksiList() {
                         label={option}
                         size="small"
                         {...tagProps}
-                        sx={{ bgcolor: '#DA251C', color: 'white', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } }}
+                        sx={{ bgcolor: '#BD1F27', color: 'white', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } } }}
                       />
                     );
                   })
@@ -1594,7 +1569,7 @@ function PksiList() {
 
             {/* Year Filter */}
             <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#0F172A', mb: 1.5 }}>
                 Periode Tahun
               </Typography>
               <FormControl fullWidth size="small">
@@ -1610,10 +1585,10 @@ function PksiList() {
                       borderColor: '#e5e5e7',
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#DA251C',
+                      borderColor: '#BD1F27',
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#DA251C',
+                      borderColor: '#BD1F27',
                     },
                   }}
                 >
@@ -1633,7 +1608,7 @@ function PksiList() {
 
             {/* Jangka Waktu Filter */}
             <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#0F172A', mb: 1.5 }}>
                 Jangka Waktu
               </Typography>
               <FormGroup>
@@ -1645,7 +1620,7 @@ function PksiList() {
                       onChange={() => handleJangkaWaktuChange('Single Year')}
                       sx={{
                         '&.Mui-checked': {
-                          color: '#DA251C',
+                          color: '#BD1F27',
                         },
                       }}
                     />
@@ -1660,7 +1635,7 @@ function PksiList() {
                       onChange={() => handleJangkaWaktuChange('Multiyears')}
                       sx={{
                         '&.Mui-checked': {
-                          color: '#DA251C',
+                          color: '#BD1F27',
                         },
                       }}
                     />
@@ -1674,7 +1649,7 @@ function PksiList() {
 
             {/* Status Filter */}
             <Box sx={{ mb: 2.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#1d1d1f', mb: 1.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#0F172A', mb: 1.5 }}>
                 Status
               </Typography>
               <FormGroup>
@@ -1686,7 +1661,7 @@ function PksiList() {
                       onChange={() => handleStatusFilterChange('disetujui')}
                       sx={{
                         '&.Mui-checked': {
-                          color: '#DA251C',
+                          color: '#BD1F27',
                         },
                       }}
                     />
@@ -1701,7 +1676,7 @@ function PksiList() {
                       onChange={() => handleStatusFilterChange('tidak_disetujui')}
                       sx={{
                         '&.Mui-checked': {
-                          color: '#DA251C',
+                          color: '#BD1F27',
                         },
                       }}
                     />
@@ -1716,7 +1691,7 @@ function PksiList() {
                       onChange={() => handleStatusFilterChange('pending')}
                       sx={{
                         '&.Mui-checked': {
-                          color: '#DA251C',
+                          color: '#BD1F27',
                         },
                       }}
                     />
@@ -1736,12 +1711,12 @@ function PksiList() {
               sx={{
                 py: 1,
                 borderRadius: '8px',
-                color: '#DA251C',
-                borderColor: '#DA251C',
+                color: '#BD1F27',
+                borderColor: '#BD1F27',
                 fontWeight: 600,
                 '&:hover': {
                   bgcolor: '#fff5f5',
-                  borderColor: '#DA251C',
+                  borderColor: '#BD1F27',
                 },
               }}
             >
@@ -1809,7 +1784,7 @@ function PksiList() {
                   width: 40,
                   height: 40,
                   borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)',
+                  background: 'linear-gradient(135deg, #BD1F27 0%, #8B1620 100%)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -1819,22 +1794,22 @@ function PksiList() {
                 <AttachFileIcon sx={{ color: 'white', fontSize: 20 }} />
               </Box>
               <Box>
-                <Typography sx={{ fontWeight: 600, color: '#1d1d1f', fontSize: '1rem' }}>
+                <Typography sx={{ fontWeight: 600, color: '#0F172A', fontSize: '1rem' }}>
                   Dokumen T.01
                 </Typography>
-                <Typography sx={{ color: '#86868b', fontSize: '0.75rem', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <Typography sx={{ color: '#64748B', fontSize: '0.75rem', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {fileDialogPksiName}
                 </Typography>
               </Box>
             </Box>
-            <IconButton onClick={handleCloseFileDialog} size="small" sx={{ color: '#86868b' }}>
+            <IconButton onClick={handleCloseFileDialog} size="small" sx={{ color: '#64748B' }}>
               <CloseIcon fontSize="small" />
             </IconButton>
           </DialogTitle>
           <DialogContent sx={{ p: 2 }}>
             {isLoadingFiles ? (
               <Box display="flex" justifyContent="center" py={4}>
-                <CircularProgress size={32} sx={{ color: '#DA251C' }} />
+                <CircularProgress size={32} sx={{ color: '#BD1F27' }} />
               </Box>
             ) : fileDialogFiles.length > 0 ? (
               <List dense sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px', p: 1 }}>
@@ -1850,7 +1825,7 @@ function PksiList() {
                     }}
                   >
                     <ListItemIcon sx={{ minWidth: 40 }}>
-                      <FileIcon sx={{ color: '#DA251C', fontSize: 24 }} />
+                      <FileIcon sx={{ color: '#BD1F27', fontSize: 24 }} />
                     </ListItemIcon>
                     <ListItemText
                       primary={
@@ -1864,7 +1839,7 @@ function PksiList() {
                                 height: 18,
                                 fontSize: '0.7rem',
                                 fontWeight: 600,
-                                bgcolor: '#DA251C',
+                                bgcolor: '#BD1F27',
                                 color: 'white',
                               }}
                             />
@@ -1873,10 +1848,10 @@ function PksiList() {
                       }
                       secondary={formatFileSize(file.file_size)}
                       primaryTypographyProps={{
-                        sx: { fontWeight: 500, color: '#1d1d1f', fontSize: '0.9rem' },
+                        sx: { fontWeight: 500, color: '#0F172A', fontSize: '0.9rem' },
                       }}
                       secondaryTypographyProps={{
-                        sx: { color: '#86868b', fontSize: '0.75rem' },
+                        sx: { color: '#64748B', fontSize: '0.75rem' },
                       }}
                     />
                     <ListItemSecondaryAction>
@@ -1925,8 +1900,8 @@ function PksiList() {
                   bgcolor: 'rgba(245, 245, 247, 0.8)',
                 }}
               >
-                <AttachFileIcon sx={{ fontSize: 48, color: '#86868b', mb: 1 }} />
-                <Typography sx={{ color: '#86868b' }}>
+                <AttachFileIcon sx={{ fontSize: 48, color: '#64748B', mb: 1 }} />
+                <Typography sx={{ color: '#64748B' }}>
                   Belum ada dokumen yang diupload
                 </Typography>
               </Box>
@@ -1975,42 +1950,44 @@ function PksiList() {
           <Table sx={{ minWidth: 1800 }}>
             <TableHead>
               {/* First row - Grouped headers */}
-              <TableRow sx={{ bgcolor: '#f5f5f7' }}>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', textAlign: 'center', fontSize: '0.8rem', width: 50, minWidth: 50, ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+              <TableRow sx={{ bgcolor: '#FFFFFF' }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#0F172A', py: 1.5, px: 2, whiteSpace: 'nowrap', textAlign: 'center', fontSize: '0.8rem', width: 50, minWidth: 50, ...(stickyColumns.has('no') && { position: 'sticky', left: getStickyLeft('no'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('no') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                   No
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150, ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#0F172A', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150, textAlign: 'left', ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                   Nama Aplikasi
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 200, ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#0F172A', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 200, textAlign: 'left', ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                   Nama PKSI
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150 }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#0F172A', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 90 }}>
                   Jenis PKSI
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#0F172A', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 90, ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                   SKPA
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('jangkaWaktu') && { position: 'sticky', left: getStickyLeft('jangkaWaktu'), zIndex: 3, bgcolor: '#f5f5f7' }), ...(isLastStickyColumn('jangkaWaktu') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#0F172A', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 120, ...(stickyColumns.has('jangkaWaktu') && { position: 'sticky', left: getStickyLeft('jangkaWaktu'), zIndex: 3, bgcolor: '#FFFFFF' }), ...(isLastStickyColumn('jangkaWaktu') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }) }}>
                   Jangka Waktu
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150 }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#0F172A', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 150 }}>
                   Tanggal Pengajuan
                 </TableCell>
                 {/* Timeline - grouped (9 stages) */}
                 <TableCell 
                   colSpan={visibleTimelineColumns.size} 
                   align="center" 
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#6B7280', 
-                    py: 1.5, 
-                    px: 2, 
-                    fontSize: '0.8rem', 
-                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.04) 0%, rgba(99, 102, 241, 0.03) 100%)',
+                  sx={{
+                    fontWeight: 700,
+                    color: '#64748B',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    py: 1.25,
+                    px: 2,
+                    fontSize: '0.8rem',
+                    borderBottom: '1px solid #E2E8F0',
                     cursor: 'pointer',
                     '&:hover': {
-                      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(99, 102, 241, 0.06) 100%)',
+                      bgcolor: '#E9EEF5',
                     },
                   }}
                   onClick={(e) => setTimelineColumnsAnchorEl(e.currentTarget)}
@@ -2019,10 +1996,10 @@ function PksiList() {
                     Timeline Development
                     <IconButton 
                       size="small" 
-                      sx={{ 
+                      sx={{
                         p: 0.5,
-                        color: '#8B5CF6',
-                        '&:hover': { bgcolor: 'rgba(139, 92, 246, 0.1)' },
+                        color: '#94A3B8',
+                        '&:hover': { bgcolor: '#E2E8F0' },
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -2034,70 +2011,70 @@ function PksiList() {
                     <Chip
                       label={`${visibleTimelineColumns.size}/9`}
                       size="small"
-                      sx={{ 
-                        height: 18, 
+                      sx={{
+                        height: 18,
                         fontSize: '0.65rem',
-                        bgcolor: 'rgba(139, 92, 246, 0.15)',
-                        color: '#7C3AED',
+                        bgcolor: '#E2E8F0',
+                        color: '#475569',
                         fontWeight: 600,
                       }}
                     />
                   </Box>
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 90 }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#0F172A', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 90 }}>
                   Docs T.01
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 130 }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#0F172A', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 130 }}>
                   Status
                 </TableCell>
-                <TableCell rowSpan={2} sx={{ fontWeight: 600, color: '#1d1d1f', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100 }}>
+                <TableCell rowSpan={2} sx={{ fontWeight: 700, color: '#0F172A', py: 1.5, px: 2, whiteSpace: 'nowrap', fontSize: '0.8rem', minWidth: 100 }}>
                   Aksi
                 </TableCell>
               </TableRow>
               {/* Second row - Timeline sub-headers (only visible, softer colors) */}
-              <TableRow sx={{ bgcolor: '#f5f5f7' }}>
+              <TableRow sx={{ bgcolor: '#FFFFFF' }}>
                 {visibleTimelineColumns.has('usreq') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 95, background: 'rgba(139, 92, 246, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 95 }}>
                     USREQ
                   </TableCell>
                 )}
                 {visibleTimelineColumns.has('pengadaan') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 100, background: 'rgba(5, 150, 105, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 100 }}>
                     Pengadaan
                   </TableCell>
                 )}
                 {visibleTimelineColumns.has('desain') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 90, background: 'rgba(220, 38, 38, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 90 }}>
                     Desain
                   </TableCell>
                 )}
                 {visibleTimelineColumns.has('coding') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 90, background: 'rgba(37, 99, 235, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 90 }}>
                     Coding
                   </TableCell>
                 )}
                 {visibleTimelineColumns.has('unitTest') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 100, background: 'rgba(217, 119, 6, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 100 }}>
                     Unit Test
                   </TableCell>
                 )}
                 {visibleTimelineColumns.has('sit') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 80, background: 'rgba(124, 58, 237, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 80 }}>
                     SIT
                   </TableCell>
                 )}
                 {visibleTimelineColumns.has('uat') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 80, background: 'rgba(8, 145, 178, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 80 }}>
                     UAT
                   </TableCell>
                 )}
                 {visibleTimelineColumns.has('deployment') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 110, background: 'rgba(219, 39, 119, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 110 }}>
                     Deployment
                   </TableCell>
                 )}
                 {visibleTimelineColumns.has('goLive') && (
-                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 95, background: 'rgba(5, 150, 105, 0.03)' }}>
+                  <TableCell sx={{ fontWeight: 500, color: '#9CA3AF', py: 1, px: 1.5, fontSize: '0.7rem', whiteSpace: 'nowrap', minWidth: 95 }}>
                     Go Live
                   </TableCell>
                 )}
@@ -2107,8 +2084,8 @@ function PksiList() {
               {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={12 + visibleTimelineColumns.size} sx={{ textAlign: 'center', py: 6 }}>
-                    <CircularProgress size={40} sx={{ color: '#DA251C' }} />
-                    <Typography variant="body2" sx={{ mt: 2, color: '#86868b' }}>
+                    <CircularProgress size={40} sx={{ color: '#BD1F27' }} />
+                    <Typography variant="body2" sx={{ mt: 2, color: '#64748B' }}>
                       Memuat data...
                     </Typography>
                   </TableCell>
@@ -2116,7 +2093,7 @@ function PksiList() {
               ) : paginatedPksi.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={12 + visibleTimelineColumns.size} sx={{ textAlign: 'center', py: 6 }}>
-                    <Typography variant="body2" sx={{ color: '#86868b' }}>
+                    <Typography variant="body2" sx={{ color: '#64748B' }}>
                       Tidak ada data PKSI ditemukan
                     </Typography>
                   </TableCell>
@@ -2127,7 +2104,7 @@ function PksiList() {
                   sx={{
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
-                      bgcolor: 'rgba(218, 37, 28, 0.02)',
+                      bgcolor: 'rgba(189, 31, 39, 0.04)',
                     },
                     '&:not(:last-child)': {
                       borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
@@ -2137,7 +2114,7 @@ function PksiList() {
                   {/* No */}
                   <TableCell 
                     sx={{ 
-                      color: '#86868b', 
+                      color: '#64748B', 
                       py: 1.5,
                       px: 2,
                       textAlign: 'center',
@@ -2159,13 +2136,13 @@ function PksiList() {
                     whiteSpace: 'normal', 
                     wordWrap: 'break-word',
                     minWidth: 150,
-                    ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 1, bgcolor: '#fff' }),
+                    textAlign: 'left', ...(stickyColumns.has('namaAplikasi') && { position: 'sticky', left: getStickyLeft('namaAplikasi'), zIndex: 1, bgcolor: '#fff' }),
                     ...(isLastStickyColumn('namaAplikasi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                   }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
-                        color: '#1d1d1f',
+                        color: '#0F172A',
                         fontSize: '0.8rem',
                       }}
                     >
@@ -2179,14 +2156,14 @@ function PksiList() {
                     whiteSpace: 'normal', 
                     wordWrap: 'break-word',
                     minWidth: 200,
-                    ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 1, bgcolor: '#fff' }),
+                    textAlign: 'left', ...(stickyColumns.has('namaPksi') && { position: 'sticky', left: getStickyLeft('namaPksi'), zIndex: 1, bgcolor: '#fff' }),
                     ...(isLastStickyColumn('namaPksi') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                   }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
                         fontWeight: 500,
-                        color: '#1d1d1f',
+                        color: '#0F172A',
                         fontSize: '0.8rem',
                         lineHeight: 1.4,
                       }}
@@ -2200,12 +2177,12 @@ function PksiList() {
                     px: 2,
                     whiteSpace: 'normal',
                     wordWrap: 'break-word',
-                    minWidth: 150,
+                    minWidth: 100,
                   }}>
                     <Typography 
                       variant="body2" 
                       sx={{ 
-                        color: '#1d1d1f',
+                        color: '#0F172A',
                         fontSize: '0.8rem',
                       }}
                     >
@@ -2213,14 +2190,14 @@ function PksiList() {
                     </Typography>
                   </TableCell>
                   {/* SKPA */}
-                  <TableCell sx={{ 
+                  <TableCell sx={{
                     py: 1.5,
                     px: 1,
-                    minWidth: 150,
+                    minWidth: 90,
                     ...(stickyColumns.has('skpa') && { position: 'sticky', left: getStickyLeft('skpa'), zIndex: 1, bgcolor: '#fff' }),
                     ...(isLastStickyColumn('skpa') && { boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }),
                   }}>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.3 }}>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.3, justifyContent: 'center' }}>
                       {resolveSkpaCodes(item.picSatkerBA).length > 0 ? (
                         resolveSkpaCodes(item.picSatkerBA).map((code, idx) => {
                           const chipColor = getSkpaColor(code);
@@ -2242,7 +2219,7 @@ function PksiList() {
                           );
                         })
                       ) : (
-                        <Typography variant="body2" sx={{ color: '#86868b', fontSize: '0.8rem' }}>-</Typography>
+                        <Typography variant="body2" sx={{ color: '#64748B', fontSize: '0.8rem' }}>-</Typography>
                       )}
                     </Box>
                   </TableCell>
@@ -2274,7 +2251,7 @@ function PksiList() {
                     <Typography 
                       variant="body2" 
                       sx={{ 
-                        color: '#1d1d1f',
+                        color: '#0F172A',
                         fontSize: '0.8rem',
                       }}
                     >
@@ -2287,11 +2264,11 @@ function PksiList() {
                   </TableCell>
                   {/* Timeline - USREQ */}
                   {visibleTimelineColumns.has('usreq') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(139, 92, 246, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetUsreq && item.targetUsreq.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetUsreq.map((date, idx) => (
-                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                            <Typography key={idx} variant="body2" sx={{ color: '#0F172A', fontSize: '0.75rem', fontWeight: 500 }}>
                               {item.targetUsreq.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
                               {formatMonthYear(date)}
                             </Typography>
@@ -2304,11 +2281,11 @@ function PksiList() {
                   )}
                   {/* Timeline - Pengadaan */}
                   {visibleTimelineColumns.has('pengadaan') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetPengadaan && item.targetPengadaan.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetPengadaan.map((date, idx) => (
-                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                            <Typography key={idx} variant="body2" sx={{ color: '#0F172A', fontSize: '0.75rem', fontWeight: 500 }}>
                               {item.targetPengadaan.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
                               {formatMonthYear(date)}
                             </Typography>
@@ -2321,11 +2298,11 @@ function PksiList() {
                   )}
                   {/* Timeline - Desain */}
                   {visibleTimelineColumns.has('desain') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(220, 38, 38, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetDesain && item.targetDesain.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetDesain.map((date, idx) => (
-                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                            <Typography key={idx} variant="body2" sx={{ color: '#0F172A', fontSize: '0.75rem', fontWeight: 500 }}>
                               {item.targetDesain.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
                               {formatMonthYear(date)}
                             </Typography>
@@ -2338,11 +2315,11 @@ function PksiList() {
                   )}
                   {/* Timeline - Coding */}
                   {visibleTimelineColumns.has('coding') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(37, 99, 235, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetCoding && item.targetCoding.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetCoding.map((date, idx) => (
-                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                            <Typography key={idx} variant="body2" sx={{ color: '#0F172A', fontSize: '0.75rem', fontWeight: 500 }}>
                               {item.targetCoding.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
                               {formatMonthYear(date)}
                             </Typography>
@@ -2355,11 +2332,11 @@ function PksiList() {
                   )}
                   {/* Timeline - Unit Test */}
                   {visibleTimelineColumns.has('unitTest') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(217, 119, 6, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetUnitTest && item.targetUnitTest.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetUnitTest.map((date, idx) => (
-                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                            <Typography key={idx} variant="body2" sx={{ color: '#0F172A', fontSize: '0.75rem', fontWeight: 500 }}>
                               {item.targetUnitTest.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
                               {formatMonthYear(date)}
                             </Typography>
@@ -2372,11 +2349,11 @@ function PksiList() {
                   )}
                   {/* Timeline - SIT */}
                   {visibleTimelineColumns.has('sit') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(124, 58, 237, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetSit && item.targetSit.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetSit.map((date, idx) => (
-                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                            <Typography key={idx} variant="body2" sx={{ color: '#0F172A', fontSize: '0.75rem', fontWeight: 500 }}>
                               {item.targetSit.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
                               {formatMonthYear(date)}
                             </Typography>
@@ -2389,11 +2366,11 @@ function PksiList() {
                   )}
                   {/* Timeline - UAT */}
                   {visibleTimelineColumns.has('uat') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(8, 145, 178, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetUat && item.targetUat.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetUat.map((date, idx) => (
-                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                            <Typography key={idx} variant="body2" sx={{ color: '#0F172A', fontSize: '0.75rem', fontWeight: 500 }}>
                               {item.targetUat.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
                               {formatMonthYear(date)}
                             </Typography>
@@ -2406,11 +2383,11 @@ function PksiList() {
                   )}
                   {/* Timeline - Deployment */}
                   {visibleTimelineColumns.has('deployment') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(219, 39, 119, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetDeployment && item.targetDeployment.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetDeployment.map((date, idx) => (
-                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                            <Typography key={idx} variant="body2" sx={{ color: '#0F172A', fontSize: '0.75rem', fontWeight: 500 }}>
                               {item.targetDeployment.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
                               {formatMonthYear(date)}
                             </Typography>
@@ -2423,11 +2400,11 @@ function PksiList() {
                   )}
                   {/* Timeline - Go Live */}
                   {visibleTimelineColumns.has('goLive') && (
-                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap', background: 'rgba(5, 150, 105, 0.02)' }}>
+                    <TableCell sx={{ py: 1.5, px: 1, whiteSpace: 'nowrap' }}>
                       {item.targetGoLive && item.targetGoLive.length > 0 ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {item.targetGoLive.map((date, idx) => (
-                            <Typography key={idx} variant="body2" sx={{ color: '#1d1d1f', fontSize: '0.75rem', fontWeight: 500 }}>
+                            <Typography key={idx} variant="body2" sx={{ color: '#0F172A', fontSize: '0.75rem', fontWeight: 500 }}>
                               {item.targetGoLive.length > 1 && <span style={{ fontWeight: 700 }}>F{idx + 1}: </span>}
                               {formatMonthYear(date)}
                             </Typography>
@@ -2445,7 +2422,7 @@ function PksiList() {
                         onClick={() => handleOpenFileDialog(item.id, item.namaPksi)}
                         size="small"
                         sx={{
-                          color: '#DA251C',
+                          color: '#BD1F27',
                           bgcolor: 'rgba(218, 37, 28, 0.08)',
                           '&:hover': {
                             bgcolor: 'rgba(218, 37, 28, 0.15)',
@@ -2464,31 +2441,15 @@ function PksiList() {
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 0.5,
-                        px: 1.5,
-                        py: 0.75,
-                        borderRadius: '8px',
-                        bgcolor: `${getStatusColor(item.status)}15`,
                         cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        border: `1px solid ${getStatusColor(item.status)}30`,
-                        '&:hover': {
-                          bgcolor: `${getStatusColor(item.status)}25`,
-                          transform: 'translateY(-1px)',
-                          boxShadow: `0 2px 8px ${getStatusColor(item.status)}20`,
-                        },
+                        transition: 'opacity 0.2s',
+                        '&:hover': { opacity: 0.8 },
                       }}
                     >
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontWeight: 600,
-                          fontSize: '0.7rem',
-                          color: getStatusColor(item.status),
-                        }}
-                      >
+                      <Badge variant={getStatusVariant(item.status)}>
                         {STATUS_LABELS[item.status]}
-                      </Typography>
-                      <ArrowDownIcon sx={{ fontSize: 12, color: getStatusColor(item.status) }} />
+                        <ArrowDownIcon sx={{ fontSize: 12, ml: 0.5 }} />
+                      </Badge>
                     </Box>
                   </TableCell>
                   {/* Aksi */}
@@ -2611,7 +2572,7 @@ function PksiList() {
           sx={{
             borderTop: '1px solid rgba(0, 0, 0, 0.06)',
             '& .MuiTablePagination-select': {
-              bgcolor: '#f5f5f7',
+              bgcolor: '#FFFFFF',
               borderRadius: '8px',
               border: '1px solid rgba(0, 0, 0, 0.08)',
             },
@@ -2632,15 +2593,15 @@ function PksiList() {
       >
         <DialogTitle sx={{ 
           fontWeight: 600, 
-          color: '#1d1d1f',
+          color: '#0F172A',
           pb: 1,
         }}>
           Konfirmasi Hapus
         </DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ color: '#86868b' }}>
+          <DialogContentText sx={{ color: '#64748B' }}>
             Apakah Anda yakin ingin menghapus PKSI{' '}
-            <strong style={{ color: '#1d1d1f' }}>
+            <strong style={{ color: '#0F172A' }}>
               {pksiToDelete?.namaPksi}
             </strong>
             ? Tindakan ini tidak dapat dibatalkan.
@@ -2651,7 +2612,7 @@ function PksiList() {
             onClick={handleDeleteCancel}
             disabled={isDeleting}
             sx={{
-              color: '#86868b',
+              color: '#64748B',
               '&:hover': {
                 bgcolor: 'rgba(0, 0, 0, 0.04)',
               },
@@ -2715,7 +2676,7 @@ function PksiList() {
         >
           <Typography
             variant="h6"
-            sx={{ fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.02em' }}
+            sx={{ fontWeight: 600, color: '#0F172A', letterSpacing: '-0.02em' }}
           >
             Persetujuan PKSI
           </Typography>
@@ -2723,7 +2684,7 @@ function PksiList() {
             onClick={handleApprovalCancel}
             size="small"
             sx={{
-              color: '#86868b',
+              color: '#64748B',
               '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' },
             }}
           >
@@ -2758,14 +2719,14 @@ function PksiList() {
               sx={{
                 mb: 2.5,
                 fontWeight: 600,
-                color: '#1d1d1f',
+                color: '#0F172A',
                 letterSpacing: '-0.01em',
                 fontSize: '1rem',
               }}
             >
               Informasi Persetujuan
             </Typography>
-            <Typography variant="body2" sx={{ color: '#86868b', mb: 3 }}>
+            <Typography variant="body2" sx={{ color: '#64748B', mb: 3 }}>
               Mohon lengkapi form di bawah untuk menyetujui PKSI ini:
             </Typography>
 
@@ -2807,7 +2768,7 @@ function PksiList() {
                       <Typography variant="body2" sx={{ fontWeight: 500 }}>
                         {team.name}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: '#86868b' }}>
+                      <Typography variant="caption" sx={{ color: '#64748B' }}>
                         PIC: {team.pic?.fullName || '-'} • {team.members.length} anggota
                       </Typography>
                     </Box>
@@ -2832,10 +2793,10 @@ function PksiList() {
                   <Typography variant="caption" sx={{ color: '#31A24C', fontWeight: 600, display: 'block', mb: 1 }}>
                     Detail Tim
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#1d1d1f', mb: 0.5 }}>
+                  <Typography variant="body2" sx={{ color: '#0F172A', mb: 0.5 }}>
                     <strong>PIC:</strong> {selectedTeam.pic?.fullName || 'Belum ditentukan'}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
+                  <Typography variant="body2" sx={{ color: '#0F172A' }}>
                     <strong>Anggota:</strong> {selectedTeam.members.length > 0 
                       ? selectedTeam.members.map(m => m.fullName).join(', ')
                       : 'Belum ada anggota'}
@@ -2931,7 +2892,7 @@ function PksiList() {
             onClick={handleApprovalCancel}
             disabled={isSubmittingApproval}
             sx={{
-              color: '#86868b',
+              color: '#64748B',
               borderRadius: '10px',
               px: 3,
               '&:hover': {
@@ -3004,7 +2965,7 @@ function PksiList() {
         >
           <Typography
             variant="h6"
-            sx={{ fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.02em' }}
+            sx={{ fontWeight: 600, color: '#0F172A', letterSpacing: '-0.02em' }}
           >
             Dikerjakan Dengan Cara Lain
           </Typography>
@@ -3012,7 +2973,7 @@ function PksiList() {
             onClick={handleNestedPksiDialogCancel}
             size="small"
             sx={{
-              color: '#86868b',
+              color: '#64748B',
               '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' },
             }}
           >
@@ -3036,7 +2997,7 @@ function PksiList() {
               border: '1px solid rgba(142, 142, 147, 0.2)',
             }}
           >
-            <Typography variant="body2" sx={{ color: '#1d1d1f', lineHeight: 1.6 }}>
+            <Typography variant="body2" sx={{ color: '#0F172A', lineHeight: 1.6 }}>
               PKSI ini akan dikerjakan bersamaan dengan PKSI lain yang sudah disetujui. 
               Pilih PKSI induk yang akan menjadi acuan untuk progress, timeline, dan detail lainnya.
             </Typography>
@@ -3059,7 +3020,7 @@ function PksiList() {
               sx={{
                 mb: 2.5,
                 fontWeight: 600,
-                color: '#1d1d1f',
+                color: '#0F172A',
                 letterSpacing: '-0.01em',
                 fontSize: '1rem',
               }}
@@ -3124,7 +3085,7 @@ function PksiList() {
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
                       {option.nama_pksi}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: '#86868b' }}>
+                    <Typography variant="caption" sx={{ color: '#64748B' }}>
                       {option.nama_aplikasi || 'Tanpa Aplikasi'}
                     </Typography>
                   </Box>
@@ -3149,10 +3110,10 @@ function PksiList() {
                   <Typography variant="caption" sx={{ color: '#8E8E93', fontWeight: 600, display: 'block', mb: 1 }}>
                     Detail PKSI Induk
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#1d1d1f', mb: 0.5 }}>
+                  <Typography variant="body2" sx={{ color: '#0F172A', mb: 0.5 }}>
                     <strong>Nama:</strong> {selectedParent.nama_pksi}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#1d1d1f' }}>
+                  <Typography variant="body2" sx={{ color: '#0F172A' }}>
                     <strong>Aplikasi:</strong> {selectedParent.nama_aplikasi || '-'}
                   </Typography>
                 </Box>
@@ -3192,7 +3153,7 @@ function PksiList() {
             onClick={handleNestedPksiDialogCancel}
             disabled={isSubmittingNestedPksi}
             sx={{
-              color: '#86868b',
+              color: '#64748B',
               borderRadius: '10px',
               px: 3,
               '&:hover': {
@@ -3224,6 +3185,7 @@ function PksiList() {
           </Button>
         </DialogActions>
       </Dialog>
+      </Box>
     </Box>
   );
 }

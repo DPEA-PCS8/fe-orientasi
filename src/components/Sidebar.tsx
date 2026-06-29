@@ -22,14 +22,11 @@ import {
   NotificationsRounded,
   MenuBookRounded,
   HelpOutlineRounded,
-  DescriptionRounded,
   LightbulbRounded,
   ExpandLess,
   ExpandMore,
-  ListAltRounded,
   PeopleRounded,
   DashboardRounded,
-  AssessmentRounded,
   MonitorHeartRounded,
   AccountTreeRounded,
   SecurityRounded,
@@ -39,6 +36,19 @@ import {
   ChevronRightRounded,
   GroupsRounded,
   CalculateRounded,
+  ArticleRounded,
+  FormatListBulletedRounded,
+  BarChartRounded,
+  InsightsRounded,
+  ReceiptLongRounded,
+  ViewListRounded,
+  TrendingUpRounded,
+  GridViewRounded,
+  StorageRounded,
+  CorporateFareRounded,
+  CategoryRounded,
+  LabelRounded,
+  GavelRounded,
 } from '@mui/icons-material';
 import { Chip } from '@mui/material';
 import { isAdmin, getUserRoles } from '../api/authApi';
@@ -192,23 +202,23 @@ const Sidebar = () => {
         },
         {
           label: 'PKSI',
-          icon: <DescriptionRounded />,
+          icon: <ArticleRounded />,
           href: '/pksi-list',
           menuCode: 'PKSI',
           subItems: [
-            { label: 'Semua PKSI', icon: <ListAltRounded />, href: '/pksi-list', menuCode: 'PKSI_ALL' },
-            { label: 'Monitoring PKSI', icon: <AssessmentRounded />, href: '/pksi-disetujui', menuCode: 'PKSI_APPROVED' },
-            { label: 'Dashboard PKSI', icon: <DashboardRounded />, href: '/pksi-dashboard', menuCode: 'PKSI_DASHBOARD' },
+            { label: 'Semua PKSI', icon: <FormatListBulletedRounded />, href: '/pksi-list', menuCode: 'PKSI_ALL' },
+            { label: 'Monitoring PKSI', icon: <BarChartRounded />, href: '/pksi-disetujui', menuCode: 'PKSI_APPROVED' },
+            { label: 'Dashboard PKSI', icon: <InsightsRounded />, href: '/pksi-dashboard', menuCode: 'PKSI_DASHBOARD' },
           ],
         },
         {
           label: 'FS2',
-          icon: <DescriptionRounded />,
+          icon: <ReceiptLongRounded />,
           href: '/fs2-list',
           menuCode: 'FS2',
           subItems: [
-            { label: 'Semua F.S.2', icon: <ListAltRounded />, href: '/fs2-list', menuCode: 'FS2_ALL' },
-            { label: 'Monitoring F.S.2', icon: <AssessmentRounded />, href: '/fs2-disetujui', menuCode: 'FS2_APPROVED' },
+            { label: 'Semua F.S.2', icon: <ViewListRounded />, href: '/fs2-list', menuCode: 'FS2_ALL' },
+            { label: 'Monitoring F.S.2', icon: <TrendingUpRounded />, href: '/fs2-disetujui', menuCode: 'FS2_APPROVED' },
           ],
         },
         {
@@ -217,19 +227,19 @@ const Sidebar = () => {
           href: '/aplikasi',
           menuCode: 'APLIKASI',
           subItems: [
-            { label: 'Daftar Aplikasi', icon: <AppsRounded />, href: '/aplikasi', menuCode: 'DAFTAR_APLIKASI', isMasterData: true },
+            { label: 'Daftar Aplikasi', icon: <GridViewRounded />, href: '/aplikasi', menuCode: 'DAFTAR_APLIKASI', isMasterData: true },
             { label: 'Historis Aplikasi', icon: <HistoryRounded />, href: '/historis-aplikasi', menuCode: 'HISTORIS_APLIKASI' },
           ],
         },
         {
           label: 'Master Data',
-          icon: <PeopleRounded />,
+          icon: <StorageRounded />,
           href: '/master-data',
           menuCode: 'MASTER_DATA',
           subItems: [
-            { label: 'SKPA', icon: <ListAltRounded />, href: '/skpa', menuCode: 'SKPA', isMasterData: true },
-            { label: 'Bidang', icon: <ListAltRounded />, href: '/bidang', menuCode: 'BIDANG', isMasterData: true },
-            { label: 'Kategori RBSI', icon: <ListAltRounded />, href: '/kategori-rbsi', menuCode: 'KATEGORI_RBSI', isMasterData: true },
+            { label: 'SKPA', icon: <CorporateFareRounded />, href: '/skpa', menuCode: 'SKPA', isMasterData: true },
+            { label: 'Bidang', icon: <CategoryRounded />, href: '/bidang', menuCode: 'BIDANG', isMasterData: true },
+            { label: 'Kategori RBSI', icon: <LabelRounded />, href: '/kategori-rbsi', menuCode: 'KATEGORI_RBSI', isMasterData: true },
           ],
         },
       ],
@@ -252,7 +262,7 @@ const Sidebar = () => {
           ],
         },
         { label: 'Settings', icon: <SettingsRounded />, href: '/settings', menuCode: 'SETTINGS' },
-        { label: 'Audit Log', icon: <HistoryRounded />, href: '/audit', menuCode: 'AUDIT_LOG' },
+        { label: 'Audit Log', icon: <GavelRounded />, href: '/audit', menuCode: 'AUDIT_LOG' },
         { label: 'Notifications', icon: <NotificationsRounded />, href: '/notifications', menuCode: 'NOTIFICATIONS' },
       ],
     },
@@ -341,7 +351,18 @@ const Sidebar = () => {
       >
       <Toolbar sx={{ minHeight: '64px !important', height: 64 }} />
 
-      <Box sx={{ overflow: 'auto', px: isCollapsed ? 0.5 : 1.5, py: 1.5 }}>
+      <Box
+        sx={{
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          px: isCollapsed ? 0.5 : 1.5,
+          py: 1.5,
+          // hide ugly default scrollbar, keep scrollability
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          '&::-webkit-scrollbar': { display: 'none' },
+        }}
+      >
         {/* Toggle Button - Only visible when collapsed */}
         {isCollapsed && (
           <>
@@ -359,17 +380,17 @@ const Sidebar = () => {
                   sx={{ 
                     width: 32,
                     height: 32,
-                    color: '#86868b',
+                    color: '#64748B',
                     bgcolor: 'transparent',
                     border: '1.5px solid rgba(0, 0, 0, 0.08)',
                     borderRadius: '10px',
                     transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
-                      bgcolor: 'rgba(218, 37, 28, 0.06)',
-                      color: '#DA251C',
-                      borderColor: 'rgba(218, 37, 28, 0.15)',
+                      bgcolor: 'rgba(189, 31, 39, 0.06)',
+                      color: '#BD1F27',
+                      borderColor: 'rgba(189, 31, 39, 0.15)',
                       transform: 'scale(1.05)',
-                      boxShadow: '0 2px 8px rgba(218, 37, 28, 0.08)',
+                      boxShadow: '0 2px 8px rgba(189, 31, 39, 0.08)',
                     },
                     '&:active': {
                       transform: 'scale(0.95)',
@@ -400,7 +421,7 @@ const Sidebar = () => {
                 <Typography
                   variant="caption"
                   sx={{
-                    color: '#86868b',
+                    color: '#64748B',
                     fontWeight: 600,
                     fontSize: '0.6875rem',
                     letterSpacing: '0.02em',
@@ -417,17 +438,17 @@ const Sidebar = () => {
                       sx={{ 
                         width: 28,
                         height: 28,
-                        color: '#86868b',
+                        color: '#64748B',
                         bgcolor: 'transparent',
                         border: '1px solid rgba(0, 0, 0, 0.08)',
                         borderRadius: '8px',
                         transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                         '&:hover': {
-                          bgcolor: 'rgba(218, 37, 28, 0.06)',
-                          color: '#DA251C',
-                          borderColor: 'rgba(218, 37, 28, 0.15)',
+                          bgcolor: 'rgba(189, 31, 39, 0.06)',
+                          color: '#BD1F27',
+                          borderColor: 'rgba(189, 31, 39, 0.15)',
                           transform: 'scale(1.05)',
-                          boxShadow: '0 2px 8px rgba(218, 37, 28, 0.08)',
+                          boxShadow: '0 2px 8px rgba(189, 31, 39, 0.08)',
                         },
                         '&:active': {
                           transform: 'scale(0.95)',
@@ -474,17 +495,17 @@ const Sidebar = () => {
                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                         position: 'relative',
                         '&.Mui-selected': {
-                          background: 'linear-gradient(135deg, rgba(218, 37, 28, 0.15) 0%, rgba(255, 77, 69, 0.08) 100%)',
+                          background: 'linear-gradient(135deg, rgba(189, 31, 39, 0.15) 0%, rgba(139, 22, 32, 0.08) 100%)',
                           backdropFilter: 'blur(10px)',
-                          color: '#DA251C',
-                          border: '1px solid rgba(218, 37, 28, 0.2)',
-                          boxShadow: '0 4px 20px rgba(218, 37, 28, 0.12)',
+                          color: '#BD1F27',
+                          border: '1px solid rgba(189, 31, 39, 0.2)',
+                          boxShadow: '0 4px 20px rgba(189, 31, 39, 0.12)',
                           '&:hover': {
-                            background: 'linear-gradient(135deg, rgba(218, 37, 28, 0.2) 0%, rgba(255, 77, 69, 0.12) 100%)',
-                            boxShadow: '0 6px 28px rgba(218, 37, 28, 0.16)',
+                            background: 'linear-gradient(135deg, rgba(189, 31, 39, 0.2) 0%, rgba(139, 22, 32, 0.12) 100%)',
+                            boxShadow: '0 6px 28px rgba(189, 31, 39, 0.16)',
                           },
                           '& .MuiListItemIcon-root': {
-                            color: '#DA251C',
+                            color: '#BD1F27',
                           },
                         },
                         '&:hover': {
@@ -492,9 +513,9 @@ const Sidebar = () => {
                           transform: isCollapsed ? 'scale(1.05)' : 'translateX(2px)',
                         },
                         ...(hasSubItems && active && {
-                          color: '#DA251C',
+                          color: '#BD1F27',
                           '& .MuiListItemIcon-root': {
-                            color: '#DA251C',
+                            color: '#BD1F27',
                           },
                         }),
                       }}
@@ -502,7 +523,7 @@ const Sidebar = () => {
                       <ListItemIcon
                         sx={{
                           minWidth: isCollapsed ? 'auto' : 32,
-                          color: active ? '#DA251C' : '#86868b',
+                          color: active ? '#BD1F27' : '#64748B',
                           '& svg': { fontSize: 20 },
                           justifyContent: 'center',
                         }}
@@ -520,7 +541,7 @@ const Sidebar = () => {
                             }}
                           />
                           {hasSubItems && (
-                            isOpen ? <ExpandLess sx={{ fontSize: 20, color: '#86868b' }} /> : <ExpandMore sx={{ fontSize: 20, color: '#86868b' }} />
+                            isOpen ? <ExpandLess sx={{ fontSize: 20, color: '#64748B' }} /> : <ExpandMore sx={{ fontSize: 20, color: '#64748B' }} />
                           )}
                         </>
                       )}
@@ -565,13 +586,13 @@ const Sidebar = () => {
                                     justifyContent: 'space-between',
                                     alignItems: 'center',
                                     '&.Mui-selected': {
-                                      bgcolor: 'rgba(218, 37, 28, 0.08)',
-                                      color: '#DA251C',
+                                      bgcolor: 'rgba(189, 31, 39, 0.08)',
+                                      color: '#BD1F27',
                                       '&:hover': {
-                                        bgcolor: 'rgba(218, 37, 28, 0.12)',
+                                        bgcolor: 'rgba(189, 31, 39, 0.12)',
                                       },
                                       '& .MuiListItemIcon-root': {
-                                        color: '#DA251C',
+                                        color: '#BD1F27',
                                       },
                                     },
                                     '&:hover': {
@@ -583,7 +604,7 @@ const Sidebar = () => {
                                     <ListItemIcon
                                       sx={{
                                         minWidth: 28,
-                                        color: subActive ? '#DA251C' : '#86868b',
+                                        color: subActive ? '#BD1F27' : '#64748B',
                                         '& svg': { fontSize: 16 },
                                       }}
                                     >
@@ -643,7 +664,7 @@ const Sidebar = () => {
           <Typography
             variant="caption"
             sx={{ 
-              color: '#86868b', 
+              color: '#64748B', 
               display: 'block', 
               textAlign: 'center', 
               fontSize: '0.625rem',
@@ -710,10 +731,10 @@ const Sidebar = () => {
                 },
               }),
               '&.Mui-selected': {
-                bgcolor: 'rgba(218, 37, 28, 0.08)',
-                color: '#DA251C',
+                bgcolor: 'rgba(189, 31, 39, 0.08)',
+                color: '#BD1F27',
                 '&:hover': {
-                  bgcolor: 'rgba(218, 37, 28, 0.12)',
+                  bgcolor: 'rgba(189, 31, 39, 0.12)',
                 },
                 ...(subItem.isMasterData && {
                   color: '#FF9800',
@@ -728,7 +749,7 @@ const Sidebar = () => {
             <ListItemIcon
               sx={{
                 minWidth: 32,
-                color: isActive(subItem.href) ? (subItem.isMasterData ? '#FF9800' : '#DA251C') : (subItem.isMasterData ? '#FF9800' : '#86868b'),
+                color: isActive(subItem.href) ? (subItem.isMasterData ? '#FF9800' : '#BD1F27') : (subItem.isMasterData ? '#FF9800' : '#64748B'),
                 '& svg': { fontSize: 18 },
               }}
             >

@@ -30,9 +30,11 @@ export const DataCountDisplay = ({
         gap: 1,
         py: 1.5,
         px: 2,
-        backgroundColor: '#F5F5F7',
-        borderRadius: '8px',
-        border: '1px solid rgba(0, 0, 0, 0.06)',
+        backgroundColor: '#F8FAFC',
+        borderRadius: 0,
+        border: '1px solid #E2E8F0',
+        borderLeft: 'none',
+        borderRight: 'none',
       }}
     >
       {/* Icon/Indicator */}
