@@ -496,7 +496,7 @@ const AplikasiDetailPage = () => {
                 <Apps sx={{ fontSize: 32 }} />
               </Avatar>
               <Box>
-                <Typography variant="h4" fontWeight={700} sx={{ textShadow: '0 2px 4px rgba(0,0,0,0.1)', mb: 0.5 }}>
+                <Typography variant="h3" fontWeight={700} sx={{ textShadow: '0 2px 4px rgba(0,0,0,0.2)', mb: 0.5, color: 'white' }}>
                   {aplikasi.nama_aplikasi}
                 </Typography>
                 <Box display="flex" alignItems="center" gap={1.5} flexWrap="wrap">
