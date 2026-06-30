@@ -36,6 +36,7 @@ import FormasiEfektifPage from './pages/FormasiEfektifPage';
 import FormasiEfektifDetailPage from './pages/FormasiEfektifDetailPage';
 import MyWorkPage from './pages/MyWorkPage';
 import PksiDetailPage from './pages/PksiDetailPage';
+import Fs2DetailPage from './pages/Fs2DetailPage';
 
 function App() {
   return (
@@ -338,6 +339,17 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <PksiDetailPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        {/* FS2 Detail Page - accessible by all authenticated users */}
+        <Route
+          path="/fs2/:id"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Fs2DetailPage />
               </Layout>
             </ProtectedRoute>
           }

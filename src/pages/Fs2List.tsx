@@ -49,7 +49,6 @@ import {
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  Add as AddIcon,
   TuneRounded,
   KeyboardArrowDown as ArrowDownIcon,
   Close as CloseIcon,
@@ -62,6 +61,7 @@ import {
   PushPin as PushPinIcon,
   Download as DownloadIcon,
   CalendarMonth as CalendarIcon,
+  Add,
 } from '@mui/icons-material';
 import { usePermissions } from '../hooks/usePermissions';
 import { DataCountDisplay } from '../components/DataCountDisplay';
@@ -89,8 +89,10 @@ import {
   downloadFs2File,
   type Fs2FileData 
 } from '../api/fs2FileApi';
-import ViewFs2Modal from '../components/modals/ViewFs2Modal';
+import { useNavigate } from 'react-router-dom';
 import { FilePreviewModal } from '../components/modals';
+import Download from '@mui/icons-material/Download';
+import PageHeader from '../components/PageHeader';
 
 // Interface for transformed data
 interface Fs2Data {
@@ -262,12 +264,11 @@ const buildDateFromMonthYear = (month: string, year: string): string => {
 };
 
 function Fs2List() {
+  const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
-  const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedFs2ForEdit, setSelectedFs2ForEdit] = useState<Fs2DocumentData | null>(null);
-  const [selectedFs2IdForView, setSelectedFs2IdForView] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [orderBy, setOrderBy] = useState<keyof Fs2Data>('namaAplikasi');
@@ -1172,15 +1173,8 @@ function Fs2List() {
     }
   };
 
-  // View modal handlers
   const handleOpenViewModal = (fs2Id: string) => {
-    setSelectedFs2IdForView(fs2Id);
-    setOpenViewModal(true);
-  };
-
-  const handleCloseViewModal = () => {
-    setOpenViewModal(false);
-    setSelectedFs2IdForView(null);
+    navigate(`/fs2/${fs2Id}`);
   };
 
   // Delete handlers
@@ -1337,29 +1331,35 @@ function Fs2List() {
   };
 
   return (
-    <Box sx={{ 
-      p: 3.5,
-      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
-      minHeight: '100vh',
-      overflowX: 'hidden',
-    }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography 
-          variant="h4" 
-          sx={{ 
-            fontWeight: 700, 
-            color: '#0F172A',
-            letterSpacing: '-0.02em',
-            mb: 0.5,
-          }}
-        >
-          Dashboard F.S.2
-        </Typography>
-        <Typography variant="body1" sx={{ color: '#64748B' }}>
-          Kelola data pengajuan F.S.2
-        </Typography>
-      </Box>
+    <Box>
+
+      <PageHeader
+        eyebrow="CONTROL CENTER"
+        title="Dashboard F.S.2"
+        subtitle="Kelola dokumen F.S.2 dan pantau status pengajuan"
+        actions={
+          <>
+            <Button
+              variant="outlined"
+              startIcon={isDownloadingExcel ? <CircularProgress size={16} /> : <Download />}
+              onClick={handleDownloadExcel}
+              disabled={isDownloadingExcel}
+            >
+              Download Excel
+            </Button>
+            {fs2Permissions.canCreate && (
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={handleOpenAddModal}
+              >
+                Tambah F.S.2
+              </Button>
+            )}
+          </>
+        }
+      />
+      <Box sx={{ p: { xs: 2, md: 2.5 } }}>
 
       {/* Main Card */}
       <Paper
@@ -1684,48 +1684,6 @@ function Fs2List() {
               </Button>
             </Tooltip>
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
-          <Tooltip title="Download Excel">
-            <IconButton
-              onClick={handleDownloadExcel}
-              disabled={isDownloadingExcel}
-              sx={{
-                background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
-                color: 'white',
-                borderRadius: '10px',
-                width: 40,
-                height: 40,
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #047857 0%, #059669 100%)',
-                },
-                '&.Mui-disabled': {
-                  background: 'rgba(0, 0, 0, 0.12)',
-                  color: 'rgba(0, 0, 0, 0.26)',
-                },
-              }}
-            >
-              {isDownloadingExcel ? <CircularProgress size={20} sx={{ color: 'white' }} /> : <DownloadIcon />}
-            </IconButton>
-          </Tooltip>
-          {fs2Permissions.canCreate && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleOpenAddModal}
-              sx={{
-                background: 'linear-gradient(135deg, #BD1F27 0%, #8B1620 100%)',
-                fontWeight: 500,
-                px: 2.5,
-                flexShrink: 0,
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)',
-                },
-              }}
-            >
-              Tambah F.S.2
-            </Button>
-          )}
-        </Box>
       </Box>
 
       {/* Filter Popover */}
@@ -2146,14 +2104,12 @@ function Fs2List() {
       </Popover>
 
       {/* Data Count Display */}
-      <Box sx={{ my: 2.5 }}>
-        <DataCountDisplay
-          count={totalElements}
-          isLoading={isLoading}
-          label="Total"
-          unit="F.S.2 Documents"
-        />
-      </Box>
+      <DataCountDisplay
+        count={totalElements}
+        isLoading={isLoading}
+        label="Total"
+        unit="F.S.2 Documents"
+      />
 
       {/* Table */}
       <TableContainer sx={{ 
@@ -2603,6 +2559,7 @@ function Fs2List() {
         }}
       />
       </Paper>
+      </Box>{/* end padded content */}
 
       {/* Status Menu */}
       <Menu
@@ -4130,13 +4087,6 @@ function Fs2List() {
         </DialogActions>
       </Dialog>
 
-      {/* View Modal */}
-      <ViewFs2Modal
-        open={openViewModal}
-        onClose={handleCloseViewModal}
-        fs2Id={selectedFs2IdForView}
-        showDocumentSection={true}
-      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog 

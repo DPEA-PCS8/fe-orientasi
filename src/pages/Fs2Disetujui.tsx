@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Box,
   TextField,
@@ -49,7 +49,6 @@ import {
   Visibility as VisibilityIcon,
   Edit as EditIcon,
   PushPin as PushPinIcon,
-  AssessmentRounded,
   CalendarMonth as CalendarIcon,
   CloudUpload as CloudUploadIcon,
   Delete as DeleteIcon,
@@ -62,9 +61,8 @@ import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getAllTeams, type Team } from '../api/teamApi';
 import { usePermissions } from '../hooks/usePermissions';
 import { DataCountDisplay } from '../components/DataCountDisplay';
-import ViewFs2Modal from '../components/modals/ViewFs2Modal';
 import { FilePreviewModal } from '../components/modals';
-import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
+import PageHeader from '../components/PageHeader';
 import {
   uploadFs2Files,
   getFs2Files,
@@ -471,7 +469,7 @@ const getChipColor = (code: string): { bg: string; text: string } => {
 // Note: PROGRES_COLORS removed - Progres column now uses tahapan-based colors from FS2_TAHAPAN_CONFIG
 
 function Fs2Disetujui() {
-  const { isCollapsed } = useSidebar();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
   const [keyword, setKeyword] = useState(initialSearch);
@@ -585,9 +583,6 @@ function Fs2Disetujui() {
     value: string;
   }>({ open: false, tahapanKey: '', dateField: null, value: '' });
 
-  // View modal state
-  const [openViewModal, setOpenViewModal] = useState(false);
-  const [selectedFs2IdForView, setSelectedFs2IdForView] = useState<string | null>(null);
 
   // File preview modal state (popup preview for berkas links)
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -823,15 +818,8 @@ function Fs2Disetujui() {
     return count;
   }, [selectedProgres, selectedProgresStatus, selectedFase, selectedMekanisme, selectedPelaksanaan, selectedSkpaFilter]);
 
-  // View modal handlers
   const handleOpenViewModal = (fs2Id: string) => {
-    setSelectedFs2IdForView(fs2Id);
-    setOpenViewModal(true);
-  };
-
-  const handleCloseViewModal = () => {
-    setOpenViewModal(false);
-    setSelectedFs2IdForView(null);
+    navigate(`/fs2/${fs2Id}`);
   };
 
   // Get content type from URL
@@ -1390,54 +1378,31 @@ function Fs2Disetujui() {
   };
 
   return (
-    <Box sx={{ 
-      px: 2,
-      py: 3,
-      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(240, 245, 250, 0.3) 100%)',
-      minHeight: '100vh',
-      width: '100%',
-      maxWidth: '100%',
-      overflowX: 'hidden',
-      boxSizing: 'border-box',
-    }}>
-      {/* Header */}
-      <Box sx={{ mb: 3, px: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-          <AssessmentRounded sx={{ fontSize: 32, color: '#31A24C' }} />
-          <Typography 
-            variant="h4" 
-            sx={{ 
-              fontWeight: 700, 
-              color: '#1d1d1f',
-              letterSpacing: '-0.02em',
-            }}
+    <Box>
+      <PageHeader
+        eyebrow="CONTROL CENTER"
+        title="Monitoring F.S.2"
+        actions={
+          <Button
+            variant="outlined"
+            startIcon={isDownloadingExcel ? <CircularProgress size={16} /> : <DownloadIcon />}
+            onClick={handleDownloadExcel}
+            disabled={isDownloadingExcel}
           >
-            Monitoring F.S.2
-          </Typography>
-        </Box>
-        <Typography variant="body1" sx={{ color: '#86868b', ml: 0.5 }}>
-          Monitoring dan tracking F.S.2 ({totalElements} item)
-        </Typography>
-      </Box>
+            Download Excel
+          </Button>
+        }
+      />
+      <Box sx={{ p: { xs: 2, md: 2.5 } }}>
 
       {/* Main Card */}
       <Paper
         elevation={0}
         sx={{
-          width: isCollapsed 
-            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)` 
-            : '80vw',
-          maxWidth: isCollapsed 
-            ? `calc(80vw + ${DRAWER_WIDTH - DRAWER_WIDTH_COLLAPSED}px)` 
-            : '80vw',
-          borderRadius: '16px',
-          border: '1px solid rgba(255, 255, 255, 0.5)',
+          width: '100%',
+          borderRadius: 2,
+          border: '1px solid rgba(0, 0, 0, 0.08)',
           overflow: 'hidden',
-          background: 'rgba(255, 255, 255, 0.7)',
-          backdropFilter: 'blur(40px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         {/* Toolbar */}
@@ -1447,8 +1412,7 @@ function Fs2Disetujui() {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.3)',
-            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.6) 100%)',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
           }}
         >
           {/* Search & Filter */}
@@ -1750,30 +1714,6 @@ function Fs2Disetujui() {
                   />
                 )}
               </Button>
-            </Tooltip>
-            
-            {/* Download Excel Button */}
-            <Tooltip title="Download Excel">
-              <IconButton
-                onClick={handleDownloadExcel}
-                disabled={isDownloadingExcel}
-                sx={{
-                  background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
-                  color: 'white',
-                  borderRadius: '10px',
-                  width: 40,
-                  height: 40,
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #047857 0%, #059669 100%)',
-                  },
-                  '&.Mui-disabled': {
-                    background: 'rgba(0, 0, 0, 0.12)',
-                    color: 'rgba(0, 0, 0, 0.26)',
-                  },
-                }}
-              >
-                {isDownloadingExcel ? <CircularProgress size={20} sx={{ color: 'white' }} /> : <DownloadIcon />}
-              </IconButton>
             </Tooltip>
           </Box>
         </Box>
@@ -2335,14 +2275,12 @@ function Fs2Disetujui() {
         </Popover>
 
         {/* Data Count Display */}
-        <Box sx={{ my: 2.5 }}>
-          <DataCountDisplay
-            count={totalElements}
-            isLoading={isLoading}
-            label="Total"
-            unit="F.S.2 Documents"
-          />
-        </Box>
+        <DataCountDisplay
+          count={totalElements}
+          isLoading={isLoading}
+          label="Total"
+          unit="F.S.2 Documents"
+        />
 
         {/* Table */}
         <TableContainer sx={{ 
@@ -2870,14 +2808,7 @@ function Fs2Disetujui() {
           }}
         />
       </Paper>
-
-      {/* View Modal */}
-      <ViewFs2Modal
-        open={openViewModal}
-        onClose={handleCloseViewModal}
-        fs2Id={selectedFs2IdForView}
-        showMonitoringSection={true}
-      />
+      </Box>{/* end padded content */}
 
       {/* Edit Modal */}
       <Dialog 

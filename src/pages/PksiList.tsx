@@ -1057,6 +1057,15 @@ function PksiList() {
         eyebrow="CONTROL CENTER"
         title="Semua PKSI"
         subtitle="Kelola data pengajuan PKSI."
+        actions={pksiPermissions.canCreate ? (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setOpenAddModal(true)}
+          >
+            Tambah PKSI
+          </Button>
+        ) : undefined}
       />
 
       <Box sx={{ p: { xs: 2, md: 2.5 } }}>
@@ -1240,23 +1249,6 @@ function PksiList() {
               </Button>
             </Tooltip>
           </Box>
-          {pksiPermissions.canCreate && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setOpenAddModal(true)}
-              sx={{
-                background: 'linear-gradient(135deg, #BD1F27 0%, #8B1620 100%)',
-                fontWeight: 500,
-                px: 2.5,
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #8B1620 0%, #6F101A 100%)',
-                },
-              }}
-            >
-              Tambah PKSI
-            </Button>
-          )}
         </Box>
 
         {/* Sticky Columns Popover */}
