@@ -59,7 +59,7 @@ const KategoriRbsiPage = () => {
   // Main list state
   const [subKategoriList, setSubKategoriList] = useState<SubKategoriData[]>([]);
   const [search, setSearch] = useState('');
-  const [filterCategory, setFilterCategory] = useState('');
+  const [filterCategory] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -298,13 +298,6 @@ const KategoriRbsiPage = () => {
     const matchesCategory = !filterCategory || item.category_code === filterCategory;
     return matchesSearch && matchesCategory;
   });
-
-  // Stable totals from full list (don't change when search/filter active)
-  const categoryStats = CATEGORY_CODE_OPTIONS.map(opt => ({
-    code: opt.code,
-    name: opt.name,
-    count: subKategoriList.filter(i => i.category_code === opt.code).length,
-  })).filter(s => s.count > 0);
 
   if (!permissionsLoaded) {
     return (

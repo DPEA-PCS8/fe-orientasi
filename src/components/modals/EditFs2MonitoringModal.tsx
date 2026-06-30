@@ -438,7 +438,7 @@ const EditFs2MonitoringModal: React.FC<EditFs2MonitoringModalProps> = ({ open, o
     uploadedFiles: Fs2FileData[],
     fileType: string,
     setFiles: React.Dispatch<React.SetStateAction<Fs2FileData[]>>,
-    dateFormField?: keyof Fs2DocumentRequest
+    _dateFormField?: keyof Fs2DocumentRequest
   ) => (
     <Box>
       <Box

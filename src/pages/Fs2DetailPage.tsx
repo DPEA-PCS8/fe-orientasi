@@ -24,7 +24,6 @@ import {
 } from '@mui/material';
 import {
   CalendarMonth as CalendarIcon,
-  Description as DescriptionIcon,
   Person as PersonIcon,
   MonitorHeart as MonitorHeartIcon,
   InsertDriveFile as FileIcon,

@@ -25,7 +25,6 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
   FormControl,
   InputLabel,
   Select,
@@ -44,14 +43,11 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { id as localeId } from 'date-fns/locale/id';
 import {
   Search as SearchIcon,
-  Add as AddIcon,
   TuneRounded,
   Close as CloseIcon,
   Visibility as VisibilityIcon,
   Edit as EditIcon,
-  CloudUpload as CloudUploadIcon,
   InsertDriveFile as FileIcon,
-  Delete as DeleteIcon,
   PushPin as PushPinIcon,
   AssessmentRounded,
   Download as DownloadIcon,
@@ -59,22 +55,17 @@ import {
   AttachFile as AttachFileIcon,
   ViewColumn as ViewColumnIcon,
 } from '@mui/icons-material';
-import { searchPksiDocumentsForMonitoring, updatePksiApproval, type PksiDocumentData } from '../api/pksiApi';
+import { searchPksiDocumentsForMonitoring, type PksiDocumentData } from '../api/pksiApi';
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getUserRoles } from '../api/authApi';
 import { FilePreviewModal } from '../components/modals';
 import EditPksiMonitoringModal from '../components/modals/EditPksiMonitoringModal';
-import { StageSelector } from '../components/StageSelector';
 import { useSidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from '../context/SidebarContext';
-import { 
-  uploadPksiFiles, 
-  getPksiFiles, 
-  deletePksiFile, 
+import {
+  getPksiFiles,
   downloadPksiFile,
-  type PksiFileData 
+  type PksiFileData
 } from '../api/pksiFileApi';
-import { getAllTeams, type Team } from '../api/teamApi';
-
 // Interface untuk data PKSI (transformed from API)
 interface PksiData {
   id: string;
@@ -164,27 +155,6 @@ const PROGRESS_OPTIONS = [
   'Deployment',
   'Selesai',
 ] as const;
-
-type TahapanDateField = 'targetUsreq' | 'tanggalPengadaan' | 'tanggalDesain' | 'tanggalCoding' | 'tanggalUnitTest' | 'targetSit' | 'targetUat' | 'targetGoLive';
-type PksiTargetField = 'targetUsreq' | 'targetPengadaan' | 'targetDesain' | 'targetCoding' | 'targetUnitTest' | 'targetSit' | 'targetUat' | 'targetDeployment' | 'targetGoLive';
-
-const TAHAPAN_CONFIG: Array<{
-  key: typeof PROGRESS_OPTIONS[number];
-  label: string;
-  dateField: TahapanDateField | null;
-  stageKey: string;
-  pksiTargetField: PksiTargetField;
-}> = [
-  { key: 'Penyusunan Usreq', label: 'Penyusunan Usreq', dateField: 'targetUsreq',      stageKey: 'USREQ',       pksiTargetField: 'targetUsreq' },
-  { key: 'Pengadaan',         label: 'Pengadaan',         dateField: 'tanggalPengadaan', stageKey: 'PENGADAAN',   pksiTargetField: 'targetPengadaan' },
-  { key: 'Desain',            label: 'Desain',            dateField: 'tanggalDesain',    stageKey: 'DESAIN',      pksiTargetField: 'targetDesain' },
-  { key: 'Coding',            label: 'Coding',            dateField: 'tanggalCoding',    stageKey: 'CODING',      pksiTargetField: 'targetCoding' },
-  { key: 'Unit Test',         label: 'Unit Test',         dateField: 'tanggalUnitTest',  stageKey: 'UNIT_TEST',   pksiTargetField: 'targetUnitTest' },
-  { key: 'SIT',               label: 'SIT',               dateField: 'targetSit',        stageKey: 'SIT',         pksiTargetField: 'targetSit' },
-  { key: 'UAT',               label: 'UAT',               dateField: 'targetUat',        stageKey: 'UAT',         pksiTargetField: 'targetUat' },
-  { key: 'Deployment',        label: 'Deployment',        dateField: null,               stageKey: 'DEPLOYMENT',  pksiTargetField: 'targetDeployment' },
-  { key: 'Selesai',           label: 'Selesai',           dateField: null,               stageKey: 'GO_LIVE',     pksiTargetField: 'targetGoLive' },
-];
 
 const calculateJangkaWaktu = (apiData: PksiDocumentData): string => {
   const startDates = [apiData.tahap1_awal, apiData.tahap5_awal, apiData.tahap7_awal]
@@ -409,193 +379,6 @@ const formatMonthYear = (dateString: string): string => {
   } catch {
     return '-';
   }
-};
-
-// Helper functions for timeline phase management
-const lastDayOfMonth = (yearMonth: string): string => {
-  if (!yearMonth) return '';
-  const [y, m] = yearMonth.split('-').map(Number);
-  const last = new Date(y, m, 0).getDate();
-  return `${yearMonth}-${String(last).padStart(2, '0')}`;
-};
-
-const currentMonthValue = () => {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  return lastDayOfMonth(`${y}-${m}`);
-};
-
-// Timeline configuration with styling
-interface TimelinePhases {
-  usreq: string[];
-  sit: string[];
-  uat: string[];
-  goLive: string[];
-  pengadaan: string[];
-  desain: string[];
-  coding: string[];
-  unitTest: string[];
-  deployment: string[];
-}
-
-const TIMELINE_CONFIGS = [
-  { key: 'usreq' as const, label: 'Target Usreq', stage: 'USREQ', gradient: ['#6366F1', '#818CF8'], rgb: '99,102,241' },
-  { key: 'sit' as const, label: 'Target SIT', stage: 'SIT', gradient: ['#8B5CF6', '#A78BFA'], rgb: '139,92,246' },
-  { key: 'uat' as const, label: 'Target UAT/PDKK', stage: 'UAT', gradient: ['#F59E0B', '#FCD34D'], rgb: '245,158,11' },
-  { key: 'goLive' as const, label: 'Target Go Live', stage: 'GO_LIVE', gradient: ['#10B981', '#34D399'], rgb: '16,185,129' },
-  { key: 'pengadaan' as const, label: 'Target Pengadaan', stage: 'PENGADAAN', gradient: ['#EC4899', '#F472B6'], rgb: '236,72,153' },
-  { key: 'desain' as const, label: 'Target Desain', stage: 'DESAIN', gradient: ['#06B6D4', '#22D3EE'], rgb: '6,182,212' },
-  { key: 'coding' as const, label: 'Target Coding', stage: 'CODING', gradient: ['#8B5CF6', '#D8B4FE'], rgb: '139,92,246' },
-  { key: 'unitTest' as const, label: 'Target Unit Test', stage: 'UNIT_TEST', gradient: ['#F59E0B', '#FBBF24'], rgb: '245,158,11' },
-  { key: 'deployment' as const, label: 'Target Deployment', stage: 'DEPLOYMENT', gradient: ['#10B981', '#6EE7B7'], rgb: '16,185,129' },
-];
-
-interface TimelineStageProps {
-  label: string;
-  stages: string[];
-  gradient: string[];
-  rgb: string;
-  onChange: (phaseIndex: number, value: string) => void;
-  onAddPhase: () => void;
-  onRemovePhase: (phaseIndex: number) => void;
-  onRemoveStage?: () => void;
-}
-
-const TimelineStage = ({ label, stages, gradient, rgb, onChange, onAddPhase, onRemovePhase, onRemoveStage }: TimelineStageProps) => {
-  return (
-    <Box sx={{ mb: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box sx={{
-            width: 32, height: 32, borderRadius: '10px',
-            background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]})`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: `0 2px 12px rgba(${rgb},0.35)`,
-          }}>
-            <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.75rem' }}>
-              {stages.length}
-            </Typography>
-          </Box>
-          <Typography sx={{ fontWeight: 600, fontSize: '0.9rem', color: '#1d1d1f', letterSpacing: '-0.01em' }}>
-            {label}
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={onAddPhase}
-            sx={{
-              borderRadius: '10px',
-            borderColor: `rgba(${rgb},0.25)`,
-            color: gradient[0],
-            fontWeight: 600,
-            fontSize: '0.7rem',
-            px: 1.5,
-            py: 0.4,
-            textTransform: 'none',
-            background: `rgba(${rgb},0.04)`,
-            border: `1px solid rgba(${rgb},0.25)`,
-            '&:hover': {
-              borderColor: gradient[0],
-              background: `rgba(${rgb},0.08)`,
-            },
-          }}
-        >
-          Tambah Fase
-        </Button>
-        {onRemoveStage && (
-          <IconButton
-            size="small"
-            onClick={onRemoveStage}
-            sx={{
-              color: '#EF4444',
-              '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.1)' },
-            }}
-          >
-            <CloseIcon sx={{ fontSize: 18 }} />
-          </IconButton>
-        )}
-        </Box>
-      </Box>
-
-      <Stack spacing={1.2}>
-        {stages.map((date, phaseIndex) => (
-          <Box
-            key={phaseIndex}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.2,
-              p: 1.5,
-              borderRadius: '12px',
-              background: 'rgba(255,255,255,0.7)',
-              backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255,255,255,0.9)',
-              boxShadow: '0 3px 12px rgba(0,0,0,0.04)',
-              transition: 'all 0.2s ease',
-              '&:hover': {
-                boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
-                borderColor: `rgba(${rgb},0.2)`,
-              },
-            }}
-          >
-            <Box sx={{
-              minWidth: 32,
-              height: 32,
-              borderRadius: '8px',
-              background: `rgba(${rgb},0.1)`,
-              border: `1.5px solid rgba(${rgb},0.25)`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <Typography sx={{ fontWeight: 700, fontSize: '0.8rem', color: gradient[0] }}>
-                {phaseIndex + 1}
-              </Typography>
-            </Box>
-
-            <TextField
-              fullWidth
-              size="small"
-              type="month"
-              value={date ? date.substring(0, 7) : ''}
-              onChange={(e) => onChange(phaseIndex, e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              placeholder="Pilih bulan"
-              sx={{
-                flex: 1,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '8px',
-                  background: `rgba(${rgb},0.04)`,
-                  '& fieldset': { border: `1px solid rgba(${rgb},0.15)` },
-                  '&:hover fieldset': { borderColor: `rgba(${rgb},0.3)` },
-                  '&.Mui-focused fieldset': { borderColor: gradient[0], borderWidth: '1.5px' },
-                },
-                '& .MuiInputBase-input': { fontSize: '0.8rem', color: '#1d1d1f', fontWeight: 500, py: 1 },
-              }}
-            />
-
-            {stages.length > 1 && (
-              <IconButton
-                size="small"
-                onClick={() => onRemovePhase(phaseIndex)}
-                sx={{
-                  width: 28,
-                  height: 28,
-                  color: '#86868b',
-                  '&:hover': { color: '#DC2626', bgcolor: 'rgba(220,38,38,0.06)' },
-                }}
-              >
-                <CloseIcon sx={{ fontSize: 17 }} />
-              </IconButton>
-            )}
-          </Box>
-        ))}
-      </Stack>
-    </Box>
-  );
 };
 
 function PksiDisetujui() {
