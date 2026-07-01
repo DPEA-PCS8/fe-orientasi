@@ -79,15 +79,12 @@ import { getAllAplikasi, getAplikasiByKode, type AplikasiData } from '../api/apl
 import { getAllSkpa, type SkpaData } from '../api/skpaApi';
 import { getAllBidang, type BidangData } from '../api/bidangApi';
 import { searchPksiDocuments, type PksiDocumentData } from '../api/pksiApi';
-import { 
-  uploadFs2TempFiles, 
-  moveFs2TempFilesToPermanent, 
-  deleteFs2TempFiles,
+import {
   deleteFs2File,
   getFs2Files,
   uploadFs2Files,
   downloadFs2File,
-  type Fs2FileData 
+  type Fs2FileData
 } from '../api/fs2FileApi';
 import { useNavigate } from 'react-router-dom';
 import { FilePreviewModal } from '../components/modals';
@@ -399,15 +396,10 @@ function Fs2List() {
     pksi_id: '',
   });
 
-  // File upload state - OLD TEMP STORAGE (will be replaced by pending files)
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [uploadedFileData, setUploadedFileData] = useState<Fs2FileData[]>([]);
-  const [sessionId, setSessionId] = useState<string>('');
   const [isDragging, setIsDragging] = useState(false);
 
-  // Pending files state for PKSI-style upload (stage files with date before upload) - Add Modal
+  // Pending files state for Add Modal
   const [pendingFilesAdd, setPendingFilesAdd] = useState<Array<{ file: File; tanggal: string }>>([]);
-  const [isUploadingAdd, setIsUploadingAdd] = useState(false);
 
   // Pending files state for Edit Modal
   const [pendingFilesEdit, setPendingFilesEdit] = useState<Array<{ file: File; tanggal: string }>>([]);
@@ -647,19 +639,6 @@ function Fs2List() {
   };
   */
 
-  const handleRemoveFile = async (index: number) => {
-    const fileToRemove = uploadedFileData[index];
-    if (fileToRemove?.id) {
-      try {
-        await deleteFs2File(fileToRemove.id);
-      } catch (error) {
-        console.error('Failed to delete file:', error);
-      }
-    }
-    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
-    setUploadedFileData((prev) => prev.filter((_, i) => i !== index));
-  };
-
   // ============ FILE STAGING HANDLERS (PKSI-STYLE) FOR ADD MODAL ============
   const handleFileSelectAdd = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -721,27 +700,6 @@ function Fs2List() {
 
       // Stage the file with empty date
       setPendingFilesAdd(prev => [...prev, { file, tanggal: '' }]);
-    }
-  };
-
-  // Upload pending files to temp storage (Add Modal) - will be moved to permanent on form submit
-  const handleUploadPendingFilesAdd = async () => {
-    if (pendingFilesAdd.length === 0 || !sessionId) return;
-    setIsUploadingAdd(true);
-    try {
-      const results: Fs2FileData[] = [];
-      for (const pending of pendingFilesAdd) {
-        const uploaded = await uploadFs2TempFiles(sessionId, [pending.file], 'FS2', pending.tanggal || undefined);
-        results.push(...uploaded);
-      }
-      setUploadedFileData(prev => [...prev, ...results]);
-      setPendingFilesAdd([]);
-    } catch (error) {
-      console.error('Failed to upload files:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Gagal mengupload file. Silakan coba lagi.';
-      alert(errorMessage);
-    } finally {
-      setIsUploadingAdd(false);
     }
   };
 
@@ -891,11 +849,7 @@ function Fs2List() {
 
   // Add modal handlers
   const handleOpenAddModal = () => {
-    // Generate a unique session ID for temp file uploads
-    const newSessionId = `fs2_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    setSessionId(newSessionId);
-    setUploadedFiles([]);
-    setUploadedFileData([]);
+    setPendingFilesAdd([]);
     setErrors({});
     setErrorMessage('');
     setSuccessMessage('');
@@ -937,17 +891,8 @@ function Fs2List() {
     setOpenAddModal(true);
   };
 
-  const handleCloseAddModal = async () => {
-    // Clean up temp files when canceling
-    if (sessionId && uploadedFileData.length > 0) {
-      try {
-        await deleteFs2TempFiles(sessionId);
-      } catch (error) {
-        console.error('Failed to delete temp files:', error);
-      }
-    }
-    setUploadedFiles([]);
-    setUploadedFileData([]);
+  const handleCloseAddModal = () => {
+    setPendingFilesAdd([]);
     setErrors({});
     setErrorMessage('');
     setSuccessMessage('');
@@ -995,7 +940,7 @@ function Fs2List() {
     }
 
     // Section 3: Upload Berkas F.S.2 - WAJIB UPLOAD MINIMAL 1 FILE
-    if (uploadedFiles.length === 0 && uploadedFileData.length === 0) {
+    if (pendingFilesAdd.length === 0) {
       newErrors.upload_dokumen = "Dokumen F.S.2 wajib diupload!";
     }
 
@@ -1019,17 +964,18 @@ function Fs2List() {
     setSuccessMessage('');
 
     try {
-      // Auto-set tanggal_berkas_fs2 to current date when creating FS2 with uploaded files
       const dataToSubmit = { ...formData };
-      if (uploadedFileData.length > 0 && !dataToSubmit.tanggal_berkas_fs2) {
+      if (pendingFilesAdd.length > 0 && !dataToSubmit.tanggal_berkas_fs2) {
         dataToSubmit.tanggal_berkas_fs2 = new Date().toISOString().split('T')[0];
       }
-      
+
       const createdFs2 = await createFs2Document(dataToSubmit);
-      
-      // Move temp files to permanent storage
-      if (sessionId && uploadedFileData.length > 0) {
-        await moveFs2TempFilesToPermanent(createdFs2.id, sessionId);
+
+      // Upload pending files directly with entity ID
+      if (pendingFilesAdd.length > 0) {
+        for (const pending of pendingFilesAdd) {
+          await uploadFs2Files(createdFs2.id, [pending.file], 'FS2', pending.tanggal || undefined);
+        }
       }
       
       setSnackbar({ open: true, message: 'F.S.2 berhasil ditambahkan!', severity: 'success' });
@@ -3189,18 +3135,15 @@ function Fs2List() {
                         borderRadius: 2,
                         p: 3,
                         textAlign: 'center',
-                        cursor: isUploadingAdd ? 'not-allowed' : 'pointer',
-                        opacity: isUploadingAdd ? 0.7 : 1,
+                        cursor: 'pointer',
                         transition: 'all 0.2s ease-in-out',
-                        background: isDragging
-                          ? 'rgba(49, 162, 76, 0.08)'
-                          : 'transparent',
+                        background: isDragging ? 'rgba(49, 162, 76, 0.08)' : 'transparent',
                         '&:hover': {
-                          borderColor: isUploadingAdd ? '#e5e5e7' : '#31A24C',
-                          bgcolor: isUploadingAdd ? 'transparent' : 'rgba(49, 162, 76, 0.04)',
+                          borderColor: '#31A24C',
+                          bgcolor: 'rgba(49, 162, 76, 0.04)',
                         },
                       }}
-                      onClick={() => !isUploadingAdd && document.getElementById('fs2-add-file-upload-input')?.click()}
+                      onClick={() => document.getElementById('fs2-add-file-upload-input')?.click()}
                     >
                       <input
                         id="fs2-add-file-upload-input"
@@ -3208,29 +3151,19 @@ function Fs2List() {
                         hidden
                         onChange={handleFileSelectAdd}
                         accept=".pdf,.doc,.docx"
-                        disabled={isUploadingAdd}
                       />
-                      {isUploadingAdd ? (
-                        <>
-                          <CircularProgress size={48} sx={{ color: '#31A24C', mb: 1 }} />
-                          <Typography variant="body1" sx={{ color: '#0F172A', fontWeight: 500 }}>
-                            Mengupload file...
-                          </Typography>
-                        </>
-                      ) : (
-                        <>
-                          <CloudUploadIcon sx={{ fontSize: 48, color: '#64748B', mb: 1 }} />
-                          <Typography variant="body1" sx={{ color: '#0F172A', fontWeight: 500 }}>
-                            Klik untuk upload file
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: '#64748B', mt: 0.5 }}>
-                            atau drag & drop file di sini
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: '#64748B', display: 'block', mt: 1 }}>
-                            Format yang didukung: PDF, Word (max 8MB)
-                          </Typography>
-                        </>
-                      )}
+                      <>
+                        <CloudUploadIcon sx={{ fontSize: 48, color: '#64748B', mb: 1 }} />
+                        <Typography variant="body1" sx={{ color: '#0F172A', fontWeight: 500 }}>
+                          Klik untuk upload file
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#64748B', mt: 0.5 }}>
+                          atau drag & drop file di sini
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#64748B', display: 'block', mt: 1 }}>
+                          Format yang didukung: PDF, Word (max 8MB)
+                        </Typography>
+                      </>
                     </Box>
                   </Box>
 
@@ -3265,55 +3198,6 @@ function Fs2List() {
                           </Box>
                         ))}
                       </Stack>
-                      <Button
-                        variant="contained"
-                        fullWidth
-                        onClick={handleUploadPendingFilesAdd}
-                        disabled={isUploadingAdd}
-                        startIcon={isUploadingAdd ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <CloudUploadIcon />}
-                        sx={{ mt: 1.5, background: 'linear-gradient(145deg, #31A24C 0%, #4ADE80 100%)', borderRadius: '12px', fontWeight: 600, '&:hover': { background: 'linear-gradient(145deg, #059669 0%, #31A24C 100%)' } }}
-                      >
-                        {isUploadingAdd ? 'Mengupload...' : `Upload ${pendingFilesAdd.length} File`}
-                      </Button>
-                    </Box>
-                  )}
-
-                  {/* Uploaded files list */}
-                  {uploadedFileData.length > 0 && (
-                    <Box>
-                      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#0F172A' }}>
-                        File yang diupload ({uploadedFileData.length})
-                      </Typography>
-                      <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px' }}>
-                        {uploadedFileData.map((file, index) => (
-                          <ListItem
-                            key={file.id}
-                            sx={{
-                              borderBottom: index < uploadedFileData.length - 1 ? '1px solid #e5e5e7' : 'none',
-                            }}
-                          >
-                            <ListItemIcon sx={{ minWidth: 36 }}>
-                              <FileIcon sx={{ color: '#31A24C', fontSize: 20 }} />
-                            </ListItemIcon>
-                            <ListItemText
-                              primary={file.display_name || file.original_name}
-                              secondary={`${formatFileSize(file.file_size)}${file.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(file.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
-                              primaryTypographyProps={{ sx: { fontWeight: 500, color: '#0F172A', fontSize: '0.85rem' } }}
-                              secondaryTypographyProps={{ sx: { color: '#64748B', fontSize: '0.75rem' } }}
-                            />
-                            <ListItemSecondaryAction>
-                              <IconButton
-                                edge="end"
-                                onClick={() => handleRemoveFile(index)}
-                                disabled={isUploadingAdd}
-                                sx={{ color: '#64748B', '&:hover': { color: '#BD1F27' } }}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            </ListItemSecondaryAction>
-                          </ListItem>
-                        ))}
-                      </List>
                     </Box>
                   )}
                   {errors.upload_dokumen && (
@@ -3334,9 +3218,8 @@ function Fs2List() {
           </Stack>
         </DialogContent>
         <DialogActions sx={{ p: 2.5, pt: 1, borderTop: '1px solid rgba(0, 0, 0, 0.06)' }}>
-          <Button 
+          <Button
             onClick={handleCloseAddModal}
-            disabled={isUploadingAdd}
             sx={{
               color: '#64748B',
               '&:hover': {
@@ -3346,10 +3229,9 @@ function Fs2List() {
           >
             Batal
           </Button>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             onClick={handleAddFs2}
-            disabled={isUploadingAdd}
             sx={{
               background: 'linear-gradient(135deg, #BD1F27 0%, #8B1620 100%)',
               fontWeight: 500,

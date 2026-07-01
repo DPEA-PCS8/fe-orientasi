@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -34,8 +34,6 @@ import {
   CloudUpload as CloudUploadIcon,
   Delete as DeleteIcon,
   InsertDriveFile as FileIcon,
-  Download as DownloadIcon,
-  Visibility as VisibilityIcon,
   Add as AddIcon,
   Search as SearchIcon,
 } from "@mui/icons-material";
@@ -59,15 +57,7 @@ interface FlatInisiatif {
   nomor_program: string;
   nomor_inisiatif: string;
 }
-import { 
-  uploadPksiTempFiles, 
-  movePksiTempFilesToPermanent, 
-  deletePksiTempFiles,
-  deletePksiFile,
-  downloadPksiFile,
-  previewPksiFile,
-  type PksiFileData 
-} from "../../api/pksiFileApi";
+import { uploadPksiFiles } from "../../api/pksiFileApi";
 import { StageSelector } from "../StageSelector";
 
 // Styled TextField with glass effect
@@ -392,12 +382,8 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     }));
   };
   
-  // File upload state - matching FS2 pattern
-  const [uploadedFileData, setUploadedFileData] = useState<PksiFileData[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+  // File upload state
   const [pendingFiles, setPendingFiles] = useState<Array<{ file: File; tanggal: string }>>([]);
-  const sessionIdRef = useRef<string>(`pksi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
   // Inisiatif groups filtered by search, grouped by program
   const filteredInisiatifGroups = useMemo(() => {
@@ -470,70 +456,6 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     setPendingFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleUploadPendingFiles = async () => {
-    if (pendingFiles.length === 0 || !sessionIdRef.current) return;
-    setIsUploading(true);
-    setErrorMessage('');
-    try {
-      const results: PksiFileData[] = [];
-      for (const pending of pendingFiles) {
-        const uploaded = await uploadPksiTempFiles(
-          sessionIdRef.current,
-          [pending.file],
-          'T01',
-          pending.tanggal || undefined
-        );
-        results.push(...uploaded);
-      }
-      setUploadedFileData(prev => [...prev, ...results]);
-      setPendingFiles([]);
-    } catch (error) {
-      console.error('Failed to upload files:', error);
-      setErrorMessage('Gagal mengupload file. Silakan coba lagi.');
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleRemoveFile = async (index: number) => {
-    const fileToRemove = uploadedFileData[index];
-    if (fileToRemove?.id) {
-      try {
-        await deletePksiFile(fileToRemove.id);
-      } catch (error) {
-        console.error('Failed to delete file:', error);
-      }
-    }
-    setUploadedFileData((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleDownload = async (fileData: PksiFileData) => {
-    if (!fileData?.id) return;
-    setDownloadingFileId(fileData.id);
-    try {
-      await downloadPksiFile(fileData.id, fileData.original_name);
-    } catch (error) {
-      console.error('Failed to download file:', error);
-      setErrorMessage('Gagal mengunduh file. Silakan coba lagi.');
-    } finally {
-      setDownloadingFileId(null);
-    }
-  };
-
-  const handlePreview = async (fileData: PksiFileData) => {
-    if (!fileData?.id) return;
-    try {
-      await previewPksiFile(fileData.id);
-    } catch (error) {
-      console.error('Failed to preview file:', error);
-      setErrorMessage('Gagal membuka preview file. Silakan coba lagi.');
-    }
-  };
-
-  const isPreviewable = (contentType: string | undefined): boolean => {
-    if (!contentType) return false;
-    return contentType.startsWith('image/') || contentType === 'application/pdf';
-  };
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return "0 Bytes";
@@ -565,8 +487,6 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     setSuccessMessage("");
     setErrorMessage("");
     setExpandedSection("jadwal");
-    setUploadedFileData([]);
-    setIsUploading(false);
     setPendingFiles([]);
     setTimelinePhases({
       usreq: [currentMonthValue()],
@@ -584,8 +504,6 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     setSelectedInisiatifGroup(null);
     setInisiatifGroups([]);
     setInisiatifSearch('');
-    // Generate new session ID for next form
-    sessionIdRef.current = `pksi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
   const validateForm = (): boolean => {
@@ -720,14 +638,15 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
 
       const createdPksi = await createPksiDocument(requestData);
 
-      // Move temp files to permanent storage if any were uploaded
-      if (uploadedFileData.length > 0 && createdPksi.id) {
+      // Upload pending files directly with entity ID
+      if (pendingFiles.length > 0 && createdPksi.id) {
         try {
-          await movePksiTempFilesToPermanent(createdPksi.id, sessionIdRef.current);
+          for (const pending of pendingFiles) {
+            await uploadPksiFiles(createdPksi.id, [pending.file], 'T01', pending.tanggal || undefined);
+          }
         } catch (uploadError) {
-          console.error("Error moving files to permanent storage:", uploadError);
-          // PKSI created but files failed - show warning but don't fail
-          setSuccessMessage("PKSI berhasil ditambahkan! (Namun ada error saat memindahkan file)");
+          console.error("Error uploading files:", uploadError);
+          setSuccessMessage("PKSI berhasil ditambahkan! (Namun ada error saat upload file)");
           setErrorMessage("");
           setTimeout(() => {
             resetForm();
@@ -756,15 +675,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
     }
   };
 
-  const handleClose = async () => {
-    // Clean up temp files if user cancels
-    if (uploadedFileData.length > 0) {
-      try {
-        await deletePksiTempFiles(sessionIdRef.current);
-      } catch (error) {
-        console.error("Error cleaning up temp files:", error);
-      }
-    }
+  const handleClose = () => {
     resetForm();
     onClose();
   };
@@ -1350,7 +1261,7 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                 {pendingFiles.length > 0 && (
                   <Box>
                     <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600, color: '#1d1d1f' }}>
-                      File akan diupload ({pendingFiles.length})
+                      File akan diupload saat submit ({pendingFiles.length})
                     </Typography>
                     <Stack spacing={1.5}>
                       {pendingFiles.map((pending, index) => (
@@ -1383,81 +1294,6 @@ const AddPksiModal = ({ open, onClose, onSuccess }: AddPksiModalProps) => {
                         </Box>
                       ))}
                     </Stack>
-                    <Button
-                      variant="contained"
-                      fullWidth
-                      onClick={handleUploadPendingFiles}
-                      disabled={isUploading}
-                      startIcon={isUploading ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <CloudUploadIcon />}
-                      sx={{ mt: 1.5, background: 'linear-gradient(135deg, #DA251C 0%, #FF4D45 100%)', '&:hover': { background: 'linear-gradient(135deg, #B91C14 0%, #D83A32 100%)' } }}
-                    >
-                      {isUploading ? 'Mengupload...' : `Upload ${pendingFiles.length} File`}
-                    </Button>
-                  </Box>
-                )}
-
-                {uploadedFileData.length > 0 && (
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#1d1d1f' }}>
-                      File yang diupload ({uploadedFileData.length})
-                    </Typography>
-                    <List sx={{ bgcolor: 'rgba(245, 245, 247, 0.8)', borderRadius: '12px' }}>
-                      {uploadedFileData.map((fileData, index) => (
-                        <ListItem
-                          key={fileData.id || index}
-                          sx={{
-                            borderBottom: index < uploadedFileData.length - 1 ? '1px solid #e5e5e7' : 'none',
-                          }}
-                        >
-                          <ListItemIcon>
-                            <FileIcon sx={{ color: '#DA251C' }} />
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={fileData.original_name}
-                            secondary={`${formatFileSize(fileData.file_size)}${fileData.tanggal_dokumen ? ` • Tgl. Dok: ${new Date(fileData.tanggal_dokumen).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
-                            primaryTypographyProps={{ sx: { fontWeight: 500, color: '#1d1d1f' } }}
-                            secondaryTypographyProps={{ sx: { color: '#86868b' } }}
-                          />
-                          <ListItemSecondaryAction sx={{ display: 'flex', gap: 0.5 }}>
-                            {isPreviewable(fileData.content_type) && (
-                              <IconButton
-                                edge="end"
-                                size="small"
-                                onClick={() => handlePreview(fileData)}
-                                sx={{ color: '#0891B2', '&:hover': { bgcolor: 'rgba(8, 145, 178, 0.1)' } }}
-                                title="Preview"
-                              >
-                                <VisibilityIcon fontSize="small" />
-                              </IconButton>
-                            )}
-                            <IconButton
-                              edge="end"
-                              size="small"
-                              onClick={() => handleDownload(fileData)}
-                              disabled={downloadingFileId === fileData.id}
-                              sx={{ color: '#059669', '&:hover': { bgcolor: 'rgba(5, 150, 105, 0.1)' } }}
-                              title="Download"
-                            >
-                              {downloadingFileId === fileData.id ? (
-                                <CircularProgress size={18} sx={{ color: '#059669' }} />
-                              ) : (
-                                <DownloadIcon fontSize="small" />
-                              )}
-                            </IconButton>
-                            <IconButton
-                              edge="end"
-                              size="small"
-                              onClick={() => handleRemoveFile(index)}
-                              disabled={isUploading}
-                              sx={{ color: '#86868b', '&:hover': { color: '#DA251C' } }}
-                              title="Hapus"
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </ListItemSecondaryAction>
-                        </ListItem>
-                      ))}
-                    </List>
                   </Box>
                 )}
               </Stack>
